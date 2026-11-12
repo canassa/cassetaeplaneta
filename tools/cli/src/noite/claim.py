@@ -26,7 +26,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-from noite import check, paths, units
+from noite import check, paths, types, units
 from noite.db import DONE, Status, UnitStatus, now, tx
 
 DB_REL = "db/port.sqlite"
@@ -224,19 +224,33 @@ def start(
         _unclaim(conn, unit, to=Status.PENDING, unit_status=UnitStatus.PENDING, note=None)
         raise
     funcs = conn.execute("SELECT * FROM functions WHERE unit = ? ORDER BY addr", (unit,)).fetchall()
-    write_reference(wt, funcs)
+    write_reference(wt, funcs, conn)
     return Started(unit, agent, wt, branch, u["path"], funcs)
 
 
-def write_reference(wt: Path, funcs: list[sqlite3.Row]) -> Path:
-    """Drop each function's Ghidra snapshot under ``.ref/`` (git-ignored)."""
+# Sourced in a worktree: reuse the main checkout's venv instead of building one per
+# worktree (NO_SYNC keeps uv from re-pointing its editable install at the worktree),
+# and silence nix's "Git tree is dirty" warning.
+ENV_SH = """export UV_PROJECT_ENVIRONMENT={venv}
+export UV_NO_SYNC=1
+export NIX_CONFIG="warn-dirty = false"
+"""
+
+
+def write_reference(wt: Path, funcs: list[sqlite3.Row], conn: sqlite3.Connection) -> Path:
+    """Drop each function's Ghidra snapshot under ``.ref/`` (git-ignored), plus
+    ``types.md``: the layouts of the structs and the globals the unit touches."""
     ref = wt / ".ref"
     ref.mkdir(exist_ok=True)
     for f in funcs:
+        fstructs, fglobs = types.for_functions(conn, [f["addr"]])
         body = [
             f"// {f['addr']} {f['name']}  [{f['kind']}, {f['status']}]",
             f"// {f['signature'] or ''}",
         ]
+        if fstructs or fglobs:
+            names = [*fstructs, *(g["name"] for g in fglobs)]
+            body.append(f"// types: {', '.join(names)}  (layouts in types.md)")
         if f["plate"]:
             body += ["/*", f["plate"], "*/"]
         body += [
@@ -248,6 +262,15 @@ def write_reference(wt: Path, funcs: list[sqlite3.Row]) -> Path:
             "",
         ]
         (ref / f"{f['addr'].replace(':', '_')}_{f['name']}.c").write_text("\n".join(body))
+    structs, globs = types.for_functions(conn, [f["addr"] for f in funcs])
+    doc = ["# Types touched by this unit", "", "Ghidra snapshot; offsets and sizes in bytes.", ""]
+    if globs:
+        doc += ["## Globals", "", "```c", *(types.render_global(g) for g in globs), "```", ""]
+    for name in structs:
+        row = conn.execute("SELECT * FROM structs WHERE name = ?", (name,)).fetchone()
+        doc += [f"## {name}", "", "```c", types.render_struct(row), "```", ""]
+    (ref / "types.md").write_text("\n".join(doc))
+    (ref / "env.sh").write_text(ENV_SH.format(venv=paths.repo_root(wt) / ".venv"))
     return ref
 
 

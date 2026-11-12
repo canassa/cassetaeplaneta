@@ -147,6 +147,21 @@ MIGRATIONS: list[str] = [
         value TEXT
     );
     """,
+    """
+    ALTER TABLE globals ADD COLUMN size INTEGER;
+    CREATE TABLE function_structs (
+        func   TEXT NOT NULL,
+        name   TEXT NOT NULL,
+        PRIMARY KEY (func, name)
+    );
+    CREATE INDEX idx_function_structs_name ON function_structs(name);
+    CREATE TABLE function_globals (
+        func   TEXT NOT NULL,
+        global TEXT NOT NULL,          -- globals.addr
+        PRIMARY KEY (func, global)
+    );
+    CREATE INDEX idx_function_globals_global ON function_globals(global);
+    """,
 ]
 
 

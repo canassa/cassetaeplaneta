@@ -15,6 +15,7 @@ noite unit …              create units and assign functions
 
 from __future__ import annotations
 
+import re
 import sqlite3
 import subprocess
 import sys
@@ -25,8 +26,8 @@ from typing import Annotated
 import typer
 
 from noite import check as checkmod
-from noite import claim, importer, paths, units
-from noite.db import Status, UnitKind, connect, find_function, tx
+from noite import claim, importer, paths, types, units
+from noite.db import Status, UnitKind, connect, find_function, norm_addr, tx
 
 app = typer.Typer(name="noite", help=__doc__, no_args_is_help=True, add_completion=False)
 unit_app = typer.Typer(help="Port units: one Zig file each.", no_args_is_help=True)
@@ -98,7 +99,8 @@ def import_cmd(
         _die(str(e))
     typer.echo(
         f"imported {res.functions} functions ({res.new} new, {res.gone} gone), "
-        f"{res.callees} call edges, {res.structs} structs, {res.globals} globals; "
+        f"{res.callees} call edges, {res.structs} structs, {res.globals} globals "
+        f"({res.struct_refs} struct and {res.global_refs} global references); "
         f"seeded {res.handler_units} handler units"
     )
     typer.echo("kinds: " + ", ".join(f"{k} {n}" for k, n in res.kinds.most_common()))
@@ -154,12 +156,19 @@ def status(
 
 @app.command()
 def show(
-    fn: Annotated[str, typer.Argument(help="Address (1010:0c80) or exact Ghidra name.")],
+    fn: Annotated[
+        str,
+        typer.Argument(
+            help="Function address (1010:0c80) or name, or a struct or global name/address."
+        ),
+    ],
     asm: Annotated[bool, typer.Option("--asm", help="Also print the disassembly.")] = False,
 ) -> None:
-    """One function: tracking row, callers/callees, plate and decompilation."""
+    """One function (tracking row, callers/callees, decompilation), or a struct or global."""
     conn = _db()
     f = find_function(conn, fn)
+    if f is None and _show_type(conn, fn):
+        return
     if f is None:
         like = conn.execute(
             "SELECT addr, name FROM functions WHERE name LIKE ? ORDER BY addr LIMIT 20",
@@ -209,6 +218,43 @@ def show(
     typer.echo(f["decompile"] or "\n// (no decompilation stored)")
     if asm:
         typer.echo(f["disasm"] or "")
+
+
+def _show_type(conn: sqlite3.Connection, ref: str) -> bool:
+    """Print a struct's layout or a global's declaration, with the functions using it."""
+    st = conn.execute("SELECT * FROM structs WHERE name = ?", (ref,)).fetchone()
+    addr = norm_addr(ref)
+    globs = conn.execute(
+        "SELECT * FROM globals WHERE name = ? OR addr = ?", (ref, addr or ref)
+    ).fetchall()
+    if st is None and not globs:
+        return False
+
+    def users(sql: str, key: str) -> None:
+        rows = conn.execute(sql, (key,)).fetchall()
+        if rows:
+            typer.echo(f"  used by {len(rows)}: " + ", ".join(f"{r['name']}" for r in rows[:30]))
+            if len(rows) > 30:
+                typer.echo(f"    … +{len(rows) - 30} more")
+
+    if st is not None:
+        typer.echo(types.render_struct(st))
+        users(
+            "SELECT f.name FROM function_structs s JOIN functions f ON f.addr = s.func "
+            "WHERE s.name = ? ORDER BY f.addr",
+            ref,
+        )
+    for g in globs:
+        typer.echo(types.render_global(g))
+        users(
+            "SELECT f.name FROM function_globals s JOIN functions f ON f.addr = s.func "
+            "WHERE s.global = ? ORDER BY f.addr",
+            g["addr"],
+        )
+        nested = types.closure(conn, [n for n in re.findall(r"[A-Za-z_]\w*", g["type"] or "")])
+        if nested:
+            typer.echo(f"  type layouts: noite show {nested[0]}")
+    return True
 
 
 @app.command()
@@ -296,7 +342,10 @@ def start(
     typer.echo(f"claimed {s.unit} as {s.agent}")
     typer.echo(f"  worktree  {s.worktree}  (branch {s.branch})")
     typer.echo(f"  unit file {s.path}")
-    typer.echo(f"  reference {s.worktree / '.ref'}  (decompile + disasm per function)")
+    typer.echo(f"  reference {s.worktree / '.ref'}  (decompile + disasm per function, types.md)")
+    typer.echo(
+        f"  env       source {s.worktree / '.ref' / 'env.sh'}  (shared venv, no nix dirty warning)"
+    )
     typer.echo("  functions:")
     for f in s.functions:
         typer.echo(f"    {f['addr']} {f['name']} [{f['kind']}, {f['status']}]")
@@ -386,7 +435,8 @@ def check(
         typer.echo(f"error: {e}")
     tested = Counter(rep.tested.values())
     typer.echo(
-        f"{sum(len(v) for v in rep.code_tags.values())} code tags, "
+        ("check ok: " if rep.ok else "check FAILED: ")
+        + f"{sum(len(v) for v in rep.code_tags.values())} code tags, "
         f"{len(rep.tested)} tested functions"
         + (" (" + ", ".join(f"{k.value} {n}" for k, n in tested.items()) + ")" if tested else "")
         + f"; {len(rep.errors)} errors, {len(rep.warnings)} warnings"
@@ -406,29 +456,51 @@ def check(
 _FORBIDDEN = ("-Doptimize=Release", "-fllvm", "-flld", "--release")
 
 
-def _zig(work: str | None, args: list[str]) -> None:
+def _zig(work: str | None, args: list[str], what: str) -> None:
     bad = [a for a in args if a.startswith(_FORBIDDEN)]
     if bad:
         _die(f"{' '.join(bad)}: the port builds in Debug with the self-hosted backend only")
     root = _tree(work)
+    # Zig is silent on success; ask for its summary so we can report one line.
+    quiet = not any(a.startswith("--summary") for a in args)
+    cmd = ["zig", "build", *args, *(["--summary", "all"] if quiet else [])]
     try:
-        code = subprocess.call(["zig", "build", *args], cwd=root)
+        p = subprocess.run(cmd, cwd=root, capture_output=quiet, text=True)
     except FileNotFoundError:
         _die("zig not on PATH — run inside the dev shell (`nix develop` / direnv)")
         return
-    raise typer.Exit(code)
+    if quiet:
+        out = p.stdout + p.stderr
+        if p.returncode != 0:
+            typer.echo(out, nl=False, err=True)
+            typer.echo(f"{what} FAILED (exit {p.returncode})", err=True)
+        else:
+            typer.echo(_zig_summary(out, what))
+    raise typer.Exit(p.returncode)
+
+
+def _zig_summary(out: str, what: str) -> str:
+    """One line from `zig build --summary all` output."""
+    m = re.search(r"(\d+)/(\d+) tests passed", out)
+    if m:
+        return f"{what} ok: {m.group(1)}/{m.group(2)} tests passed"
+    m = re.search(r"(\d+)/(\d+) steps succeeded(?: \((\d+) cached\))?", out)
+    if m:
+        cached = f", {m.group(3)} cached" if m.group(3) else ""
+        return f"{what} ok: {m.group(1)}/{m.group(2)} steps succeeded{cached}"
+    return f"{what} ok"
 
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def build(ctx: typer.Context, work: WorkOpt = None) -> None:
     """`zig build` in the current tree (or UNIT's worktree with -w); extra args pass through."""
-    _zig(work, list(ctx.args))
+    _zig(work, list(ctx.args), "build")
 
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def test(ctx: typer.Context, work: WorkOpt = None) -> None:
     """`zig build test` in the current tree (or UNIT's worktree with -w)."""
-    _zig(work, ["test", *ctx.args])
+    _zig(work, ["test", *ctx.args], "test")
 
 
 # --------------------------------------------------------------------------- #

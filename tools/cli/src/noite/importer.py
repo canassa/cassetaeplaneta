@@ -14,10 +14,11 @@ from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from noite import units
+from noite import types, units
 from noite.classify import class_names, classify, initial_status
 from noite.db import Kind, now, tx
 from noite.ghidra import FunctionInfo, Source
+from noite.types import type_size
 
 
 @dataclass(frozen=True)
@@ -28,6 +29,8 @@ class ImportResult:
     callees: int
     structs: int
     globals: int
+    struct_refs: int
+    global_refs: int
     handler_units: int
     kinds: Counter[str]
 
@@ -76,6 +79,7 @@ def run(
             r["name"] for r in conn.execute("SELECT name FROM structs").fetchall()
         )
 
+    sizes = {s.name: s.size for s in structs}
     stamp = now()
     kinds: Counter[str] = Counter()
     n_callees = 0
@@ -123,9 +127,11 @@ def run(
             )
             conn.execute("DELETE FROM globals")
             conn.executemany(
-                "INSERT OR REPLACE INTO globals (addr, name, type, xrefs) VALUES (?, ?, ?, ?)",
-                [(g.addr, g.name, g.type, g.xrefs) for g in globs],
+                "INSERT OR REPLACE INTO globals (addr, name, type, size, xrefs) "
+                "VALUES (?, ?, ?, ?, ?)",
+                [(g.addr, g.name, g.type, type_size(g.type, sizes), g.xrefs) for g in globs],
             )
+        n_srefs, n_grefs = types.compute_refs(conn)
         conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('imported_at', ?)", (stamp,))
         seeded = units.seed_handlers(conn)
 
@@ -136,6 +142,8 @@ def run(
         callees=n_callees,
         structs=len(structs),
         globals=len(globs),
+        struct_refs=n_srefs,
+        global_refs=n_grefs,
         handler_units=seeded,
         kinds=kinds,
     )

@@ -54,7 +54,7 @@ def test_start_release_failed(setup: tuple[sqlite3.Connection, Path]) -> None:
         claim.start(conn, repo, "middle", "a1")
     s = claim.start(conn, repo, "leaves", "a1")
     assert s.worktree == repo / "work" / "leaves" and (s.worktree / "src/leaves.zig").exists()
-    assert len(list((s.worktree / ".ref").iterdir())) == 2
+    assert len(list((s.worktree / ".ref").glob("*.c"))) == 2
     assert git(s.worktree, "branch", "--show-current").strip() == "port/leaves"
     st = dict(conn.execute("SELECT addr, status FROM functions WHERE unit = 'leaves'").fetchall())
     assert set(st.values()) == {"in_progress"}
