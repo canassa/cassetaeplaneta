@@ -34,3 +34,6 @@ zig-out/
 
 # Port tracker DB (local; rebuild with `noite import`)
 db/*.sqlite*
+
+# Saved games written by the port (platform save dir)
+/save/

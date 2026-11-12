@@ -23,6 +23,10 @@
             # .python-version). Run the tracker as `uv run noite …`.
             pkgs.uv
             pkgs.sqlite
+            # The port's platform layer (src/platform/sdl.zig): SDL3, found
+            # through pkg-config. Declared by hand in Zig (no translate-c).
+            pkgs.sdl3
+            pkgs.pkg-config
           ];
 
           # One global Zig cache for this project only, shared by every
