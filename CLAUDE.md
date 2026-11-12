@@ -80,10 +80,11 @@ copy is ever opened, and `noite snapshot` commits it safely while agents run.
   on Microsoft's WinG sample skeleton (`AppWndProc`, `AppAbout`). Code uses
   386 instructions (`ENTER`/`LEAVE`, `66`-prefixed `PUSH imm32`, `dword` moves).
 - **Segments:** Ghidra maps NE segment *n* to `0x1000 + (n-1)*8`.
-  - `1000` — **USE32 segment** (32-bit code, the `transrle.cpp` RLE blitter).
-    Ghidra decodes it as 16-bit, so its listing is garbage (`PUSH EBP`,
-    `MOVZX BP,SP`, stray `ADD byte ptr [BX+SI],AL`). Do not type or rename
-    anything there from the 16-bit view.
+  - `1000` — the `transrle.cpp` blitters: each routine starts with a 16-bit
+    mode check and, on first entry, switches its own segment to 32-bit via
+    DPMI; the rest runs as 32-bit code. Ghidra decodes it all as 16-bit, so
+    past the prologue its listing is garbage. Read it with `objdump -mi386`
+    (or run it in `tools/oracle`); don't type it in Ghidra.
   - `1008` — MSVC C runtime + startup (`entry` at `1008:001a`).
   - `1010`–`1028` — game code. `1030`–`1048` — tiny BSS segments.
   - `1050` — DGROUP (DS). `1108` — import thunks (one 4-byte stub per API).
