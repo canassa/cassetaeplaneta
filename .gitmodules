@@ -1,0 +1,4 @@
+[submodule "toolchain/ghidra-mcp"]
+	path = toolchain/ghidra-mcp
+	url = https://github.com/bethington/ghidra-mcp.git
+	branch = dev
