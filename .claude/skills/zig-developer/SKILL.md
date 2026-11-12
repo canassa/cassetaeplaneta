@@ -78,7 +78,8 @@ These are invariants, not style preferences. Flag violations in review.
   write one, its expected values must not come from your own reading of the
   decompile: use the real `assets/`, facts documented in Ghidra (constants, RNG
   sequence, grid sizes), or `tools/oracle` (runs the original function) when
-  cheap. Tag each test `// @orig <seg:off>`.
+  cheap. Tag each test `// @orig <seg:off> <name> oracle=<kind>` (kind:
+  `emulated`, `asset`, `documented` or `trace`); `noite check` reads it.
 
 ## Naming
 
@@ -89,10 +90,10 @@ the `@orig` tags, not in Zig identifiers — translate `scene_object_get_x` to
 
 ## Toolchain
 
-Zig **0.17.0**, to be pinned through `flake.nix` (`github:mitchellh/zig-overlay`)
-the same way as the beni project; until the port skeleton exists there is no
-`flake.nix` or `build.zig` yet. `zig fmt` before committing; `zig build test`
-must pass.
+Zig **0.17.0**, pinned in `flake.nix` (`github:mitchellh/zig-overlay`; direnv
+`use flake` or `nix develop`). Work goes through the `noite` tracker
+(`CLAUDE.md` → Port tracker): claim a unit, port it in its worktree, `noite
+finish`. `zig fmt` before committing; `zig build test` must pass.
 
 **Always build Debug with the self-hosted backend.** Never pass `-Doptimize=Release*`,
 `-fllvm` or set `use_llvm = true` — the LLVM backend is far too slow to iterate with.

@@ -20,8 +20,58 @@ Reverse-engineering the 1995 ATR Multimedia point-and-click adventure
   `.mcp.json`). It relays to the plugin's HTTP server on `:8089` inside the
   Ghidra GUI (Tools → GhidraMCP → Start MCP Server).
 
+- `flake.nix` — dev shell (`use flake` via direnv, or `nix develop`): Zig
+  0.17.0, uv, sqlite. Python is uv-managed (`.python-version`).
+- `build.zig`, `src/` — the Zig port. `src/units.zig` is generated.
+- `tools/cli/` — the `noite` port tracker (uv workspace member);
+  `db/port.sqlite` — its database (committed).
+
 The game logic lives in `CASSETA.INI` (scenes, exits, hotspots, portable items,
 WAVE cues) and `JOGO*.INI` (save slots); the EXE is the engine that interprets it.
+
+## Port tracker (`uv run noite …`)
+
+`db/port.sqlite` holds every NOITE.EXE function (Ghidra snapshot: signature,
+plate, decompile, disassembly, callees) plus tracking: `kind`, `status`
+(`pending`, `in_progress`, `ported`, `failed`; `absorbed` = thunk/default
+stub/type test, `replaced` = CRT/API, `dead`), `unit`, `tested`. A **unit** is
+one Zig file (module, behaviour or scene handler) owning a set of functions.
+
+```
+noite import                 # refresh from Ghidra (needs the MCP bridge; keeps tracking)
+noite status [--segments]    # counts by status / kind / segment, units
+noite show <addr|name>       # row, callers/callees, decompile (--asm) — no Ghidra needed
+noite mark <fn…> -s dead     # fix a status by hand (--by <addr> for absorbed)
+noite unit new <name> -k module|behaviour|handler [--path src/x.zig] [--notes …]
+noite unit add <unit> <fn…> [--match 'backdrop_*'] [--move];  unit rm <fn…>
+noite unit show <unit> / unit list / unit sync   # sync: stubs + src/units.zig (main only)
+noite check [-w <unit>] [--fix-status]           # @orig tags vs the DB
+noite build|test [-w <unit>] [zig args]          # zig build [test]; Debug, self-hosted only
+```
+
+Workflow (one agent per unit, any number in parallel):
+
+1. `noite next` — units whose callees outside the unit are all done
+   (`--blocked` says what blocks the rest).
+2. `noite start <unit>` — atomic claim; makes worktree `work/<unit>/` on
+   branch `port/<unit>`, with each function's snapshot in `work/<unit>/.ref/`.
+3. In the worktree, write the unit's file only: one
+   `// @orig <seg:off> <name>` per function (`(absorbed)` for stubs it
+   absorbs); tests optional for now — tag them with
+   `// @orig <seg:off> <name> oracle=emulated|asset|documented|trace`.
+   `noite test`, commit (commit skill).
+4. `noite finish <unit>` (run it from the main checkout) — rebases on main,
+   gates (`zig fmt --check`, `zig build`, `zig build test`, `noite check`,
+   every unit function tagged, no files of other units / `db/` /
+   `src/units.zig`), fast-forwards main, marks the functions `ported`,
+   removes the worktree, commits the DB snapshot and pushes.
+   `noite failed <unit> "why"` / `noite release <unit>` give the claim up
+   (`-k` keeps the worktree).
+
+Units are created on main during the design pass (`unit new` + `unit add`,
+then `unit sync` and commit); import seeds one unit per `handler_*`. The DB
+is committed so a clone can resume without Ghidra; only the main checkout's
+copy is ever opened, and `noite snapshot` commits it safely while agents run.
 
 ## Binary facts (NOITE.EXE — the minigames share the toolchain)
 
