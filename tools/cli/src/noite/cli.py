@@ -310,14 +310,11 @@ def start(
 def finish(
     unit: str,
     no_push: Annotated[bool, typer.Option("--no-push", help="Don't push main.")] = False,
-    no_snapshot: Annotated[
-        bool, typer.Option("--no-snapshot", help="Don't commit the DB snapshot.")
-    ] = False,
 ) -> None:
     """Rebase UNIT's branch on main, run the gates, fast-forward main, mark ported."""
     conn = _db()
     try:
-        r = claim.finish(conn, paths.repo_root(), unit, push=not no_push, snapshot=not no_snapshot)
+        r = claim.finish(conn, paths.repo_root(), unit, push=not no_push)
     except (claim.ClaimError, units.UnitError) as e:
         _die(str(e))
         return
@@ -365,16 +362,6 @@ def release(
 def path(unit: str) -> None:
     """Print UNIT's worktree path (cd $(uv run noite path UNIT))."""
     typer.echo(paths.worktree_path(paths.repo_root(), unit))
-
-
-@app.command()
-def snapshot(message: Annotated[str, typer.Option("-m")] = "🔧 snapshot the port tracker") -> None:
-    """Commit db/port.sqlite in the main checkout (safe while agents write)."""
-    conn = _db()
-    if claim.commit_snapshot(conn, paths.repo_root(), message):
-        typer.echo("committed db/port.sqlite")
-    else:
-        typer.echo("db/port.sqlite unchanged")
 
 
 # --------------------------------------------------------------------------- #

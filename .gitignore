@@ -32,6 +32,5 @@ zig-out/
 /work/
 .ref/
 
-# SQLite side files of the live tracker DB (db/port.sqlite itself is committed)
-db/*.sqlite-wal
-db/*.sqlite-shm
+# Port tracker DB (local; rebuild with `noite import`)
+db/*.sqlite*

@@ -24,7 +24,7 @@ Reverse-engineering the 1995 ATR Multimedia point-and-click adventure
   0.17.0, uv, sqlite. Python is uv-managed (`.python-version`).
 - `build.zig`, `src/` — the Zig port. `src/units.zig` is generated.
 - `tools/cli/` — the `noite` port tracker (uv workspace member);
-  `db/port.sqlite` — its database (committed).
+  `db/port.sqlite` — its database (local, not in git; `noite import` builds it).
 
 The game logic lives in `CASSETA.INI` (scenes, exits, hotspots, portable items,
 WAVE cues) and `JOGO*.INI` (save slots); the EXE is the engine that interprets it.
@@ -64,14 +64,14 @@ Workflow (one agent per unit, any number in parallel):
    gates (`zig fmt --check`, `zig build`, `zig build test`, `noite check`,
    every unit function tagged, no files of other units / `db/` /
    `src/units.zig`), fast-forwards main, marks the functions `ported`,
-   removes the worktree, commits the DB snapshot and pushes.
+   removes the worktree and pushes.
    `noite failed <unit> "why"` / `noite release <unit>` give the claim up
    (`-k` keeps the worktree).
 
 Units are created on main during the design pass (`unit new` + `unit add`,
 then `unit sync` and commit); import seeds one unit per `handler_*`. The DB
-is committed so a clone can resume without Ghidra; only the main checkout's
-copy is ever opened, and `noite snapshot` commits it safely while agents run.
+is local to the main checkout (worktrees open the main checkout's copy) and
+is not in git.
 
 ## Binary facts (NOITE.EXE — the minigames share the toolchain)
 

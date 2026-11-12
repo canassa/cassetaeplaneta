@@ -108,7 +108,7 @@ def test_finish(setup: tuple[sqlite3.Connection, Path], monkeypatch: pytest.Monk
     git(wt, "commit", "-qam", "port leaf_a")
 
     with pytest.raises(claim.ClaimError, match="1010:0200 leaf_b"):
-        claim.finish(conn, repo, "leaves", push=False, snapshot=False)
+        claim.finish(conn, repo, "leaves", push=False)
 
     (wt / "src/leaves.zig").write_text(
         "// @orig 1010:0100 leaf_a\npub fn a() void {}\n"
@@ -121,7 +121,7 @@ def test_finish(setup: tuple[sqlite3.Connection, Path], monkeypatch: pytest.Monk
     git(repo, "add", "README")
     git(repo, "commit", "-qm", "unrelated")
 
-    r = claim.finish(conn, repo, "leaves", push=False, snapshot=True)
+    r = claim.finish(conn, repo, "leaves", push=False)
     assert sorted(r.ported) == ["1010:0100", "1010:0200"] and r.commits == 2
     assert ["zig", "build", "test"] in gates
     assert "@orig 1010:0200" in (repo / "src/leaves.zig").read_text()
@@ -134,7 +134,6 @@ def test_finish(setup: tuple[sqlite3.Connection, Path], monkeypatch: pytest.Monk
     assert rows == {"1010:0100": "ported/none", "1010:0200": "ported/asset"}
     assert units.get(conn, "leaves")["status"] == "done"
     assert ready(conn) == ["middle"]
-    assert "record leaves as ported" in git(repo, "log", "-1", "--format=%s")
 
 
 def test_finish_rejects_foreign_files(
@@ -146,4 +145,4 @@ def test_finish_rejects_foreign_files(
     (s.worktree / "src/middle.zig").write_text("// mine now\n")
     git(s.worktree, "commit", "-qam", "touch another unit")
     with pytest.raises(claim.ClaimError, match="owned by unit middle"):
-        claim.finish(conn, repo, "leaves", push=False, snapshot=False)
+        claim.finish(conn, repo, "leaves", push=False)

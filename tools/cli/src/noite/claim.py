@@ -338,9 +338,7 @@ def check_ownership(conn: sqlite3.Connection, unit: str, files: list[str]) -> li
     return bad
 
 
-def finish(
-    conn: sqlite3.Connection, root: Path, unit: str, *, push: bool = True, snapshot: bool = True
-) -> Finished:
+def finish(conn: sqlite3.Connection, root: Path, unit: str, *, push: bool = True) -> Finished:
     u = _require_claimed(conn, unit)
     wt = paths.worktree_path(root, unit)
     if not wt.is_dir():
@@ -406,23 +404,6 @@ def finish(
         remove_worktree(root, unit)
 
         pushed: bool | None = None
-        if snapshot:
-            commit_snapshot(conn, root, f"🔧 record {unit} as ported in the tracker")
         if push and git(root, "remote", check_=False).stdout.strip():
             pushed = git(root, "push", check_=False).returncode == 0
     return Finished(unit, ported, commits, pushed, unit_warnings)
-
-
-def commit_snapshot(conn: sqlite3.Connection, root: Path, message: str) -> bool:
-    """Commit the tracker DB as it stands. The WAL is folded in first, then a write
-    lock is held while git reads the file, so no checkpoint can tear it."""
-    conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-    conn.execute("BEGIN IMMEDIATE")
-    try:
-        git(root, "add", DB_REL)
-        if git(root, "diff", "--cached", "--quiet", "--", DB_REL, check_=False).returncode == 0:
-            return False
-        git(root, "commit", "-q", "-m", message, "--", DB_REL)
-        return True
-    finally:
-        conn.execute("ROLLBACK")
