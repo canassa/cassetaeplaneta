@@ -23,6 +23,8 @@
             # .python-version). Run the tracker as `uv run noite …`.
             pkgs.uv
             pkgs.sqlite
+            # For one-off scripts and `tools/oracle` (Unicorn).
+            (pkgs.python3.withPackages (ps: [ ps.unicorn ]))
             # The port's platform layer (src/platform/sdl.zig): SDL3, found
             # through pkg-config. Declared by hand in Zig (no translate-c).
             pkgs.sdl3

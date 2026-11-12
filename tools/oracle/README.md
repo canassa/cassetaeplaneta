@@ -14,10 +14,11 @@ Unicorn in 16-bit protected mode plus our own NE loader (`noiteemu.py`):
 - segment 1000 starts 16-bit and switches itself to 32-bit via DPMI
   (`INT 31h` 000B/000C emulated).
 
+In the dev shell (`nix develop`, which provides Python with Unicorn):
+
 ```sh
-SH="nix shell --impure --expr 'with import <nixpkgs> {}; python3.withPackages (p: [p.unicorn])' -c"
-$SH python3 -I oracle.py 1008:35fa 's:  -123456' --cdecl          # atol → dxax
-$SH python3 -I poc_tests.py "$PWD"                                 # 37 checks
+python3 -I oracle.py 1008:35fa 's:  -123456' --cdecl          # atol → dxax
+python3 -I poc_tests.py "$PWD"                                 # 37 checks
 ```
 
 Options: `--stub DLL.ord:argbytes:ret`, `--read SEL:OFF:LEN`, `--mem SEL:OFF=HEX`.
