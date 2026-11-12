@@ -10,7 +10,8 @@ the worktree.
 
 A unit is *ready* when every function its functions call (outside the unit)
 is ported, absorbed, replaced or dead. A call to an absorbed thunk counts as a
-call to the thunk's target.
+call to the thunk's target. It must also have every unit in ``unit_deps`` (virtual
+calls, see ``deps``) done.
 """
 
 from __future__ import annotations
@@ -23,10 +24,10 @@ import sqlite3
 import subprocess
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
-from noite import check, paths, types, units
+from noite import check, deps, paths, types, units
 from noite.db import DONE, Status, UnitStatus, now, tx
 
 DB_REL = "db/port.sqlite"
@@ -94,6 +95,7 @@ class UnitState:
     todo: int  # functions still to port (pending/failed/in_progress)
     total: int
     blockers: list[Blocker]
+    dep_blockers: list[str] = field(default_factory=list)  # units it depends on, not done
 
     @property
     def ready(self) -> bool:
@@ -101,17 +103,27 @@ class UnitState:
             self.status in (UnitStatus.PENDING, UnitStatus.FAILED)
             and self.todo > 0
             and not self.blockers
+            and not self.dep_blockers
         )
 
 
-def unit_state(conn: sqlite3.Connection, u: sqlite3.Row) -> UnitState:
+def unit_state(conn: sqlite3.Connection, u: sqlite3.Row, done: set[str] | None = None) -> UnitState:
     rows = conn.execute("SELECT status FROM functions WHERE unit = ?", (u["name"],)).fetchall()
     todo = sum(r["status"] in (Status.PENDING, Status.FAILED, Status.IN_PROGRESS) for r in rows)
-    return UnitState(u["name"], u["kind"], u["status"], todo, len(rows), blockers(conn, u["name"]))
+    return UnitState(
+        u["name"],
+        u["kind"],
+        u["status"],
+        todo,
+        len(rows),
+        blockers(conn, u["name"]),
+        deps.dep_blockers(conn, u["name"], done),
+    )
 
 
 def unit_states(conn: sqlite3.Connection) -> list[UnitState]:
-    return [unit_state(conn, u) for u in conn.execute("SELECT * FROM units ORDER BY name")]
+    done = deps.done_units(conn)
+    return [unit_state(conn, u, done) for u in conn.execute("SELECT * FROM units ORDER BY name")]
 
 
 # --------------------------------------------------------------------------- #
@@ -198,6 +210,12 @@ def start(
                 for b in state.blockers
             )
             raise ClaimError(f"unit {unit} is not ready; it calls unported functions:\n  {listed}")
+        if state.dep_blockers and not force:
+            raise ClaimError(
+                f"unit {unit} is not ready; it depends on units not done: "
+                + ", ".join(state.dep_blockers)
+                + " (`noite unit dep show`)"
+            )
         stamp = now()
         conn.execute(
             "UPDATE units SET status = 'in_progress', agent_id = ?, started_at = ?, "

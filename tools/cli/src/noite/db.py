@@ -162,6 +162,17 @@ MIGRATIONS: list[str] = [
     );
     CREATE INDEX idx_function_globals_global ON function_globals(global);
     """,
+    """
+    CREATE TABLE unit_deps (
+        unit       TEXT NOT NULL REFERENCES units(name) ON DELETE CASCADE,
+        depends_on TEXT NOT NULL REFERENCES units(name) ON DELETE CASCADE,
+        source     TEXT NOT NULL CHECK (source IN ('auto', 'manual')),
+        note       TEXT,
+        PRIMARY KEY (unit, depends_on),
+        CHECK (unit <> depends_on)
+    );
+    CREATE INDEX idx_unit_deps_on ON unit_deps(depends_on);
+    """,
 ]
 
 

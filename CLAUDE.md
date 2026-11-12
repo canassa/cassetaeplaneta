@@ -48,6 +48,9 @@ noite mark <fn…> -s dead     # fix a status by hand (--by <addr> for absorbed)
 noite unit new <name> -k module|behaviour|handler [--path src/x.zig] [--notes …]
 noite unit add <unit> <fn…> [--match 'backdrop_*'] [--move];  unit rm <fn…>
 noite unit show <unit> / unit list / unit sync   # sync: stubs + src/units.zig (main only)
+noite unit dep add|rm <unit> <on> [--note] / dep show <unit> / dep cycles
+noite unit dep infer         # virtual-slot deps (auto; keeps manual) from the decompile/asm +
+                             # DESIGN.md slot table + noite/deps.py (other vtables); rerun after import
 noite check [-w <unit>] [--fix-status]           # @orig tags vs the DB
 noite build|test [-w <unit>] [zig args]          # zig build [test]; Debug, self-hosted only;
                                                  # prints one line (tests passed / steps)
@@ -55,8 +58,9 @@ noite build|test [-w <unit>] [zig args]          # zig build [test]; Debug, self
 
 Workflow (one agent per unit, any number in parallel):
 
-1. `noite next` — units whose callees outside the unit are all done
-   (`--blocked` says what blocks the rest).
+1. `noite next` — units whose callees outside the unit are all done and
+   whose `unit dep`s (virtual-call owners) are done (`--blocked` says what
+   blocks the rest; units in a dependency cycle are flagged).
 2. `noite start <unit>` — atomic claim; makes worktree `work/<unit>/` on
    branch `port/<unit>`, with each function's snapshot in `work/<unit>/.ref/`
    (`types.md`: layouts of the structs and declarations of the globals the

@@ -26,12 +26,16 @@ from typing import Annotated
 import typer
 
 from noite import check as checkmod
-from noite import claim, importer, paths, types, units
+from noite import claim, deps, importer, paths, types, units
 from noite.db import Status, UnitKind, connect, find_function, norm_addr, tx
 
 app = typer.Typer(name="noite", help=__doc__, no_args_is_help=True, add_completion=False)
 unit_app = typer.Typer(help="Port units: one Zig file each.", no_args_is_help=True)
 app.add_typer(unit_app, name="unit")
+dep_app = typer.Typer(
+    help="Unit dependencies (virtual calls the callee graph cannot see).", no_args_is_help=True
+)
+unit_app.add_typer(dep_app, name="dep")
 
 WorkOpt = Annotated[
     str | None, typer.Option("--work", "-w", help="Operate on the worktree of this unit.")
@@ -298,7 +302,8 @@ def next_cmd(
         bool, typer.Option("--blocked", help="Also list blocked units and why.")
     ] = False,
 ) -> None:
-    """Units ready to claim: every callee outside the unit is done."""
+    """Units ready to claim: every callee outside the unit is done and every unit it
+    depends on (`noite unit dep show`) is done."""
     conn = _db()
     states = claim.unit_states(conn)
     ready = [s for s in states if s.ready]
@@ -312,16 +317,26 @@ def next_cmd(
         typer.echo("no unit is ready")
     if blocked:
         typer.echo()
+        in_cycle = deps.cycle_members(conn)
         for s in states:
-            if s.blockers and s.status in ("pending", "failed") and s.todo:
-                typer.echo(
-                    f"{s.name}: blocked by "
+            if not (s.status in ("pending", "failed") and s.todo and not s.ready):
+                continue
+            parts = []
+            if s.blockers:
+                parts.append(
+                    "calls "
                     + ", ".join(
                         f"{b.addr} {b.name} [{b.status}, {b.unit or 'no unit'}]"
                         for b in s.blockers[:8]
                     )
                     + (f" … +{len(s.blockers) - 8}" if len(s.blockers) > 8 else "")
                 )
+            if s.dep_blockers:
+                parts.append("depends on units " + ", ".join(s.dep_blockers))
+            cyc = in_cycle(s.name)
+            if cyc:
+                parts.append("in dependency cycle " + " <-> ".join(cyc))
+            typer.echo(f"{s.name}: blocked by " + "; ".join(parts))
 
 
 @app.command()
@@ -586,6 +601,9 @@ def unit_show(unit: str) -> None:
         typer.echo(
             f"blocked by {len(bl)}: " + ", ".join(f"{b.addr} {b.name} [{b.status}]" for b in bl)
         )
+    db = deps.dep_blockers(conn, unit)
+    if db:
+        typer.echo("depends on units not done: " + ", ".join(db))
 
 
 @unit_app.command("list")
@@ -603,7 +621,17 @@ def unit_list(
                 s.kind,
                 s.status,
                 f"{s.total - s.todo}/{s.total}",
-                "yes" if s.ready else ("" if not s.blockers else f"{len(s.blockers)} blockers"),
+                "yes"
+                if s.ready
+                else (
+                    f"{len(s.blockers)} blockers + {len(s.dep_blockers)} units"
+                    if s.blockers and s.dep_blockers
+                    else f"{len(s.blockers)} blockers"
+                    if s.blockers
+                    else f"{len(s.dep_blockers)} units"
+                    if s.dep_blockers
+                    else ""
+                ),
                 agents.get(s.name) or "",
             ]
             for s in states
@@ -622,6 +650,119 @@ def unit_sync() -> None:
     r = units.sync(conn, root)
     typer.echo(
         f"{len(r.stubs)} stubs written; index {'updated' if r.index_changed else 'unchanged'}"
+    )
+
+
+# --------------------------------------------------------------------------- #
+# unit dependencies
+# --------------------------------------------------------------------------- #
+
+
+@dep_app.command("add")
+def dep_add(
+    unit: str,
+    depends_on: str,
+    note: Annotated[str | None, typer.Option(help="Why.")] = None,
+) -> None:
+    """UNIT cannot start until DEPENDS_ON is done (manual; kept by `infer`)."""
+    conn = _db()
+    try:
+        with tx(conn):
+            deps.add(conn, unit, depends_on, note)
+    except deps.DepError as e:
+        _die(str(e))
+    typer.echo(f"{unit} depends on {depends_on}")
+
+
+@dep_app.command("rm")
+def dep_rm(unit: str, depends_on: str) -> None:
+    """Drop a dependency (an `auto` one returns on the next `infer`)."""
+    conn = _db()
+    with tx(conn):
+        gone = deps.remove(conn, unit, depends_on)
+    if not gone:
+        _die(f"{unit} does not depend on {depends_on}")
+    typer.echo(f"removed {unit} -> {depends_on}")
+
+
+@dep_app.command("show")
+def dep_show(unit: str) -> None:
+    """What UNIT depends on, and which units depend on it."""
+    conn = _db()
+    try:
+        units.get(conn, unit)
+    except units.UnitError as e:
+        _die(str(e))
+    done = deps.done_units(conn)
+
+    def rows(items: list[sqlite3.Row], key: str) -> list[list[str]]:
+        return [
+            [r[key], "done" if r[key] in done else "todo", r["source"], r["note"] or ""]
+            for r in items
+        ]
+
+    header = ["unit", "state", "source", "note"]
+    typer.echo(f"{unit} depends on:")
+    _table(rows(deps.deps_of(conn, unit), "depends_on"), header)
+    typer.echo(f"\nunits depending on {unit}:")
+    _table(rows(deps.dependents_of(conn, unit), "unit"), header)
+
+
+@dep_app.command("infer")
+def dep_infer() -> None:
+    """Derive `auto` deps from the virtual slots each function calls (replaces
+    `auto`, keeps `manual`). Slot owners: docs/DESIGN.md + noite/deps.py."""
+    conn = _db()
+    design = paths.repo_root() / "docs" / "DESIGN.md"
+    try:
+        with tx(conn):
+            r = deps.infer(conn, design)
+    except (deps.DepError, OSError) as e:
+        _die(str(e))
+        return
+    typer.echo(
+        f"{r.deps} auto deps from {r.functions} functions with virtual calls "
+        f"({r.kept_manual} already manual; {r.skipped_no_unit} calls from functions with no unit; "
+        f"{r.guessed} raw offsets guessed as SceneObject slots)"
+    )
+    if r.unmapped:
+        typer.echo(f"{len(r.unmapped)} slots with no owning unit (no dep added):")
+        for k, why in sorted(r.unmapped.items()):
+            typer.echo(f"  {k}: {why}")
+    if r.unresolved:
+        typer.echo(
+            f"{len(r.unresolved)} functions call virtual slots whose vtable is unknown "
+            "(offset only; no dep added):"
+        )
+        for addr, offs in sorted(r.unresolved.items())[:20]:
+            typer.echo(f"  {addr}: " + " ".join(f"+{o:#x}" for o in offs))
+        if len(r.unresolved) > 20:
+            typer.echo(f"  … +{len(r.unresolved) - 20}")
+    cyc = deps.cycles(conn)
+    if cyc:
+        typer.echo(f"{len(cyc)} dependency cycles (see `noite unit dep cycles`)")
+
+
+@dep_app.command("cycles")
+def dep_cycles() -> None:
+    """Groups of units that depend on each other (none of them can become ready)."""
+    conn = _db()
+    comps = deps.cycles(conn)
+    if not comps:
+        typer.echo("no dependency cycles")
+        return
+    for i, comp in enumerate(comps, 1):
+        typer.echo(f"cycle {i}: {len(comp)} units: {', '.join(comp)}")
+        q = ",".join("?" * len(comp))
+        for r in conn.execute(
+            f"SELECT * FROM unit_deps WHERE unit IN ({q}) AND depends_on IN ({q}) "
+            "ORDER BY unit, depends_on",
+            [*comp, *comp],
+        ):
+            typer.echo(f"  {r['unit']} -> {r['depends_on']}  [{r['source']}] {r['note'] or ''}")
+    typer.echo(
+        "break one with `noite unit dep rm A B` (a manual dep), or move functions / merge units"
+        " so the auto dep disappears"
     )
 
 
