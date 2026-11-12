@@ -21,8 +21,10 @@ Reverse-engineering the 1995 ATR Multimedia point-and-click adventure
   Ghidra GUI (Tools → GhidraMCP → Start MCP Server).
 
 - `flake.nix` — dev shell (`use flake` via direnv, or `nix develop`): Zig
-  0.17.0, uv, sqlite. Python is uv-managed (`.python-version`).
-- `build.zig`, `src/` — the Zig port. `src/units.zig` is generated.
+  0.17.0, uv, sqlite, SDL3 + pkg-config. Python is uv-managed
+  (`.python-version`).
+- `build.zig`, `src/` — the Zig port; its architecture is `docs/DESIGN.md`.
+  `src/units.zig` is generated.
 - `tools/cli/` — the `noite` port tracker (uv workspace member);
   `db/port.sqlite` — its database (local, not in git; `noite import` builds it).
 
