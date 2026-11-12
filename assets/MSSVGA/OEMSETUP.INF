@@ -1,0 +1,96 @@
+; ---------------------------------------------------------------
+; SuperVGA (256 Color) Display Drivers
+; Copyright 1993 Microsoft Corporation
+; ---------------------------------------------------------------
+
+[data]
+    Version="3.10"
+
+[disks]
+    ? =.,  "Super VGA (256 Color) Drivers", disk1
+
+[display]
+;profile    = driver,        Description of driver,                 resolution,    286 grabber,    logo code,     VDD,            386grabber,  ega.sys, logo data,      optional work section
+;                            "12345678901234567890123456789012345",
+
+8vga480     = ?:svga256.drv, "Super VGA  640x480 256 colors"      , "100,96,96",   ?:vgacolor.2gr, ?:vgalogo.lgo, ?:vddsvga.386,  ?:vgadib.3gr,,       ?:vgalogo.rle, svga640
+8vga600l    = ?:svga256.drv, "Super VGA  800x600 256 Large"       , "100,120,120", ?:vgacolor.2gr, ?:vgalogo.lgo, ?:vddsvga.386,  ?:vgadib.3gr,,       ?:vgalogo.rle, svga800l
+8vga600s    = ?:svga256.drv, "Super VGA  800x600 256 Small"       , "100,96,96",   ?:vgacolor.2gr, ?:vgalogo.lgo, ?:vddsvga.386,  ?:vgadib.3gr,,       ?:vgalogo.rle, svga800s
+8vga768l    = ?:svga256.drv, "Super VGA 1024x768 256 Large"       , "100,120,120", ?:vgacolor.2gr, ?:vgalogo.lgo, ?:vddsvga.386,  ?:vgadib.3gr,,       ?:vgalogo.rle, svga768l
+8vga768s    = ?:svga256.drv, "Super VGA 1024x768 256 Small"       , "100,96,96",   ?:vgacolor.2gr, ?:vgalogo.lgo, ?:vddsvga.386,  ?:vgadib.3gr,,       ?:vgalogo.rle, svga768s
+8et4480     = ?:svga256.drv, "ET4000  640x480 256 colors"         , "100,96,96",   ?:vgacolor.2gr, ?:vgalogo.lgo, ?:vddtli4.386,  ?:svga256.3gr,,       ?:vgalogo.rle, svga640
+8et4600l    = ?:svga256.drv, "ET4000  800x600 256 Large"          , "100,120,120", ?:vgacolor.2gr, ?:vgalogo.lgo, ?:vddtli4.386,  ?:svga256.3gr,,       ?:vgalogo.rle, svga800l
+8et4600s    = ?:svga256.drv, "ET4000  800x600 256 Small"          , "100,96,96",   ?:vgacolor.2gr, ?:vgalogo.lgo, ?:vddtli4.386,  ?:svga256.3gr,,       ?:vgalogo.rle, svga800s
+8et4768l    = ?:svga256.drv, "ET4000 1024x768 256 Large"          , "100,120,120", ?:vgacolor.2gr, ?:vgalogo.lgo, ?:vddtli4.386,  ?:svga256.3gr,,       ?:vgalogo.rle, svga768l
+8et4768s    = ?:svga256.drv, "ET4000 1024x768 256 Small"          , "100,96,96",   ?:vgacolor.2gr, ?:vgalogo.lgo, ?:vddtli4.386,  ?:svga256.3gr,,       ?:vgalogo.rle, svga768s
+                                                          
+[svga640] 
+,,system.ini,svga256.drv,"resolution=","resolution=1"
+,,system.ini,svga256.drv,"svgamode="
+,,system.ini,svga256.drv,"dpi="
+,,system.ini,386enh,"SysVMIn2ndBank=","SysVMIn2ndBank=FALSE"
+
+[svga800s] 
+,,system.ini,svga256.drv,"resolution=","resolution=2"
+,,system.ini,svga256.drv,"svgamode="
+,,system.ini,svga256.drv,"dpi=","dpi=96"
+,,system.ini,386enh,"SysVMIn2ndBank=","SysVMIn2ndBank=FALSE"
+
+[svga800l] 
+,,system.ini,svga256.drv,"resolution=","resolution=2"
+,,system.ini,svga256.drv,"svgamode="
+,,system.ini,svga256.drv,"dpi=","dpi=120"
+,,system.ini,386enh,"SysVMIn2ndBank=","SysVMIn2ndBank=FALSE"
+
+[svga768s] 
+,,system.ini,svga256.drv,"resolution=","resolution=3"
+,,system.ini,svga256.drv,"svgamode="
+,,system.ini,svga256.drv,"dpi=","dpi=96"
+,,system.ini,386enh,"SysVMIn2ndBank=","SysVMIn2ndBank=FALSE"
+
+[svga768l] 
+,,system.ini,svga256.drv,"resolution=","resolution=3"
+,,system.ini,svga256.drv,"svgamode="
+,,system.ini,svga256.drv,"dpi=","dpi=120"
+,,system.ini,386enh,"SysVMIn2ndBank=","SysVMIn2ndBank=FALSE"
+
+[SVGA256.3GR]
+3:CGA40WOA.FON,3:CGA40850.FON
+3:CGA80WOA.FON,3:CGA80850.FON
+3:EGA40WOA.FON,3:EGA40850.FON
+3:EGA80WOA.FON,3:EGA80850.FON
+
+[VGADIB.3GR]
+3:CGA40WOA.FON,3:CGA40850.FON
+3:CGA80WOA.FON,3:CGA80850.FON
+3:EGA40WOA.FON,3:EGA40850.FON
+3:EGA80WOA.FON,3:EGA80850.FON
+
+[sysfonts]
+?:vgasys.fon,"VGA (640x480) resolution System Font", "100,96,96"
+?:8514sys.fon,"8514/a (1024x768) resolution System Font", "100,120,120"
+
+[fixedfonts]
+?:vgafix.fon,"VGA (640x480) resolution Fixed System Font", "100,96,96"
+?:8514fix.fon,"8514/a (1024x768) resolution Fixed System Font",  "100,120,120"
+
+[oemfonts]
+?:vgaoem.fon,"VGA (640x480) resolution Terminal Font (USA/Europe)", "100,96,96",1
+?:8514oem.fon,"8514/a (1024x768) resolution Terminal Font (USA/Europe)", "100,120,120",1
+
+[fonts]
+   ?:SSERIFE.FON, "MS Sans Serif 8,10,12,14,18,24 (VGA res)", "100,96,96"
+   ?:SSERIFF.FON, "MS Sans Serif 8,10,12,14,18,24 (8514/a res)", "100,120,120"
+
+   ?:COURE.FON, "Courier 10,12,15 (VGA res)", "100,96,96"
+   ?:COURF.FON, "Courier 10,12,15 (8514/a res)", "100,120,120"
+
+   ?:SERIFE.FON, "MS Serif 8,10,12,14,18,24 (VGA res)", "100,96,96"
+   ?:SERIFF.FON, "MS Serif 8,10,12,14,18,24 (8514/a res)", "100,120,120"
+
+   ?:SYMBOLE.FON, "Symbol 8,10,12,14,18,24 (VGA res)", "100,96,96"
+   ?:SYMBOLF.FON, "Symbol 8,10,12,14,18,24 (8514/a res)", "100,120,120"
+
+   ?:SMALLE.FON, "Small Fonts (VGA res)", "100,96,96"
+   ?:SMALLF.FON, "Small Fonts (8514/a res)", "100,120,120"
+

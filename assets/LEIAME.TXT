@@ -1,0 +1,207 @@
+ATR MULTIMEDIA, 1 DE DEZEMBRO DE 1995.
+
+*MOUSE
+
+É obrigatório o uso do MOUSE para utilização do produto.
+
+ 
+*RESOLUÇÃO
+
+Este programa poderá ser executado em qualquer resolução com 256 cores.
+Recomenda-se não usar os drivers Hi-color(65.000 cores) ou True Color
+(16 milhões de cores).
+
+
+*INSTALAÇÃO
+
+Carregue o Windows
+
+Coloque o CD-ROM no CD-ROM Drive.
+
+-No gerenciador de programas escolha a opção de menu Arquivo (File),
+ Executar (Run) e digite na linha de comando (Command Line):
+
+		D:\INSTALAR.EXE <Enter> 
+
+ onde "D" é o seu drive para CD e <Enter> significa "teclar Enter".
+
+-Siga as instruções na tela.
+
+
+* WINDOWS 95
+
+Este software rodará normalmente em Windows 95, existindo no CD inclusive 
+o arquivo de Autorun para execução automática do jogo.
+
+Porém não deve se deve esquecer de copiar o conteúdo do diretório SYSTEM do
+CD-ROM para o diretório \WINDOWS\SYSTEM do HD
+
+Caso você experimente problemas em tocar as animações debaixo do Windows 95
+experimente mudar a resolução e utilizar os controladores de placa de vídeo que
+vem com o software original do Windows 95.
+
+
+* PROBLEMAS COM
+			A) MIDI
+			B) SOM
+			C) VIDEO
+			D) LEITURA DO CD-ROM
+			E) INSTALAÇÃO
+			F) SUPORTE
+
+----------------------------------------------------------------------------
+A) MIDI
+
+O SEU JOGO RODA SEM MÚSICA - O MIDI NÃO ESTÁ TOCANDO ?
+
+
+1) OS CONTROLADORES DE MIDI NÃO ESTÃO INSTALADOS.
+
+INSTALE OS CONTROLADORES '(MCI)MIDI SEQUENCER' E 'MAPEADOR MIDI' NO
+PAINEL DE CONTROLE (CONTROL PANEL) OPÇÃO CONTROLADORES (DRIVERS) E CLIQUE
+NO BOTÃO ADICIONAR (ADD)
+
+
+2) VOCÊ NÃO TEM NENHUM CONTROLADOR DE PLACA DE SOM INSTALADO.
+
+TENTE INSTALAR A CONTROLADORA DO WINDOWS PARA SOUNDBLASTER 1.5 OU 2.0
+E AÍ INSTALE OS CONTROLADORES MIDI.
+
+
+3) VOCÊ TEM OS CONTROLADORES TODOS INSTALADOS E MESMO ASSIM O MIDI NÃO TOCA.
+
+POSSIVELMENTE OS INSTRUMENTOS DE SEU MAPEADOR DE MIDI ESTÃO TROCADOS, 
+EXPERIMENTE EDITAR O MAPEADOR DE MIDI NO PAINEL DE CONTROLE SUBSTITUINDO
+OS SONS. CASO ISTO NÃO FUNCIONE EXPERIMENTE TROCAR OS MAPAS DE PATCH E 
+MAPAS DE KEY.
+
+
+4) VOCÊ TEM UMA SOUND BLASTER 16 (COMPRADA EM 1993 OU 1994).
+
+O CONTROLADOR DE MIDI DA SOUNBLASTER 16 CONCORRE COM O CONTROLADOR
+INSTALADO PELO SOFTWARE DE EDIÇÃO DE MIDI 'VOYETRA JR.' (QUE VEM COM A
+PRÓPRIA SOUND BLASTER) IMPEDINDO QUE UM MIDI TOQUE USANDO O SB16 MIDI EM
+QUALQUER OPCAO. PARA HABILITAR SEU MIDI PARA TOCAR OS ARQUIVOS GENERAL
+MIDI DO NOITE ANIMAL EDITE O DRIVER 'SB16 ALL MIDI' PARA QUE OS 
+INSTRUMENTOS DE 1 A 16 TOQUEM PELO VOYETRA - VOCE CHEGA INDO PARA O PAINEL
+DE CONTROLE DO GRUPO PRINCIPAL DO WINDOWS E COMEÇANDO A OPÇÃO DE MAPEADOR
+MIDI, NELA CLIQUE EM EDITAR E SUBSTITUA SB16 POR VOYETRA NOS INSTRUMENTOS
+TODOS.
+
+---------------------------------------------------------------------------
+B) SOM
+
+1) ESTE JOGO FOI FEITO PARA RODAR EM PLACAS DE SOM COMPATÍVEIS COM WINDOWS E
+SOUNDBLASTER. CASO VOCÊ NÃO ESTEJA OUVINDO SOM ALGUM EXPERIMENTE :
+	. VERIFICAR SE SUAS CAIXAS ESTÃO LIGADAS;
+	. VERIFICAR SE O VOLUME DO SEU SOM ESTÁ BAIXO DEMAIS;
+	. VERIFICAR SE SUAS CAIXAS DE SOM ESTÃO CONECTADAS COM A PLACA;
+	. VERIFICAR SE VOCÊ TEM UMA PLACA INSTALADA DEBAIXO DO WINDOWS;
+	. VERIFICAR SE MESMO ESTANDO INSTALADA ELA SUPORTA (MCI)SOM E ELE
+	ESTÁ INSTALADO;
+	. AUMENTAR O VOLUME DE SOM FORMAT WAV NO SEU MIXER.
+
+2) CASO VOCÊ ESTEJA EXPERIMENTANDO UM CLIQUE INTERMITENTE NO SEU SOM EM 
+ALGUNS MOMENTOS EXPERIMENTE ATUALIZAR SEU CONTROLADOR DE PLACA DE SOM DE 
+SOUNDBLASTER 1.5 PARA SOUNDBLASTER 2 CASO POSSUA UMA PLACA DE SOM E OITO 
+BITS, CASO CONTRÁRIO REINSTALE O SOFTWARE DE SOM QUE VEIO COM SUA PLACA.
+
+
+----------------------------------------------------------------------------
+C) VIDEO
+
+Este produto usa uma tecnologia de aceleração de animação e transparência
+chamada WinG. Alguns dos problemas conhecidos de incompatibilidade com
+placas e softwares estão descritos abaixo :
+
+Alguns dos nomes mencionados abaixo são de direito dos seus respectivos donos:
+
+- VersOes recentes dos drivers de vídeo das placas Diamond Viper
+  incluem uma opção de "Power Palette" que não é mais 'suportada' pela
+  Diamond. Eles recomendam que você faça o 'upgrade' do controlador de 
+  vídeo se você tiver esta opção. O WinG terá uma performance mais lenta por
+  conta disto.
+
+- A IBM não mais dá suporte ao IBM ThinkPad 720c. Esxitem alguns problemas
+  usando o WinG com os controladores de vídeo desta máquina.
+
+- Os controladores de vídeo da Cirrus antes da versão 1.43 tem muitos problemas
+  com o WinG que foram consertados em versão mais recentes. Eles recomendam que
+  você faça o 'upgrade' do controlador de vídeo.
+
+- Alguns controladores de vídeo e placas ATI tem uma opção de crystal fonts que
+  deverá ser desligada para rodar o WinG com uma performance aceitável.
+
+- Alguns controladores de vídeo da ATI mach8 Radical causam uma série de problemas
+  com o Windows o WinG, fique atento e solicite um atualização ao fabricante.
+
+- A controladora de vídeo ATI VGA Wonder (W31-*.drv) da um erro de GPF no teste
+  do WinG. Recomendamos usar o controlador SVGA286.DRV que vem com o Windows 3.11.
+
+- As placas ATI Mach 32 PCI tem um problema de fabricação com o acesso ao seu timing.
+  A ATI substituirá as placas sem custo, contate o fabricante.
+
+- O WinG é incompatível com o modo "TurboCopy" da placa #9GXE. Disabilite esta opção.
+
+
+----------------------------------------------------------------------------
+D) ACIONADOR DE CD-ROM
+
+
+
+O SEU JOGO ESTÁ RODANDO LENTO DEMAIS ?
+
+1) VOCÊ DEVE ESTAR COM SUA OPÇÃO DE CD COM UM NÚMERO DE BUFFERS PEQUENOS. 
+EXPERIMENTE ALTERAR A LINHA DO MSCDEX.EXE DO SEU ARQUIVO PARA CONTER
+NO PARAMETRO /M O NÚMERO MÁXIMO QUE É 22, EXEMPLO :
+
+	...
+	C:\DOS\MSCDEX.EXE /D:MSCD001 /M:22
+	...
+
+2) O SEU ACIONADOR É DE DUPLA VELOCIDADE MESMO, ALGUNS MODELOS DE DUPLA 
+VELOCIDADE MAIS ANTIGOS (ANTES DE 94) TEM NA VERDADE UMA VELOCIDADE BEM
+INFERIOR A 300 KB/S.
+
+
+----------------------------------------------------------------------------
+E) INSTALAÇÃO
+
+1) SUA CÓPIA DO JOGO NÃO ESTÁ INSTALANDO ?
+
+EXISTEM DIVERSAS POSSIBILIDADES: UMA É A FALTA DE ESPAÇO EM DISCO. O
+NOSSO SOFTWARE DE INSTALAÇÃO VERIFICA SE EXISTE ESPAÇO EM DISCO SUFICIENTE
+PARA A INSTALAÇÃO, MAS CASO VOCE POSSUA MEMÓRIA VIRTUAL TEMPORÁRIA ESTE 
+ESPAÇO PODE VARIAR DEPENDENDO DA NECESSIDADE DO WINDOWS DE FAZER ESPAÇO EM
+MEMÓRIA RAM, PORTANTO SUGERIMOS TROCAR SUA MEMÓRIA VIRTUAL PARA PERMANENTE;
+OUTRA PODE SER EXPLICADA PELA INTERFERÊNCIA DE OUTRO SOFTWARE NA CÓPIA DE
+ARQUIVOS COMO REDE, PROTETORES DE TELA, E OUTROS APLICATIVOS EM WINDOWS 3.1
+E 3.11 QUE DIVIDEM O TEMPO DA MÁQUINA, SUGERIMOS DESATIVAR ESTAS OPÇÕES CASO
+ISTO ACONTEÇA.
+
+2) SUA CÓPIA DO JOGO JÁ INSTALOU MAS O JOGO NÃO FUNCIONA ?
+
+VERIFIQUE NESTA LISTA SE SUA PLACA DE VÍDEO NÃO É COMPATÍVEL COM O WING.
+VERIFIQUE NA PARTE DE INSTALAÇÃO SE OS ARQUIVOS FORAM REALMENTE COPIADOS
+PARA O CD.
+VERIFIQUE SE O CD ESTÁ DENTRO DO SEU ACIONADOR DE CD-ROM.
+VERIFIQUE SE VOCÊ TEM PLACA DE SOM INSTALADA.
+VERIFIQUE SE JÁ EXISTE UMA OUTRA APLICAÇÃO ATIVA QUE USE OS MESMOS RECURSOS
+NO SEU WINDOWS.
+VERIFIQUE SE SEU MICRO ESTA DENTRO DA CONFIGURAÇÃO MÍNIMA
+
+----------------------------------------------------------------------------
+F) CASO SEU PROBLEMA SEJA DIFERENTE DOS ACIMA, PEDIMOS ENVIAR SEU CARTÃO DE
+REGISTRO E FALAR COM O SUPORTE DA ATR PABX 021.286.5889 ENTRE 14.00 E 18.00
+
+----------------------------------------------------------------------------
+OBRIGADO E BOM JOGO.
+
+
+* COPYRIGHT
+
+Todos os direitos são reservados. Nenhuma parte deste CD deve ser 
+distribuída sem a permissão do editor, e a licença de uso é para um único 
+processador.
+
+

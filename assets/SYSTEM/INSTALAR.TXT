@@ -1,0 +1,16 @@
+Windows directory, your setup program will have to install the WinG runtime. The following files should be installed in the user's 
+SYSTEM directory:
+
+WING.DLL
+WING32.DLL
+WINGDE.DLL
+WINGDIB.DRV
+WINGPAL.WND
+DVA.386
+FLCCODEC.DRV
+
+If DVA.386 was not previously installed on the user's system (for example, by Video for Windows), your setup program should add the 
+following line to the [386Enh] section of the SYSTEM.INI file, after which the user must reboot Windows for optimal WinG 
+performance:
+
+device=dva.386

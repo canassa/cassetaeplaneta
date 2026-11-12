@@ -1,0 +1,46 @@
+PLEASE READ
+--------------------------------------------
+By using the following Windows 3.1 Driver Library
+(the "Software"), you are hereby agreeing to the
+included license agreement.  Please review the
+file LICENSE.TXT.
+
+Installing a Display Driver
+-----------------------------------
+Follow the instructions given in "Installing a
+Device Driver Not Supplied with Windows Version
+3.1," in Chapter 15, "Maintaining Windows with
+Setup," in the "Microsoft Windows User's Guide."
+When requested to insert a disk, insert the disk
+you made during the downloading procedure, or
+type the path of the directory where you
+downloaded the driver.
+
+Copying VGALOGO Files
+---------------------
+When using Setup to install WDL driver
+files, Setup may request that you enter a
+directory path in order to copy the VGALOGO.LGO
+and VGALOGO.RLE  files.  It may prompt you for
+the driver disk or for a Windows 3.1 Setup disk.
+When this happens, simply enter the full path
+to the driver diskette or directory again,
+and Setup will continue.
+
+Error Message:  "Problem with disk drive A:"
+--------------------------------------------
+This message may appear if you are not installing
+the WDL driver files from disk drive A:.  If this
+happens, press ESC to cancel the error message, and
+then re-enter the path to the directory containing 
+the WDL driver files.  This message may appear
+multiple times.
+
+Do Not Copy Driver Files
+------------------------
+Most display driver files on the WDL are
+compressed.  SETUP automatically expands
+compressed files during the driver installation
+process.  Always use SETUP to install display
+drivers.  DO NOT copy WDL display driver files
+directly into your Windows directory.
