@@ -1,0 +1,15 @@
+# Disc image (assets/ holds its extracted contents)
+*.iso
+
+# Temporary link to assets/ for old paths
+/NOITE_ANIMAL
+
+# Ghidra project database, locks and logs
+ghidra/noite.rep/
+ghidra/*.lock
+ghidra/*.lock~
+ghidra/import.log
+
+# Compiled scripts and Python caches
+*.class
+__pycache__/
