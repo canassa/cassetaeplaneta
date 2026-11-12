@@ -126,6 +126,16 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
 
 ---
 
+### B12. The opaque row copy skips black pixels at the end of each row
+- **Where:** `dib_rows_copy32` 1000:0114 (32-bit segment), tail loop 1000:018a–019a.
+- **What the code does:** rows are copied four bytes at a time unconditionally, then the last `width & 3` bytes
+  go through a loop that skips the byte when it equals AH — a leftover from the transparent variant. AH is 0
+  there (set by the routine's mode check), so pixel value 0 is not copied in those last 0–3 columns.
+- **Effect:** in opaque blits whose width is not a multiple of 4, palette index 0 in the rightmost 1–3 columns
+  keeps whatever was underneath.
+- **Evidence:** disassembly; reproduced by running the original routine in an emulator against a row-copy model.
+- **Confidence:** 9 (code); the visible effect depends on index 0 appearing in those columns.
+
 ## Harmless: wrong paths rescued by the wave fallback
 
 `wave_open` retries `<root>pan\wav\<file name>.wav`, and `PAN\WAV\` holds a copy of almost every wave, so these
