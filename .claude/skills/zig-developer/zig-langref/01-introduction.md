@@ -1,5 +1,4 @@
-# Introduction
-
+## [Introduction](#toc-Introduction) [§](#Introduction)
 
 [Zig](https://ziglang.org) is a general-purpose programming language and toolchain for maintaining **robust**, **optimal**, and **reusable** software.
 
@@ -20,4 +19,3 @@ Often the most efficient way to learn something new is to see examples, so this 
 The code samples in this document are compiled and tested as part of the main test suite of Zig.
 
 This HTML document depends on no external files, so you can use it offline.
-

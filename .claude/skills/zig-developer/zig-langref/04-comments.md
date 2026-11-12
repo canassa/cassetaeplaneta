@@ -1,13 +1,6 @@
-# Comments
+## [Comments](#toc-Comments) [§](#Comments)
 
-
-Zig supports 3 types of comments. Normal comments are ignored, but doc comments and top-level doc comments are used by the compiler to generate the package documentation.
-
-The generated documentation is still experimental, and can be produced with:
-
-    zig test -femit-docs main.zig
-
-Shell
+There are three types of comments. Normal comments are ignored, while [Doc Comments](#Doc-Comments) and [Top-Level Doc Comments](#Top-Level-Doc-Comments) are used by the compiler to generate the package documentation.
 
     const print = @import("std").debug.print;
 
@@ -28,7 +21,7 @@ comments.zig
 
 Shell
 
-There are no multiline comments in Zig (e.g. like `/* */` comments in C). This allows Zig to have the property that each line of code can be tokenized out of context.
+There are no multiline comments. Zig has the property that each line of code can be tokenized independently.
 
 ### [Doc Comments](#toc-Doc-Comments) [§](#Doc-Comments)
 
@@ -86,19 +79,17 @@ Doc comments can be interleaved with normal comments, which are ignored.
 
 ### [Top-Level Doc Comments](#toc-Top-Level-Doc-Comments) [§](#Top-Level-Doc-Comments)
 
-A top-level doc comment is one that begins with two slashes and an exclamation point: `//!`; it documents the current module.
+A top-level doc comment is one that begins with two slashes and an exclamation point: `//!`; it documents the type which owns the containing [Namespace](#Namespace).
 
-It is a compile error if a top-level doc comment is not placed at the start of a [container](#Containers), before any expressions.
+It is a compile error if a top-level doc comment is not placed at the start of a namespace, before any expressions.
 
-    //! This module provides functions for retrieving the current date and
-    //! time with varying degrees of precision and accuracy. It does not
-    //! depend on libc, but will use functions from it if available.
+    //! Provides functions for retrieving the current date and time with varying
+    //! degrees of precision and accuracy.
 
     const S = struct {
-        //! Top level comments are allowed inside a container other than a module,
-        //! but it is not very useful.  Currently, when producing the package
-        //! documentation, these comments are ignored.
+        //! Top level comments are allowed inside namespaces other than the
+        //! implicit struct created by files, but it is not very useful. Currently,
+        //! when producing the package documentation, these comments are ignored.
     };
 
 tldoc_comments.zig
-

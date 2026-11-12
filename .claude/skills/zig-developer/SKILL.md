@@ -1,6 +1,6 @@
 ---
 name: zig-developer
-description: Use when writing, reviewing or debugging the Zig port of Noite Animal (NOITE.EXE rewritten natively). Provides a Zig 0.16-to-0.17 change summary, an offline 0.16 language reference, and the port's house rules (origin tags, faithful-first translation, original bugs behind flags, flattening the C++ classes, 16-bit arithmetic). Check the installed Zig 0.17 standard library for exact APIs rather than relying on memory.
+description: Use when writing, reviewing or debugging the Zig port of Noite Animal (NOITE.EXE rewritten natively). Provides an offline Zig 0.17 language reference, a 0.16-to-0.17 change summary, and the port's house rules (origin tags, faithful-first translation, original bugs behind flags, flattening the C++ classes, 16-bit arithmetic). Check the installed Zig 0.17 standard library for exact APIs rather than relying on memory.
 ---
 
 # Zig developer for the Noite Animal port
@@ -21,11 +21,11 @@ questions from memory** — look it up:
   grep -rn "pub fn readInt" "$STD/Io/Reader.zig"
   ```
 
-- **Version changes:** read [Zig 0.16 → 0.17](zig-0.17-changes.md) first.
 - **Language reference (offline, split by section):** `zig-langref/` — one
-  Markdown file per section of the 0.16 reference. Pick the section from its
-  `README.md` index; never load the whole thing. Where it disagrees with 0.17,
-  the installed std wins.
+  Markdown file per section of the 0.17.0 reference. Pick the section from its
+  `README.md` index; never load the whole thing.
+- **What changed in 0.17:** [Zig 0.16 → 0.17](zig-0.17-changes.md) — read it
+  before trusting anything remembered from older Zig.
 
 ## Port house rules
 

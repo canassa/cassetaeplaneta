@@ -1,5 +1,4 @@
-# Hello World
-
+## [Hello World](#toc-Hello-World) [§](#Hello-World)
 
     const std = @import("std");
 
@@ -42,4 +41,3 @@ See also:
 - [Entry Point](#Entry-Point)
 - [Source Encoding](#Source-Encoding)
 - [try](#try)
-
