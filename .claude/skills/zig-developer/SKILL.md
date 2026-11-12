@@ -74,9 +74,11 @@ These are invariants, not style preferences. Flag violations in review.
   loop. Test with `std.testing.allocator` to catch leaks.
 - **Panics mean bugs.** Malformed asset or INI data returns an error; it never
   panics.
-- **Tests use the real assets** under `assets/` where possible (decode
-  `ABERT.BMP`, parse `CASSETA.INI`) and compare against values taken from the
-  original.
+- **Tests need an oracle.** Expected values never come from your own reading of
+  the decompile. Sources, strongest first: the original function emulated on
+  the same inputs; the real `assets/`; facts documented in Ghidra (constants,
+  RNG sequence, grid sizes). Tag each test `// @orig <seg:off>`. Test pure and
+  logic functions; skip absorbed stubs, trivial accessors and platform code.
 
 ## Naming
 
