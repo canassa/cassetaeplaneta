@@ -4,6 +4,9 @@ const std = @import("std");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
+    // Debug by default, and never `use_llvm`/`use_lld`: the self-hosted
+    // backend keeps the edit-build loop fast. If a dependency (SDL, libc)
+    // ever forces LLVM, raise it rather than enabling it here.
     const optimize = b.standardOptimizeOption(.{});
 
     const exe = b.addExecutable(.{

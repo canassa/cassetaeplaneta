@@ -414,7 +414,15 @@ def check(
         raise typer.Exit(1)
 
 
+# The port always builds in Debug with Zig's self-hosted backend: LLVM is far
+# too slow for the edit-build loop.
+_FORBIDDEN = ("-Doptimize=Release", "-fllvm", "-flld", "--release")
+
+
 def _zig(work: str | None, args: list[str]) -> None:
+    bad = [a for a in args if a.startswith(_FORBIDDEN)]
+    if bad:
+        _die(f"{' '.join(bad)}: the port builds in Debug with the self-hosted backend only")
     root = _tree(work)
     try:
         code = subprocess.call(["zig", "build", *args], cwd=root)
