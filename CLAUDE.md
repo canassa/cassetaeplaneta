@@ -51,10 +51,16 @@ noite unit show <unit> / unit list / unit sync   # sync: stubs + src/units.zig (
 noite unit dep add|rm <unit> <on> [--note] / dep show <unit> / dep cycles
 noite unit dep infer         # virtual-slot deps (auto; keeps manual) from the decompile/asm +
                              # DESIGN.md slot table + noite/deps.py (other vtables); rerun after import
+noite plan export|apply      # db/plan.tsv: units, fn->unit, hand-set statuses, manual deps; unit new/add/rm,
+                             # mark, unit dep add/rm rewrite it on main (commit it); import applies it to an empty DB
 noite check [-w <unit>] [--fix-status]           # @orig tags vs the DB
 noite build|test [-w <unit>] [zig args]          # zig build [test]; Debug, self-hosted only;
                                                  # prints one line (tests passed / steps)
 ```
+
+Recovery: the DB is local but `db/plan.tsv` is committed; after losing it run
+`noite import` (applies the plan on a fresh DB), `noite check --fix-status` (ported
+from `@orig` tags), `noite unit dep infer`.
 
 Workflow (one agent per unit, any number in parallel):
 

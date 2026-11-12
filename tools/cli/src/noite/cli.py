@@ -26,7 +26,7 @@ from typing import Annotated
 import typer
 
 from noite import check as checkmod
-from noite import claim, deps, importer, paths, types, units
+from noite import claim, deps, importer, paths, plan, types, units
 from noite.db import Status, UnitKind, connect, find_function, norm_addr, tx
 
 app = typer.Typer(name="noite", help=__doc__, no_args_is_help=True, add_completion=False)
@@ -36,6 +36,8 @@ dep_app = typer.Typer(
     help="Unit dependencies (virtual calls the callee graph cannot see).", no_args_is_help=True
 )
 unit_app.add_typer(dep_app, name="dep")
+plan_app = typer.Typer(help="The committed unit plan (db/plan.tsv).", no_args_is_help=True)
+app.add_typer(plan_app, name="plan")
 
 WorkOpt = Annotated[
     str | None, typer.Option("--work", "-w", help="Operate on the worktree of this unit.")
@@ -44,6 +46,16 @@ WorkOpt = Annotated[
 
 def _db() -> sqlite3.Connection:
     return connect(paths.db_path())
+
+
+def _plan_sync(conn: sqlite3.Connection) -> None:
+    """Keep db/plan.tsv in step with the DB after a plan-changing command (main checkout
+    only: worktrees never edit db/)."""
+    root = paths.repo_root()
+    if paths.tree_root() != root:
+        return
+    if plan.write(conn, root / plan.PLAN_REL):
+        typer.echo(f"  {plan.PLAN_REL} updated (commit it)", err=True)
 
 
 def _die(msg: str) -> None:
@@ -97,7 +109,12 @@ def import_cmd(
 
     try:
         res = importer.run(
-            conn, src, decompile=not no_decompile, with_types=not no_types, progress=progress
+            conn,
+            src,
+            decompile=not no_decompile,
+            with_types=not no_types,
+            progress=progress,
+            plan_file=paths.repo_root() / plan.PLAN_REL,
         )
     except GhidraError as e:
         _die(str(e))
@@ -108,6 +125,13 @@ def import_cmd(
         f"seeded {res.handler_units} handler units"
     )
     typer.echo("kinds: " + ", ".join(f"{k} {n}" for k, n in res.kinds.most_common()))
+    if res.plan:
+        p = res.plan
+        typer.echo(
+            f"applied {plan.PLAN_REL}: {p.units} units, {p.functions} assignments, "
+            f"{p.statuses} statuses, {p.deps} deps ({p.skipped} skipped); "
+            "run `noite check --fix-status` for ported functions"
+        )
 
 
 @app.command()
@@ -289,6 +313,7 @@ def mark(
                 (to.value, target, note, f["addr"]),
             )
             typer.echo(f"{f['addr']} {f['name']}: {f['status']} -> {to.value}")
+    _plan_sync(conn)
 
 
 # --------------------------------------------------------------------------- #
@@ -539,6 +564,7 @@ def unit_new(
         _die(str(e))
         return
     typer.echo(f"unit {name} ({kind.value}) -> {p}")
+    _plan_sync(conn)
 
 
 @unit_app.command("add")
@@ -559,6 +585,7 @@ def unit_add(
         _die(str(e))
         return
     typer.echo(f"{unit}: +{n} functions")
+    _plan_sync(conn)
 
 
 @unit_app.command("rm")
@@ -572,6 +599,7 @@ def unit_rm(fns: Annotated[list[str], typer.Argument(help="Addresses or names.")
         _die(str(e))
         return
     typer.echo(f"removed {n} functions from their units")
+    _plan_sync(conn)
 
 
 @unit_app.command("show")
@@ -672,6 +700,7 @@ def dep_add(
     except deps.DepError as e:
         _die(str(e))
     typer.echo(f"{unit} depends on {depends_on}")
+    _plan_sync(conn)
 
 
 @dep_app.command("rm")
@@ -683,6 +712,7 @@ def dep_rm(unit: str, depends_on: str) -> None:
     if not gone:
         _die(f"{unit} does not depend on {depends_on}")
     typer.echo(f"removed {unit} -> {depends_on}")
+    _plan_sync(conn)
 
 
 @dep_app.command("show")
@@ -763,6 +793,34 @@ def dep_cycles() -> None:
     typer.echo(
         "break one with `noite unit dep rm A B` (a manual dep), or move functions / merge units"
         " so the auto dep disappears"
+    )
+
+
+@plan_app.command("export")
+def plan_export() -> None:
+    """Write db/plan.tsv from the DB (main checkout)."""
+    conn = _db()
+    root = paths.repo_root()
+    changed = plan.write(conn, root / plan.PLAN_REL)
+    typer.echo(f"{plan.PLAN_REL} {'updated' if changed else 'unchanged'}")
+
+
+@plan_app.command("apply")
+def plan_apply() -> None:
+    """Load db/plan.tsv into the DB (adds and updates; never clears)."""
+    conn = _db()
+    f = paths.repo_root() / plan.PLAN_REL
+    if not f.exists():
+        _die(f"no {plan.PLAN_REL}")
+    try:
+        with tx(conn):
+            r = plan.apply(conn, f.read_text())
+    except (plan.PlanError, sqlite3.DatabaseError) as e:
+        _die(str(e))
+        return
+    typer.echo(
+        f"applied: {r.units} units, {r.functions} assignments, {r.statuses} statuses, "
+        f"{r.deps} deps ({r.skipped} skipped: not in the DB)"
     )
 
 

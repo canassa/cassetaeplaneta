@@ -13,8 +13,9 @@ import sqlite3
 from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 
-from noite import types, units
+from noite import plan, types, units
 from noite.classify import class_names, classify, initial_status
 from noite.db import Kind, now, tx
 from noite.ghidra import FunctionInfo, Source
@@ -33,6 +34,7 @@ class ImportResult:
     global_refs: int
     handler_units: int
     kinds: Counter[str]
+    plan: plan.ApplyResult | None = None
 
 
 _UPSERT = """
@@ -59,6 +61,7 @@ def run(
     decompile: bool = True,
     with_types: bool = True,
     progress: Callable[[int, int], None] | None = None,
+    plan_file: Path | None = None,
 ) -> ImportResult:
     listed = source.list_functions()
     addrs = [f.addr for f in listed]
@@ -133,6 +136,12 @@ def run(
             )
         n_srefs, n_grefs = types.compute_refs(conn)
         conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('imported_at', ?)", (stamp,))
+        # A fresh DB (no units yet) gets the committed plan before handlers are seeded.
+        planned = None
+        if plan_file is not None and plan_file.exists():
+            (n_units,) = conn.execute("SELECT COUNT(*) FROM units").fetchone()
+            if n_units == 0:
+                planned = plan.apply(conn, plan_file.read_text())
         seeded = units.seed_handlers(conn)
 
     return ImportResult(
@@ -145,6 +154,7 @@ def run(
         struct_refs=n_srefs,
         global_refs=n_grefs,
         handler_units=seeded,
+        plan=planned,
         kinds=kinds,
     )
 
