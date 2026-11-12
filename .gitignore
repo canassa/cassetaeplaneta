@@ -13,3 +13,25 @@ ghidra/import.log
 # Compiled scripts and Python caches
 *.class
 __pycache__/
+
+# Nix / direnv
+.direnv/
+
+# Zig build output
+.zig-cache/
+zig-out/
+
+# Python / uv
+.venv/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# Port worktrees (one per claimed unit; see `noite start`) and their
+# reference dumps
+/work/
+.ref/
+
+# SQLite side files of the live tracker DB (db/port.sqlite itself is committed)
+db/*.sqlite-wal
+db/*.sqlite-shm

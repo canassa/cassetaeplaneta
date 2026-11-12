@@ -1,0 +1,7 @@
+.{
+    .name = .noite,
+    .version = "0.0.0",
+    .minimum_zig_version = "0.17.0",
+    .paths = .{ "build.zig", "build.zig.zon", "src" },
+    .fingerprint = 0xb2e800eed9c6003f,
+}
