@@ -213,8 +213,8 @@ the message queue and timers, `fixes`, the platform, and every handler's
 Access: engine, behaviour and handler code take `*Game`. **Leaf modules
 take the narrowest thing**: `grid` takes `*Grid`, `draw_list` `*DrawList`
 (+ a comparison callback where it needs the virtual isInFrontOf),
-`update_list` `*UpdateList`, `object_list` `*ObjectList`, `projection` plain
-numbers, `ini` `*Ini` + `Platform`, `sound` `*Sound` + `Platform`, `dib`
+`update_list` `*UpdateList`, `object_list` `*ObjectList`, `projection`
+`*const Backdrop` + plain numbers, `ini` `*Ini` + `Platform`, `sound` `*Sound` + `Platform`, `dib`
 bytes/`Dib`. That keeps them testable with no `Game`.
 
 Allocation: objects, DIBs and scenes are `g.gpa.create`/`destroy`d where
@@ -361,6 +361,12 @@ Not implemented yet (platform tasks, not tracker units):
 - **CRT/API**: replaced, not ported (`noite` statuses `replaced`); their
   behaviour is in `core/crt.zig`, `core/cstr.zig`, `Game.send/post/
   setTimer…` or the platform. Cite them with plain comments.
+- **Out-pointers**: an original output parameter (`int *x`) becomes part of the
+  return value (a small struct, e.g. `ScreenPoint {x, y}`), unless the
+  callee only sometimes writes it — then keep `*T`.
+- **Reading the original**: the decompile drops arguments of virtual calls
+  and can show wrong operands around them; take formulas from the
+  disassembly (`.ref/*.asm`). A trivial virtual getter is a field read.
 - **Tests** optional; when written, oracle per the skill.
 
 ## Units and porting order
