@@ -93,3 +93,6 @@ Zig **0.17.0**, to be pinned through `flake.nix` (`github:mitchellh/zig-overlay`
 the same way as the beni project; until the port skeleton exists there is no
 `flake.nix` or `build.zig` yet. `zig fmt` before committing; `zig build test`
 must pass.
+
+**Always build Debug with the self-hosted backend.** Never pass `-Doptimize=Release*`,
+`-fllvm` or set `use_llvm = true` — the LLVM backend is far too slow to iterate with.
