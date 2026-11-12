@@ -45,10 +45,11 @@ These are invariants, not style preferences. Flag violations in review.
   one `Fixes` options struct; never fix silently.
 - **Flatten the C++.** The original's virtual inheritance, vbtables,
   `this`-adjusting thunks, `is_x`/`as_x` type tests and default virtual stubs
-  have no counterpart. Objects are plain structs; a `kind` tag replaces type
-  tests; a virtual method becomes one function with a `switch` on `kind` (one
-  case per original override, each case tagged `@orig`); default stubs become
-  the `else` branch.
+  have no counterpart. One `Object` struct with a `kind` tag replaces the
+  classes (`obj.is(.mover)` / `obj.as(.portable)` replace type tests); a
+  virtual slot becomes one dispatcher (`pub fn moveTick`, named after the
+  vtable field) that switches on `kind` and calls one function per original
+  override, each tagged `@orig`; default stubs become the `else` branch.
 - **One port unit per file.** A unit (an engine module, one virtual behaviour
   across all kinds, or one scene handler) owns its file; don't edit another
   unit's file — record what you need in the tracker instead.
@@ -85,6 +86,23 @@ These are invariants, not style preferences. Flag violations in review.
   Tests run with the repo root as cwd (`@embedFile` can't reach `assets/`):
   `const text = try std.Io.Dir.cwd().readFileAlloc(std.testing.io,
   "assets/CASSETA.INI", gpa, .limited(1 << 20));`
+
+## Port design (binding)
+
+`docs/DESIGN.md` is the architecture: read it before porting. In short:
+shared types live in `src/core/` (`Game`, `Object`, `Scene`, …) and the OS
+in `src/platform/` — units add functions, not architecture. Engine,
+behaviour and handler code take `g: *Game`; leaf modules take the narrowest
+struct. Messages go through `g.post` / `g.send` / `g.setTimer` /
+`g.setSystemTimer` exactly where the original posts, sends or sets them.
+`hwnd`/`hdc` parameters are dropped; `Backdrop *` stays explicit. A unit's
+public names are the Ghidra name in camelCase minus its class prefix
+(`wave_play` → `sound.play`); handler globals go in the handler's `State`
+(`g.sceneState(State)`). C strings stay `[N]u8` (`core/cstr.zig`); pointer
+NULL → `?*T`, integer sentinels stay; original fatal errors →
+`error.Fatal`; unchecked original limits → `error.LimitExceeded`. A unit
+calling a virtual slot needs the slot's owning unit done first (slot table
+in the design; `noite next` can't see virtual calls).
 
 ## Naming
 
