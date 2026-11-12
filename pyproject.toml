@@ -1,0 +1,41 @@
+[project]
+name = "noite-workspace"
+version = "0.1.0"
+description = "Casseta & Planeta — Noite Animal: reverse engineering and the Zig port"
+requires-python = ">=3.14"
+# The `noite` CLI (tools/cli) is a workspace member; depending on it here
+# exposes `uv run noite` from anywhere in the repo or a worktree.
+dependencies = ["noite"]
+
+[dependency-groups]
+dev = ["ruff>=0.6", "mypy>=1.11", "pytest>=8"]
+
+[tool.uv]
+# Python is uv-managed (pinned in .python-version), not from nix.
+python-preference = "only-managed"
+# The root is the workspace shell, not a package.
+package = false
+
+[tool.uv.workspace]
+members = ["tools/cli"]
+
+[tool.uv.sources]
+noite = { workspace = true }
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = ["toolchain", "ghidra", "work"]
+src = ["tools/cli/src", "tools/cli/tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+mypy_path = ["tools/cli/src"]
+files = ["tools/cli/src", "tools/cli/tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tools/cli/tests"]

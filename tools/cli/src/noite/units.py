@@ -1,0 +1,170 @@
+"""Port units: one Zig file each, owning a set of original functions.
+
+A unit is an engine *module*, one virtual *behaviour* across all object kinds,
+or one scene *handler*. Handler units are seeded on import (one per
+``handler_<scene>``); the rest are created during the design pass.
+
+``sync`` writes a stub for every unit file that does not exist yet and
+regenerates ``src/units.zig``, the index that pulls every unit's tests into
+``zig build test``. It runs on the main checkout only, so worktrees never edit
+the index and never conflict over it.
+"""
+
+from __future__ import annotations
+
+import re
+import sqlite3
+from collections.abc import Iterable
+from dataclasses import dataclass
+from pathlib import Path
+
+from noite.db import UnitKind, UnitStatus, find_function
+
+INDEX = Path("src/units.zig")
+_NAME = re.compile(r"[a-z][a-z0-9_]*")
+
+
+class UnitError(RuntimeError):
+    pass
+
+
+def default_path(name: str, kind: UnitKind) -> str:
+    match kind:
+        case UnitKind.HANDLER:
+            return f"src/handlers/{name.removeprefix('handler_')}.zig"
+        case UnitKind.BEHAVIOUR:
+            return f"src/behaviour/{name}.zig"
+        case _:
+            return f"src/{name}.zig"
+
+
+def create(
+    conn: sqlite3.Connection,
+    name: str,
+    kind: UnitKind,
+    path: str | None = None,
+    notes: str | None = None,
+) -> str:
+    if not _NAME.fullmatch(name):
+        raise UnitError(f"bad unit name {name!r}: use snake_case ([a-z][a-z0-9_]*)")
+    path = path or default_path(name, kind)
+    if not (path.startswith("src/") and path.endswith(".zig")):
+        raise UnitError(f"unit file must be a .zig under src/: {path}")
+    try:
+        conn.execute(
+            "INSERT INTO units (name, path, kind, notes) VALUES (?, ?, ?, ?)",
+            (name, path, kind.value, notes),
+        )
+    except sqlite3.IntegrityError as e:
+        raise UnitError(f"cannot create unit {name}: {e}") from e
+    return path
+
+
+def get(conn: sqlite3.Connection, name: str) -> sqlite3.Row:
+    row: sqlite3.Row | None = conn.execute("SELECT * FROM units WHERE name = ?", (name,)).fetchone()
+    if row is None:
+        raise UnitError(f"no unit named {name!r} (see `noite unit list`)")
+    return row
+
+
+def resolve_functions(
+    conn: sqlite3.Connection, refs: Iterable[str], match: str | None = None
+) -> list[sqlite3.Row]:
+    """Functions by address/name, plus those whose name matches the GLOB ``match``."""
+    rows: list[sqlite3.Row] = []
+    for ref in refs:
+        row = find_function(conn, ref)
+        if row is None:
+            raise UnitError(f"no function {ref!r} (address or exact name)")
+        rows.append(row)
+    if match:
+        rows += conn.execute(
+            "SELECT * FROM functions WHERE name GLOB ? AND gone = 0 ORDER BY addr", (match,)
+        ).fetchall()
+    return rows
+
+
+def add(conn: sqlite3.Connection, unit: str, rows: list[sqlite3.Row], *, move: bool = False) -> int:
+    u = get(conn, unit)
+    if u["status"] == UnitStatus.IN_PROGRESS:
+        raise UnitError(f"unit {unit} is claimed by {u['agent_id']}; add functions before start")
+    n = 0
+    for r in rows:
+        if r["unit"] == unit:
+            continue
+        if r["unit"] is not None and not move:
+            raise UnitError(f"{r['addr']} {r['name']} already belongs to {r['unit']} (use --move)")
+        conn.execute("UPDATE functions SET unit = ? WHERE addr = ?", (unit, r["addr"]))
+        n += 1
+    return n
+
+
+def remove(conn: sqlite3.Connection, rows: list[sqlite3.Row]) -> int:
+    n = 0
+    for r in rows:
+        if r["unit"] is None:
+            continue
+        u = get(conn, r["unit"])
+        if u["status"] == UnitStatus.IN_PROGRESS:
+            raise UnitError(f"unit {u['name']} is claimed; release it first")
+        conn.execute("UPDATE functions SET unit = NULL WHERE addr = ?", (r["addr"],))
+        n += 1
+    return n
+
+
+def seed_handlers(conn: sqlite3.Connection) -> int:
+    """One handler unit per ``handler_*`` function that has no unit yet. Runs inside
+    the caller's transaction."""
+    n = 0
+    rows = conn.execute(
+        "SELECT addr, name FROM functions WHERE kind = 'handler' AND unit IS NULL AND gone = 0"
+    ).fetchall()
+    for r in rows:
+        name = r["name"].lower()
+        if not _NAME.fullmatch(name):
+            continue
+        if conn.execute("SELECT 1 FROM units WHERE name = ?", (name,)).fetchone() is None:
+            create(conn, name, UnitKind.HANDLER, notes=f"scene handler {r['addr']}")
+            n += 1
+        conn.execute("UPDATE functions SET unit = ? WHERE addr = ?", (name, r["addr"]))
+    return n
+
+
+@dataclass(frozen=True)
+class SyncResult:
+    stubs: list[str]
+    index_changed: bool
+
+
+def stub_text(name: str, kind: str, notes: str | None) -> str:
+    line = f"//! Port unit `{name}` ({kind})."
+    if notes:
+        line += f" {notes}."
+    return line + "\n"
+
+
+def index_text(rows: Iterable[sqlite3.Row]) -> str:
+    lines = ["//! Index of the port units. Generated by `noite unit sync`; do not edit.", ""]
+    for r in sorted(rows, key=lambda r: r["name"]):
+        rel = Path(r["path"]).relative_to("src").as_posix()
+        lines.append(f'pub const {r["name"]} = @import("{rel}");')
+    lines += ["", "test {", '    @import("std").testing.refAllDecls(@This());', "}", ""]
+    return "\n".join(lines)
+
+
+def sync(conn: sqlite3.Connection, root: Path) -> SyncResult:
+    rows = conn.execute("SELECT name, path, kind, notes FROM units").fetchall()
+    stubs = []
+    for r in rows:
+        p = root / r["path"]
+        if not p.exists():
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(stub_text(r["name"], r["kind"], r["notes"]))
+            stubs.append(r["path"])
+    index = root / INDEX
+    text = index_text(rows)
+    changed = not index.exists() or index.read_text() != text
+    if changed:
+        index.parent.mkdir(parents=True, exist_ok=True)
+        index.write_text(text)
+    return SyncResult(stubs, changed)
