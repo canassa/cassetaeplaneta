@@ -72,6 +72,8 @@ If nothing fits, use ✨ and pick a clear subject.
 
 ## Notes
 
+- **Port units:** in a `noite` worktree, commit only (no push); `noite finish` rebases,
+  merges to `main` and pushes.
 - Use a HEREDOC for the message so the blank line and punctuation survive:
   `git commit -F - <<'EOF' … EOF`.
 - If the push is rejected (remote moved), `git pull --rebase` and push again; never force-push.

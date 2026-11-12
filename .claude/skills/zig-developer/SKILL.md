@@ -35,8 +35,10 @@ These are invariants, not style preferences. Flag violations in review.
   on the line above each function or `switch` case translated from the
   original, one tag per original function (thunks/stubs it absorbs get their own
   `(absorbed)` tag). The port tracker checks these tags against its database;
-  untagged code is either platform code or a bug. Struct fields translated from
-  an original layout cite it too: `// @orig SceneObject+0x456`.
+  untagged code is either platform code or a bug. Struct fields cite their
+  origin too — `// @orig SceneObject+0x456` or `// @orig g_lives` (free-form,
+  not checked). Replaced CRT/API functions get a plain comment, not a tag
+  (`noite check` warns on tagging them).
 - **Faithful first.** Translate behaviour as the original does it, original
   bugs included. Don't "improve" logic while porting. Every known original bug
   (`BUGS.md`) is reproduced by default and its fix sits behind a named flag in
@@ -80,6 +82,9 @@ These are invariants, not style preferences. Flag violations in review.
   sequence, grid sizes), or `tools/oracle` (runs the original function) when
   cheap. Tag each test `// @orig <seg:off> <name> oracle=<kind>` (kind:
   `emulated`, `asset`, `documented` or `trace`); `noite check` reads it.
+  Tests run with the repo root as cwd (`@embedFile` can't reach `assets/`):
+  `const text = try std.Io.Dir.cwd().readFileAlloc(std.testing.io,
+  "assets/CASSETA.INI", gpa, .limited(1 << 20));`
 
 ## Naming
 
