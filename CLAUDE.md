@@ -41,12 +41,14 @@ one Zig file (module, behaviour or scene handler) owning a set of functions.
 noite import                 # refresh from Ghidra (needs the MCP bridge; keeps tracking)
 noite status [--segments]    # counts by status / kind / segment, units
 noite show <addr|name>       # row, callers/callees, decompile (--asm) — no Ghidra needed
+noite show <struct|global>   # layout / declaration + the functions that use it
 noite mark <fn…> -s dead     # fix a status by hand (--by <addr> for absorbed)
 noite unit new <name> -k module|behaviour|handler [--path src/x.zig] [--notes …]
 noite unit add <unit> <fn…> [--match 'backdrop_*'] [--move];  unit rm <fn…>
 noite unit show <unit> / unit list / unit sync   # sync: stubs + src/units.zig (main only)
 noite check [-w <unit>] [--fix-status]           # @orig tags vs the DB
-noite build|test [-w <unit>] [zig args]          # zig build [test]; Debug, self-hosted only
+noite build|test [-w <unit>] [zig args]          # zig build [test]; Debug, self-hosted only;
+                                                 # prints one line (tests passed / steps)
 ```
 
 Workflow (one agent per unit, any number in parallel):
@@ -54,7 +56,12 @@ Workflow (one agent per unit, any number in parallel):
 1. `noite next` — units whose callees outside the unit are all done
    (`--blocked` says what blocks the rest).
 2. `noite start <unit>` — atomic claim; makes worktree `work/<unit>/` on
-   branch `port/<unit>`, with each function's snapshot in `work/<unit>/.ref/`.
+   branch `port/<unit>`, with each function's snapshot in `work/<unit>/.ref/`
+   (`types.md`: layouts of the structs and declarations of the globals the
+   unit touches). In a worktree, `. .ref/env.sh` reuses the main checkout's
+   `.venv` (`UV_PROJECT_ENVIRONMENT` + `UV_NO_SYNC=1`, no venv per worktree)
+   and sets `NIX_CONFIG='warn-dirty = false'` to silence nix's "Git tree is
+   dirty" warning.
 3. In the worktree, write the unit's file only: one
    `// @orig <seg:off> <name>` per function (`(absorbed)` for stubs it
    absorbs); tests optional for now — tag them with
