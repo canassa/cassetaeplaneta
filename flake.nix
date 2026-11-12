@@ -1,0 +1,36 @@
+{
+  description = "Casseta & Planeta — Noite Animal: reverse engineering and the native Zig port";
+
+  # Pinned to the host's channel. Zig releases move the std API, so the
+  # toolchain is upgraded deliberately (same pins as the beni project).
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+  inputs.zig-overlay.url = "github:mitchellh/zig-overlay";
+  inputs.zig-overlay.inputs.nixpkgs.follows = "nixpkgs";
+
+  outputs = { self, nixpkgs, zig-overlay }:
+    let
+      systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
+      forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f system nixpkgs.legacyPackages.${system});
+    in
+    {
+      devShells = forAllSystems (system: pkgs: {
+        default = pkgs.mkShell {
+          packages = [
+            # Zig 0.17.0 — the port (build.zig). Read its std (`zig env`)
+            # rather than trusting remembered APIs.
+            zig-overlay.packages.${system}."0.17.0"
+            # Python is NOT from nix: uv installs and manages it (pinned in
+            # .python-version). Run the tracker as `uv run noite …`.
+            pkgs.uv
+            pkgs.sqlite
+          ];
+
+          # One global Zig cache for this project only, shared by every
+          # worktree under work/ (each keeps its own local .zig-cache).
+          shellHook = ''
+            export ZIG_GLOBAL_CACHE_DIR="''${ZIG_GLOBAL_CACHE_DIR:-''${XDG_CACHE_HOME:-$HOME/.cache}/zig-noite}"
+          '';
+        };
+      });
+    };
+}
