@@ -53,6 +53,7 @@ pub const handler_espquete = @import("handlers/espquete.zig");
 pub const handler_fundini1 = @import("handlers/fundini1.zig");
 pub const handler_fundinic = @import("handlers/fundinic.zig");
 pub const handler_salvar2 = @import("handlers/salvar2.zig");
+pub const ini_sections = @import("ini_sections.zig");
 
 test {
     @import("std").testing.refAllDecls(@This());
