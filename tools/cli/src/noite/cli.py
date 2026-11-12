@@ -206,8 +206,6 @@ def show(
                     f"    {r['addr']} {r['name']} [{r['status']}"
                     + (f", {r['unit']}]" if r["unit"] else "]")
                 )
-    if f["plate"]:
-        typer.echo("\n/* " + f["plate"] + " */")
     typer.echo(f["decompile"] or "\n// (no decompilation stored)")
     if asm:
         typer.echo(f["disasm"] or "")
