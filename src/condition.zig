@@ -10,25 +10,28 @@ const Game = @import("core/game.zig").Game;
 /// (1010:9f36) answers true; a flag condition answers its stored flag.
 pub fn evaluate(cond: *const Condition) i16 {
     return switch (cond.kind) {
+        // @orig 1010:0a4e condition_evaluate_default (absorbed)
         .base => 1,
         .flag => flagConditionEvaluate(cond),
     };
 }
 
-/// Virtual slot 01: sets the condition. Only flag conditions are ever set
-/// (the base vtable's entry was not traced; it is treated as a no-op that
-/// reports success).
+/// Virtual slot 01: sets the condition. The base class does nothing and
+/// returns 0.
 pub fn set(cond: *Condition) i16 {
     return switch (cond.kind) {
-        .base => 1,
+        // @orig 1010:0a5c condition_set_default (absorbed)
+        .base => 0,
         .flag => flagConditionSet(cond),
     };
 }
 
-/// Virtual slot 02: clears the condition (see `set` for the base case).
+/// Virtual slot 02: clears the condition. The base class does nothing and
+/// returns 0.
 pub fn clear(cond: *Condition) i16 {
     return switch (cond.kind) {
-        .base => 1,
+        // @orig 1010:0a68 condition_clear_default (absorbed)
+        .base => 0,
         .flag => flagConditionClear(cond),
     };
 }
