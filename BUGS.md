@@ -332,6 +332,20 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   the walk on arrival (no 0x404, the timer keeps running for the idle animation).
 - **Confidence:** 8 (code, port repro; the click timing in the original).
 
+### B27. The lives and score drift inside their boxes as the control panel slides
+- **Where:** `control_panel_draw_texts` 1018:20a0 draws the lives at (4, 0x1db − h) and the score at
+  (0x221, 0x208 − h), h = `control_panel_get_visible_height` 1010:462c = (frame + 2) × 20.
+- **What the code does:** the texts move in 20-pixel steps per panel frame, but the art
+  (`PAN\BMP\PAINEL.BMP`, 4 frames of 640×120 drawn at y 340) does not: the lives badge's top is at
+  screen y 433, 400, 381, 362 (steps 33, 19, 19) and the score box's at 455, 436, 417 for frames 1–3
+  (off screen when closed).
+- **Effect:** the lives text sits 2 px below its badge's top when the panel is closed and 15, 14, 13 px
+  below once it slides: the "3" jumps down to the badge's bottom edge as the panel opens. The score is off
+  by 1 px only (5, 4, 3 below its box).
+- **Port:** reproduced (`src/panels.zig`); `Fixes.panel_text_follows_art` takes the y per frame from the
+  art — lives 2 px below the badge (the closed look), score 4 px below its box (glyphs centred).
+- **Confidence:** 9 (code constants and art measurements; cosmetic).
+
 ## Harmless: wrong paths rescued by the wave fallback
 
 `wave_open` retries `<root>pan\wav\<file name>.wav`, and `PAN\WAV\` holds a copy of almost every wave, so these

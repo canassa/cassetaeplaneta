@@ -73,9 +73,25 @@ pub fn drawTexts(g: *Game, obj: *Object, bd: *Backdrop) void {
         _ = cstr.print(&p.scoreText, "{d:0>7}", .{mag});
     }
     _ = cstr.print(&p.livesText, "{d}", .{g.lives});
-    _ = g.plat.textOut(surf, style, 0x221, 0x208 -% getVisibleHeight(g, obj), cstr.slice(&p.scoreText));
-    _ = g.plat.textOut(surf, style, 4, 0x1db -% getVisibleHeight(g, obj), cstr.slice(&p.livesText));
+    // The y follow the 20-pixel steps of the visible height, which the
+    // panel art does not (BUGS.md B27; `Fixes.panel_text_follows_art`).
+    var score_y = 0x208 -% getVisibleHeight(g, obj);
+    var lives_y = 0x1db -% getVisibleHeight(g, obj);
+    if (g.fixes.panel_text_follows_art and obj.curFrame >= 0 and obj.curFrame < art_score_y.len) {
+        const f: usize = @intCast(obj.curFrame);
+        score_y = art_score_y[f];
+        lives_y = art_lives_y[f];
+    }
+    _ = g.plat.textOut(surf, style, 0x221, score_y, cstr.slice(&p.scoreText));
+    _ = g.plat.textOut(surf, style, 4, lives_y, cstr.slice(&p.livesText));
 }
+
+/// `Fixes.panel_text_follows_art` (BUGS.md B27): per panel frame, the text
+/// y that keeps the lives 2 px below the black badge's top (as when the
+/// panel is closed: badge at 433/400/381/362) and the score 4 px below its
+/// box's top (glyphs centred; box at 455/436/417, off screen when closed).
+const art_lives_y = [_]i16{ 435, 402, 383, 364 };
+const art_score_y = [_]i16{ 0x208 - 40, 459, 440, 421 };
 
 // @orig 1010:45f0 control_panel_is_open
 /// ControlPanel slot 08: fully slid up.

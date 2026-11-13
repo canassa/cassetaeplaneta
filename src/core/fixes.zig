@@ -61,6 +61,9 @@ pub const Fixes = struct {
     /// B26: entering a scene cancels the player's walk, so the next timer
     /// tick does not resume the old scene's walk (and leave a frame behind).
     scene_entry_stops_walk: bool = false,
+    /// B27: the control panel's lives and score follow the panel art's
+    /// boxes as it slides (per-frame y) instead of 20-pixel steps.
+    panel_text_follows_art: bool = false,
     /// U1: draw the status-bar text.
     status_bar_text: bool = false,
     /// `ini_fatal_error` ("Erro Fatal!") quits (`error.Fatal`) instead of
