@@ -20,8 +20,11 @@ pub const max_files = 20; // a Win16 task's default handle table
 pub const MinigameResult = struct {
     won: bool = true,
     score: i32 = 0,
+    /// How long the stub minigame's window takes to appear after WinExec
+    /// (FindWindow fails until then), like a real program starting up.
+    startup_ms: u32 = 1500,
     /// How long the stub minigame "runs" before reporting.
-    duration_ms: u32 = 1000,
+    duration_ms: u32 = 3000,
 };
 
 /// Which WaveMix call fails (to exercise the game's error boxes).
@@ -56,6 +59,8 @@ const Window = struct {
     alive: bool,
     /// Its result is scheduled: the window closes when it is delivered.
     reporting: bool = false,
+    /// When the window exists (FindWindow finds it from then on).
+    appears_at: u32 = 0,
 };
 
 /// An open WaveMix wave: its length and (with `keep_audio`) its samples.
@@ -845,7 +850,7 @@ pub const Sim = struct {
         .{ .exe = "jardim", .title = "Noite Animal Jardim" },
     };
 
-    pub fn winExec(s: *Sim, command: []const u8) u16 {
+    pub fn winExec(s: *Sim, now: u32, command: []const u8) u16 {
         const cmd = std.mem.trim(u8, command, " ");
         const exe_path = cmd[0 .. std.mem.indexOfScalar(u8, cmd, ' ') orelse cmd.len];
         var base = exe_path[(std.mem.lastIndexOfAny(u8, exe_path, "\\/:") orelse 0)..];
@@ -854,7 +859,7 @@ pub const Sim = struct {
         for (titles) |t| {
             if (!std.ascii.eqlIgnoreCase(t.exe, base)) continue;
             for (&s.minigames, 0..) |*w, i| if (w.* == null) {
-                w.* = .{ .title = t.title, .hwnd = @intCast(100 + i), .alive = true };
+                w.* = .{ .title = t.title, .hwnd = @intCast(100 + i), .alive = true, .appears_at = now +% s.opts.minigame.startup_ms };
                 return 33;
             };
             return 0; // out of memory
@@ -862,8 +867,9 @@ pub const Sim = struct {
         return 2; // file not found
     }
 
-    pub fn findWindow(s: *Sim, title: []const u8) ?p.Hwnd {
+    pub fn findWindow(s: *Sim, now: u32, title: []const u8) ?p.Hwnd {
         for (s.minigames) |w| if (w) |win| {
+            if (@as(i32, @bitCast(now -% win.appears_at)) < 0) continue;
             if (win.alive and std.mem.eql(u8, win.title, title)) return win.hwnd;
         };
         return null;

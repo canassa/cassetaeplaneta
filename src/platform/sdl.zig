@@ -324,10 +324,10 @@ pub const Sdl = struct {
         s.sim.aviClose(dev, &s.screen_buf);
     }
     fn winExec(ptr: *anyopaque, command: []const u8) u16 {
-        return self(ptr).sim.winExec(command);
+        return self(ptr).sim.winExec(ticks(ptr), command);
     }
     fn findWindow(ptr: *anyopaque, title: []const u8) ?p.Hwnd {
-        return self(ptr).sim.findWindow(title);
+        return self(ptr).sim.findWindow(ticks(ptr), title);
     }
     fn postTo(ptr: *anyopaque, hwnd: p.Hwnd, m: p.Msg) bool {
         return self(ptr).sim.postTo(ticks(ptr), hwnd, m);

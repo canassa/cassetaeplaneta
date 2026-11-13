@@ -117,10 +117,10 @@
 +0 wait 4FPISTAV 40000
 +1000 rclick 500 100
 +0 wait 4fbar 33000
-# The sportsman's quiz: this run asks about Independiente (answer C).
+# The sportsman's quiz: this run asks whose stadium Moisés Lucarelli is (E, Ponte Preta).
 +2000 rclick 396 290
 +1500 dump quiz
-+200 rclick 430 250
++200 rclick 440 290
 +0 wait espquete 41000
 +1000 wait 6fsai1 51000
 +0 wait fundinic 48000

@@ -147,10 +147,12 @@ pub const Headless = struct {
         h.sim.aviClose(dev, &h.screen_buf);
     }
     fn winExec(ptr: *anyopaque, command: []const u8) u16 {
-        return self(ptr).sim.winExec(command);
+        const h = self(ptr);
+        return h.sim.winExec(h.now, command);
     }
     fn findWindow(ptr: *anyopaque, title: []const u8) ?p.Hwnd {
-        return self(ptr).sim.findWindow(title);
+        const h = self(ptr);
+        return h.sim.findWindow(h.now, title);
     }
     fn postTo(ptr: *anyopaque, hwnd: p.Hwnd, m: p.Msg) bool {
         const h = self(ptr);
@@ -206,6 +208,9 @@ test "the minigame stub answers the protocol in order" {
     defer h.deinit();
     const plat = h.platform();
     try std.testing.expect(plat.winExec("\\sauna\\sauna.exe") >= 32);
+    // The window shows up after the stub's start-up time.
+    try std.testing.expectEqual(@as(?p.Hwnd, null), plat.findWindow("Sauna Mista"));
+    plat.wait(1500);
     const w = plat.findWindow("Sauna Mista").?;
     try std.testing.expect(plat.postTo(w, .{ .id = 0x40b }));
     plat.wait(null);
