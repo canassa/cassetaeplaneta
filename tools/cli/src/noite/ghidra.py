@@ -187,6 +187,7 @@ class GhidraSource:
     """The live Ghidra program, read through :class:`McpClient`."""
 
     BATCH = 20  # get_functions' bulk limit
+    DISASM_CAP = 200  # get_functions truncates its disassembly at this many rows
 
     def __init__(self, client: McpClient, program: str = PROGRAM) -> None:
         self.client = client
@@ -220,6 +221,10 @@ class GhidraSource:
                 if "error" in f:
                     raise GhidraError(f"get_functions {ref}: {f['error']}")
                 addr = f["address"].lower()
+                rows = f.get("disassembly") or []
+                disasm = (
+                    self.full_disasm(addr) if len(rows) >= self.DISASM_CAP else format_disasm(rows)
+                )
                 out[addr] = FunctionInfo(
                     addr=addr,
                     name=f["name"],
@@ -228,11 +233,20 @@ class GhidraSource:
                     signature=f.get("signature"),
                     plate=f.get("plate_comment") or None,
                     decompile=f.get("decompiled_code") if decompile else None,
-                    disasm=format_disasm(f.get("disassembly") or []),
+                    disasm=disasm,
                     ghidra_class=f.get("classification"),
                     callees=tuple(sorted({c["address"].lower() for c in f.get("callees", [])})),
                 )
         return out
+
+    def full_disasm(self, addr: str) -> str:
+        """The whole listing of one function (``get_functions`` caps it)."""
+        res = self.client.call("disassemble_function", {"program": self.program, "address": addr})
+        # Same shape as format_disasm: "MOV AX,0x1050" -> "MOV AX, 0x1050".
+        return "\n".join(
+            f"{r.get('address', '')}  {re.sub(r',(?=\S)', ', ', r.get('instruction', ''))}".rstrip()
+            for r in res.get("instructions", [])
+        )
 
     def structs(self) -> list[StructInfo]:
         res = self.client.call(
