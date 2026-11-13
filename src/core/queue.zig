@@ -58,8 +58,14 @@ pub const Queue = struct {
         _ = q.input.push(m);
     }
 
-    /// SetTimer / SetSystemTimer: (re)arms `id` of that kind.
-    pub fn setTimer(q: *Queue, kind: TimerKind, id: u16, period_ms: u32, now: u32) bool {
+    /// The Windows 3.1 timer tick (18.2 Hz): a timer cannot fire more often.
+    pub const tick_ms = 55;
+
+    /// SetTimer / SetSystemTimer: (re)arms `id` of that kind. A zero period
+    /// (INI objects with PerTimer 0) fires once per system tick, as on
+    /// Windows, instead of on every queue read.
+    pub fn setTimer(q: *Queue, kind: TimerKind, id: u16, period: u32, now: u32) bool {
+        const period_ms = if (period == 0) tick_ms else period;
         for (q.timers[0..q.timer_count]) |*t| {
             if (t.kind == kind and t.id == id) {
                 t.period = period_ms;
