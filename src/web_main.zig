@@ -16,6 +16,7 @@ const web = @import("platform/web.zig");
 const mixer = @import("platform/mixer.zig");
 const harness = @import("platform/harness.zig");
 const units = @import("units.zig");
+const one_button = @import("one_button.zig");
 
 pub const std_options: std.Options = .{ .logFn = log };
 
@@ -51,12 +52,14 @@ export fn __main_argc_argv(argc: c_int, argv: ?*anyopaque) c_int {
 /// WinMain up to the message loop. 0 on success. The page's options:
 /// `fixes` turns every BUGS.md fix on (`--fix all`, the "Corrigida"
 /// version), `skip_videos` lets a click or Esc/Enter/Space end a video
-/// (`--skip-videos`).
-export fn noite_start(fixes: bool, skip_videos: bool) i32 {
+/// (`--skip-videos`), `one_button` plays with the left button or touch
+/// alone (`--one-button`).
+export fn noite_start(fixes: bool, skip_videos: bool, one_button_mode: bool) i32 {
     backend.init(gpa, skip_videos);
     const g = Game.create(gpa, backend.platform()) catch return 1;
     game = g;
     if (fixes) g.fixes = .all();
+    if (one_button_mode) one_button.enable(g);
     g.wndProc = units.app.wndProc;
     units.app.start(g) catch |e| {
         std.log.err("app start: {t}", .{e});
@@ -132,11 +135,20 @@ export fn noite_audio_rate() u32 {
 }
 
 /// Test hook (tools/web/test.py): the options `noite_start` got, as bits
-/// (1: every fix on, 2: skip videos); -1 before the start.
+/// (1: every fix on, 2: skip videos, 4: one button); -1 before the start.
 export fn noite_options() i32 {
     const g = game orelse return -1;
     const all = std.meta.eql(g.fixes, .all());
-    return @as(i32, @intFromBool(all)) | @as(i32, @intFromBool(backend.sim.opts.skip_videos)) << 1;
+    return @as(i32, @intFromBool(all)) | @as(i32, @intFromBool(backend.sim.opts.skip_videos)) << 1 |
+        @as(i32, @intFromBool(g.oneButton.filter != null)) << 2;
+}
+
+/// Test hook (tools/web/test.py): the number of items the player carries
+/// (-1 before the start or without a player object).
+export fn noite_inventory() i32 {
+    const g = game orelse return -1;
+    const p = g.player orelse return -1;
+    return p.actor.inventory.count;
 }
 
 /// Test hook (tools/web/test.py): the current INI scene's name, NUL

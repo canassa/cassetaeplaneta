@@ -295,18 +295,23 @@ fn rightDown(g: *Game, m: Msg) i32 {
 /// scene has one) stands within one and a half of its own hit widths of
 /// the exit, and the exit is enabled.
 pub fn exitTakesClick(g: *Game, obj: *Object) bool {
-    if (hasPlayer(g)) {
-        const player = must(Object, g.player);
-        const half_w: i16 = @divTrunc(frames.hitW(obj), 2);
-        var d: i16 = player.x -% obj.x -% half_w;
-        d +%= @divTrunc(frames.hitW(player), 2);
-        d -%= frames.hitX(obj);
-        const a: i16 = frames.hitX(player) +% d;
-        const dist: i16 = if (a < 0) 0 -% a else a;
-        const limit: i16 = @divTrunc(frames.hitW(player) *% 3, 2);
-        if (dist >= limit) return false;
-    }
+    if (hasPlayer(g) and !exitInReach(g, obj)) return false;
     return exit_mod.isEnabled(g, obj);
+}
+
+/// The reach part of `exitTakesClick`: the centres of the player's and the
+/// exit's hit boxes are less than one and a half of the player's hit
+/// widths apart horizontally.
+pub fn exitInReach(g: *Game, obj: *Object) bool {
+    const player = must(Object, g.player);
+    const half_w: i16 = @divTrunc(frames.hitW(obj), 2);
+    var d: i16 = player.x -% obj.x -% half_w;
+    d +%= @divTrunc(frames.hitW(player), 2);
+    d -%= frames.hitX(obj);
+    const a: i16 = frames.hitX(player) +% d;
+    const dist: i16 = if (a < 0) 0 -% a else a;
+    const limit: i16 = @divTrunc(frames.hitW(player) *% 3, 2);
+    return dist < limit;
 }
 
 /// Releasing the right button over the scene drops the carried item there,
@@ -454,15 +459,15 @@ fn fallToRest(g: *Game, sel: *Object, sx: i16) void {
     movement.moveTo(g, sel, sx, rest +% frames.height(sel) -% half, bd);
 }
 
-/// `Fixes.drag_shows_item` (not in the original): puts the dragged item's
-/// panel icon, centred on the pointer, in the screen overlay the platform
-/// draws over the frame it shows; hides it when no drag is on (released,
-/// or the selection cleared by a drop, an offer, a scene change). Call it
-/// before presenting.
+/// `Fixes.drag_shows_item` and the one-button mode (not in the original):
+/// puts the dragged (or tap-selected) item's panel icon, centred on the
+/// pointer, in the screen overlay the platform draws over the frame it
+/// shows; hides it when no drag is on (released, or the selection cleared
+/// by a drop, an offer, a scene change). Call it before presenting.
 pub fn showDrag(g: *Game) void {
     const ov = &g.plat.screen().overlay;
     ov.shown = false;
-    if (!g.fixes.drag_shows_item) return;
+    if (!g.showsDrag()) return;
     const item = g.drag.item orelse return;
     if (g.itemSelected == 0 or g.selectedItem != item) {
         g.drag.item = null;

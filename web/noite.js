@@ -6,9 +6,11 @@
 //
 // Before the game starts the player picks the version (Original: the
 // original's bugs reproduced; Corrigida: every fix of BUGS.md, as
-// `--fix all`) and whether a click or Esc/Enter/Space skips videos
-// (`--skip-videos`); both are remembered in localStorage and passed to
-// `noite_start`. Each version keeps its own saves.
+// `--fix all`), whether a click or Esc/Enter/Space skips videos
+// (`--skip-videos`) and whether the left button (or a touch) does all
+// (`--one-button`, on by default on a touch screen); they are remembered
+// in localStorage and passed to `noite_start`. Each version keeps its own
+// saves.
 //
 // Every file but index.html is requested by content hash (`url?h=<hash>`,
 // tools/web/stamp.py): index.html passes the wasm's and the manifest's
@@ -225,13 +227,23 @@
 
   // ---- options --------------------------------------------------------------
 
-  /** { version: "original" | "corrigida", skip: bool } */
+  /** A touch screen (no right button, no hover): one-button by default. */
+  function coarsePointer() {
+    try {
+      return matchMedia("(pointer: coarse)").matches;
+    } catch {
+      return false;
+    }
+  }
+
+  /** { version: "original" | "corrigida", skip: bool, oneButton: bool } */
   function readPrefs() {
-    const prefs = { version: "original", skip: true };
+    const prefs = { version: "original", skip: true, oneButton: coarsePointer() };
     try {
       const p = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}");
       if (p.version in SAVE_PREFIXES) prefs.version = p.version;
       if (typeof p.skip === "boolean") prefs.skip = p.skip;
+      if (typeof p.oneButton === "boolean") prefs.oneButton = p.oneButton;
     } catch {}
     // "Trocar versão" reloads with ?versao=… (works without localStorage).
     const asked = new URLSearchParams(location.search).get("versao");
@@ -252,7 +264,7 @@
 
   function chosenPrefs() {
     const radio = document.querySelector('input[name="versao"]:checked');
-    return { version: radio ? radio.value : "original", skip: $("skip").checked };
+    return { version: radio ? radio.value : "original", skip: $("skip").checked, oneButton: $("onebutton").checked };
   }
 
   let prefs = readPrefs();
@@ -431,11 +443,14 @@
       wasm.noite_mouse(1, e.button, x, y);
       e.preventDefault();
     });
-    canvas.addEventListener("pointerup", (e) => {
+    const up = (e) => {
       const [x, y] = screenPos(e);
       wasm.noite_mouse(2, e.button, x, y);
       e.preventDefault();
-    });
+    };
+    canvas.addEventListener("pointerup", up);
+    // A touch the browser takes back (a system gesture) still ends the press.
+    canvas.addEventListener("pointercancel", (e) => up({ clientX: e.clientX, clientY: e.clientY, button: 0, preventDefault() {} }));
     canvas.addEventListener("contextmenu", (e) => e.preventDefault());
     const key = (down) => (e) => {
       startAudio();
@@ -570,6 +585,7 @@
   function waitForPlay() {
     for (const r of document.querySelectorAll('input[name="versao"]')) r.checked = r.value === prefs.version;
     $("skip").checked = prefs.skip;
+    $("onebutton").checked = prefs.oneButton;
     return new Promise((resolve) => {
       $("play").onclick = () => {
         startAudio(); // a user gesture: the opening is heard
@@ -634,7 +650,7 @@
       fit();
       watchSize();
       attachInput();
-      const rc = wasm.noite_start(prefs.version === "corrigida" ? 1 : 0, prefs.skip ? 1 : 0);
+      const rc = wasm.noite_start(prefs.version === "corrigida" ? 1 : 0, prefs.skip ? 1 : 0, prefs.oneButton ? 1 : 0);
       if (rc !== 0) throw new Error(`o jogo não iniciou (${rc})`);
       running = true;
       requestAnimationFrame(frame);
@@ -651,6 +667,7 @@
     /** What the wasm got from noite_start (null before the start). */
     get fixes() { return wasm && running ? (wasm.noite_options() & 1) !== 0 : null; },
     get skipVideos() { return wasm && running ? (wasm.noite_options() & 2) !== 0 : null; },
+    get oneButton() { return wasm && running ? (wasm.noite_options() & 4) !== 0 : null; },
     get failure() { return failure; },
     get loadStats() { return loadStats; },
     /** Cache Storage holds only the manifest's files (after a load). */
@@ -658,6 +675,8 @@
     get audioPeak() { return audioPeak; },
     get frameStats() { return { frames, avgMs: frames ? frameMs / frames : 0, worstMs }; },
     get audioState() { return audio ? audio.state : "none"; },
+    /** Items the player carries (-1 before the start). */
+    get inventory() { return wasm ? wasm.noite_inventory() : -1; },
     get scene() {
       if (!wasm) return "";
       const m = mem(), p = wasm.noite_scene();

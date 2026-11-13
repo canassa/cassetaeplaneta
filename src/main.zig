@@ -3,7 +3,7 @@
 //!     noite [--headless] [--ms N] [--assets DIR] [--save DIR] [--trace FILE]
 //!           [--input FILE] [--dump DIR] [--dump-every MS] [--bmp]
 //!           [--scene NAME [--take ID,ID…]] [--minigame win|lose] [--quiet]
-//!           [--fix NAME,…|all[,-NAME…]] [--skip-videos]
+//!           [--fix NAME,…|all[,-NAME…]] [--skip-videos] [--one-button]
 //!
 //! The test harness (`platform/harness.zig`): `--input` plays a script of
 //! timed mouse/keyboard input (`platform/script.zig`), `--dump` writes
@@ -46,6 +46,7 @@ pub const platform = struct {
     pub const harness = @import("platform/harness.zig");
 };
 pub const units = @import("units.zig");
+const one_button = @import("one_button.zig");
 const Game = core.game.Game;
 const wm = core.msg.wm;
 
@@ -58,6 +59,9 @@ const Args = struct {
     harness: platform.harness.Options = .{},
     /// `--fix a,b` / `--fix all[,-a]`: BUGS.md fixes (src/core/fixes.zig).
     fixes: core.fixes.Fixes = .{},
+    /// `--one-button`: the left button does what the right one did
+    /// (`src/one_button.zig`).
+    one_button: bool = false,
 };
 
 /// The running game, for the panic report.
@@ -124,6 +128,8 @@ pub fn main(init: std.process.Init) !void {
             }
         } else if (std.mem.eql(u8, a, "--skip-videos")) {
             args.opts.skip_videos = true;
+        } else if (std.mem.eql(u8, a, "--one-button")) {
+            args.one_button = true;
         } else if (std.mem.eql(u8, a, "--take")) {
             args.harness.take = it.next() orelse return error.MissingValue;
         } else if (std.mem.eql(u8, a, "--quiet")) {
@@ -150,6 +156,7 @@ pub fn main(init: std.process.Init) !void {
         defer h.deinit();
         const g = try Game.create(gpa, h.platform());
         g.fixes = args.fixes;
+        if (args.one_button) one_button.enable(g);
         defer g.destroy();
         if (args.trace != null) g.trace = &trace;
         try run(g, &hn, args.ms);
@@ -160,6 +167,7 @@ pub fn main(init: std.process.Init) !void {
         hn.sdl = &s;
         const g = try Game.create(gpa, s.platform());
         g.fixes = args.fixes;
+        if (args.one_button) one_button.enable(g);
         defer g.destroy();
         if (args.trace != null) g.trace = &trace;
         try run(g, &hn, null);
@@ -239,6 +247,7 @@ fn deliver(g: *Game, ev: platform.api.Event) void {
 test {
     // Pulls in every port unit's tests (the index is generated) and the core.
     _ = @import("units.zig");
+    _ = one_button;
     std.testing.refAllDecls(core);
     std.testing.refAllDecls(platform.sim);
     std.testing.refAllDecls(platform.headless);

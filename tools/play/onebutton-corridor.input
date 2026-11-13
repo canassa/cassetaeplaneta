@@ -1,0 +1,29 @@
+# The one-button mode in the corridor (src/one_button.zig), left button only:
+#
+#   zig-out/bin/noite --headless --ms 30000 --one-button --scene 1fquarbo --input tools/play/onebutton-corridor.input
+#
+# The floor near the bathroom door walks, the door itself knocks (its
+# sound), a click on the parents' door walks over to it and a new click
+# before the player gets there cancels it; the right edge leads back to the
+# bedroom, and the bedroom door, clicked from the far side of the room,
+# walks the player over and out.
+0 scene 1fcorred 150 130 1 1 0
+1000 click 530 400
++2500 expect 1fcorred
++0 click 548 338
++2500 expect 1fcorred
++0 log knock
++0 click 548 150
++2000 log parents' door, then a walk before arriving
++0 click 211 150
++400 click 400 400
++3000 expect 1fcorred
++0 state
++0 click 625 250
++0 wait 1fquarbo 10000
++1000 click 560 330
++3000 state
++0 click 95 80
++0 wait 1fcorred 10000
++1000 state
++0 quit

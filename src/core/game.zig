@@ -42,6 +42,10 @@ pub const Game = struct {
     /// Not in the original: the item being dragged out of the control panel
     /// and the pointer, for `Fixes.drag_shows_item`.
     drag: Drag = .{},
+    /// Not in the original: the one-button control mode (`src/one_button.zig`),
+    /// a front-end option. Its `filter` sees every queued message before the
+    /// window procedure; null = off (input is dispatched unchanged).
+    oneButton: OneButton = .{},
 
     // ---- struct Game ----
     // @orig Game+0x4
@@ -274,12 +278,25 @@ pub const Game = struct {
             g.quit = true;
             return true;
         }
+        if (g.oneButton.filter) |f| if (f(g, m)) return true;
+        g.dispatch(m);
+        return true;
+    }
+
+    /// Hands a queued message (or one the one-button mode made) to the
+    /// window procedure.
+    pub fn dispatch(g: *Game, m: Msg) void {
         g.log('Q', m);
-        if (g.fixes.drag_shows_item) g.drag.pointer(m);
+        if (g.showsDrag()) g.drag.pointer(m);
         _ = g.wndProc(g, m);
         // The release ends the drag, whoever handled it.
         if (m.id == msg.wm.rbuttonup) g.drag.item = null;
-        return true;
+    }
+
+    /// Whether the dragged item's icon is shown (`Fixes.drag_shows_item`,
+    /// or the one-button mode, whose selected item needs it).
+    pub fn showsDrag(g: *const Game) bool {
+        return g.fixes.drag_shows_item or g.oneButton.filter != null;
     }
 
     fn log(g: *Game, how: u8, m: Msg) void {
@@ -310,6 +327,39 @@ pub const Drag = struct {
             else => {},
         }
     }
+};
+
+/// The one-button mode's state (`src/one_button.zig`): what the left press
+/// now down became, an inventory item selected by a tap, and an object
+/// to act on once the player's walk to it ends.
+pub const OneButton = struct {
+    filter: ?*const fn (g: *Game, m: Msg) bool = null,
+    press: Press = .none,
+    /// A tap on an inventory slot selected an item (the right button is
+    /// held, as far as the game knows) until the next click.
+    held: bool = false,
+    pending: ?Pending = null,
+
+    pub const Press = enum {
+        /// No press, or the left button passed on as it is.
+        none,
+        /// Passed on as the right button: its release too.
+        right,
+        /// The right button on an inventory slot: a release on the same
+        /// slot keeps the item selected, elsewhere drops or offers it.
+        slot,
+        /// Done with at the press: the release is swallowed.
+        swallow,
+    };
+
+    /// A right click on `target` at (x, y) (backdrop coordinates), due
+    /// when the player's walk ends (0x404) in `scene`.
+    pub const Pending = struct {
+        scene: *world.Scene,
+        target: *Object,
+        x: i16,
+        y: i16,
+    };
 };
 
 /// A ring of the last messages the window procedure got (`S` sent, `Q`

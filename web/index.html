@@ -7,10 +7,11 @@
 <style>
   :root { color-scheme: dark; }
   html, body { margin: 0; height: 100%; background: #000; color: #ddd;
-    font: 15px/1.4 system-ui, sans-serif; overflow: hidden; }
+    font: 15px/1.4 system-ui, sans-serif; overflow: hidden; overscroll-behavior: none; }
   #stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
   canvas { image-rendering: pixelated; image-rendering: crisp-edges; display: block;
-    background: #000; touch-action: none; cursor: default; }
+    background: #000; touch-action: none; cursor: default;
+    -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
   .panel { position: absolute; max-width: 30rem; width: calc(100% - 32px); padding: 1.25rem 1.5rem;
     background: #111; border: 1px solid #333; border-radius: 8px; box-sizing: border-box; }
   .panel h1 { font-size: 1.1rem; margin: 0 0 .75rem; color: #fff; }
@@ -61,6 +62,8 @@
       <fieldset>
         <label><input type="checkbox" id="skip" checked>
           <span>Pular vídeos com clique ou Esc</span></label>
+        <label><input type="checkbox" id="onebutton">
+          <span>Controle com um botão <small>— para telas de toque: o clique faz tudo, toque no item e depois onde usá-lo</small></span></label>
       </fieldset>
       <button id="play">Jogar</button>
     </div>

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Smoke test: start every INI scene headless and click its objects.
 
-    nix develop -c python3 tools/smoke.py [SCENE...] [--ms N] [--keep DIR]
+    nix develop -c python3 tools/smoke.py [SCENE...] [--ms N] [--keep DIR] [--one-button]
 
 For each `[section]` with a `Screen=` line, runs
 `zig-out/bin/noite --headless --scene NAME` with a generated input script:
@@ -140,6 +140,7 @@ def main():
     ap.add_argument("--lose", action="store_true", help="the stub minigames report a loss")
     ap.add_argument("--monkey", type=int, metavar="SEED", help="random clicks, drags and walks (seeded)")
     ap.add_argument("--fix", help="BUGS.md fixes to turn on (noite --fix)")
+    ap.add_argument("--one-button", action="store_true", help="the one-button control mode (noite --one-button)")
     args = ap.parse_args()
 
     secs = sections((ROOT / "assets" / "CASSETA.INI").read_text(encoding="latin-1"))
@@ -167,6 +168,8 @@ def main():
             cmd += ["--take", ",".join(str(i) for i in OFFER_ITEMS)]
         if args.fix:
             cmd += ["--fix", args.fix]
+        if args.one_button:
+            cmd += ["--one-button"]
         if args.lose:
             cmd += ["--minigame", "lose"]
         try:

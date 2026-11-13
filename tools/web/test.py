@@ -24,7 +24,15 @@ button reloads into the Corrigida version: the loader shows it chosen, the load 
 and the wasm has every fix on; a new game there, to the corridor with
 the wallet (as in tools/play/full.input), drags the wallet out of the
 panel: its icon follows the pointer (drag.png) and is gone once it is
-released over the panel (drag-released.png). Last, a simulated deploy (a copy of the
+released over the panel (drag-released.png). On a phone-sized touch
+screen (a new context, has_touch): the loader has "Controle com um botão"
+on by default and the wasm gets it; with taps only, the opening video is
+skipped, a new game starts, the desk drawer opens and gives the wallet,
+a tap on the door walks the player over and out to the corridor
+(touch-corridor.png), a tap on the wallet's slot selects it and a tap in
+the scene drops it (touch-drop.png), and a tap on it on the floor takes it
+back.
+Last, a simulated deploy (a copy of the
 site with noite.js and one disc file changed, restamped by
 tools/web/stamp.py, served at the same origin): the reload downloads
 only that file, runs the new noite.js and drops the stale cache entry.
@@ -253,6 +261,88 @@ def main():
             check(n == 0, f"Corrigida: released on the panel, the icon is gone ({n} pixels differ)")
             check(not errors, "Corrigida: drag, no page errors")
 
+        def one_button_touch():
+            """A touch screen: the one-button mode by default, taps only."""
+            tctx = browser.new_context(viewport={"width": 844, "height": 390}, has_touch=True, is_mobile=True)
+            tpage = tctx.new_page()
+            terrors = []
+            tpage.on("pageerror", lambda e: terrors.append(str(e)))
+            tpage.goto(url)
+            tpage.wait_for_function("window.noite.ready || window.noite.failure", timeout=600_000)
+            check(not tpage.evaluate("window.noite.failure"), "touch: the page loads every file")
+            check(tpage.evaluate("matchMedia('(pointer: coarse)').matches"), "touch: the pointer is coarse")
+            check(tpage.is_checked("#onebutton"), "touch: the loader offers the one-button control by default")
+            tpage.click("#play")
+            tpage.wait_for_function("window.noite.started || window.noite.failure", timeout=60_000)
+            check(tpage.evaluate("[window.noite.fixes, window.noite.skipVideos, window.noite.oneButton]")
+                  == [False, True, True], "touch: the wasm runs the Original version with one-button control")
+            check(tpage.evaluate("JSON.parse(localStorage.getItem('noite:prefs')).oneButton") is True,
+                  "touch: the choice is remembered")
+
+            def tscene():
+                return tpage.evaluate("window.noite.scene")
+
+            def twait(name, timeout_s):
+                end = time.time() + timeout_s
+                while time.time() < end:
+                    if tscene() == name:
+                        return True
+                    if terrors:
+                        check(False, "touch: page error: " + "; ".join(terrors))
+                    time.sleep(0.25)
+                return False
+
+            def tap(x, y):
+                box = tpage.locator("#screen").bounding_box()
+                tpage.touchscreen.tap(box["x"] + (x + 0.5) * box["width"] / 638,
+                                      box["y"] + (y + 0.5) * box["height"] / 459)
+
+            def items():
+                return tpage.evaluate("window.noite.inventory")
+
+            check(twait("abert", 10), "touch: the opening video plays (abert)")
+            time.sleep(3)
+            tap(320, 240)
+            check(twait("fundinic", 3), "touch: a tap skips the opening video to the title")
+            time.sleep(1.5)
+            tap(290, 345)  # JOGAR
+            time.sleep(2)
+            tap(370, 412)  # NOVO JOGO
+            check(twait("abertura", 20), "touch: a new game starts (abertura)")
+            time.sleep(2)
+            tap(320, 240)
+            check(twait("1fquarbo", 5), "touch: a tap skips to the bedroom (1fquarbo)")
+            time.sleep(1)
+            tap(287, 275)  # desk drawer 3
+            check(twait("1fgvboy3", 40), "touch: a tap on the desk drawer opens it (1fgvboy3)")
+            time.sleep(1)
+            tap(286, 261)  # the wallet
+            time.sleep(1.5)
+            tap(300, 330)
+            check(twait("1fquarbo", 40), "touch: back in the bedroom")
+            time.sleep(1)
+            tap(95, 80)  # the door, from across the room: walk there, then open it
+            check(twait("1fcorred", 40), "touch: a tap on the door walks out to the corridor (1fcorred)")
+            time.sleep(1.5)
+            tpage.locator("#screen").screenshot(path=str(out / "touch-corridor.png"))
+            check(items() == 1, "touch: the player carries the wallet")
+            tap(320, 452)  # the bottom strip: the panel slides open
+            time.sleep(1.5)
+            tap(116, 425)  # slot 0: the wallet, selected
+            time.sleep(0.3)
+            check(items() == 1, "touch: a tap on the slot only selects the wallet")
+            tap(100, 300)  # dropped: it falls to the floor
+            time.sleep(2)
+            tpage.locator("#screen").screenshot(path=str(out / "touch-drop.png"))
+            check(items() == 0, "touch: the next tap in the scene drops it")
+            tap(100, 250)  # a walk there; the panel slides closed
+            time.sleep(2.5)
+            tap(100, 368)  # the wallet on the floor
+            time.sleep(1.5)
+            check(items() == 1, "touch: a tap on it takes it back")
+            check(not terrors, "touch: no page errors")
+            tctx.close()
+
         def manifest():
             return page.evaluate("""async () => {
                 const html = await (await fetch("./", { cache: "no-cache" })).text();
@@ -301,12 +391,13 @@ def main():
               f"the old cache is dropped, the new one holds the manifest's files"
               f" ({caches_now['names']}, {len(caches_now['urls'])} of {len(files)})")
         check(page.evaluate("window.noite.audioState") == "none", "no AudioContext before a user gesture")
-        check(page.is_checked('input[name="versao"][value="original"]') and page.is_checked("#skip"),
-              "the loader offers Original with video skipping by default")
+        check(page.is_checked('input[name="versao"][value="original"]') and page.is_checked("#skip")
+              and not page.is_checked("#onebutton"),
+              "the loader offers Original with video skipping, two buttons, by default")
         play()
         check(page.evaluate("window.noite.audioState") == "running", "AudioContext running after Jogar")
-        check(page.evaluate("[window.noite.fixes, window.noite.skipVideos]") == [False, True],
-              "the wasm runs the Original version with video skipping")
+        check(page.evaluate("[window.noite.fixes, window.noite.skipVideos, window.noite.oneButton]")
+              == [False, True, False], "the wasm runs the Original version with video skipping")
         # The opening video (abert) runs 22 s; a click skips it to the title.
         check(wait_scene("abert", 10), "the opening video plays (abert)")
         time.sleep(3)
@@ -354,6 +445,7 @@ def main():
               "the choice is remembered")
         check(not errors, "no page errors")
         drag_shows_item()
+        one_button_touch()
 
         if not args.url:
             # A deploy: noite.js and one disc file change; the rest keeps its hash.

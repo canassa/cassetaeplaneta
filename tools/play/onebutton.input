@@ -1,0 +1,138 @@
+# Full playthrough in the one-button mode (src/one_button.zig): the left
+# button only, no keys, title screen to the sportsman ending.
+#
+#   zig-out/bin/noite --headless --ms 480000 --one-button --input tools/play/onebutton.input [--dump DIR]
+#
+# full.input's route, but doors are clicked from wherever the player
+# stands (the player walks over first), the keyboard walks are clicks, and
+# items are dropped by tap-tap (tap the slot, tap the spot) and by
+# dragging, and offered both ways. Deterministic like full.input: the
+# random choices (cop, hall doors, quiz) depend on the virtual time, so
+# editing an earlier line can change them; this timing gives the good
+# cop, the hall shuffle below and the football quiz. Original version (no
+# --fix).
+
+# Title menu: JOGAR, then NOVO JOGO; the opening video ends in the bedroom.
+22000 click 290 345
++1500 click 370 412
++1000 wait 1fquarbo 200000
+
+# Act 1 — the house.
+# Bedroom: desk drawer 3 holds the wallet (71).
++1000 click 287 275
++0 wait 1fgvboy3 33000
++1000 click 286 261
++1500 click 300 330
++0 wait 1fquarbo 33000
+# Drop the wallet on the floor by tap-tap (tap its slot, tap the floor) and
+# take it back; then drag it onto the bed and take it back.
++1000 move 320 465
++1500 click 110 430
++300 click 170 330
++2500 click 170 320
++1500 move 320 465
++1500 ldown 110 430
++100 move 200 300
++100 move 450 300
++100 lup 450 300
++2500 click 445 300
++1500 state
+# The door, from across the room.
++0 click 95 80
++0 wait 1fcorred 33000
++1000 dump corridor
+# Corridor: walk up to the bathroom door (no knock: its animation timer
+# would stay on and, by B21, end the garden video into 4fbar), back to the
+# bedroom by the right edge and out again.
++0 click 530 400
++2000 move 548 150
++1500 click 625 250
++0 wait 1fquarbo 33000
++1000 click 95 80
++0 wait 1fcorred 33000
+# Parents' room: the present (98), then the key (82) in the dresser.
++1000 click 211 150
++0 wait 1fquarpa 33000
++1000 click 40 395
++1500 click 312 214
++0 wait 1fgvpai2 33000
++1000 click 276 327
++1500 click 300 390
++0 wait 1fquarpa 33000
+# Corridor again: the bible (48), then the living room.
++1000 click 600 150
++0 wait 1fcorred 33000
++1000 click 343 329
++1500 click 20 200
++0 wait 1fsala 33000
++1000 dump livingroom
+# Living room: the gift (107) and the Oscar (108); on to the kitchen.
++100 click 598 380
++1500 click 340 70
++1500 click 454 120
++0 wait 1fcozin0 33000
+# Kitchen: the burger (54), around the tomatoes to the garage door.
++1000 click 58 390
++1500 click 480 430
++2000 click 100 430
++3500 click 18 200
++0 wait 1fgarage 33000
+# Garage: the car takes the key.
++1000 click 320 300
++0 wait 1amao2 33000
+# Act 2 — the roadblock: the good cop takes the wallet (tap-tap offer).
++1000 wait 2bfedriv 50100
+# The cop is random (by the second of the click): this one gives the good cop.
++2000 click 300 200
++0 wait 2fblitg 42100
++1000 dump roadblock
++100 move 320 465
++1500 click 390 430
++300 move 290 150
++300 click 290 150
++900 dump bribe
++0 wait 3fsegura 45000
+
+# Act 3 — the building.
++1000 wait 3fentseg 42100
++700 click 140 200
++0 wait 3fhall 33000
++1000 dump hall
+# Door 2 (of this run's shuffle): the shooting gallery (stub: won) -> prison.
++100 click 200 200
++0 wait 3fprisao 38000
++1800 click 338 300
+# The street escape; the guard's stale timer ends it in the hall.
++1000 click 460 200
++0 wait 3fhall 63000
+# Door 5 (this run): the disco.
++1000 click 565 200
++0 wait 4finifes 33000
++1000 dump disco
+
+# Act 4 — the disco (a dragged offer to the boy).
++100 click 500 100
++0 wait 4fbarboy 33000
++3000 move 320 465
++1500 ldown 110 430
++100 move 270 300
++100 move 270 120
++300 lup 270 120
++0 wait 4FDJ 50500
++1000 click 207 280
++8000 click 207 280
++10000 dump dj
++100 click 450 340
++8000 click 450 340
++8000 click 446 250
++0 wait 4FPISTAV 40000
++1000 click 500 100
++0 wait 4fbar 33000
+# The sportsman's quiz: this run asks how long a football match lasts (D, 90 minutes).
++2000 click 396 290
++1500 dump quiz
++200 click 440 253
++0 wait espquete 41000
++1000 wait 6fsai1 51000
++0 wait fundinic 48000
++1000 dump end
