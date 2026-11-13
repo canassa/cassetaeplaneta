@@ -840,7 +840,8 @@ pub const Sim = struct {
         .{ .exe = "xilindro", .title = "Xilindro" },
         .{ .exe = "inferno", .title = "Inferno" },
         .{ .exe = "inv", .title = "Invasores" },
-        .{ .exe = "salgin", .title = "Sala de Ginástica" },
+        // The game compares the window title in code page 1252 (0xe1 = á).
+        .{ .exe = "salgin", .title = "Sala de Gin\xe1stica" },
         .{ .exe = "jardim", .title = "Noite Animal Jardim" },
     };
 

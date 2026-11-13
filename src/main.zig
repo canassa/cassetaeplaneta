@@ -165,7 +165,10 @@ fn run(g: *Game, hn: *platform.harness.Harness, stop_at: ?u32) !void {
 
     while (!g.quit) {
         while (g.plat.poll()) |ev| deliver(g, ev);
-        if (g.dispatchPending()) continue;
+        if (g.dispatchPending()) {
+            hn.noteScene(g);
+            continue;
+        }
         g.plat.present();
         if (hn.step(g)) continue;
         if (stop_at) |limit| if (g.plat.ticks() >= limit) break;

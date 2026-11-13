@@ -103,7 +103,7 @@ pub const Harness = struct {
         return did;
     }
 
-    fn noteScene(h: *Harness, g: *Game) void {
+    pub fn noteScene(h: *Harness, g: *Game) void {
         const s = g.scene orelse return;
         if (std.mem.eql(u8, &s.name, &h.last_scene)) return;
         h.last_scene = s.name;
