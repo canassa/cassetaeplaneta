@@ -10,8 +10,10 @@ the worktree.
 
 A unit is *ready* when every function its functions call (outside the unit)
 is ported, absorbed, replaced or dead. A call to an absorbed thunk counts as a
-call to the thunk's target. It must also have every unit in ``unit_deps`` (virtual
-calls, see ``deps``) done.
+call to the thunk's target. It must also have every *manual* unit dep done.
+Virtual-call deps (``auto``, see ``deps``) are soft: they are reported but never
+block, because every virtual slot's dispatcher is declared in the skeleton (a
+panicking stub), so a caller compiles before the slot's owner is ported.
 """
 
 from __future__ import annotations
@@ -27,7 +29,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from noite import check, deps, paths, types, units
+from noite import check, deps, paths, strrefs, types, units
 from noite.db import DONE, Status, UnitStatus, now, tx
 
 DB_REL = "db/port.sqlite"
@@ -57,17 +59,7 @@ class Blocker:
     unit: str | None
 
 
-def _resolve(funcs: dict[str, sqlite3.Row], addr: str) -> str:
-    """Follow absorbed thunks to the function that does the work."""
-    seen = set()
-    while addr in funcs and addr not in seen:
-        seen.add(addr)
-        f = funcs[addr]
-        if f["status"] == Status.ABSORBED and f["absorbed_by"]:
-            addr = f["absorbed_by"]
-        else:
-            break
-    return addr
+_resolve = deps.resolve_thunk
 
 
 def blockers(conn: sqlite3.Connection, unit: str) -> list[Blocker]:
@@ -95,7 +87,8 @@ class UnitState:
     todo: int  # functions still to port (pending/failed/in_progress)
     total: int
     blockers: list[Blocker]
-    dep_blockers: list[str] = field(default_factory=list)  # units it depends on, not done
+    dep_blockers: list[str] = field(default_factory=list)  # manual deps not done (hard)
+    soft_blockers: list[str] = field(default_factory=list)  # auto (virtual-call) deps not done
 
     @property
     def ready(self) -> bool:
@@ -118,6 +111,7 @@ def unit_state(conn: sqlite3.Connection, u: sqlite3.Row, done: set[str] | None =
         len(rows),
         blockers(conn, u["name"]),
         deps.dep_blockers(conn, u["name"], done),
+        deps.dep_blockers(conn, u["name"], done, source="auto"),
     )
 
 
@@ -190,17 +184,14 @@ def start(
     conn: sqlite3.Connection, root: Path, unit: str, agent: str, *, force: bool = False
 ) -> Started:
     u = units.get(conn, unit)
+    _require_claimable(root, u)
     if git(root, "cat-file", "-e", f"main:{u['path']}", check_=False).returncode != 0:
         raise ClaimError(
             f"{u['path']} is not on main yet: run `noite unit sync` in the main checkout and commit"
         )
     with tx(conn):
         u = units.get(conn, unit)
-        if u["status"] not in (UnitStatus.PENDING, UnitStatus.FAILED):
-            raise ClaimError(
-                f"unit {unit} is {u['status']}"
-                + (f" (by {u['agent_id']})" if u["agent_id"] else "")
-            )
+        _require_claimable(root, u)
         state = unit_state(conn, u)
         if state.todo == 0:
             raise ClaimError(f"unit {unit} has no functions left to port")
@@ -212,7 +203,7 @@ def start(
             raise ClaimError(f"unit {unit} is not ready; it calls unported functions:\n  {listed}")
         if state.dep_blockers and not force:
             raise ClaimError(
-                f"unit {unit} is not ready; it depends on units not done: "
+                f"unit {unit} is not ready; it depends (manual dep) on units not done: "
                 + ", ".join(state.dep_blockers)
                 + " (`noite unit dep show`)"
             )
@@ -246,6 +237,20 @@ def start(
     return Started(unit, agent, wt, branch, u["path"], funcs)
 
 
+def _require_claimable(root: Path, u: sqlite3.Row) -> None:
+    name = u["name"]
+    if u["status"] == UnitStatus.IN_PROGRESS:
+        wt = paths.worktree_path(root, name).relative_to(root)
+        raise ClaimError(
+            f"unit {name} is already claimed by {u['agent_id'] or '?'} since "
+            f"{u['started_at'] or '?'} (worktree {wt}); `noite release {name}` to give it back"
+        )
+    if u["status"] == UnitStatus.DONE:
+        raise ClaimError(f"unit {name} is already done")
+    if u["status"] not in (UnitStatus.PENDING, UnitStatus.FAILED):
+        raise ClaimError(f"unit {name} is {u['status']}")
+
+
 # Sourced in a worktree: reuse the main checkout's venv instead of building one per
 # worktree (NO_SYNC keeps uv from re-pointing its editable install at the worktree),
 # and silence nix's "Git tree is dirty" warning.
@@ -255,9 +260,13 @@ export NIX_CONFIG="warn-dirty = false"
 """
 
 
-def write_reference(wt: Path, funcs: list[sqlite3.Row], conn: sqlite3.Connection) -> Path:
+def write_reference(
+    wt: Path, funcs: list[sqlite3.Row], conn: sqlite3.Connection, *, exe_root: Path | None = None
+) -> Path:
     """Drop each function's Ghidra snapshot under ``.ref/`` (git-ignored), plus
-    ``types.md``: the layouts of the structs and the globals the unit touches."""
+    ``types.md`` (the layouts of the structs and the globals the unit touches) and
+    ``strings.md`` (the string constants each function references, exact bytes from
+    ``<exe_root>/assets/NOITE.EXE``; default: the main checkout)."""
     ref = wt / ".ref"
     ref.mkdir(exist_ok=True)
     for f in funcs:
@@ -288,6 +297,10 @@ def write_reference(wt: Path, funcs: list[sqlite3.Row], conn: sqlite3.Connection
         row = conn.execute("SELECT * FROM structs WHERE name = ?", (name,)).fetchone()
         doc += [f"## {name}", "", "```c", types.render_struct(row), "```", ""]
     (ref / "types.md").write_text("\n".join(doc))
+    image = strrefs.load_image(exe_root or paths.repo_root(wt))
+    (ref / "strings.md").write_text(
+        strrefs.render(funcs, image, strrefs.non_string_globals(conn)), encoding="utf-8"
+    )
     (ref / "env.sh").write_text(ENV_SH.format(venv=paths.repo_root(wt) / ".venv"))
     return ref
 

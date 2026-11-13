@@ -30,6 +30,7 @@ class ImportResult:
     callees: int
     structs: int
     globals: int
+    vtables: int
     struct_refs: int
     global_refs: int
     handler_units: int
@@ -47,7 +48,10 @@ ON CONFLICT(addr) DO UPDATE SET
     signature = excluded.signature, plate = excluded.plate,
     decompile = COALESCE(excluded.decompile, functions.decompile),
     disasm = excluded.disasm, ghidra_class = excluded.ghidra_class,
-    kind = excluded.kind, absorbed_by = excluded.absorbed_by, gone = 0,
+    kind = excluded.kind,
+    absorbed_by = CASE WHEN functions.status_auto = 1 THEN excluded.absorbed_by
+                       ELSE COALESCE(excluded.absorbed_by, functions.absorbed_by) END,
+    gone = 0,
     imported_at = excluded.imported_at,
     status = CASE WHEN functions.status_auto = 1 THEN excluded.status
                   ELSE functions.status END
@@ -75,6 +79,7 @@ def run(
 
     structs = source.structs() if with_types else []
     globs = source.globals() if with_types else []
+    vtables = source.vtables() if with_types else []
     if structs:
         classes = class_names(s.name for s in structs)
     else:
@@ -134,6 +139,12 @@ def run(
                 "VALUES (?, ?, ?, ?, ?)",
                 [(g.addr, g.name, g.type, type_size(g.type, sizes), g.xrefs) for g in globs],
             )
+            conn.execute("DELETE FROM vtables")
+            conn.executemany(
+                "INSERT OR REPLACE INTO vtables (addr, name, type, size, slots) "
+                "VALUES (?, ?, ?, ?, ?)",
+                [(v.addr, v.name, v.type, v.size, json.dumps(list(v.slots))) for v in vtables],
+            )
         n_srefs, n_grefs = types.compute_refs(conn)
         conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('imported_at', ?)", (stamp,))
         # A fresh DB (no units yet) gets the committed plan before handlers are seeded.
@@ -151,6 +162,7 @@ def run(
         callees=n_callees,
         structs=len(structs),
         globals=len(globs),
+        vtables=len(vtables),
         struct_refs=n_srefs,
         global_refs=n_grefs,
         handler_units=seeded,

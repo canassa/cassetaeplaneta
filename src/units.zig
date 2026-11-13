@@ -90,6 +90,11 @@ pub const tick = @import("behaviour/tick.zig");
 pub const update_list = @import("update_list.zig");
 pub const visibility = @import("behaviour/visibility.zig");
 
+// Analyse every unit's public declarations, called or not, so a unit that
+// does not compile fails `zig build test` even where nothing calls it yet.
 test {
-    @import("std").testing.refAllDecls(@This());
+    const std = @import("std");
+    inline for (comptime std.meta.declarations(@This())) |unit| {
+        std.testing.refAllDecls(@field(@This(), unit));
+    }
 }

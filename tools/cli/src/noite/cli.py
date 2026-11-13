@@ -15,6 +15,7 @@ noite unit …              create units and assign functions
 
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
 import subprocess
@@ -33,7 +34,7 @@ app = typer.Typer(name="noite", help=__doc__, no_args_is_help=True, add_completi
 unit_app = typer.Typer(help="Port units: one Zig file each.", no_args_is_help=True)
 app.add_typer(unit_app, name="unit")
 dep_app = typer.Typer(
-    help="Unit dependencies (virtual calls the callee graph cannot see).", no_args_is_help=True
+    help="Unit dependencies: manual (hard) and virtual-call auto (soft).", no_args_is_help=True
 )
 unit_app.add_typer(dep_app, name="dep")
 plan_app = typer.Typer(help="The committed unit plan (db/plan.tsv).", no_args_is_help=True)
@@ -120,7 +121,8 @@ def import_cmd(
         _die(str(e))
     typer.echo(
         f"imported {res.functions} functions ({res.new} new, {res.gone} gone), "
-        f"{res.callees} call edges, {res.structs} structs, {res.globals} globals "
+        f"{res.callees} call edges, {res.structs} structs, {res.globals} globals, "
+        f"{res.vtables} vtables "
         f"({res.struct_refs} struct and {res.global_refs} global references); "
         f"seeded {res.handler_units} handler units"
     )
@@ -187,15 +189,16 @@ def show(
     fn: Annotated[
         str,
         typer.Argument(
-            help="Function address (1010:0c80) or name, or a struct or global name/address."
+            help="Function address (1010:0c80) or name, or a vtable, struct or global name/address."
         ),
     ],
     asm: Annotated[bool, typer.Option("--asm", help="Also print the disassembly.")] = False,
 ) -> None:
-    """One function (tracking row, callers/callees, decompilation), or a struct or global."""
+    """One function (tracking row, callers/callees, decompilation), or a vtable's slots,
+    or a struct or global."""
     conn = _db()
     f = find_function(conn, fn)
-    if f is None and _show_type(conn, fn):
+    if f is None and (_show_vtable(conn, fn) or _show_type(conn, fn)):
         return
     if f is None:
         like = conn.execute(
@@ -246,6 +249,42 @@ def show(
     typer.echo(f["decompile"] or "\n// (no decompilation stored)")
     if asm:
         typer.echo(f["disasm"] or "")
+
+
+def _show_vtable(conn: sqlite3.Connection, ref: str) -> bool:
+    """Print a vtable's slots and the functions they point to."""
+    addr = norm_addr(ref)
+    vt = conn.execute(
+        "SELECT * FROM vtables WHERE name = ? OR addr = ?", (ref, addr or ref)
+    ).fetchone()
+    if vt is None:
+        return False
+    st = conn.execute("SELECT fields FROM structs WHERE name = ?", (vt["type"],)).fetchone()
+    names = {f["offset"] // 4: f["name"] for f in json.loads(st["fields"] or "[]")} if st else {}
+    funcs = {r["addr"]: r for r in conn.execute("SELECT * FROM functions")}
+    slots = json.loads(vt["slots"] or "[]")
+    typer.echo(
+        f"{vt['addr']}  {vt['name']}  ({vt['type']}, {vt['size']} bytes, {len(slots)} slots)"
+    )
+
+    def label(f: sqlite3.Row) -> str:
+        return f"{f['name']} [{f['status']}" + (f", {f['unit']}]" if f["unit"] else "]")
+
+    rows = []
+    for i, target in enumerate(slots):
+        f = funcs.get(target)
+        if f is None:
+            desc = "-" if target == "0000:0000" else "(no function)"
+        else:
+            real = funcs.get(deps.resolve_thunk(funcs, target))
+            desc = (
+                f"{f['name']} -> {real['addr']} {label(real)}"
+                if real is not None and real["addr"] != target
+                else label(f)
+            )
+        rows.append([f"{i:02x}", names.get(i, ""), target, desc])
+    _table(rows, ["slot", "field", "target", "function"])
+    return True
 
 
 def _show_type(conn: sqlite3.Connection, ref: str) -> bool:
@@ -328,7 +367,8 @@ def next_cmd(
     ] = False,
 ) -> None:
     """Units ready to claim: every callee outside the unit is done and every unit it
-    depends on (`noite unit dep show`) is done."""
+    depends on by a manual dep is done (virtual-call `auto` deps are soft: listed by
+    --blocked, never blocking)."""
     conn = _db()
     states = claim.unit_states(conn)
     ready = [s for s in states if s.ready]
@@ -357,11 +397,13 @@ def next_cmd(
                     + (f" … +{len(s.blockers) - 8}" if len(s.blockers) > 8 else "")
                 )
             if s.dep_blockers:
-                parts.append("depends on units " + ", ".join(s.dep_blockers))
+                parts.append("depends (manual) on units " + ", ".join(s.dep_blockers))
             cyc = in_cycle(s.name)
             if cyc:
                 parts.append("in dependency cycle " + " <-> ".join(cyc))
             typer.echo(f"{s.name}: blocked by " + "; ".join(parts))
+            if s.soft_blockers:
+                typer.echo("  soft: virtual-call owners not done: " + ", ".join(s.soft_blockers))
 
 
 @app.command()
@@ -629,9 +671,13 @@ def unit_show(unit: str) -> None:
         typer.echo(
             f"blocked by {len(bl)}: " + ", ".join(f"{b.addr} {b.name} [{b.status}]" for b in bl)
         )
-    db = deps.dep_blockers(conn, unit)
+    done = deps.done_units(conn)
+    db = deps.dep_blockers(conn, unit, done)
     if db:
-        typer.echo("depends on units not done: " + ", ".join(db))
+        typer.echo("depends (manual) on units not done: " + ", ".join(db))
+    soft = deps.dep_blockers(conn, unit, done, source="auto")
+    if soft:
+        typer.echo("soft: virtual-call owners not done: " + ", ".join(soft))
 
 
 @unit_app.command("list")
@@ -727,7 +773,12 @@ def dep_show(unit: str) -> None:
 
     def rows(items: list[sqlite3.Row], key: str) -> list[list[str]]:
         return [
-            [r[key], "done" if r[key] in done else "todo", r["source"], r["note"] or ""]
+            [
+                r[key],
+                "done" if r[key] in done else "todo",
+                "auto (soft)" if r["source"] == "auto" else r["source"],
+                r["note"] or "",
+            ]
             for r in items
         ]
 
@@ -770,29 +821,30 @@ def dep_infer() -> None:
             typer.echo(f"  … +{len(r.unresolved) - 20}")
     cyc = deps.cycles(conn)
     if cyc:
-        typer.echo(f"{len(cyc)} dependency cycles (see `noite unit dep cycles`)")
+        typer.echo(f"{len(cyc)} dependency cycles on hard deps (see `noite unit dep cycles`)")
 
 
 @dep_app.command("cycles")
-def dep_cycles() -> None:
-    """Groups of units that depend on each other (none of them can become ready)."""
+def dep_cycles(
+    all_: Annotated[
+        bool, typer.Option("--all", help="Also count soft virtual-call (auto) deps.")
+    ] = False,
+) -> None:
+    """Groups of units that block each other (none of them can become ready). Hard
+    edges only: direct calls into unported functions of another unit, and manual deps."""
     conn = _db()
-    comps = deps.cycles(conn)
+    comps = deps.cycles(conn, include_auto=all_)
     if not comps:
-        typer.echo("no dependency cycles")
+        typer.echo("no dependency cycles" + (" (incl. auto deps)" if all_ else " on hard deps"))
         return
-    for i, comp in enumerate(comps, 1):
-        typer.echo(f"cycle {i}: {len(comp)} units: {', '.join(comp)}")
-        q = ",".join("?" * len(comp))
-        for r in conn.execute(
-            f"SELECT * FROM unit_deps WHERE unit IN ({q}) AND depends_on IN ({q}) "
-            "ORDER BY unit, depends_on",
-            [*comp, *comp],
-        ):
-            typer.echo(f"  {r['unit']} -> {r['depends_on']}  [{r['source']}] {r['note'] or ''}")
+    for i, c in enumerate(comps, 1):
+        typer.echo(f"cycle {i}: {len(c.units)} units: {', '.join(c.units)}")
+        for e in c.edges:
+            what = f"call: {e.note}" if e.source == "call" else f"[{e.source}] {e.note}"
+            typer.echo(f"  {e.unit} -> {e.on}  {what}".rstrip())
     typer.echo(
-        "break one with `noite unit dep rm A B` (a manual dep), or move functions / merge units"
-        " so the auto dep disappears"
+        "break one by moving functions between units / merging units (call edges), "
+        "or `noite unit dep rm A B` (a manual dep)"
     )
 
 

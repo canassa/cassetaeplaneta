@@ -1,10 +1,16 @@
 """Unit-level dependencies: what the callee graph cannot see.
 
 ``callees`` only holds direct calls. A virtual call (``CALLF [BX+off]``, slot =
-off / 4) reaches whichever unit owns that vtable slot, so a unit that calls a
-slot is as blocked as one that calls a function directly. ``unit_deps`` records
+off / 4) reaches whichever unit owns that vtable slot. ``unit_deps`` records
 those edges (``auto``: derived by :func:`infer`; ``manual``: set by a person and
 kept across re-inference).
+
+``auto`` deps are *soft*: they are shown (``next --blocked``, ``unit show``,
+``unit dep show``) but never block a claim. Every virtual slot's dispatcher is
+declared in the skeleton (a panicking stub until its owner is ported), so a
+caller compiles and its own tests run before the slot's owner exists. ``manual``
+deps and direct calls into unported functions are *hard*: they block, and only
+they can form a cycle that stops units from ever becoming ready (:func:`cycles`).
 
 Slot ownership comes from the "SceneObject slots" table in ``docs/DESIGN.md``
 (parsed at run time) and :data:`OTHER_VTABLES` below, which transcribes the
@@ -16,12 +22,13 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+import sys
 from collections import defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from noite.db import Status, UnitStatus
+from noite.db import DONE, Status, UnitStatus
 
 
 class DepError(RuntimeError):
@@ -60,7 +67,7 @@ OTHER_VTABLES: dict[str, dict[int, str]] = {
     "PerspectiveBackdropVtbl": _flat("backdrop", 32),
     "SceneVtbl": _flat("scene", 16) | {7: "scene_loader"},
     "GameVtbl": (
-        {0: "game", 1: "game_hook"}
+        {0: "game_input", 1: "game_hook"}
         | dict.fromkeys(range(2, 7), "game")
         | {7: "game_scenes", 8: "game"}
         | {9: "save", 10: "save", 11: "save", 12: "game_scenes", 13: "game_scenes"}
@@ -296,9 +303,83 @@ def done_units(conn: sqlite3.Connection) -> set[str]:
     return done
 
 
-def dep_blockers(conn: sqlite3.Connection, unit: str, done: set[str] | None = None) -> list[str]:
+def dep_blockers(
+    conn: sqlite3.Connection,
+    unit: str,
+    done: set[str] | None = None,
+    *,
+    source: str = "manual",
+) -> list[str]:
+    """Units ``unit`` depends on (``source``: ``manual`` = hard, ``auto`` = soft) that
+    are not done."""
     done = done_units(conn) if done is None else done
-    return [r["depends_on"] for r in deps_of(conn, unit) if r["depends_on"] not in done]
+    return [
+        r["depends_on"]
+        for r in deps_of(conn, unit)
+        if r["source"] == source and r["depends_on"] not in done
+    ]
+
+
+def resolve_thunk(funcs: Mapping[str, sqlite3.Row], addr: str) -> str:
+    """Follow absorbed thunks to the function that does the work."""
+    seen = set()
+    while addr in funcs and addr not in seen:
+        seen.add(addr)
+        f = funcs[addr]
+        if f["status"] == Status.ABSORBED and f["absorbed_by"]:
+            addr = f["absorbed_by"]
+        else:
+            break
+    return addr
+
+
+# --------------------------------------------------------------------------- #
+# the blocking graph and its cycles
+# --------------------------------------------------------------------------- #
+
+
+@dataclass
+class Edge:
+    unit: str
+    on: str
+    source: str  # 'call', 'manual' or 'auto'
+    note: str = ""
+
+    @property
+    def hard(self) -> bool:
+        return self.source != "auto"
+
+
+def call_edges(conn: sqlite3.Connection, examples: int = 3) -> list[Edge]:
+    """Unit edges from direct calls that still block: caller's unit -> callee's unit
+    (absorbed thunks followed), different units, callee not done."""
+    funcs = {r["addr"]: r for r in conn.execute("SELECT * FROM functions")}
+    found: dict[tuple[str, str], list[str]] = defaultdict(list)
+    for c in conn.execute("SELECT caller, callee FROM callees ORDER BY caller, callee"):
+        f = funcs.get(c["caller"])
+        g = funcs.get(resolve_thunk(funcs, c["callee"]))
+        if f is None or g is None or not f["unit"] or not g["unit"] or f["unit"] == g["unit"]:
+            continue
+        if g["status"] in DONE:
+            continue
+        ex = found[(f["unit"], g["unit"])]
+        tag = f"{f['name']} -> {g['name']}"
+        if len(ex) < examples and tag not in ex:
+            ex.append(tag)
+    return [Edge(u, on, "call", "; ".join(ex)) for (u, on), ex in sorted(found.items())]
+
+
+def graph_edges(conn: sqlite3.Connection, *, include_auto: bool = False) -> list[Edge]:
+    """Every unit edge that still blocks (direct calls + manual deps on units not
+    done), plus the soft ``auto`` ones with ``include_auto``."""
+    edges = call_edges(conn)
+    done = done_units(conn)
+    for r in conn.execute("SELECT * FROM unit_deps ORDER BY unit, depends_on"):
+        if r["depends_on"] in done:
+            continue
+        if r["source"] == "manual" or include_auto:
+            edges.append(Edge(r["unit"], r["depends_on"], r["source"], r["note"] or ""))
+    return edges
 
 
 def find_cycles(edges: list[tuple[str, str]]) -> list[list[str]]:
@@ -336,22 +417,33 @@ def find_cycles(edges: list[tuple[str, str]]) -> list[list[str]]:
             if len(comp) > 1:
                 out.append(sorted(comp))
 
-    import sys
-
-    sys.setrecursionlimit(10000)
+    sys.setrecursionlimit(max(sys.getrecursionlimit(), 10000))
     for v in sorted(graph):
         if v not in index:
             visit(v)
     return sorted(out)
 
 
-def cycles(conn: sqlite3.Connection) -> list[list[str]]:
-    edges = [(r[0], r[1]) for r in conn.execute("SELECT unit, depends_on FROM unit_deps")]
-    return find_cycles(edges)
+@dataclass
+class Cycle:
+    units: list[str]
+    edges: list[Edge]  # the edges between its units
+
+
+def cycles(conn: sqlite3.Connection, *, include_auto: bool = False) -> list[Cycle]:
+    """Groups of units that (transitively) block each other. By default only hard
+    edges count: soft ``auto`` deps never block, so they cannot deadlock."""
+    edges = graph_edges(conn, include_auto=include_auto)
+    out = []
+    for comp in find_cycles([(e.unit, e.on) for e in edges]):
+        members = set(comp)
+        inner = [e for e in edges if e.unit in members and e.on in members]
+        out.append(Cycle(comp, sorted(inner, key=lambda e: (e.unit, e.on, e.source))))
+    return out
 
 
 def cycle_members(conn: sqlite3.Connection) -> Callable[[str], list[str] | None]:
-    comps = cycles(conn)
+    comps = [c.units for c in cycles(conn)]
 
     def lookup(unit: str) -> list[str] | None:
         for c in comps:

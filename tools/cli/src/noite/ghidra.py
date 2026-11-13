@@ -2,13 +2,14 @@
 
 The bridge speaks MCP over streamable HTTP: one ``initialize`` handshake, then
 ``tools/call`` requests carrying the session id. Responses may arrive as an SSE
-stream; the last ``data:`` line is the JSON-RPC reply. Only listing and
-decompiling tools are used — nothing here writes to the program.
+stream; the last ``data:`` line is the JSON-RPC reply. Only listing,
+decompiling and memory-reading tools are used — nothing here writes to the program.
 """
 
 from __future__ import annotations
 
 import json
+import re
 import urllib.request
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
@@ -51,6 +52,37 @@ class GlobalInfo:
     xrefs: int | None
 
 
+@dataclass(frozen=True)
+class VtableInfo:
+    addr: str
+    name: str
+    type: str | None
+    size: int
+    slots: tuple[str, ...] = ()  # seg:off target of each 4-byte far pointer
+
+
+_VFUNC_ARRAY = re.compile(r"VFunc \*32\[\d+\]")
+
+
+def is_vtable(label: str, type_: str | None, addr: str) -> bool:
+    """A vtable labelled in Ghidra: ``...Vtbl`` label, a ``...Vtbl`` struct type, or a
+    ``VFunc *32[n]`` array in a code segment (DGROUP holds plain hook pointers)."""
+    t = type_ or ""
+    if label.endswith("Vtbl") or re.fullmatch(r"\w+Vtbl", t):
+        return True
+    return bool(_VFUNC_ARRAY.fullmatch(t)) and not addr.startswith("1050:")
+
+
+def far_pointers(data: Sequence[int]) -> tuple[str, ...]:
+    """4-byte far pointers (offset u16, segment u16, little-endian) as ``seg:off``."""
+    out = []
+    for i in range(0, len(data) - 3, 4):
+        off = data[i] | data[i + 1] << 8
+        seg = data[i + 2] | data[i + 3] << 8
+        out.append(f"{seg:04x}:{off:04x}")
+    return tuple(out)
+
+
 class Source(Protocol):
     """What the importer needs from Ghidra (a fake in the tests)."""
 
@@ -63,6 +95,8 @@ class Source(Protocol):
     def structs(self) -> list[StructInfo]: ...
 
     def globals(self) -> list[GlobalInfo]: ...
+
+    def vtables(self) -> list[VtableInfo]: ...
 
 
 class McpClient:
@@ -215,8 +249,6 @@ class GhidraSource:
         return out
 
     def globals(self) -> list[GlobalInfo]:
-        import re
-
         res = self.client.call(
             "list_globals", {"program": self.program, "limit": 0, "filter": "defined"}
         )
@@ -229,4 +261,21 @@ class GhidraSource:
             m = pat.match(line)
             if m:
                 out.append(GlobalInfo(m.group(2).lower(), m.group(1), m.group(3), int(m.group(4))))
+        return out
+
+    def vtables(self) -> list[VtableInfo]:
+        res = self.client.call(
+            "list_program_items", {"program": self.program, "kind": "data_items", "limit": 0}
+        )
+        out = []
+        for it in res["items"]:
+            addr = it["address"].lower()
+            if not is_vtable(it["label"], it.get("type"), addr) or not it.get("size"):
+                continue
+            mem = self.client.call(
+                "read_memory", {"program": self.program, "address": addr, "length": it["size"]}
+            )
+            out.append(
+                VtableInfo(addr, it["label"], it.get("type"), it["size"], far_pointers(mem["data"]))
+            )
         return out

@@ -148,7 +148,18 @@ def index_text(rows: Iterable[sqlite3.Row]) -> str:
     for r in sorted(rows, key=lambda r: r["name"]):
         rel = Path(r["path"]).relative_to("src").as_posix()
         lines.append(f'pub const {r["name"]} = @import("{rel}");')
-    lines += ["", "test {", '    @import("std").testing.refAllDecls(@This());', "}", ""]
+    lines += [
+        "",
+        "// Analyse every unit's public declarations, called or not, so a unit that",
+        "// does not compile fails `zig build test` even where nothing calls it yet.",
+        "test {",
+        '    const std = @import("std");',
+        "    inline for (comptime std.meta.declarations(@This())) |unit| {",
+        "        std.testing.refAllDecls(@field(@This(), unit));",
+        "    }",
+        "}",
+        "",
+    ]
     return "\n".join(lines)
 
 

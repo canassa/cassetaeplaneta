@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from noite.db import connect
-from noite.ghidra import FunctionInfo, GlobalInfo, StructInfo
+from noite.ghidra import FunctionInfo, GlobalInfo, StructInfo, VtableInfo
 
 
 class FakeSource:
@@ -47,12 +47,31 @@ class FakeSource:
     def structs(self) -> list[StructInfo]:
         return [
             StructInfo("StatusBar", 0x4A2),
-            StructInfo("SceneObjectVtbl", 0x198),
+            StructInfo(
+                "SceneObjectVtbl",
+                0x198,
+                [
+                    {"offset": 0, "size": 4, "type": "VFunc *32", "name": "destroy"},
+                    {"offset": 4, "size": 4, "type": "VFunc *32", "name": "draw"},
+                ],
+            ),
             StructInfo("RECT", 8),
         ]
 
     def globals(self) -> list[GlobalInfo]:
         return [GlobalInfo("1050:002a", "g_lives", "short", 24)]
+
+    def vtables(self) -> list[VtableInfo]:
+        return [
+            VtableInfo(
+                "1018:5f7e",
+                "g_statusBarVtbl",
+                "SceneObjectVtbl",
+                12,
+                ("1010:0100", "1010:0400", "0000:0000"),
+            ),
+            VtableInfo("1018:1d9c", "g_gameVtbl", "VFunc *32[1]", 4, ("1010:0300",)),
+        ]
 
 
 def fn(addr: str, name: str, *callees: str, thunk: bool = False) -> FunctionInfo:

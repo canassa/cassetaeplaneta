@@ -173,6 +173,16 @@ MIGRATIONS: list[str] = [
     );
     CREATE INDEX idx_unit_deps_on ON unit_deps(depends_on);
     """,
+    """
+    CREATE TABLE vtables (
+        addr  TEXT PRIMARY KEY,         -- seg:off of the table (data in a code segment)
+        name  TEXT NOT NULL,            -- Ghidra label
+        type  TEXT,                     -- e.g. SceneObjectVtbl, VFunc *32[12]
+        size  INTEGER,
+        slots TEXT                      -- JSON: [seg:off target per 4-byte slot]
+    );
+    CREATE INDEX idx_vtables_name ON vtables(name);
+    """,
 ]
 
 

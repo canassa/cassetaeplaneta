@@ -122,7 +122,12 @@ def test_deps_block_readiness_and_cycles(db: tuple[sqlite3.Connection, Path]) ->
     states = {s.name: s for s in claim.unit_states(conn)}
     assert states["other"].dep_blockers == ["render"]
     assert not states["other"].ready
-    assert deps.cycles(conn) == [["other", "render"]]
+    (cyc,) = deps.cycles(conn)
+    assert cyc.units == ["other", "render"]
+    assert [(e.unit, e.on, e.source) for e in cyc.edges] == [
+        ("other", "render", "manual"),
+        ("render", "other", "manual"),
+    ]
     with tx(conn):
         assert deps.remove(conn, "render", "other")
         conn.execute("UPDATE units SET status = 'done' WHERE name = 'render'")
@@ -137,3 +142,36 @@ def test_add_validates(db: tuple[sqlite3.Connection, Path]) -> None:
         deps.add(conn, "other", "other")
     with pytest.raises(deps.DepError):
         deps.add(conn, "other", "nope")
+
+
+def test_auto_deps_are_soft_and_cycles_use_hard_edges(db: tuple[sqlite3.Connection, Path]) -> None:
+    conn, _ = db
+    with tx(conn):
+        conn.execute(
+            "INSERT INTO unit_deps (unit, depends_on, source, note) VALUES "
+            "('other', 'render', 'auto', 'f -> SceneObject.draw'), "
+            "('render', 'other', 'auto', 'g -> x')"
+        )
+    states = {s.name: s for s in claim.unit_states(conn)}
+    assert states["other"].ready and states["other"].soft_blockers == ["render"]
+    assert deps.cycles(conn) == []
+    assert [c.units for c in deps.cycles(conn, include_auto=True)] == [["other", "render"]]
+    # A direct call other -> render (through an absorbed thunk) plus a manual dep back.
+    with tx(conn):
+        func(conn, "1010:0010", "thunk_g", None, "")
+        conn.execute(
+            "UPDATE functions SET status = 'absorbed', absorbed_by = '1010:0002' "
+            "WHERE addr = '1010:0010'"
+        )
+        conn.execute("INSERT INTO callees VALUES ('1010:0001', '1010:0010')")
+        deps.add(conn, "render", "other", "needs f")
+    edges = deps.call_edges(conn)
+    assert [(e.unit, e.on, e.note) for e in edges] == [("other", "render", "f -> g")]
+    (cyc,) = deps.cycles(conn)
+    assert [(e.unit, e.on, e.source) for e in cyc.edges] == [
+        ("other", "render", "call"),
+        ("render", "other", "manual"),
+    ]
+    # Once g is ported the call no longer blocks.
+    conn.execute("UPDATE functions SET status = 'ported' WHERE addr = '1010:0002'")
+    assert deps.call_edges(conn) == [] and deps.cycles(conn) == []
