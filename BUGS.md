@@ -621,6 +621,16 @@ Usability changes the "Corrigida" version (`Fixes.all()`) turns on; the original
 - **3fhall's TIRO timer branch returns 0:** neither the engine default nor the hook handles WM_TIMER.
 - **4fbarboy leaves `selectedItem` set after a wrong item:** its MM_WOM_DONE path dereferences it, so
   clearing it would turn an unclaimed wave end into a NULL dereference; nothing visible follows.
+- **A wave from the previous scene does not end in the next one:** about twenty handlers (1furso,
+  1fquarbo, 2bfedriv, 3fsauna, 4fbar, …) act on any MM_WOM_DONE without looking at wParam, but no wave
+  outlives its scene. `game_take_exit` 1018:12c6 itself keeps the waves, yet its only caller, the
+  exit-finished path of `game_handle_message` (0x402), calls `wave_free_all` first, and
+  `ini_game_switch_scene` 1018:15ea flushes and frees them. WAVEMIX.DLL's `WaveMixFreeWave` (segment 1,
+  offset 0x20d8) unlinks the wave from every channel queue, the playing entry included, and posts
+  nothing, so e.g. the kitchen door's PORTA1.WAV (exit 61) never ends inside 1furso and the bear's
+  URSOR01.WAV plays to its end. (The port's WaveMix simulation used to keep the freed wave's
+  notification, which cut the bear after 2 s.) Only a completion already posted before the switch can
+  still reach the new scene, as in Windows.
 - **4fbar's PtInRect** compares window coordinates with scene coordinates, but `[4fbar]` is 640×480 and
   never scrolls. Its `DEC; JNS` lives test is in B1; `okvamp.wav` is rescued by `PAN\WAV`.
 - **The `exit_has_key_object` call in `ini_scene_handle_message`** (1018:9548) pushes a dword NULL (66-prefixed),

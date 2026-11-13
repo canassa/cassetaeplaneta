@@ -173,6 +173,8 @@ pub const Sim = struct {
     channels_open: bool = false,
     waves: std.ArrayList(?WaveData) = .empty, // id = index + 1
     lru: [8]u32 = @splat(0),
+    /// The wave each channel was last given (0 = none, flushed or freed).
+    playing: [8]p.Wave = @splat(0),
     // MCI
     devices: std.ArrayList(MciDevice) = .empty,
     next_device: p.Device = 1,
@@ -566,8 +568,13 @@ pub const Sim = struct {
     pub fn waveFree(s: *Sim, session: p.MixSession, w: p.Wave) u16 {
         if (session == 0 or session != s.session) return mmsyserr_invalhandle;
         const wd = s.wave(w) orelse return mmsyserr_invalhandle;
-        for (&s.mix.channels) |*v| if (v.pcm) |pcm| {
-            if (wd.pcm != null and pcm.data.ptr == wd.pcm.?.data.ptr) v.stop();
+        // WAVEMIX.DLL's WaveMixFreeWave (seg 1:20d8) unlinks the wave from
+        // every channel's play queue, the playing entry included, and posts
+        // nothing: the wave stops and its MM_WOM_DONE never comes.
+        for (&s.playing, 0..) |*pw, c| if (pw.* == w) {
+            s.unschedule(ChannelMatch{ .channel = @intCast(c) }, ChannelMatch.matches);
+            s.mix.channels[c].stop();
+            pw.* = 0;
         };
         if (wd.bytes) |b| s.gpa.free(b);
         s.waves.items[w - 1] = null;
@@ -595,6 +602,7 @@ pub const Sim = struct {
         // modelled: the new wave replaces the old one either way.
         s.unschedule(ChannelMatch{ .channel = @intCast(ch) }, ChannelMatch.matches);
         s.lru[ch] = now +% 1;
+        s.playing[ch] = params.wave;
         if (wd.pcm) |pcm| s.mix.channels[ch].start(pcm, params.loops) else s.mix.channels[ch].stop();
         if (params.notify and params.loops != 0xffff) {
             const ms = wd.ms *% (@as(u32, params.loops) + 1);
@@ -609,6 +617,7 @@ pub const Sim = struct {
             if (flags & p.wmix.all == 0 and c != channel) continue;
             s.unschedule(ChannelMatch{ .channel = @intCast(c) }, ChannelMatch.matches);
             s.mix.channels[c].stop();
+            s.playing[c] = 0;
         }
         return 0;
     }
@@ -1090,6 +1099,15 @@ test "WaveMix: session, LRU channel, notify and flush" {
     try std.testing.expectEqual(@as(u16, 0), s.pending.items[0].ev.message.wparam);
     _ = s.waveFlush(ses, 0, p.wmix.all);
     try std.testing.expectEqual(@as(?u32, null), s.nextDue());
+    // Freeing a playing wave stops it with no notification; the other
+    // channel's wave still notifies.
+    const w2 = s.waveOpen(ses, "\\PAN\\WAV\\BOIOLS01.WAV").?;
+    _ = s.wavePlay(40, .{ .session = ses, .channel = 1, .wave = w, .notify = true });
+    _ = s.wavePlay(40, .{ .session = ses, .channel = 2, .wave = w2, .notify = true });
+    try std.testing.expectEqual(@as(u16, 0), s.waveFree(ses, w));
+    try std.testing.expectEqual(@as(usize, 1), s.pending.items.len);
+    try std.testing.expectEqual(@as(u16, 2), s.pending.items[0].ev.message.wparam);
+    _ = s.waveFlush(ses, 0, p.wmix.all);
     try std.testing.expectEqual(@as(u16, 0), s.mixCloseSession(ses));
     try std.testing.expectEqual(@as(u16, 5), s.wavePlay(30, .{ .session = ses, .channel = 0, .wave = w, .notify = false }));
 
