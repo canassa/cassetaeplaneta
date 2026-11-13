@@ -341,7 +341,10 @@ fn systimer(g: *Game, scene: *Scene, m: Msg) i16 {
     if (scene.handlerEnabled == 0) return 1;
     if (scene.is1Animation != 0) {
         const anim = scene.animation orelse @panic("scene: no animation");
-        if (@as(u16, @bitCast(animation.getTimerId(g, anim))) == m.wparam and g.ini.rec.isAvi == 0) {
+        // B21: `g_iniIsAVI` is cleared when any video closes, so a stale
+        // timer with the id of a video exit ticks (and takes) the exit.
+        const video = g.fixes.avi_exit_ignores_timer and animation.isAvi(g, anim);
+        if (@as(u16, @bitCast(animation.getTimerId(g, anim))) == m.wparam and g.ini.rec.isAvi == 0 and !video) {
             sound.pump(&g.sound);
             tick.tick(g, anim, bdOf(scene));
             return 0;

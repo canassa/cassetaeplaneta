@@ -243,21 +243,35 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   used list, and the scene ends on 2sshaa's 0x403.
 - **Confidence:** 8 (code and data); 6 (that the shipped CD had no other copy of the wave).
 
-### B21. A stale animation timer can end a one-animation video scene early (3fstreet)
+### B21. A stale animation timer takes a one-animation video scene's exit when the video ends (3fstreet, 3ffarao)
 - **Where:** `ini_scene_handle_message` 1018:915e, WM_SYSTIMER for an Is_1Animation scene: the exit is ticked
   when the timer id equals the exit's NumTimer and `g_iniIsAVI` is 0; `animation_stop` is the only place that
   kills an animation's system timer (`scene_dtor` does not).
-- **What the code does:** an animation still running when its scene is left keeps its system timer (e.g.
-  3fsegura's guard, timer 5, 150 ms, never stopped). 3fstreet's video exit also uses timer 5: when the video
-  ends, `animation_close_avi` clears `g_iniIsAVI`, the handler launches XILINDRO and the next stale tick
-  runs `exit_tick` on the exit, which posts 0x402 and takes the INI exit to `3fhall`.
-- **Effect:** depending on which comes first, the street escape minigame result arrives in 3fhall (whose
-  handler takes it for the shooting gallery's: a win sends the player to 3fprisao), or the hall's own
-  FindWindow poll reports a lost game (a life) first. The player can end up in the hall without having
-  played the escape, or lose a life for it.
-- **Evidence:** port traces (`noite --trace`): timer 5 runs from 3fsegura on; the code paths above.
-- **Port:** reproduced; no fix flag.
-- **Confidence:** 7 (code); 5 (how often the timing lines up in the original).
+- **What the code does:** an animation still running when its scene is left keeps its system timer. When the
+  video of a one-animation scene ends, `animation_close_avi` clears `g_iniIsAVI`, the handler launches the
+  minigame, and the next stale tick with the exit's timer id runs `exit_tick` on the video exit, which posts
+  0x402 and takes the INI exit:
+  - 3fsegura's guard (timer 5, 150 ms, never stopped) → 3fstreet's video exit (timer 5) goes to `3fhall`.
+  - 3fsauna's attendant `3sboal` (timer 6, 200 ms, started by the right click that leads to the SAUNA game,
+    never stopped) → 3ffarao's video exit (timer 6) goes to `JTETRIS`, which is not an INI section:
+    `ini_seek_section` 1018:9caa shows "Não consegui encontrar a sessão procurada" and returns 0 without
+    seeking, so `ini_scene_create` 1018:6bee reads on from where the file was left (the `[3fhall]` header
+    after `[3ffarao]`) and stops with "Linha [3fhall]] inválida" and `exit(1)`.
+- **Effect:** 3fstreet: depending on which comes first, the street escape minigame result arrives in 3fhall
+  (whose handler takes it for the shooting gallery's: a win sends the player to 3fprisao), or the hall's own
+  FindWindow poll reports a lost game (a life) first. The player can end up in the hall without having played
+  the escape, or lose a life for it. 3ffarao: once the sauna has been visited, taking the pharaoh door ends the
+  program with a fatal INI error when the pharaoh video ends (any door order that puts the sauna first; the
+  playthrough with `hall_shuffle_each_visit` hits it). Repro (faithful build):
+  `--scene 3fhall` and right clicks on the sauna door, in the sauna, then on the pharaoh door (which doors
+  depends on the shuffle).
+- **Evidence:** port traces (`noite --trace`): timer 5 runs from 3fsegura on, timer 6 from 3fsauna on; the
+  code paths above.
+- **Port:** reproduced; `Fixes.avi_exit_ignores_timer` does not tick a video (`isAvi`) exit from the timer path.
+  The playthrough script relies on the 3fstreet shortcut, so its `--fix` run leaves this fix (and the door
+  reshuffle) out.
+- **Confidence:** 8 (code, port traces); 5 (how often the 3fstreet timing lines up in the original; the 3ffarao
+  case does not depend on timing).
 
 ### B22. 2ftaxi keeps handling a click on the scene it has just deleted (use after free)
 - **Where:** `handler_2ftaxi` 1020:9a3a: a right click on the exit to 3fentseg switches scenes and returns 0.

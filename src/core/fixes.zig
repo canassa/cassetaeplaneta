@@ -48,6 +48,11 @@ pub const Fixes = struct {
     /// instead of replaying it on every (instant, the wave is missing)
     /// MM_WOM_DONE, which freezes the game.
     shardi_reply_once: bool = false,
+    /// B21: a one-animation scene's video exit is not ticked by an
+    /// animation timer that another scene left running (which takes the
+    /// exit when the video ends: 3fstreet skips XILINDRO, 3ffarao exits to
+    /// the missing `JTETRIS` section, a fatal INI error).
+    avi_exit_ignores_timer: bool = false,
     /// B24: 4fbarboy and 2fsuabig ignore a wave end with no item selected
     /// instead of reading through the NULL item (a GPF in the original).
     reply_without_item: bool = false,
@@ -79,13 +84,16 @@ pub const Fixes = struct {
     }
 
     /// Turns on the fix `name` (a field name) or, for `all`, every bug
-    /// fix. False if `name` is neither.
+    /// fix; `-name` turns it off again (`all,-hall_shuffle_each_visit`).
+    /// False if `name` is neither.
     pub fn set(f: *Fixes, name: []const u8) bool {
+        const off = name.len > 0 and name[0] == '-';
+        const n = if (off) name[1..] else name;
         var found = false;
         inline for (@typeInfo(Fixes).@"struct".field_names) |field| {
-            const in_all = std.mem.eql(u8, name, "all") and !std.mem.eql(u8, field, "quit_on_ini_error");
-            if (in_all or std.mem.eql(u8, name, field)) {
-                @field(f, field) = true;
+            const in_all = std.mem.eql(u8, n, "all") and !std.mem.eql(u8, field, "quit_on_ini_error");
+            if (in_all or std.mem.eql(u8, n, field)) {
+                @field(f, field) = !off;
                 found = true;
             }
         }
@@ -100,4 +108,6 @@ test "all is every bug fix, not the INI-error choice" {
     var g: Fixes = .{};
     try std.testing.expect(g.set("dance_music_path") and g.dance_music_path and !g.lives_game_over);
     try std.testing.expect(!g.set("nonsense"));
+    var h = Fixes.all();
+    try std.testing.expect(h.set("-hall_shuffle_each_visit") and !h.hall_shuffle_each_visit and h.score_32bit);
 }
