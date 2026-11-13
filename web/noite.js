@@ -371,27 +371,30 @@
   let audio = null, nextTime = 0, silentFrom = performance.now(), silentDone = 0;
 
   // Mobile browsers suspend the context when the page goes to the
-  // background ("interrupted" on iOS) and don't always resume it, so every
-  // gesture and every return to the page resumes it; a context still stuck
-  // at a gesture a second after a resume is replaced (inside that gesture).
-  let resumedAt = 0;
+  // background ("interrupted" on iOS), and iOS may leave it dead even when
+  // it says "running" again. So the page suspends it itself when hidden,
+  // tries a resume when shown, and the first gesture after that (or any
+  // gesture while it isn't running) replaces it with a new one, created
+  // inside the gesture as iOS requires.
+  let stale = false, createdAt = 0;
+  let audioContexts = 0;
   function startAudio(gesture = true) {
     if (audio) {
-      if (audio.state === "running") {
-        resumedAt = 0;
-        return;
-      }
-      if (gesture && resumedAt && performance.now() - resumedAt > 1000) {
-        audio.close().catch(() => {});
-        audio = null;
-        resumedAt = 0;
-      } else {
+      if (!gesture) {
         audio.resume().catch(() => {});
-        if (gesture && !resumedAt) resumedAt = performance.now();
         return;
       }
+      if (!stale && audio.state === "running") return;
+      // One made by this same tap (its handlers all call here) is starting.
+      if (!stale && performance.now() - createdAt < 1000) {
+        audio.resume().catch(() => {});
+        return;
+      }
+      audio.close().catch(() => {});
+      audio = null;
     }
     if (!gesture) return;
+    stale = false;
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     try {
@@ -400,13 +403,35 @@
       audio = new AC(); // the buffers are 44.1 kHz; WebAudio resamples
     }
     audio.resume().catch(() => {});
+    // A sound started inside the gesture unlocks output on older iOS.
+    const src = audio.createBufferSource();
+    src.buffer = audio.createBuffer(1, 1, audio.sampleRate);
+    src.connect(audio.destination);
+    src.start(0);
     nextTime = 0;
+    createdAt = performance.now();
+    audioContexts++;
   }
 
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") startAudio(false);
+    if (!audio) return;
+    if (document.visibilityState === "hidden") {
+      stale = true;
+      audio.suspend().catch(() => {});
+    } else {
+      startAudio(false);
+    }
   });
-  window.addEventListener("pageshow", () => startAudio(false));
+  window.addEventListener("pageshow", (e) => {
+    if (e.persisted) stale = true;
+    startAudio(false);
+  });
+  // Any tap or key on the page is a gesture (the arrows and tool buttons too).
+  for (const ev of ["pointerdown", "touchend", "click", "keydown"]) {
+    document.addEventListener(ev, () => {
+      if (audio && (stale || audio.state !== "running")) startAudio();
+    }, true);
+  }
 
   function mixChunk(frames) {
     const ptr = wasm.noite_audio(frames);
@@ -747,6 +772,7 @@
     get audioPeak() { return audioPeak; },
     get frameStats() { return { frames, avgMs: frames ? frameMs / frames : 0, worstMs }; },
     get audioState() { return audio ? audio.state : "none"; },
+    get audioContexts() { return audioContexts; },
     /** What a phone does to the context when the page goes to the background. */
     suspendAudio() { return audio && audio.suspend(); },
     /** Items the player carries (-1 before the start). */
