@@ -951,7 +951,28 @@ pub const Sim = struct {
     /// is ignored) and is swallowed, and so is its release
     /// (and the button's MK_* bit in the mouse messages before it). Null =
     /// swallowed; without the option every message passes unchanged.
+    ///
+    /// A stub minigame that has answered the game's hello has its window
+    /// up: in Windows that window is in front and active, so the mouse and
+    /// the keys go to it, not to the game, until it reports and closes.
+    /// The stub has no window, so its input is dropped here; otherwise a
+    /// click in the moment between the hello and the 0x40c that hides the
+    /// game could still leave the scene that launched the minigame, and
+    /// the next scene's handler would take its 0x40c/0x40a for its own
+    /// (3fhall's TIRO into 3ffarao: back to the hall with the pharaoh
+    /// video still playing over it, then a crash when the video ends).
     pub fn filterInput(s: *Sim, now: u32, m: p.Msg) ?p.Msg {
+        if (s.minigameHasInput(now)) {
+            switch (m.id) {
+                wm.lbuttonup => s.swallowed.lbutton = false,
+                wm.rbuttonup => s.swallowed.rbutton = false,
+                wm.keyup => for (skip_keys, &s.swallowed.keys) |k, *held| {
+                    if (k == m.wparam) held.* = false;
+                },
+                else => {},
+            }
+            return null;
+        }
         switch (m.id) {
             wm.lbuttonup => if (s.swallowed.lbutton) {
                 s.swallowed.lbutton = false;
@@ -1021,6 +1042,15 @@ pub const Sim = struct {
             return 0; // out of memory
         }
         return 2; // file not found
+    }
+
+    /// A minigame window is up and answered the hello (it reports, then
+    /// closes): it has the input.
+    fn minigameHasInput(s: *const Sim, now: u32) bool {
+        for (s.minigames) |w| if (w) |win| {
+            if (win.alive and win.reporting and @as(i32, @bitCast(now -% win.appears_at)) >= 0) return true;
+        };
+        return false;
     }
 
     pub fn findWindow(s: *Sim, now: u32, title: []const u8) ?p.Hwnd {
@@ -1216,6 +1246,23 @@ test "without skip_videos a click during a clip passes" {
     try std.testing.expectEqual(@as(?p.Msg, down), s.filterInput(5, down));
     try std.testing.expectEqual(@as(?u32, 29 * 357), s.nextDue());
     s.aviClose(dev, &screen);
+}
+
+test "a minigame that answered the hello has the input until it reports" {
+    var s = Sim.init(std.testing.allocator, std.testing.io, .{});
+    defer s.deinit();
+    const down = msg.Msg.make(wm.rbuttondown, msg.mk.rbutton, 10, 10);
+    try std.testing.expectEqual(@as(u16, 33), s.winExec(0, "c:\\noite\\tiro\\tiro.exe"));
+    // Launched, not up yet, then up but not spoken to: the game has the input.
+    try std.testing.expectEqual(@as(?p.Msg, down), s.filterInput(100, down));
+    const w = s.findWindow(1500, "Tiro ao Alvaro").?;
+    try std.testing.expectEqual(@as(?p.Msg, down), s.filterInput(1500, down));
+    try std.testing.expect(s.postTo(1500, w, msg.Msg.make(noite.minigame_hello, 0, msg.main_window, 0)));
+    try std.testing.expectEqual(@as(?p.Msg, null), s.filterInput(1550, down));
+    try std.testing.expectEqual(noite.minigame_ready, s.poll(1600).?.message.id);
+    try std.testing.expectEqual(@as(?p.Msg, null), s.filterInput(1650, down));
+    try std.testing.expectEqual(noite.minigame_result, s.poll(100_000).?.message.id);
+    try std.testing.expectEqual(@as(?p.Msg, down), s.filterInput(100_000, down));
 }
 
 test "hostKey turns DOS paths into lower-case store keys" {
