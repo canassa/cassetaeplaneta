@@ -144,8 +144,14 @@ server {
 - **Screen.** The 8-bit screen goes through the palette to RGBA once per
   frame when it changed (`js_present` → `putImageData`); the canvas is
   638×459, the original's client area (only that top-left part of the 640×480
-  framebuffer is drawn; clicks map 1:1 to game coordinates), scaled by CSS with `image-rendering: pixelated`, by whole pixels when
-  the window allows.
+  framebuffer is drawn), scaled by CSS with `image-rendering: pixelated` to
+  the largest size the window allows with its aspect ratio (fractional,
+  snapped to device pixels), centred on a black letterbox and refitted on
+  every resize, orientation change or fullscreen switch; clicks map
+  through the canvas's bounding box, exact at any scale. The version
+  switch and a fullscreen button (when the browser has the Fullscreen API)
+  sit in the letterbox when it has room for them, else as a faint overlay
+  in the top right corner that lights up on hover or tap.
 - **Input.** Pointer events → WM_MOUSEMOVE/L/RBUTTONDOWN/UP in screen
   pixels; the arrow keys (and, to skip videos, Esc/Enter/Space) →
   WM_KEYDOWN/UP; window focus → WM_ACTIVATE.
@@ -178,8 +184,12 @@ AudioContext exists before a gesture and one runs after Jogar, the wasm
 gets the Original version with video skipping, a click 3 s into the
 opening video reaches the title screen, JOGAR + NOVO JOGO start the
 new-game video and Esc skips it to the bedroom, a right click opens the
-desk drawer, sound reaches WebAudio; then the footer link reloads into
+desk drawer, sound reaches WebAudio; at 1920×1080, two phone sizes, an
+exact 2× and 1280×960 the canvas fills the window in one dimension,
+centred with its aspect ratio, and the buttons stay off the game unless
+the letterbox has no room (`window-WxH.png`); then the version button
+reloads into
 the Corrigida version, which loads every file from Cache Storage, has
 every fix on in the wasm and is remembered. Screenshots go to
 `zig-out/web-test/` (`title.png`, `bedroom.png`, `drawer.png`,
-`cache.png`).
+`window-*.png`, `cache.png`).
