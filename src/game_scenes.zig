@@ -140,11 +140,20 @@ pub fn switchScene(g: *Game, name: []const u8, x: i16, y: i16, has_player: i16, 
     sound.freeAll(&g.sound, g.plat);
     g.oldScene = g.scene;
     g.prevSceneNumber = must(Scene, g.scene).sceneNumber;
-    if (g.oldScene) |old| _ = scene_mod.scalarDtor(g, old, 1);
-    if (g.gpa.create(Scene)) |new| {
+    // The original deletes the old scene and at once `new`s one of the same
+    // size, which the far heap hands back in the same block. Handlers that
+    // switch scenes and return 0 (2ftaxi) leave the engine running on its
+    // stale `this`, which so reads the new scene: the port reuses the
+    // block the same way instead of freeing it.
+    var reuse: ?*Scene = null;
+    if (g.oldScene) |old| {
+        _ = scene_mod.scalarDtor(g, old, 0);
+        reuse = old;
+    }
+    if (reuse orelse (g.gpa.create(Scene) catch null)) |new| {
         new.* = .{};
         g.scene = scene_mod.iniSceneCtor(new, g.iniFile, name, has_player, has_control_panel, has_status_bar, is_1animation, is_click_exit);
-    } else |_| {
+    } else {
         g.scene = null;
     }
     g.oldScene = null;
