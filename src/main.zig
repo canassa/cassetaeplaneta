@@ -2,7 +2,8 @@
 //!
 //!     noite [--headless] [--ms N] [--assets DIR] [--save DIR] [--trace FILE]
 //!           [--input FILE] [--dump DIR] [--dump-every MS] [--bmp]
-//!           [--scene NAME [--take ID,ID…]] [--minigame win|lose] [--quiet]
+//!           [--scene NAME [--take ID,ID…]] [--minigame win|lose]
+//!           [--minigame-startup MS] [--minigame-reply MS] [--quiet]
 //!           [--fix NAME,…|all[,-NAME…]] [--skip-videos] [--one-button]
 //!
 //! The test harness (`platform/harness.zig`): `--input` plays a script of
@@ -137,6 +138,10 @@ pub fn main(init: std.process.Init) !void {
         } else if (std.mem.eql(u8, a, "--minigame")) {
             const v = it.next() orelse return error.MissingValue;
             args.opts.minigame.won = !std.mem.eql(u8, v, "lose");
+        } else if (std.mem.eql(u8, a, "--minigame-startup")) {
+            args.opts.minigame.startup_ms = try std.fmt.parseInt(u32, it.next() orelse return error.MissingValue, 10);
+        } else if (std.mem.eql(u8, a, "--minigame-reply")) {
+            args.opts.minigame.reply_ms = try std.fmt.parseInt(u32, it.next() orelse return error.MissingValue, 10);
         } else {
             std.log.err("unknown argument {s}", .{a});
             return error.BadArgument;

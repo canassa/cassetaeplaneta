@@ -24,6 +24,8 @@ pub const MinigameResult = struct {
     /// How long the stub minigame's window takes to appear after WinExec
     /// (FindWindow fails until then), like a real program starting up.
     startup_ms: u32 = 1500,
+    /// How long it takes to answer 0x40b with 0x40c.
+    reply_ms: u32 = 100,
     /// How long the stub minigame "runs" before reporting.
     duration_ms: u32 = 3000,
 };
@@ -1024,8 +1026,8 @@ pub const Sim = struct {
             // A repeated hello (JARDIM's timer keeps posting it) is ignored.
             if (m.id == noite.minigame_hello and !win.reporting) {
                 const r = s.opts.minigame;
-                s.schedule(now +% 100, .{ .message = .{ .id = noite.minigame_ready } });
-                s.schedule(now +% 100 +% r.duration_ms, .{ .message = .{ .id = noite.minigame_result, .wparam = @intFromBool(r.won), .lparam = r.score } });
+                s.schedule(now +% r.reply_ms, .{ .message = .{ .id = noite.minigame_ready } });
+                s.schedule(now +% r.reply_ms +% r.duration_ms, .{ .message = .{ .id = noite.minigame_result, .wparam = @intFromBool(r.won), .lparam = r.score } });
                 win.reporting = true; // gone once its result is delivered
             }
             return true;

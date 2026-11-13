@@ -29,7 +29,9 @@ click on a door, an item or a character does what a right click did (the
 player walks over to a door first), anything else walks; an inventory
 item is tapped then placed with the next click, or dragged. The minigames
 (separate EXEs) are stubbed: they report a win, or a loss with
-`--minigame lose`. Saves go to `save/` (`--save DIR`).
+`--minigame lose`; their window shows 1.5 s after `WinExec` and answers the
+game's hello after 100 ms (`--minigame-startup MS`, `--minigame-reply MS`).
+Saves go to `save/` (`--save DIR`).
 
 ## Testing the port
 
