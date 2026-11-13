@@ -19,7 +19,7 @@ pub const Ini = struct {
     // @orig g_iniSectionEnd
     sectionEnd: u16 = 0,
     // @orig g_iniKeySearch
-    keySearch: u16 = 0,
+    keySearch: u16 = 1,
     // @orig g_iniLastChar
     lastChar: u8 = 0,
     // @orig g_lastAssetPath / g_assetPath

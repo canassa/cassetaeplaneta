@@ -17,7 +17,7 @@ const left_id: u16 = 0x164;
 
 pub const State = struct {
     // @orig g_creditosPage
-    page: i16 = 0,
+    page: i16 = 1,
     // @orig g_creditosRight
     right: ?*Object = null,
     // @orig g_creditosLeft

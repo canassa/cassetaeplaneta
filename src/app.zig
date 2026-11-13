@@ -22,12 +22,6 @@ const game_input = @import("game_input.zig");
 const backdrop = @import("backdrop.zig");
 const sound = @import("sound.zig");
 
-/// The initial value of `g_windowTitle` (DGROUP 0b0c); also the window class
-/// and caption.
-const window_title = "Noite Animal";
-/// `g_gameName` (DGROUP 0b08) points at this string (1018:c568): the INI
-/// the game object loads.
-const game_name = "Casseta";
 /// Caption of the WaveMix failure boxes (1018:36d8).
 const wave_mix_caption = "Erro Wave Mix";
 
@@ -47,8 +41,6 @@ fn clearSystemPalette(g: *Game) void {
 /// WM_PAINT for the invalid client area).
 pub fn start(g: *Game) !void {
     clearSystemPalette(g);
-    cstr.copy(&g.windowTitle, window_title);
-    cstr.copy(&g.gameName, game_name);
     g.windowWidth = platform.screen_width;
     g.windowHeight = platform.screen_height;
     game_unit.registerSceneHandlers(g);

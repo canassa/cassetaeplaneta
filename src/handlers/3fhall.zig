@@ -29,7 +29,7 @@ pub const State = struct {
     // @orig g_s3fhallMinigameWnd
     minigameWnd: u16 = 0,
     // @orig g_s3fhallDoorChoice
-    doorChoice: i16 = 0,
+    doorChoice: i16 = -1,
     // @orig g_s3fhallShuffleDoors
     shuffleDoors: i16 = 1,
     // @orig g_s3fhallDoorTargets

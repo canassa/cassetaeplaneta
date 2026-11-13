@@ -29,7 +29,7 @@ const Rect = struct { left: i16 = 0, top: i16 = 0, right: i16 = 0, bottom: i16 =
 
 pub const State = struct {
     // @orig g_s2fasspapTarget
-    target: i16 = 0,
+    target: i16 = -1,
     // @orig g_s2fasspapIntro
     intro: i16 = 0,
     // @orig g_s2fasspapTimedOut

@@ -44,7 +44,7 @@ pub const State = struct {
     // @orig g_s3fpapcloSolved
     solved: i16 = 0,
     // @orig g_s3fpapcloIntro
-    intro: i16 = 0,
+    intro: i16 = 1,
     // @orig g_s3fpapcloAwaitingWave
     awaitingWave: i16 = 0,
     // @orig g_s3fpapcloHitObject

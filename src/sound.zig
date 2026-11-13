@@ -66,7 +66,7 @@ pub fn open(g: *Game, path: []const u8) error{LimitExceeded}!?Wave {
     snd.waves[idx] = g.plat.waveOpen(snd.session, cstr.slice(path));
     snd.openResult = snd.waves[idx] orelse 0;
     if (snd.openResult == 0) {
-        const root = cstr.slice(&g.assetRoot);
+        const root = cstr.slice(&g.driveCD); // g_assetRoot = &g_driveCD
         const fname = splitFname(path);
         if (root.len + "pan\\wav\\".len + fname.len + ".wav".len >= g.wavePathBuf.len) return error.LimitExceeded;
         const alt = cstr.print(&g.wavePathBuf, "{s}pan\\wav\\{s}.wav", .{ root, fname });

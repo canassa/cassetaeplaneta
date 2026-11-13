@@ -101,8 +101,9 @@ pub const Game = struct {
     keyDown: u16 = 0,
     // @orig g_unk001A
     unk001A: u16 = 0,
-    // @orig g_unk001C
-    unk001C: u8 = 0,
+    // @orig g_unk001C (the transparent colour index of the sprite blits;
+    // DGROUP data 0x0b, never written)
+    unk001C: u8 = 0x0b,
     // @orig g_newObject (the object just created; read on 0x406)
     newObject: ?*Object = null,
     // @orig g_aviPlaying
@@ -117,13 +118,14 @@ pub const Game = struct {
     driveHD: [256]u8 = @splat(0),
     // @orig g_baseDir
     baseDir: [256]u8 = @splat(0),
-    // @orig g_assetRoot (points at one of the directories above)
-    assetRoot: [256]u8 = @splat(0),
+    // g_assetRoot (1050:0330) is a far pointer initialised to &g_driveCD and
+    // never written (wave_open is its only reader): code uses `driveCD`.
     // @orig g_appInitialized
     appInitialized: u16 = 0,
     // @orig g_skipMusicReplay
     skipMusicReplay: u16 = 0,
-    // @orig g_registeredHandlers
+    // @orig g_registeredHandlers initdata=skip (entry 0 starts as the stub
+    // 1018:6aca; register_scene_handlers clears the table before filling it)
     handlers: [handler.max_handlers]?handler.Handler = @splat(null),
     // @orig g_hitObject
     hitObject: ?*Object = null,
@@ -131,10 +133,12 @@ pub const Game = struct {
     unk097C: ?*Object = null,
     // @orig g_inputLocked
     inputLocked: u16 = 0,
-    // @orig g_gameName
-    gameName: [64]u8 = @splat(0),
-    // @orig g_windowTitle
-    windowTitle: [12]u8 = @splat(0),
+    // @orig g_gameName initdata=skip (a far pointer to the code-segment
+    // literal 1018:c568: the INI the game object loads)
+    gameName: [:0]const u8 = "Casseta",
+    // @orig g_windowTitle (DGROUP data, no terminating NUL; also the window
+    // class and caption)
+    windowTitle: [12]u8 = "Noite Animal".*,
     // @orig g_savedPosition
     savedPosition: world.SavedPosition = .{},
     // @orig g_slotScreenSaves (1 = salvar2 saves, 0 = loads)
@@ -148,7 +152,8 @@ pub const Game = struct {
     // @orig g_windowWidth / g_windowHeight
     windowWidth: i16 = 0,
     windowHeight: i16 = 0,
-    // @orig g_conditionTrue / g_conditionFalse (BSS 1030)
+    // @orig g_conditionTrue / g_conditionFalse (BSS 1030) initdata=skip
+    // (built by the C++ static initialisers before WinMain)
     conditionTrue: world.Condition = .{ .kind = .flag, .value = 1 },
     conditionFalse: world.Condition = .{ .kind = .flag, .value = 0 },
     // @orig g_crtHoldRand

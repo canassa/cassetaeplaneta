@@ -42,7 +42,7 @@ pub const State = struct {
     // @orig g_fundini1HitObject
     hitObject: ?*Object = null,
     // @orig g_fundini1Leaving
-    leaving: i16 = 0,
+    leaving: i16 = 1,
     // @orig g_fundini1QuitPanel
     quitPanel: ?*Object = null,
     // @orig g_fundini1PlayPanel

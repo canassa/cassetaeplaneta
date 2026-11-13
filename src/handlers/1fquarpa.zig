@@ -32,7 +32,7 @@ pub const State = struct {
 
 fn openVoice(g: *Game, file: []const u8) ?platform.Wave {
     var buf: [256]u8 = undefined;
-    const path = cstr.print(&buf, "{s}{s}", .{ cstr.slice(&g.assetRoot), file });
+    const path = cstr.print(&buf, "{s}{s}", .{ cstr.slice(&g.driveCD), file });
     // The original's open cannot fail by limit on this path length.
     return sound.open(g, path) catch null;
 }

@@ -229,7 +229,7 @@ pub fn addGlobalObject(g: *Game, scene_name: []const u8, obj: *Object) void {
 /// message box on MCI error). Returns `g`; init's result is dropped.
 // @orig 1018:c060 noite_game_on_create
 pub fn onCreate(g: *Game) *Game {
-    _ = game_scenes.init(g, cstr.slice(&g.gameName));
+    _ = game_scenes.init(g, g.gameName);
     var cmd: [256]u8 = undefined;
     const text = cstr.print(&cmd, "{s}{s}{s}{s}", .{ "open ", cstr.slice(&g.driveCD), "velha.mid", " type sequencer alias musica" });
     const err = g.plat.mciString(text);
