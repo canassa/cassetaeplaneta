@@ -88,6 +88,10 @@ pub const Fixes = struct {
     /// over the control panel and status bar: they are drawn back into the
     /// backdrop before the scene's timer puts the frame on the screen.
     bars_over_scene_animation: bool = false,
+    /// B33: a `Static=` object met again (the kitchen's cockroach and
+    /// ketchup, the parents' room's father) is drawn whole on re-entry, not
+    /// only the part the last overlap of the previous visit left dirty.
+    static_redraw_whole_frame: bool = false,
     /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"):
     /// while an inventory item is dragged out of the control panel (right
     /// button held), its panel icon follows the pointer. The original shows

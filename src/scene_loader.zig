@@ -454,6 +454,9 @@ fn loadStatic(ld: *Loader, existing: *bool) ?*Object {
         const o = f.as(.object3d);
         if (o) |obj| {
             existing.* = true;
+            // B33: the draw uses the dirty rectangle the last overlap left
+            // in the previous visit; the original resets it only after.
+            if (g.fixes.static_redraw_whole_frame) frames.resetRects(obj);
             render.draw(g, obj, ld.bd);
             _ = occupancy.occupy(g, obj, ld.bd);
             obj.visible = 1;

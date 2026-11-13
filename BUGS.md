@@ -474,6 +474,21 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   bar into the backdrop after each such tick, before the flush.
 - **Confidence:** 9 (code, port repro).
 
+### B33. The kitchen's cockroach is missing when the player comes back
+- **Where:** `ini_scene_create` 1018:6bee, `Static=` line of an object already in the global list: slot 1B
+  `draw` (`animation_draw` 1010:26fc → `scene_object_draw_dirty_to` 1010:b746, which draws only the dirty
+  rectangle) runs before `scene_object_reset_rects` 1010:1576; `object_list_attach_to_scene` 1010:d4f6
+  does the same.
+- **What the code does:** the dirty rectangle is the one `scene_object_compute_overlap` 1010:bda8 last
+  stored when the player overlapped the object in the previous visit (and, in the attach, the one the
+  scene's later objects just stored); the new backdrop is the pristine bitmap, so only that strip is drawn.
+- **Effect:** back in `1fcozin0` the cockroach (`Static=124`, a 243×135 frame the player always overlaps)
+  shows only a leg and an antenna under the counter until the player walks over it and repaints it piece
+  by piece. The ketchup (`Static=62`) and the father in `1fquarpa` (`Static=248`) can be cut the same way.
+- **Port:** reproduced (`src/scene_loader.zig`); `Fixes.static_redraw_whole_frame` resets the rectangles
+  before that first draw.
+- **Confidence:** 9 (code, port repro).
+
 ## Harmless: wrong paths rescued by the wave fallback
 
 `wave_open` retries `<root>pan\wav\<file name>.wav`, and `PAN\WAV\` holds a copy of almost every wave, so these
