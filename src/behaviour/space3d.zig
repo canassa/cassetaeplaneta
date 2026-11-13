@@ -358,6 +358,11 @@ pub fn isAboveOnScreen(g: *Game, obj: *Object, other: *Object, bd: *Backdrop) bo
     return obj.y +% frames.hitY(obj) < other.y +% frames.hitY(other);
 }
 
+/// `obj`'s elevation is the top of `other`'s non-flat 3D box (B31's fix).
+fn restsOn(obj: *const Object, other: *const Object) bool {
+    return other.o3d.sizeH > 0 and obj.o3d.worldElev == other.o3d.worldElev +% other.o3d.sizeH;
+}
+
 fn abs16(v: i16) i16 {
     return if (v < 0) 0 -% v else v;
 }
@@ -365,6 +370,11 @@ fn abs16(v: i16) i16 {
 /// Object3D slot 04.
 // @orig 1010:5c5c object3d_is_in_front_of
 pub fn isInFrontOf(g: *Game, obj: *Object, other: *Object, bd: *Backdrop) bool {
+    if (g.fixes.item_on_support_in_front) {
+        // BUGS.md B31: an object lying on the other's top face is drawn after it.
+        if (restsOn(obj, other) and position.hitboxOverlaps(g, obj, other)) return true;
+        if (restsOn(other, obj) and position.hitboxOverlaps(g, other, obj)) return false;
+    }
     if (other.o3d.worldDepth +% other.o3d.sizeD < obj.o3d.worldDepth) return false;
     if (obj.o3d.worldDepth +% obj.o3d.sizeD < other.o3d.worldDepth) return true;
     if (isBelow(g, obj, other, bd)) return false;

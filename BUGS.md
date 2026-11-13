@@ -440,6 +440,23 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   (the drop sets it, the fall's stop resets it).
 - **Confidence:** 9 (code, port repro).
 
+### B31. The sitting room's package is cut in half by the table when the player walks by
+- **Where:** `object3d_is_in_front_of` 1010:5c5c (first test: `other.depth + other.sizeD < this.depth` → behind)
+  orders `draw_list_insert` 1018:2cce; `object3d_redraw_overlapping` 1010:5e10 redraws, in draw-list order,
+  each object the moving player's dirty rectangle overlaps: `scene_object_draw_dirty_to` 1010:b746 draws only
+  that rectangle of a local, `mover_draw_dirty_to` 1010:b8a0 the whole frame of a portable.
+- **What the code does:** the package (`Portable=107`, elevation 90 = the table's top, anchor 140 rows down
+  its 116-row frame) unprojects to depth −133..−93, past the back of the table (`Local=104`, −295..−145), so
+  it sits behind the table in the draw list. `object_list_attach_to_scene` 1010:d4f6 shows the portables
+  after the scene's locals, so it is first drawn on top; a redraw then draws it whole and the table's
+  overlapped strip over it.
+- **Effect:** with the player by the table (feet near x 505–590, y 365), the package's top shows the table
+  instead, down to the bottom of the player's rectangle (about row 392); every later redraw there cuts it
+  again. The other items with an elevation (48, 54) do not rest on a box top.
+- **Port:** reproduced (`space3d.isInFrontOf`); `Fixes.item_on_support_in_front` puts an object whose
+  elevation is the top of another's non-flat box, with overlapping hit boxes, in front of it.
+- **Confidence:** 9 (code, port repro).
+
 ## Harmless: wrong paths rescued by the wave fallback
 
 `wave_open` retries `<root>pan\wav\<file name>.wav`, and `PAN\WAV\` holds a copy of almost every wave, so these

@@ -80,6 +80,10 @@ pub const Fixes = struct {
     /// (a 3D box under it whose top is below the release point) or to the
     /// floor row; it never rises, and a door or picture never holds it up.
     drop_falls_onto_support: bool = false,
+    /// B31: an object whose elevation is the top of another's 3D box, with
+    /// overlapping hit boxes, is in front of it in the draw order (the
+    /// sitting room's package is no longer cut by the table's redraws).
+    item_on_support_in_front: bool = false,
     /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"):
     /// while an inventory item is dragged out of the control panel (right
     /// button held), its panel icon follows the pointer. The original shows
