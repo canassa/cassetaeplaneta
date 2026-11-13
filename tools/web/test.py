@@ -340,6 +340,19 @@ def main():
             tap(100, 368)  # the wallet on the floor
             time.sleep(1.5)
             check(items() == 1, "touch: a tap on it takes it back")
+            pad = tpage.locator("#dpad")
+            check(pad.is_visible(), "touch: the on-screen arrows show in one-button mode")
+            before = tpage.locator("#screen").screenshot()
+            left = tpage.locator('#dpad [data-key="37"]').bounding_box()
+            cx, cy = left["x"] + left["width"] / 2, left["y"] + left["height"] / 2
+            # A held arrow: a touch that stays down (CDP touch events).
+            cdp = tctx.new_cdp_session(tpage)
+            cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": cx, "y": cy}]})
+            time.sleep(1.5)
+            cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+            time.sleep(0.5)
+            tpage.screenshot(path=str(out / "touch-dpad.png"))
+            check(tpage.locator("#screen").screenshot() != before, "touch: holding ◀ walks the player")
             check(not terrors, "touch: no page errors")
             tctx.close()
 
@@ -407,6 +420,7 @@ def main():
         time.sleep(1.5)
         shot("title.png")
         check(not errors, "title screen, no page errors")
+        check(not page.locator("#dpad").is_visible(), "no on-screen arrows with two buttons")
         click(290, 345)  # JOGAR
         time.sleep(2)
         click(370, 412)  # NOVO JOGO

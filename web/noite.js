@@ -507,6 +507,51 @@
     canvas.style.width = w + "px";
     canvas.style.height = h + "px";
     placeTools(sw, sh, w, h);
+    placeDpad(sw, sh, w, h);
+  }
+
+  function placeDpad(sw, sh, w, h) {
+    const pad = $("dpad");
+    if (pad.hidden) return;
+    const side = (sw - w) / 2, below = (sh - h) / 2;
+    const st = pad.style;
+    if (pad.offsetWidth + 2 * GAP <= side) {
+      pad.className = "";
+      st.left = (side - pad.offsetWidth) / 2 + "px";
+      st.bottom = Math.max(GAP, below + (h - pad.offsetHeight) / 2) + "px";
+    } else {
+      // Over the game, above its bottom strip (the panel's handle).
+      pad.className = "overlay";
+      st.left = Math.max(GAP, side + GAP) + "px";
+      st.bottom = Math.max(GAP, below + h * 0.12) + "px";
+    }
+  }
+
+  /** The on-screen arrows (one-button mode): held, an arrow key is held. */
+  function showDpad() {
+    const pad = $("dpad");
+    for (const b of pad.querySelectorAll("button")) {
+      const code = Number(b.dataset.key);
+      let held = false;
+      const release = () => {
+        if (!held) return;
+        held = false;
+        b.classList.remove("on");
+        wasm.noite_key(false, code);
+      };
+      b.addEventListener("pointerdown", (e) => {
+        startAudio();
+        e.preventDefault();
+        b.setPointerCapture(e.pointerId);
+        if (held || !running) return;
+        held = true;
+        b.classList.add("on");
+        wasm.noite_key(true, code);
+      });
+      for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) b.addEventListener(ev, release);
+      b.addEventListener("contextmenu", (e) => e.preventDefault());
+    }
+    pad.hidden = false;
   }
 
   const GAP = 4; // tools' distance from the game and the window edge
@@ -668,6 +713,7 @@
       wasm = instance.exports;
       wasm._initialize();
       $("loader").hidden = true;
+      if (prefs.oneButton) showDpad();
       canvas.hidden = false;
       showTools();
       fit();

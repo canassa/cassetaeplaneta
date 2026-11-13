@@ -38,6 +38,20 @@
   #tools button:hover, #tools button:focus-visible { color: #000; background: #e8b830; border-color: #e8b830; }
   #tools.overlay { opacity: .35; transition: opacity .2s; }
   #tools.overlay:hover, #tools.overlay:focus-within, #tools.overlay.lit { opacity: 1; }
+  /* Arrows for a touch screen (one-button mode): they walk like the
+     keyboard's, around what a tap's straight walk bumps into. In the left
+     letterbox when it has room (placed by fit() in noite.js), else faint
+     over the game's bottom left corner. */
+  #dpad { position: fixed; display: grid; grid-template: repeat(3, 44px) / repeat(3, 44px); gap: 2px;
+    z-index: 1; touch-action: none; user-select: none; -webkit-user-select: none; }
+  #dpad.overlay { opacity: .45; }
+  #dpad button { margin: 0; padding: 0; font-size: 20px; line-height: 1; color: #ccc;
+    background: rgba(40, 40, 40, .85); border: 1px solid #555; border-radius: 8px; touch-action: none; }
+  #dpad button.on { color: #000; background: #e8b830; border-color: #e8b830; }
+  #dpad [data-key="38"] { grid-area: 1 / 2; }
+  #dpad [data-key="37"] { grid-area: 2 / 1; }
+  #dpad [data-key="39"] { grid-area: 2 / 3; }
+  #dpad [data-key="40"] { grid-area: 3 / 2; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -76,6 +90,12 @@
 <div id="tools" hidden>
   <button id="switch"></button>
   <button id="fullscreen" title="Tela cheia" hidden>⛶</button>
+</div>
+<div id="dpad" hidden>
+  <button data-key="38" aria-label="Cima">▲</button>
+  <button data-key="37" aria-label="Esquerda">◀</button>
+  <button data-key="39" aria-label="Direita">▶</button>
+  <button data-key="40" aria-label="Baixo">▼</button>
 </div>
 <script src="noite.js"></script>
 </body>
