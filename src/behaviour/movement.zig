@@ -354,8 +354,17 @@ fn moverStopMovingDc(g: *Game, obj: *Object, bd: *Backdrop) void {
 
 // @orig 1010:6290 moveable_stop_moving_dc
 fn moveableStopMovingDc(g: *Game, obj: *Object, bd: *Backdrop) void {
-    _ = bd;
     stopMovingDcBody(g, obj);
+    // B30: each step of a dropped item's fall put its 3D place on the
+    // floor (portable_move_to_and_drop); at the end it goes back to its
+    // support's height and is redrawn over what it now lies in front of.
+    if (obj.kind != .portable) return;
+    const elev = obj.portable.restElev orelse return;
+    obj.portable.restElev = null;
+    if (obj.visible == 0) return;
+    space3d.setElevationAtBottom(g, obj, bd, elev);
+    render.draw(g, obj, bd);
+    visibility.redrawOverlapping(g, obj, bd, 1);
 }
 
 // @orig 1010:c91a mover_stop_moving

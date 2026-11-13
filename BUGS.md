@@ -324,8 +324,8 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   one frame (plus a step) wide, so it misses the item's image when the two are farther apart than a step.
 - **Effect:** the item's picture stays on the screen (and in the backdrop bitmap) after it is back in the
   inventory; dropping it again draws a second one. E.g. the wallet dropped on the corridor's bathroom door
-  (animation 256). The give-item scenes (2fportd2, 2fblitg, 2fcopmau, 2fcopmu, 3fprisao…) hit it when an
-  offered item is handed back.
+  (animation 256; it stays there because of B30). The give-item scenes (2fportd2, 2fblitg, 2fcopmau, 2fcopmu,
+  3fprisao…) hit it when an offered item is handed back.
 - **Port:** reproduced (`game_input.rightUp`); `Fixes.drop_syncs_previous_position` sets the previous
   position to the dropped one, as `mover_show` does.
 - **Confidence:** 9 (code, port repro).
@@ -392,6 +392,43 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
 - **Port:** reproduced (`src/grid.zig`); `Fixes.vacate_keeps_other_occupants` points those cells back at a
   remaining occupant after each vacate (`grid.repointOccupants`, from `backdrop.vacate`: the visible scene
   and global objects covering the cell, the last in list order winning like the last occupy).
+- **Confidence:** 9 (code, port repro).
+
+### B30. A dropped item can stay in mid-air or rise instead of falling
+- **Where:** `game_handle_message` 1018:0000, WM_RBUTTONUP: `moveToAndDrop` (1018:0e1b) and `setElevation`
+  (0e37) at the release point, then Object3D slot 01 (0e64, `object3d_find_support` 1010:5b3c): the *first*
+  visible object of the scene list, then the global list, for which `object3d_is_above_on_screen` 1010:5a2a
+  (the item's hit box spans the other's horizontally and its top is higher) or `scene_object_hitbox_overlaps`
+  1010:bc1e (5bd8) holds. Overlapping hit boxes (1018:0f22, `JNZ 10d3`): no move. Otherwise the item walks to
+  `y = height/2 + (front + back)/2` of the support's projected top face (two `perspective_project_point`
+  1010:4964 calls, 0f80/0fed), capped at `viewHeight − 100` (1031–103f); with no support, to
+  `viewHeight − 100` (108a).
+- **What the code does:** "support" means any object, whatever it is and whatever its 3D size: a door, an
+  invisible hotspot animation, a drawer, a wall-high exit. Size-0 objects have their top face on their anchor
+  row; tall ones far above the release point. The INI's 3D placement also often misses the picture (the
+  corridor table's `_3DOriginY` is 50 for a 129-row image: its 200-high top projects to rows 142–175, about
+  90 rows above the drawn top, beside the Mona Lisa).
+- **Effect:** in the corridor (1fcorred), an item released over the bathroom door (Animated 256, an invisible
+  120×300 placeholder) or the parents' door (Exit 50) or the phone (Exit 53) overlaps it and hangs where it was
+  released (the cases of B25). Released between the table and the bathroom door (x ≈ 450, y ≈ 200–240), it
+  takes the table as support and climbs to row 138, next to the painting. Over the Mona Lisa it takes the
+  table's drawer (Exit 49, size 0) and ends in front of the drawer. In the bedroom an item released over the
+  bed overlaps the radio (animated, 177×124) and hangs; in the sitting room one dropped over the armchair
+  takes a door hotspot (Exit 114) and sinks into the chair.
+- **Evidence:** the asm above; port repro with the wallet (item 71, `tools/play/full.input` lines 1–27):
+  released at (520,100) → support 256, overlap, stays; at (435,215) → support 47 (the table), target row 178
+  (bottom), walk ends at (435,145), 70 rows up.
+- **Port:** reproduced (`game_input.rightUp`). `Fixes.drop_falls_onto_support` (`fallToRest`): the item falls
+  straight down from its release row onto the first support top under it, or to the original's floor row; it
+  never rises. A support is a visible local, animated, exit or portable with a non-zero 3D box (doors and
+  paintings drawn as size-0 hotspots are not; characters are not; a door with a 3D height has its top far
+  above any release row) under the item's centre whose projected top face, kept inside its hit box (moved
+  to the hit box's top row when the two miss each other, as for the corridor table), is at or below the
+  release row; the item rests on the face's middle row. The item enters the draw list, and keeps its 3D
+  place, on the support's top with its anchor on its bottom row (the `ZoomPort=` items' anchor is their
+  top-left corner, which put them behind the bed they lie on); the fall's steps reset that place
+  (`portable_move_to_and_drop`), so its stop restores it. With B25's fix, the previous position stays synced
+  (the drop sets it, the fall's stop resets it).
 - **Confidence:** 9 (code, port repro).
 
 ## Harmless: wrong paths rescued by the wave fallback

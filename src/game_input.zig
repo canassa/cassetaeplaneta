@@ -14,6 +14,7 @@
 //! DC handling (GetDC/ReleaseDC around the update-list flush and the
 //! status-bar erase) has no counterpart: the DC is the platform screen.
 
+const std = @import("std");
 const Game = @import("core/game.zig").Game;
 const object = @import("core/object.zig");
 const Object = object.Object;
@@ -35,6 +36,7 @@ const exit_mod = @import("exit.zig");
 const frames = @import("frames.zig");
 const object_list = @import("object_list.zig");
 const update_list = @import("update_list.zig");
+const draw_list = @import("draw_list.zig");
 const projection = @import("projection.zig");
 const sound = @import("sound.zig");
 const backdrop_mod = @import("backdrop.zig");
@@ -183,6 +185,9 @@ fn sysTimer(g: *Game, m: Msg) i32 {
             if (timerIs(g, sel, id)) {
                 if (movement.isMoving(g, sel)) {
                     movement.moveTick(g, sel, bdOf(g));
+                } else if (g.fixes.drop_falls_onto_support) {
+                    // B30: keep the 3D place the drop gave it.
+                    space3d.setElevationAtBottom(g, sel, bdOf(g), @bitCast(g.unk001A));
                 } else {
                     _ = space3d.setElevation(g, sel, bdOf(g), @bitCast(g.unk001A));
                 }
@@ -332,7 +337,10 @@ fn rightUp(g: *Game, m: Msg) i32 {
     g.score -%= sel.portable.scoreTake;
     const sx: i16 = sx0 -% (@divTrunc(frames.width(sel), 2) +% bdOf(g).originX);
     g.unk001A = 0;
-    if (support) |sup| {
+    if (g.fixes.drop_falls_onto_support) {
+        // B30: fall straight down onto a real support, or to the floor.
+        fallToRest(g, sel, sx);
+    } else if (support) |sup| {
         if (!position.hitboxOverlaps(g, sel, sup)) {
             // Rest on the top of the support, halfway between its near and
             // far edge, but never below the bottom strip of the view.
@@ -353,6 +361,92 @@ fn rightUp(g: *Game, m: Msg) i32 {
     render.draw(g, sel, bdOf(g));
     _ = visibility.invalidate(g, sel);
     return 1;
+}
+
+/// The window rows (back, front) of `other`'s top face, where a dropped
+/// item may rest, or null when `other` is no support for it. Not in the
+/// original (B30's fix).
+///
+/// A support is a thing with a 3D box (a table, furniture, another dropped
+/// item; not a door or picture without a size, not a character) under the
+/// item's centre. Its face is the projected near and far top edges. The
+/// INI's 3D placement does not always match the picture (the corridor
+/// table's top projects 90 rows above its drawn top), so the face is kept
+/// inside the hit box, and put on the hit box's top row when the two do
+/// not meet at all.
+const RestFace = struct { back: i16, front: i16 };
+
+fn restFace(g: *Game, sel: *Object, other: *Object) ?RestFace {
+    const bd = bdOf(g);
+    if (other.visible == 0 or other.id == sel.id) return null;
+    switch (other.kind) {
+        .local, .animated, .portable, .exit => {},
+        .moveable, .actor, .player, .control_panel, .status_bar => return null,
+    }
+    const elev = space3d.getWorldElev(g, other);
+    const h = space3d.getSizeH(g, other);
+    if (space3d.getSizeW(g, other) <= 0 or h <= 0 or space3d.getSizeD(g, other) <= 0) return null;
+    const centre = sel.x +% frames.hitX(sel) +% @divTrunc(frames.hitW(sel), 2);
+    const left = other.x +% frames.hitX(other);
+    if (centre < left or left +% frames.hitW(other) < centre) return null;
+    const x = space3d.getWorldX(g, other);
+    const depth = space3d.getWorldDepth(g, other);
+    const near = projection.projectPoint(bd, x, depth, elev +% h).y;
+    const far = projection.projectPoint(bd, x, depth +% space3d.getSizeD(g, other), elev +% h).y;
+    const hit_top = other.y +% frames.hitY(other) -% bd.originY;
+    const hit_bottom = hit_top +% frames.hitH(other);
+    const back = @min(near, far);
+    const front = @max(near, far);
+    if (front < hit_top or back > hit_bottom) return .{ .back = hit_top, .front = hit_top };
+    return .{ .back = std.math.clamp(back, hit_top, hit_bottom), .front = std.math.clamp(front, hit_top, hit_bottom) };
+}
+
+/// B30's fix. Rows are the item's middle row, as in the original's rest
+/// position (middle on the support face's middle row, or bottom on
+/// `viewHeight - 100`). The item falls straight down from where it was
+/// released to the first support face met at or under that row, resting on
+/// the face's middle row unless it was released lower on the face; with
+/// none, it falls to the floor row. It never moves up: released on or
+/// below its rest row, it stays.
+fn fallToRest(g: *Game, sel: *Object, sx: i16) void {
+    const bd = bdOf(g);
+    const half: i16 = @divTrunc(frames.height(sel), 2);
+    const released: i16 = sel.y -% bd.originY +% half;
+    const floor: i16 = bd.viewHeight -% 100 -% half;
+    var rest: i16 = @max(released, floor);
+    var on: ?*Object = null;
+    const lists = [2]?*object.ObjectList{ bd.sceneList, &g.globalObjects };
+    for (lists) |list| {
+        var cur: ?*Object = if (list) |l| l.head else null;
+        while (cur) |other| : (cur = other.next) {
+            const face = restFace(g, sel, other) orelse continue;
+            if (face.front < released) continue; // its top is above the item
+            const y = @max(released, @min(@divTrunc(face.back +% face.front, 2), floor));
+            if (y < rest or (on == null and y == rest)) {
+                rest = y;
+                on = other;
+            }
+        }
+    }
+    // Sort the item into the draw list as it will rest (on the support's
+    // top), not as it was released, so the support does not hide it.
+    const elev: i16 = if (on) |sup| space3d.getWorldElev(g, sup) +% space3d.getSizeH(g, sup) else 0;
+    g.unk001A = @bitCast(elev);
+    const y = sel.y;
+    sel.y = rest -% half +% bd.originY;
+    space3d.setElevationAtBottom(g, sel, bd, elev);
+    sel.y = y;
+    draw_list.remove(&g.drawList, sel);
+    _ = draw_list.insert(g, bd, sel);
+    sel.portable.restElev = null;
+    if (rest == released) {
+        visibility.redrawOverlapping(g, sel, bd, 1);
+        return;
+    }
+    // The walk's steps put it on the floor again; its stop restores this.
+    sel.portable.restElev = elev;
+    // moveTo takes the bottom row.
+    movement.moveTo(g, sel, sx, rest +% frames.height(sel) -% half, bd);
 }
 
 /// 0x402: the exit animation finished; take the exit (wParam = index).

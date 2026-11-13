@@ -76,6 +76,10 @@ pub const Fixes = struct {
     /// points the cells other objects still occupy back at one of them, so
     /// an item that lay under or next to it can still be right-clicked.
     vacate_keeps_other_occupants: bool = false,
+    /// B30: a dropped item falls straight down onto the first real support
+    /// (a 3D box under it whose top is below the release point) or to the
+    /// floor row; it never rises, and a door or picture never holds it up.
+    drop_falls_onto_support: bool = false,
     /// U1: draw the status-bar text.
     status_bar_text: bool = false,
     /// `ini_fatal_error` ("Erro Fatal!") quits (`error.Fatal`) instead of

@@ -449,3 +449,14 @@ fn object3dDropToSupport(g: *Game, obj: *Object, bd: *Backdrop) void {
     obj.o3d.support = s.support;
     _ = setElevation(g, obj, bd, s.top);
 }
+
+/// B30's fix (not in the original): `setElevation` with the anchor moved
+/// down to the image's bottom row, the row a dropped item rests on. A
+/// carried item's INI anchor is often its top-left corner (`ZoomPort=`
+/// items: 0,0), which puts its 3D place behind the support it lies on.
+pub fn setElevationAtBottom(g: *Game, obj: *Object, bd: *Backdrop, elev: i16) void {
+    const y = obj.y;
+    obj.y = y +% frames.height(obj) -% obj.o3d.anchorY;
+    _ = setElevation(g, obj, bd, elev);
+    obj.y = y;
+}
