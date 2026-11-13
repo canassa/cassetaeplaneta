@@ -289,7 +289,9 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
 - **What the code does:** 4fbarboy swallows right clicks on most of its objects, but not on the boys
   (228, `garots08`): the engine default plays their NomeWAVE, and its end arrives with no item selected.
   In 2fsuabig any right click stores the object under it in `g_s2fsuabigHitObject`, so the next wave end
-  (with no item) passes the test.
+  (with no item) passes the test; the reverse (an item selected, no object hit) reaches the hit object's
+  `reoccupy` through NULL. 2fshardi's gift timer (0x14, 5 s) hands the "selected item" back even when a
+  reply ending in between has cleared the selection.
 - **Effect:** a NULL far-pointer read: a general protection fault (the game is closed by Windows).
 - **Port:** panics naming this bug, as the original faults; `Fixes.reply_without_item` ignores that wave
   end.

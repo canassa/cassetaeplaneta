@@ -175,7 +175,9 @@ pub fn handle(g: *Game, m: Msg) i16 {
             frames.resetRects(item);
             visibility.hideAndInvalidate(g, item, 0, bd);
             visibility.redrawOverlapping(g, item, bd, 0);
-            occupancy.reoccupy(g, must(Object, s.hitObject), bd);
+            // An item still selected with no object hit (a wave end after a
+            // drag dropped elsewhere): the original reads through NULL.
+            occupancy.reoccupy(g, s.hitObject orelse @panic("2fsuabig: reply end with no object hit (original GPF, BUGS.md B24)"), bd);
             if (s.offerCount < 4) return 1;
             lose(g, s);
             return 1;

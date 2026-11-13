@@ -144,7 +144,10 @@ fn query(g: *Game, s: *State, m: Msg) i8 {
 
 /// Gives the selected (wrongly offered) item back to the player and redraws it.
 fn returnItem(g: *Game, s: *State) *Object {
-    const item = must(Object, must(Object, g.selectedItem).as(.portable));
+    // The gift's 5 s timer can end after the selection was cleared (another
+    // reply ended meanwhile): the original reads through NULL (BUGS.md B24).
+    const sel = g.selectedItem orelse @panic("2fshardi: item returned with none selected (original GPF, BUGS.md B24)");
+    const item = must(Object, sel.as(.portable));
     s.returnedItem = item;
     _ = portable.pickUp(g, item, must(Object, must(Object, g.player).as(.player)));
     return item;
