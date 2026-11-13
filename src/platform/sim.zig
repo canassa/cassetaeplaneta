@@ -50,7 +50,13 @@ const OpenFile = struct {
 
 const Pending = struct { due: u32, ev: p.Event };
 
-const Window = struct { title: []const u8, hwnd: p.Hwnd, alive: bool };
+const Window = struct {
+    title: []const u8,
+    hwnd: p.Hwnd,
+    alive: bool,
+    /// Its result is scheduled: the window closes when it is delivered.
+    reporting: bool = false,
+};
 
 /// An open WaveMix wave: its length and (with `keep_audio`) its samples.
 const WaveData = struct {
@@ -145,6 +151,13 @@ pub const Sim = struct {
         const i = best orelse return null;
         const ev = s.pending.orderedRemove(i).ev;
         if (ev == .message and ev.message.id == wm.mm_mcinotify) s.mciNotified(ev.message, now);
+        // The minigame reports and exits: its window is gone from now on
+        // (the scenes poll FindWindow on their timers until then).
+        if (ev == .message and ev.message.id == noite.minigame_result) {
+            for (&s.minigames) |*w| if (w.*) |win| {
+                if (win.reporting) w.* = null;
+            };
+        }
         return ev;
     }
 
@@ -860,12 +873,12 @@ pub const Sim = struct {
     pub fn postTo(s: *Sim, now: u32, hwnd: p.Hwnd, m: p.Msg) bool {
         for (&s.minigames) |*w| if (w.*) |*win| {
             if (win.hwnd != hwnd or !win.alive) continue;
-            if (m.id == noite.minigame_hello) {
+            // A repeated hello (JARDIM's timer keeps posting it) is ignored.
+            if (m.id == noite.minigame_hello and !win.reporting) {
                 const r = s.opts.minigame;
                 s.schedule(now +% 100, .{ .message = .{ .id = noite.minigame_ready } });
                 s.schedule(now +% 100 +% r.duration_ms, .{ .message = .{ .id = noite.minigame_result, .wparam = @intFromBool(r.won), .lparam = r.score } });
-                win.alive = false; // gone once it reports
-                w.* = null;
+                win.reporting = true; // gone once its result is delivered
             }
             return true;
         };
