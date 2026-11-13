@@ -60,7 +60,7 @@ pub fn handle(g: *Game, m: Msg) i16 {
                     g.aviPlaying = null;
                     _ = sound.mixInit(g);
                     var cmd: [256]u8 = undefined;
-                    const line = cstr.print(&cmd, "{s}{s}", .{ cstr.slice(&g.baseDir), minigame_exe });
+                    const line = cstr.print(&cmd, "{s}{s}", .{ cstr.slice(&g.driveCD), minigame_exe });
                     _ = g.plat.winExec(line); // SW_SHOW (5); result not checked
                     g.setTimer(0x14, 100);
                 }
