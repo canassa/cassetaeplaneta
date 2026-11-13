@@ -72,15 +72,16 @@ pub fn handle(g: *Game, m: Msg) i16 {
             return 0;
         },
         msg.noite.object_created => {
-            const obj = g.newObject.?;
+            // g_newObject is read (and dereferenced) only for these ids.
+            const obj = g.newObject;
             switch (@as(i16, @bitCast(m.wparam))) {
                 KETCHUP_ID => {
                     s.ketchup = obj;
-                    obj.playOnceRewinds = 0;
+                    obj.?.playOnceRewinds = 0;
                 },
                 COCKROACH_ID => {
                     s.cockroach = obj;
-                    obj.playOnceRewinds = 0;
+                    obj.?.playOnceRewinds = 0;
                 },
                 COCKROACH_EXIT_ID => s.cockroachExit = obj,
                 else => {},
