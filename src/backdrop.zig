@@ -221,8 +221,12 @@ pub fn occupy(g: *Game, bd: *Backdrop, obj: *Object) i16 {
 
 /// Backdrop slot 06.
 pub fn vacate(g: *Game, bd: *Backdrop, obj: *Object) i16 {
-    _ = g;
-    return grid_unit.backdropVacate(bd, obj);
+    const r = grid_unit.backdropVacate(bd, obj);
+    // B29: the vacate cleared the object of cells other objects still occupy.
+    if (g.fixes.vacate_keeps_other_occupants and r == 1) {
+        grid_unit.repointOccupants(bd.grid.?, obj, &.{ if (bd.sceneList) |l| l.head else null, g.globalObjects.head });
+    }
+    return r;
 }
 
 /// Backdrop slot 07 (does nothing, returns 0).

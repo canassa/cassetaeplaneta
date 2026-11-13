@@ -10,6 +10,7 @@
 //! Naming: `occupancy_grid_*` functions take `*Grid` (`grid.occupy`); the
 //! `grid_backdrop_*` virtual slots take the backdrop (`grid.backdropOccupy`).
 
+const std = @import("std");
 const Game = @import("core/game.zig").Game;
 const object = @import("core/object.zig");
 const Object = object.Object;
@@ -177,6 +178,51 @@ pub fn vacate(grid: *Grid, obj: *Object) i8 {
     return 1;
 }
 
+/// B29 fix (not in the original): `vacate` clears the object of every cell
+/// under `obj`, even where other objects still count as occupants, and the
+/// right-click query then finds a count with no object. Point those cells
+/// back at a remaining occupant: an object of `heads` (the scene's list,
+/// the global objects) that occupies the grid (visible, not `obj`, not the
+/// player, control panel or status bar, whose occupy does nothing, at a
+/// non-negative position) and whose hit box covers the cell. The last one
+/// in list order wins, as the last `occupy` would have.
+pub fn repointOccupants(grid: *Grid, obj: *Object, heads: []const ?*Object) void {
+    if (obj.x < 0 or obj.y < 0) return;
+    const s = hitSpan(grid, obj);
+    var lost: std.StaticBitSet(cell_total) = .empty;
+    var any = false;
+    var row = s.r0;
+    while (row <= s.r1) : (row +%= 1) {
+        var col = s.c0;
+        while (col <= s.c1) : (col +%= 1) {
+            const idx = index16(row, col);
+            if (idx >= cell_total) continue;
+            const c = cellCount(grid, idx);
+            if (c != 0 and c != -1 and cellObject(grid, idx) == null) {
+                lost.set(@intCast(idx));
+                any = true;
+            }
+        }
+    }
+    if (!any) return;
+    for (heads) |head| {
+        var it = head;
+        while (it) |o| : (it = o.next) {
+            if (o == obj or o.visible == 0 or o.x < 0 or o.y < 0) continue;
+            if (o.kind == .player or o.kind == .control_panel or o.kind == .status_bar) continue;
+            const t = hitSpan(grid, o);
+            var r = @max(s.r0, t.r0);
+            while (r <= @min(s.r1, t.r1)) : (r +%= 1) {
+                var col = @max(s.c0, t.c0);
+                while (col <= @min(s.c1, t.c1)) : (col +%= 1) {
+                    const idx = index16(r, col);
+                    if (idx < cell_total and lost.isSet(@intCast(idx))) storeCell(grid, idx, o, null);
+                }
+            }
+        }
+    }
+}
+
 // @orig 1010:daba occupancy_grid_query_rect
 /// Scans the cells covered by the rectangle. `result` is 0 if all are free,
 /// else the count of the first occupied cell (`-1 - count` for a blocked
@@ -280,7 +326,6 @@ pub fn backdropVacate(bd: *Backdrop, obj: *Object) i16 {
 }
 
 test "cell counts step away from zero and back" {
-    const std = @import("std");
     var grid: Grid = .{ .rowShift = 4, .colShift = 4 };
     try std.testing.expectEqual(@as(i8, 1), occupyCell(&grid, null, 3, 2));
     try std.testing.expectEqual(@as(i8, 2), occupyCell(&grid, null, 3, 2));
@@ -295,4 +340,27 @@ test "cell counts step away from zero and back" {
     try std.testing.expectEqual(@as(i8, 1), queryRect(&grid, 48, 32, 16, 16).result);
     try std.testing.expectEqual(@as(i8, -1), queryRect(&grid, -1, 0, 1, 1).result);
     std.testing.refAllDecls(@This());
+}
+
+test "B29: vacate loses the other occupants' object; the fix points the cells back" {
+    // @orig 1010:d884 occupancy_grid_vacate_cell oracle=documented
+    var grid: Grid = .{ .rowShift = 4, .colShift = 4 };
+    var box = [_]object.Frame{.{ .hitW = 40, .hitH = 40 }};
+    var under: Object = .{ .kind = .portable, .id = 1, .x = 100, .y = 100, .visible = 1, .frames = &box };
+    var over: Object = .{ .kind = .portable, .id = 2, .x = 110, .y = 100, .visible = 1, .frames = &box };
+    under.next = &over;
+    _ = occupy(&grid, &under);
+    _ = occupy(&grid, &over);
+    _ = vacate(&grid, &over);
+    // Faithful: the shared cells still count `under` but hold no object.
+    var q = queryRect(&grid, 120, 120, 16, 16);
+    try std.testing.expectEqual(@as(i8, 1), q.result);
+    try std.testing.expect(q.obj == null);
+    over.visible = 0;
+    repointOccupants(&grid, &over, &.{&under});
+    q = queryRect(&grid, 120, 120, 16, 16);
+    try std.testing.expectEqual(@as(i8, 1), q.result);
+    try std.testing.expect(q.obj == &under);
+    // Cells only `over` held stay empty.
+    try std.testing.expectEqual(@as(i8, 0), queryRect(&grid, 144, 100, 0, 0).result);
 }

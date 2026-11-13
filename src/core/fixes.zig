@@ -72,6 +72,10 @@ pub const Fixes = struct {
     /// B28: a right click on an exit plays its wave only when the click
     /// takes the exit (player within reach, exit enabled).
     exit_sound_needs_reach: bool = false,
+    /// B29: a vacate (an item picked up, an object hidden or stepping)
+    /// points the cells other objects still occupy back at one of them, so
+    /// an item that lay under or next to it can still be right-clicked.
+    vacate_keeps_other_occupants: bool = false,
     /// U1: draw the status-bar text.
     status_bar_text: bool = false,
     /// `ini_fatal_error` ("Erro Fatal!") quits (`error.Fatal`) instead of

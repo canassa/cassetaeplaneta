@@ -371,6 +371,29 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   `game_input.exitTakesClick` says the click takes it. Other objects keep their sound on every click.
 - **Confidence:** 9 (code).
 
+### B29. Picking up an item can leave the item under it (or the door behind it) unclickable
+- **Where:** `occupancy_grid_vacate_cell` 1010:d884 (`MOV dword [BX+0x289c],0` before the count step),
+  called for every cell of the hit box by `occupancy_grid_vacate` 1010:d9be; `occupancy_grid_occupy_cell`
+  1010:d840 stores its object over the previous one; `occupancy_grid_query_rect` 1010:daba returns the
+  first occupied cell's count and only the objects it met (`out_obj` is set only for a non-NULL object);
+  `game_handle_message` 1018:0000, WM_RBUTTONDOWN, acts only when the count is > 0 *and* the object is
+  non-NULL.
+- **What the code does:** a cell keeps a count of its occupants but a single object pointer, the last
+  occupant's. A vacate (`hide`/`hideAndInvalidate` on a pick-up, a hidden object, each step of a walking
+  moveable or a dropped item falling to its rest place, `reoccupy`) clears the pointer of every cell under
+  the object even where the count says other objects remain.
+- **Effect:** drop an item, drop a second one over it (or anywhere their 16-px cells meet), pick the second
+  up: right-clicks on the shared cells of the first find a count with no object and do nothing, so the
+  first can no longer be picked up there (all of it when it lies inside the second's box). The same happens
+  to a door or hotspot under a picked-up item. Leaving and re-entering the scene rebuilds the grid and
+  cures it. The walking player does not cause it (its occupy/vacate do nothing).
+- **Evidence:** the asm above; port repro in the corridor (present dropped at 560,330, wallet at 570,330,
+  present picked up: the wallet's 9 cells read count 2, object NULL; right-clicking it does nothing).
+- **Port:** reproduced (`src/grid.zig`); `Fixes.vacate_keeps_other_occupants` points those cells back at a
+  remaining occupant after each vacate (`grid.repointOccupants`, from `backdrop.vacate`: the visible scene
+  and global objects covering the cell, the last in list order winning like the last occupy).
+- **Confidence:** 9 (code, port repro).
+
 ## Harmless: wrong paths rescued by the wave fallback
 
 `wave_open` retries `<root>pan\wav\<file name>.wav`, and `PAN\WAV\` holds a copy of almost every wave, so these
@@ -523,7 +546,7 @@ Confidence 8–9.
 - `occupancy_grid_vacate_cell` 1010:d884 (only caller `occupancy_grid_vacate` 1010:d9be) clears the cell's
   object, then `CMP count,0; JLE inc; DEC`: a positive count is decremented, anything ≤ 0 incremented — an
   empty cell (0) becomes occupied (1) with no object, a blocked one (−1) becomes free. It also clears the
-  object pointer while other occupants remain.
+  object pointer while other occupants remain (that part is reached: B29).
 - Would fire on a vacate of cells the object never occupied (hiding an object twice: the hide paths do not
   test `visible`); the cell then blocks like an invisible obstacle until the scene is rebuilt. No such
   double vacate was found in the shipped scenes (needs a trace). Port: reproduced (`src/grid.zig`).
