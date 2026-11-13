@@ -510,7 +510,7 @@ def check(
     """Check @orig tags against the DB (unknown addresses, duplicates, untagged ports)."""
     conn = _db()
     root = _tree(work)
-    rep = checkmod.run(conn, root)
+    rep = checkmod.run(conn, root, unit=work)
     for w in rep.warnings:
         typer.echo(f"warning: {w}")
     for e in rep.errors:

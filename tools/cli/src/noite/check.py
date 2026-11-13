@@ -6,6 +6,11 @@ with an unknown oracle. Warnings: a tag whose name differs from Ghidra's; a tag
 for a function owned by a different unit than the file's; a tag on a
 crt/api/dead function; a unit file that nothing imports (its tests never run).
 
+``unit`` (``check -w UNIT``): the tree is that unit's worktree, which may have
+branched before other units were finished on main. Their ported functions have
+no tags here; they are summarised as one "behind main" warning instead of an
+error each (``noite finish`` rebases before it checks).
+
 ``fix_status`` brings the DB in line with the tags: tagged pending/failed
 functions become ported, ported functions that lost their tag go back to
 pending, and every function's ``tested`` becomes its strongest test oracle.
@@ -41,7 +46,12 @@ def _loc(t: Tag) -> str:
     return f"{t.path}:{t.line}"
 
 
-def run(conn: sqlite3.Connection, root: Path, scanned: list[Tag] | None = None) -> Report:
+def run(
+    conn: sqlite3.Connection,
+    root: Path,
+    scanned: list[Tag] | None = None,
+    unit: str | None = None,
+) -> Report:
     found = tagmod.scan(root) if scanned is None else scanned
     rep = Report()
     funcs = {r["addr"]: r for r in conn.execute("SELECT * FROM functions")}
@@ -79,9 +89,18 @@ def run(conn: sqlite3.Connection, root: Path, scanned: list[Tag] | None = None) 
         if len(ts) > 1:
             where = ", ".join(_loc(t) for t in ts)
             rep.errors.append(f"{addr} {funcs[addr]['name']} is ported more than once: {where}")
+    behind: dict[str, int] = defaultdict(int)
     for addr, f in funcs.items():
         if f["status"] == Status.PORTED and addr not in code and not f["gone"]:
+            if unit is not None and f["unit"] != unit:
+                behind[f["unit"] or "(no unit)"] += 1
+                continue
             rep.errors.append(f"{addr} {f['name']} is marked ported but has no @orig tag")
+    if behind:
+        rep.warnings.append(
+            f"worktree is behind main: {sum(behind.values())} functions ported on main have no "
+            f"tag here (units {', '.join(sorted(behind))}); `noite finish` rebases first"
+        )
 
     rep.warnings += unreachable_units(conn, root)
     rep.code_tags = dict(code)
