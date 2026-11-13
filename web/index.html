@@ -8,7 +8,9 @@
   :root { color-scheme: dark; }
   html, body { margin: 0; height: 100%; background: #000; color: #ddd;
     font: 15px/1.4 system-ui, sans-serif; overflow: hidden; }
-  #stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  #stage { position: fixed; inset: 0 0 var(--foot) 0; display: flex; align-items: center; justify-content: center; }
+  body { --foot: 0px; }
+  body.playing { --foot: 26px; }
   canvas { image-rendering: pixelated; image-rendering: crisp-edges; display: block;
     background: #000; touch-action: none; cursor: default; }
   .panel { position: absolute; max-width: 30rem; width: calc(100% - 32px); padding: 1.25rem 1.5rem;
@@ -20,6 +22,16 @@
   .error { color: #ff8070; white-space: pre-wrap; }
   button { font: inherit; padding: .4rem 1rem; margin-top: .75rem; background: #e8b830; color: #000;
     border: 0; border-radius: 4px; cursor: pointer; }
+  button:disabled { background: #555; color: #aaa; cursor: default; }
+  fieldset { border: 0; margin: 1rem 0 0; padding: 0; }
+  legend { padding: 0; margin-bottom: .35rem; color: #fff; }
+  label { display: flex; gap: .5rem; align-items: baseline; margin: .3rem 0; cursor: pointer; }
+  label small { color: #999; }
+  input { accent-color: #e8b830; }
+  #foot { position: fixed; left: 0; right: 0; bottom: 0; height: 26px; display: flex; align-items: center;
+    justify-content: center; gap: .5rem; font-size: .8rem; color: #888; }
+  #foot button { margin: 0; padding: 0; background: none; color: #e8b830; text-decoration: underline;
+    font-size: inherit; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -33,11 +45,29 @@
     <div id="stats" class="stats"></div>
     <div id="error" class="error" hidden></div>
     <button id="retry" hidden>Tentar de novo</button>
+    <div id="options">
+      <fieldset>
+        <legend>Versão</legend>
+        <label><input type="radio" name="versao" value="original" checked>
+          <span>Original <small>— fiel ao jogo de 1995, com os bugs dele</small></span></label>
+        <label><input type="radio" name="versao" value="corrigida">
+          <span>Corrigida <small>— com os bugs do original consertados</small></span></label>
+      </fieldset>
+      <fieldset>
+        <label><input type="checkbox" id="skip" checked>
+          <span>Pular vídeos com clique ou Esc</span></label>
+      </fieldset>
+      <button id="play">Jogar</button>
+    </div>
   </div>
   <div id="away" class="panel" hidden>
     <h1>Minijogo</h1>
     <div>Os minijogos não fazem parte desta versão: o jogo continua como se você tivesse vencido.</div>
   </div>
+</div>
+<div id="foot" hidden>
+  <span id="foot-version"></span>
+  <button id="switch"></button>
 </div>
 <script src="noite.js"></script>
 </body>

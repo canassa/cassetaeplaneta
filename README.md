@@ -59,4 +59,6 @@ nix develop .#web -c python3 tools/web/test.py    # headless Chromium check
 ```
 
 The page downloads the disc files the game opens (once; later visits load
-them from Cache Storage), then runs the game; saves go to localStorage.
+them from Cache Storage) while the player picks the version (Original, or
+Corrigida = `--fix all`) and whether videos can be skipped (on by
+default), then runs the game; saves go to localStorage, apart per version.

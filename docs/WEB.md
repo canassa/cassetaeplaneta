@@ -117,6 +117,25 @@ server {
   copies of `PAN\AVI\*` are fetched from there (only `HD/2ABUSVOM.AVI`
   has no twin). Regenerate files.txt when the engine starts opening new
   names.
+- **Options.** The loader offers the version — *Original* (the
+  original's bugs reproduced, the native default) or *Corrigida* (every
+  BUGS.md fix, `Fixes.all()`, as `--fix all`) — and "Pular vídeos com
+  clique ou Esc" (on by default; `--skip-videos` natively, off there). The
+  Jogar button starts the game (and the AudioContext: it is a user
+  gesture) once the files are loaded; the choice is kept in localStorage
+  (`noite:prefs`, the page works without it) and passed to
+  `noite_start(fixes, skip_videos)`. A line under the canvas names the
+  version and reloads into the other one (`?versao=corrigida|original`,
+  after a confirm); the game itself never sees it. `noite_options` reports
+  what the wasm got (`window.noite.fixes`, `.skipVideos`, for the test).
+- **Skipping videos** is a platform option, not a fix (`Sim.filterInput`,
+  through `Platform.filterInput` on every backend): a left/right button
+  press or Esc/Enter/Space while an AVI clip plays moves the clip's
+  pending MM_MCINOTIFY (successful) to now and stops its frames and sound,
+  so every scene and handler continues as on a natural end, with exactly
+  one notification. The press and its release are kept from the game;
+  once the end is delivered, input passes as usual. The page sends Esc,
+  Enter and Space to the wasm only when the option is on.
 - **Loop.** `noite_frame` (`src/web_main.zig`), called on every
   `requestAnimationFrame`, is one turn of `main.zig`'s message loop
   without the wait: deliver platform events, dispatch every due message,
@@ -128,7 +147,8 @@ server {
   framebuffer is drawn; clicks map 1:1 to game coordinates), scaled by CSS with `image-rendering: pixelated`, by whole pixels when
   the window allows.
 - **Input.** Pointer events → WM_MOUSEMOVE/L/RBUTTONDOWN/UP in screen
-  pixels; the arrow keys → WM_KEYDOWN/UP; window focus → WM_ACTIVATE.
+  pixels; the arrow keys (and, to skip videos, Esc/Enter/Space) →
+  WM_KEYDOWN/UP; window focus → WM_ACTIVATE.
 - **Audio.** The mixer (`mixer.zig`: WaveMix channels, MCI wave, AVI
   track, MIDI through TinySoundFont, built with Zig's bundled clang
   against wasi-libc) is pulled in 2048-frame chunks of 44.1 kHz stereo
@@ -137,6 +157,9 @@ server {
   the mix is rendered and dropped so it stays in time.
 - **Saves.** `JOGO*.INI` writes go to `localStorage`
   (`noite:save:hd/jogo1.ini`, base64) and are read before the disc's.
+  The Corrigida version keeps its own (`noite:corrigida:save:…`): a save
+  can hold what only one version produces (a 32-bit score, B19; a scene
+  only the fixes reach), so the versions never load each other's.
 - **Minigames.** Stubbed as in the native port (a win after a few
   seconds); while one "runs" the page shows a note instead of the canvas.
 - **Message boxes** are logged to the console and answered with their
@@ -151,9 +174,12 @@ nix develop .#web -c python3 tools/web/test.py
 
 `tools/web/test.py` serves the site on a local port and drives headless
 Chromium (Playwright, from the `web` dev shell): the loader finishes, no
-AudioContext exists before a gesture and one runs after the first click,
-the title screen renders, JOGAR + NOVO JOGO lead through the opening to
-the bedroom, a right click opens the desk drawer, sound reaches WebAudio,
-and a reload loads every file from Cache Storage. Screenshots go to
+AudioContext exists before a gesture and one runs after Jogar, the wasm
+gets the Original version with video skipping, a click 3 s into the
+opening video reaches the title screen, JOGAR + NOVO JOGO start the
+new-game video and Esc skips it to the bedroom, a right click opens the
+desk drawer, sound reaches WebAudio; then the footer link reloads into
+the Corrigida version, which loads every file from Cache Storage, has
+every fix on in the wasm and is remembered. Screenshots go to
 `zig-out/web-test/` (`title.png`, `bedroom.png`, `drawer.png`,
 `cache.png`).

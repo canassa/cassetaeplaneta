@@ -3,6 +3,12 @@
 // noite.wasm (src/web_main.zig) one message-loop turn per animation frame.
 // The wasm imports are the `js` functions of src/platform/web.zig plus a
 // minimal WASI (wasi-libc's malloc and stderr).
+//
+// Before the game starts the player picks the version (Original: the
+// original's bugs reproduced; Corrigida: every fix of BUGS.md, as
+// `--fix all`) and whether a click or Esc/Enter/Space skips videos
+// (`--skip-videos`); both are remembered in localStorage and passed to
+// `noite_start`. Each version keeps its own saves.
 "use strict";
 
 (() => {
@@ -10,7 +16,11 @@
   const CW = 638, CH = 459; // client area (platform.client_*): what is shown
   const CONCURRENCY = 6;
   const RETRIES = 4;
-  const SAVE_PREFIX = "noite:save:";
+  const PREFS_KEY = "noite:prefs";
+  // Saves of the Original version keep the prefix they had before there
+  // were two versions; the Corrigida's are kept apart.
+  const SAVE_PREFIXES = { original: "noite:save:", corrigida: "noite:corrigida:save:" };
+  const VERSION_NAMES = { original: "Original", corrigida: "Corrigida" };
 
   const $ = (id) => document.getElementById(id);
   const canvas = $("screen");
@@ -119,7 +129,7 @@
   // Saves (JOGO*.INI the game writes) live in localStorage, base64.
   function loadSave(key) {
     try {
-      const b64 = localStorage.getItem(SAVE_PREFIX + key);
+      const b64 = localStorage.getItem(savePrefix + key);
       if (b64 === null) return null;
       const bin = atob(b64);
       const out = new Uint8Array(bin.length);
@@ -130,6 +140,41 @@
     }
   }
   const saves = new Map();
+  let savePrefix = SAVE_PREFIXES.original; // set at the start
+
+  // ---- options --------------------------------------------------------------
+
+  /** { version: "original" | "corrigida", skip: bool } */
+  function readPrefs() {
+    const prefs = { version: "original", skip: true };
+    try {
+      const p = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}");
+      if (p.version in SAVE_PREFIXES) prefs.version = p.version;
+      if (typeof p.skip === "boolean") prefs.skip = p.skip;
+    } catch {}
+    // "Trocar versão" reloads with ?versao=… (works without localStorage).
+    const asked = new URLSearchParams(location.search).get("versao");
+    if (asked in SAVE_PREFIXES) {
+      prefs.version = asked;
+      try {
+        history.replaceState(null, "", location.pathname);
+      } catch {}
+    }
+    return prefs;
+  }
+
+  function writePrefs(prefs) {
+    try {
+      localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+    } catch {}
+  }
+
+  function chosenPrefs() {
+    const radio = document.querySelector('input[name="versao"]:checked');
+    return { version: radio ? radio.value : "original", skip: $("skip").checked };
+  }
+
+  let prefs = readPrefs();
   function fileFor(key) {
     if (!saves.has(key)) saves.set(key, loadSave(key));
     return saves.get(key) || store.get(key) || null;
@@ -138,7 +183,7 @@
   // ---- the wasm ---------------------------------------------------------------
 
   let wasm = null; // exports
-  let running = false, failure = null, loadStats = null;
+  let running = false, ready = false, failure = null, loadStats = null;
   // For tests: the loudest sample sent to WebAudio, and the cost of the
   // game's turns (ms per frame, worst frame).
   let audioPeak = 0, frameMs = 0, frames = 0, worstMs = 0;
@@ -167,7 +212,7 @@
       try {
         let bin = "";
         for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-        localStorage.setItem(SAVE_PREFIX + key, btoa(bin));
+        localStorage.setItem(savePrefix + key, btoa(bin));
       } catch (e) {
         console.warn("save not stored:", key, e);
       }
@@ -313,7 +358,9 @@
     canvas.addEventListener("contextmenu", (e) => e.preventDefault());
     const key = (down) => (e) => {
       startAudio();
-      if (e.keyCode >= 37 && e.keyCode <= 40) {
+      // The arrows walk; Enter, Esc and Space skip a video when that is on.
+      const skipKey = e.keyCode === 13 || e.keyCode === 27 || e.keyCode === 32;
+      if ((e.keyCode >= 37 && e.keyCode <= 40) || (skipKey && prefs.skip)) {
         wasm.noite_key(down, e.keyCode);
         e.preventDefault();
       }
@@ -325,7 +372,8 @@
   }
 
   function fit() {
-    const s = Math.min(innerWidth / CW, innerHeight / CH);
+    const stage = $("stage");
+    const s = Math.min(stage.clientWidth / CW, stage.clientHeight / CH);
     const scale = s >= 1 ? Math.floor(s) : s; // whole pixels when it fits
     canvas.style.width = CW * scale + "px";
     canvas.style.height = CH * scale + "px";
@@ -342,6 +390,7 @@
     $("error").hidden = false;
     $("error").textContent = String(e && e.message ? e.message : e);
     $("retry").hidden = false;
+    $("options").hidden = true;
   }
 
   function frame() {
@@ -358,6 +407,7 @@
         $("status").textContent = "Fim. Recarregue a página para jogar de novo.";
         $("bar").parentElement.hidden = true;
         $("stats").hidden = true;
+        $("options").hidden = true;
         canvas.hidden = true;
         if (audio) audio.close();
         return;
@@ -368,23 +418,60 @@
     requestAnimationFrame(frame);
   }
 
+  /** Resolves when the player presses Jogar (with the options then chosen). */
+  function waitForPlay() {
+    for (const r of document.querySelectorAll('input[name="versao"]')) r.checked = r.value === prefs.version;
+    $("skip").checked = prefs.skip;
+    return new Promise((resolve) => {
+      $("play").onclick = () => {
+        startAudio(); // a user gesture: the opening is heard
+        prefs = chosenPrefs();
+        writePrefs(prefs);
+        for (const el of $("options").querySelectorAll("input, button")) el.disabled = true;
+        $("play").textContent = ready ? "Iniciando…" : "Começa quando o download terminar…";
+        resolve();
+      };
+    });
+  }
+
+  /** The line under the canvas: the version, and a reload into the other one. */
+  function showFoot() {
+    const other = prefs.version === "original" ? "corrigida" : "original";
+    $("foot-version").textContent = `Versão ${VERSION_NAMES[prefs.version]} ·`;
+    $("switch").textContent = `jogar a versão ${VERSION_NAMES[other]}`;
+    $("switch").onclick = () => {
+      if (!confirm(`Recarregar a página com a versão ${VERSION_NAMES[other]}? O que não foi salvo se perde.`)) return;
+      writePrefs({ ...prefs, version: other });
+      location.href = location.pathname + "?versao=" + other;
+    };
+    $("foot").hidden = false;
+    document.body.classList.add("playing");
+  }
+
   async function main() {
     $("retry").onclick = () => location.reload();
+    const play = waitForPlay();
     try {
       const wasmBytes = fetch("noite.wasm", { cache: "no-cache" }).then((r) => {
         if (!r.ok) throw new Error(`noite.wasm: HTTP ${r.status}`);
         return r.arrayBuffer();
       });
       await loadAll();
+      ready = true;
+      $("status").textContent = "Pronto.";
+      if ($("play").disabled) $("play").textContent = "Iniciando…";
+      await play;
+      savePrefix = SAVE_PREFIXES[prefs.version];
       const { instance } = await WebAssembly.instantiate(await wasmBytes, { env, wasi_snapshot_preview1: wasiProxy });
       wasm = instance.exports;
       wasm._initialize();
       $("loader").hidden = true;
       canvas.hidden = false;
+      showFoot();
       fit();
       addEventListener("resize", fit);
       attachInput();
-      const rc = wasm.noite_start();
+      const rc = wasm.noite_start(prefs.version === "corrigida" ? 1 : 0, prefs.skip ? 1 : 0);
       if (rc !== 0) throw new Error(`o jogo não iniciou (${rc})`);
       running = true;
       requestAnimationFrame(frame);
@@ -396,6 +483,11 @@
   // For tests (tools/web/test.py).
   window.noite = {
     get started() { return running; },
+    /** The files are loaded (the Jogar button starts the game). */
+    get ready() { return ready; },
+    /** What the wasm got from noite_start (null before the start). */
+    get fixes() { return wasm && running ? (wasm.noite_options() & 1) !== 0 : null; },
+    get skipVideos() { return wasm && running ? (wasm.noite_options() & 2) !== 0 : null; },
     get failure() { return failure; },
     get loadStats() { return loadStats; },
     get audioPeak() { return audioPeak; },

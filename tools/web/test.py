@@ -5,13 +5,17 @@
     nix develop .#web -c python3 tools/web/test.py [--site zig-out/site | --url https://…] [--out zig-out/web-test]
 
 Serves the site on a local port and checks, with screenshots of the canvas
-in --out: the loader downloads every file and the title screen renders
-(title.png); no AudioContext before a user gesture, a running one after
-the first click; JOGAR then NOVO JOGO start a new game whose opening ends
-in the bedroom, 1fquarbo (bedroom.png); a right click on desk drawer 3
-opens 1fgvboy3 (drawer.png), as in tools/play/full.input. A second load
-of the page must come from Cache Storage (cache.png) and be quicker.
-Exits non-zero on the first failed check or on a page error.
+in --out: the loader downloads every file; no AudioContext before a user
+gesture; the Original version with video skipping (the defaults) starts
+from the Jogar button with a running AudioContext and reaches the wasm as
+such; a click 3 s into the 22 s opening video skips it to the title
+screen (title.png); JOGAR then NOVO JOGO start a new game whose opening
+video Esc skips to the bedroom, 1fquarbo (bedroom.png); a right click on
+desk drawer 3 opens 1fgvboy3 (drawer.png), as in tools/play/full.input.
+Then the footer link reloads into the Corrigida version: the loader shows
+it chosen, the load comes from Cache Storage (cache.png) and is quicker,
+and the wasm has every fix on. Exits non-zero on the first failed check
+or on a page error.
 """
 
 import argparse
@@ -100,23 +104,43 @@ def main():
         def shot(name):
             page.locator("#screen").screenshot(path=str(out / name))
 
-        t0 = time.time()
+        def load():
+            t0 = time.time()
+            page.wait_for_function("window.noite.ready || window.noite.failure", timeout=600_000)
+            check(not page.evaluate("window.noite.failure"), "the page loads every file")
+            return time.time() - t0
+
+        def play():
+            page.click("#play")
+            page.wait_for_function("window.noite.started || window.noite.failure", timeout=60_000)
+            check(not page.evaluate("window.noite.failure"), "Jogar starts the game")
+
         page.goto(url)
-        page.wait_for_function("window.noite.started || window.noite.failure", timeout=600_000)
-        check(not page.evaluate("window.noite.failure"), "the page loads and starts the game")
-        first_load = time.time() - t0
+        first_load = load()
         print(f"      first load {first_load:.1f} s")
         check(page.evaluate("window.noite.audioState") == "none", "no AudioContext before a user gesture")
-        # The title menu shows after the intro (22 s in the playthrough).
-        time.sleep(24)
+        check(page.is_checked('input[name="versao"][value="original"]') and page.is_checked("#skip"),
+              "the loader offers Original with video skipping by default")
+        play()
+        check(page.evaluate("window.noite.audioState") == "running", "AudioContext running after Jogar")
+        check(page.evaluate("[window.noite.fixes, window.noite.skipVideos]") == [False, True],
+              "the wasm runs the Original version with video skipping")
+        # The opening video (abert) runs 22 s; a click skips it to the title.
+        check(wait_scene("abert", 10), "the opening video plays (abert)")
+        time.sleep(3)
+        t0 = time.time()
+        click(320, 240)
+        check(wait_scene("fundinic", 3), f"a click skips the opening video to the title ({time.time() - t0:.1f} s)")
+        time.sleep(1.5)
         shot("title.png")
         check(not errors, "title screen, no page errors")
         click(290, 345)  # JOGAR
-        time.sleep(0.5)
-        check(page.evaluate("window.noite.audioState") == "running", "AudioContext running after the click")
-        time.sleep(1.5)
+        time.sleep(2)
         click(370, 412)  # NOVO JOGO
-        check(wait_scene("1fquarbo", 240), "a new game ends its opening in the bedroom (1fquarbo)")
+        check(wait_scene("abertura", 20), "a new game starts its opening video (abertura)")
+        time.sleep(2)
+        page.keyboard.press("Escape")
+        check(wait_scene("1fquarbo", 5), "Esc skips it to the bedroom (1fquarbo)")
         time.sleep(2)
         shot("bedroom.png")
         peak = page.evaluate("window.noite.audioPeak")
@@ -128,15 +152,22 @@ def main():
         time.sleep(1.5)
         shot("drawer.png")
 
-        t0 = time.time()
-        page.reload()
-        page.wait_for_function("window.noite.started || window.noite.failure", timeout=600_000)
-        again = time.time() - t0
+        # The footer link reloads into the other version (after a confirm).
+        page.once("dialog", lambda d: d.accept())
+        page.click("#switch")
+        page.wait_for_load_state()
+        again = load()
         print(f"      second load {again:.1f} s")
+        check(page.is_checked('input[name="versao"][value="corrigida"]'), "the loader comes back with Corrigida chosen")
+        play()
+        check(page.evaluate("[window.noite.fixes, window.noite.skipVideos]") == [True, True],
+              "the wasm runs the Corrigida version (every fix on)")
         time.sleep(3)
         shot("cache.png")
         stats = page.evaluate("window.noite.loadStats")
         check(stats["fromCache"] == stats["files"], f"the second load comes from the cache ({stats})")
+        check(page.evaluate("JSON.parse(localStorage.getItem('noite:prefs')).version") == "corrigida",
+              "the choice is remembered")
         check(not errors, "no page errors")
         browser.close()
     if not args.url:
