@@ -90,6 +90,9 @@ pub fn ctor(g: *Game) *Game {
 /// the status bar, then the global objects. The player goes through the
 /// base scalar destructor, as in the original.
 pub fn dtor(g: *Game) void {
+    // Port only: the player's carried items are parked first, while every
+    // object is still alive (object_init.parkInventory).
+    if (g.player) |p| if (p.kind == .player) object_init.parkInventory(g, p);
     object_init.objectListDeleteAll(g, &g.usedObjects);
     if (g.scene) |s| _ = scene_mod.scalarDtor(g, s, 1);
     if (g.player) |p| object_init.sceneObjectScalarDtor(g, p, 1);

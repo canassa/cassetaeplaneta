@@ -237,6 +237,7 @@ fn createPortable(g: *Game, zoom: bool) void {
     if (zoom) cstr.copy(&small_path, ini.assetPath(&g.ini, &g.driveCD, &g.driveHD, &r.smallBmpName, 2));
     const bmp = ini.assetPath(&g.ini, &g.driveCD, &g.driveHD, &r.bmpName, 0);
     const obj = g.gpa.create(Object) catch @panic("game_scenes: out of memory");
+    g.livePortables.append(g.gpa, obj) catch {}; // port bookkeeping (Game.livePortables)
     lowerInPlace(&r.portScene);
     if (zoom) {
         object_create.portableCtorZoom(g, obj, r.number, cstr.slice(&r.portScene), r.x, r.y, bmp, r.numFrames, r.frameW, r.frameH, cstr.slice(&small_path), r.smallNumFrames, r.smallFrameW, r.smallFrameH, r.numTimer, r.perTimer, 1, 0, true) catch |e| die(e);

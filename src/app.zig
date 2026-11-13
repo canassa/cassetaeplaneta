@@ -67,6 +67,11 @@ pub fn exit(g: *Game) void {
 pub fn reclaimLeaks(g: *Game) void {
     for (g.leakedObjects.items) |o| object_init.sceneObjectScalarDtor(g, o, 1);
     g.leakedObjects.clearRetainingCapacity();
+    // Items that dropped out of every list (BUGS.md B23).
+    while (g.livePortables.pop()) |o| {
+        object_init.sceneObjectDtor(g, o);
+        g.gpa.destroy(o);
+    }
     g.reclaimLeakedDibs();
 }
 

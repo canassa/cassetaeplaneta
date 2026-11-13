@@ -96,24 +96,36 @@ pub fn sceneObjectDtor(g: *Game, obj: *Object) void {
         g.leakDib(d);
         obj.portable.icon = null;
     };
-    if (obj.kind == .actor or obj.kind == .player) {
-        // An item the handlers moved to another list while it was still
-        // carried (BUGS.md B23) is that list's to free: only the items the
-        // inventory still owns are parked.
-        var it = obj.actor.inventory.head;
-        while (it) |o| : (it = o.next) {
-            if (o.ownerList == &obj.actor.inventory) g.leakObject(o);
-        }
-        obj.actor.inventory.head = null;
-        obj.actor.inventory.count = 0;
+    if (obj.kind == .actor or obj.kind == .player) parkInventory(g, obj);
+}
+
+/// Not in the original: parks the items `obj` carries (see `sceneObjectDtor`)
+/// and empties its inventory. The walk stops at an item the handlers moved
+/// to another list while it was still carried (BUGS.md B23): from there the
+/// links are that list's, which frees those items. `game.dtor` calls this
+/// before it frees anything, so the walk never reads a freed item.
+pub fn parkInventory(g: *Game, obj: *Object) void {
+    var it = obj.actor.inventory.head;
+    while (it) |o| : (it = o.next) {
+        if (o.ownerList != &obj.actor.inventory) break;
+        g.leakObject(o);
     }
+    obj.actor.inventory.head = null;
+    obj.actor.inventory.count = 0;
 }
 
 // @orig 1010:d762 scene_object_scalar_dtor
 /// Scalar deleting destructor of the base class.
 pub fn sceneObjectScalarDtor(g: *Game, obj: *Object, flags: u16) void {
     sceneObjectDtor(g, obj);
-    if (flags & 1 != 0) g.gpa.destroy(obj);
+    if (flags & 1 != 0) {
+        // Port bookkeeping (Game.livePortables).
+        for (g.livePortables.items, 0..) |o, i| if (o == obj) {
+            _ = g.livePortables.swapRemove(i);
+            break;
+        };
+        g.gpa.destroy(obj);
+    }
 }
 
 // @orig 1010:d474 object_list_delete_all

@@ -180,6 +180,10 @@ pub const Game = struct {
     // releases them after app_exit (`reclaimLeaks`).
     leakedObjects: std.ArrayList(*Object) = .empty,
     leakedDibs: std.ArrayList(*object.Dib) = .empty,
+    /// Every portable still allocated (not a global of the original): an
+    /// item can drop out of every list (BUGS.md B23), so the task-end
+    /// reclaim frees what is left here.
+    livePortables: std.ArrayList(*Object) = .empty,
     /// The scene handlers' globals (`handler.SceneStates`).
     scenes: handler.SceneStates = .{},
 
@@ -192,6 +196,7 @@ pub const Game = struct {
     pub fn destroy(g: *Game) void {
         g.leakedObjects.deinit(g.gpa);
         g.leakedDibs.deinit(g.gpa);
+        g.livePortables.deinit(g.gpa);
         g.scene_arena.deinit();
         g.gpa.destroy(g);
     }
