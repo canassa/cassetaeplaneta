@@ -9,6 +9,7 @@ noite finish UNIT         gate, merge to main, mark ported
 noite failed UNIT REASON  give up on a claim, recording why
 noite release UNIT        give a claim back untouched
 noite check               @orig tags vs the DB
+noite initdata            defaults of @orig g_* fields vs the EXE's initial data
 noite build / test        zig build / zig build test (-w UNIT for a worktree)
 noite unit …              create units and assign functions
 """
@@ -27,7 +28,7 @@ from typing import Annotated
 import typer
 
 from noite import check as checkmod
-from noite import claim, deps, importer, paths, plan, types, units
+from noite import claim, deps, importer, initdata, paths, plan, types, units
 from noite.db import Status, UnitKind, connect, find_function, norm_addr, tx
 
 app = typer.Typer(name="noite", help=__doc__, no_args_is_help=True, add_completion=False)
@@ -530,6 +531,40 @@ def check(
             f"{fx.tested} tested updated"
         )
     if not rep.ok:
+        raise typer.Exit(1)
+
+
+@app.command("initdata")
+def initdata_cmd(
+    work: WorkOpt = None,
+    verbose: Annotated[bool, typer.Option("--verbose", "-v", help="List matches too.")] = False,
+) -> None:
+    """Compare the defaults of fields tagged `// @orig g_*` with the EXE's initial data."""
+    conn = _db()
+    root = _tree(work)
+    exe = paths.repo_root() / "assets" / "NOITE.EXE"
+    try:
+        results, skipped = initdata.run(conn, root, exe)
+    except FileNotFoundError:
+        _die("zig not on PATH — run inside the dev shell (`nix develop` / direnv)")
+        return
+    except RuntimeError as e:
+        _die(str(e))
+        return
+    bad = [r for r in results if not r.ok]
+    for r in results:
+        if verbose or not r.ok:
+            f = r.field
+            mark = "ok  " if r.ok else "DIFF"
+            names = " / ".join(f.globals)
+            typer.echo(f"{mark} {f.path}:{f.line} {f.struct}.{f.name} ({names}): {r.detail}")
+    for why in skipped.values():
+        typer.echo(f"skip {why}")
+    typer.echo(
+        ("initdata ok: " if not bad else "initdata FAILED: ")
+        + f"{len(results)} fields compared, {len(bad)} differ, {len(skipped)} skipped"
+    )
+    if bad:
         raise typer.Exit(1)
 
 

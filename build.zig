@@ -52,4 +52,23 @@ pub fn build(b: *std.Build) void {
     run_tests.setCwd(b.path("."));
     const test_step = b.step("test", "Run the port's tests");
     test_step.dependOn(&run_tests.step);
+
+    // `noite initdata` generates a program that prints the defaults of the
+    // `// @orig g_*` fields and runs it here against the port's module.
+    const dump_step = b.step("initdata", "Print the defaults of the @orig g_* fields (noite initdata)");
+    if (b.option([]const u8, "initdata-dump", "Generated dump program (noite initdata)")) |path| {
+        const dump_mod = b.createModule(.{
+            .root_source_file = .{ .cwd_relative = path },
+            .target = target,
+            .optimize = optimize,
+        });
+        dump_mod.addImport("noite", mod);
+        const dump = b.addExecutable(.{
+            .name = "noite-initdata",
+            .root_module = dump_mod,
+            .use_llvm = false,
+            .use_lld = false,
+        });
+        dump_step.dependOn(&b.addRunArtifact(dump).step);
+    }
 }

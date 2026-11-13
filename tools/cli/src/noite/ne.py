@@ -12,7 +12,7 @@ function pushes as far pointers.
 from __future__ import annotations
 
 import struct
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 DGROUP = 0x1050
@@ -27,6 +27,9 @@ class NeError(RuntimeError):
 class Segment:
     selector: int
     data: bytes  # the bytes stored in the file (may be shorter than the segment)
+    # Internal far-pointer/segment fixups: offset of the source -> (kind, selector, offset),
+    # kind 3 = far pointer (selector:offset), 2 = segment word (offset is 0).
+    fixups: dict[int, tuple[int, int, int]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -56,8 +59,24 @@ class NeImage:
                 continue
             start = sector << shift
             size = length or 0x10000
-            segs[sel] = Segment(sel, raw[start : start + size])
+            data = raw[start : start + size]
+            fix = _fixups(raw, start + size, data) if _flags & 0x100 else {}
+            segs[sel] = Segment(sel, data, fix)
         return cls(segs)
+
+    def resolved(self, selector: int, offset: int, n: int) -> bytes:
+        """Like ``read`` but with internal segment fixups applied (the loaded image's
+        far pointers as Ghidra shows them, selector ``0x1000 + (n-1)*8``)."""
+        seg = self.segments.get(selector)
+        if seg is None:
+            return b""
+        buf = bytearray(seg.data[offset : offset + n])
+        for src, (kind, tsel, toff) in seg.fixups.items():
+            if kind == 3 and offset <= src and src + 4 <= offset + len(buf):
+                struct.pack_into("<HH", buf, src - offset, toff, tsel)
+            elif kind == 2 and offset <= src and src + 2 <= offset + len(buf):
+                struct.pack_into("<H", buf, src - offset, tsel)
+        return bytes(buf)
 
     def read(self, selector: int, offset: int, n: int) -> bytes:
         seg = self.segments.get(selector)
@@ -80,6 +99,30 @@ class NeImage:
             return None
         s = seg.data[offset:end]
         return s if all(_texty(b) for b in s) else None
+
+
+def _fixups(raw: bytes, at: int, data: bytes) -> dict[int, tuple[int, int, int]]:
+    """Internal-reference relocations of one segment (records follow its data)."""
+    out: dict[int, tuple[int, int, int]] = {}
+    if at + 2 > len(raw):
+        return out
+    (count,) = struct.unpack_from("<H", raw, at)
+    for k in range(count):
+        src_type, flags, src, tseg, _zero, toff = struct.unpack_from("<BBHBBH", raw, at + 2 + k * 8)
+        if flags & 3 != 0 or tseg == 0xFF or src_type not in (2, 3):
+            continue  # imports, OS fixups, movable entries: not needed here
+        sel = 0x1000 + (tseg - 1) * 8
+        additive = bool(flags & 4)
+        seen = 0
+        while 0 <= src < len(data) and seen < 0x10000:
+            out[src] = (src_type, sel, toff if src_type == 3 else 0)
+            if additive or src + 2 > len(data):
+                break
+            (nxt,) = struct.unpack_from("<H", data, src)
+            if nxt == 0xFFFF:
+                break
+            src, seen = nxt, seen + 1
+    return out
 
 
 def _texty(b: int) -> bool:

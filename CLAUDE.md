@@ -55,6 +55,8 @@ noite unit dep infer         # virtual-slot deps (auto; keeps manual) from the d
 noite plan export|apply      # db/plan.tsv: units, fn->unit, hand-set statuses, manual deps; unit new/add/rm,
                              # mark, unit dep add/rm rewrite it on main (commit it); import applies it to an empty DB
 noite check [-w <unit>] [--fix-status]           # @orig tags vs the DB
+noite initdata [-w <unit>] [-v]                  # defaults of `// @orig g_*` fields vs the EXE's
+                                                 # initial data (DGROUP + 1030-1048; `initdata=skip` opts out)
 noite build|test [-w <unit>] [zig args]          # zig build [test]; Debug, self-hosted only;
                                                  # prints one line (tests passed / steps)
 ```

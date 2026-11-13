@@ -33,7 +33,7 @@ pub const platform = struct {
     pub const midi = @import("platform/midi.zig");
     pub const mixer = @import("platform/mixer.zig");
 };
-const units = @import("units.zig");
+pub const units = @import("units.zig");
 const Game = core.game.Game;
 const wm = core.msg.wm;
 
