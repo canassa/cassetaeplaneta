@@ -41,7 +41,8 @@ fn object3dDrawBounds(g: *Game, obj: *Object, bd: *Backdrop) ?*Object {
 
 /// SceneObject slot 20.
 pub fn redraw(g: *Game, obj: *Object, bd: *Backdrop) void {
-    // @orig 1010:35a8 animated3d_redraw: A Ac P E C, calls scene_object_redraw
+    // @orig 1010:35a8 animated3d_redraw
+    // (animated/actor/player/exit/control panel: just calls scene_object_redraw)
     sceneObjectRedraw(g, obj, bd);
 }
 
