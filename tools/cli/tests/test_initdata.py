@@ -15,6 +15,7 @@ def test_names() -> None:
     assert initdata._names("g_a / g_b (both)") == ["g_a", "g_b"]
     assert initdata._names("g_waveCacheA/B/C") == ["g_waveCacheA", "g_waveCacheB", "g_waveCacheC"]
     assert initdata._names("g_x only ever written") == ["g_x"]
+    assert initdata._names("g_a, g_b (x)") == ["g_a", "g_b"]
 
 
 def test_scan(tmp_path: Path) -> None:

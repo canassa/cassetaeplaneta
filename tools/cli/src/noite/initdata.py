@@ -74,7 +74,7 @@ class Result:
 def _names(text: str) -> list[str]:
     """``g_a / g_b`` → [g_a, g_b]; ``g_cacheA/B/C`` → [g_cacheA, g_cacheB, g_cacheC]."""
     out: list[str] = []
-    for part in text.split("/"):
+    for part in re.sub(r",\s*(?=g_)", "/", text).split("/"):
         tok = part.strip().split()
         if not tok:
             continue
