@@ -8,7 +8,8 @@
 //! - `add` on a full list (100) shows the "Erro Fatal!!" box and does not
 //!   queue the object; it still returns `count - 1` (the last entry's index).
 //!   The original formats the 111-byte text into the 100-byte shared
-//!   `messageBuf` (an overflow of DGROUP); here it is truncated to 99 bytes.
+//!   `messageBuf` (an overflow of DGROUP, BUGS.md L6); here it is truncated
+//!   to 99 bytes.
 //! - `flush` blits `dirty.right` x `dirty.bottom` pixels: the original reads
 //!   those two fields (SceneObject+0x46c/+0x46e, named dirtyW/dirtyH) as the
 //!   width and height, whatever `dirty.left/top` are.

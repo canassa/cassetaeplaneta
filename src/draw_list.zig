@@ -8,8 +8,8 @@
 //! Faithful behaviours worth knowing:
 //! - `insert` with a full pool shows the "Erro Fatal!" box and returns null.
 //! - `remove` with every node in use (free chain empty) dereferences the
-//!   null `freeHead` in the original (a general protection fault); here that
-//!   is a panic on the unwrap.
+//!   null `freeHead` in the original (a general protection fault, BUGS.md
+//!   L5); here that is a panic naming the bug.
 //! - The functions take `*DrawList`; `insert` needs the platform and the
 //!   virtual `isInFrontOf`, so it takes `*Game`.
 
@@ -135,6 +135,7 @@ pub fn remove(list: *DrawList, obj: ?*Object) void {
     node.item = null;
     node.next = list.freeHead;
     node.prev = null;
-    list.freeHead.?.prev = node;
+    const free_head = list.freeHead orelse @panic("draw_list_remove: free list empty (original GPF, BUGS.md L5)");
+    free_head.prev = node;
     list.freeHead = node;
 }

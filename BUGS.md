@@ -207,3 +207,32 @@ Confidence 9 (string scan of the EXE + disc listing + fallback rule).
 - 1018:2b72 recurses into `node->next` before clearing it and then into `node->prev`; on the doubly linked draw
   list the child's `prev` leads back to the parent, whose `next` is still set → unbounded recursion / stack
   overflow. No caller except itself. Confidence 8.
+
+### L5. Removing from a full draw list writes through a NULL free-list head
+- `draw_list_remove` 1018:2e88 puts the removed node back on the free list with `LES SI,[DI+0x4b0]` /
+  `MOV ES:[SI+0x4],BX` (1018:2f8a–2f95): it sets `freeHead->prev` without testing `freeHead`. When all 100
+  nodes are in use the free list is empty, so this writes through a NULL selector (general protection fault).
+- Not reached: no shipped scene has 100 visible 3D objects (`draw_list_insert` refuses the 101st with
+  "Estouro no número maximo de objetos visíveis na cena").
+- Port: `draw_list.remove` panics with this id (its callers cannot return errors). Confidence 9.
+
+### L6. Long message-box texts overrun the shared 100-byte buffer
+- `message_box_printf` 1018:3644 `sprintf`s into DGROUP 1050:7cd6 (100 bytes) with no bound, then shows it.
+  The bytes after it are `g_applic` (7d3a, the Game pointer `AppWndProc` dispatches through), `g_iniFile`
+  (7d3e), `g_lastAssetPath` (7d40) and `g_iniPath` (7d44).
+- Texts longer than 99 bytes: `update_list_add` 1010:313c "full list" (111 bytes, string 1010:936a),
+  `object_list_add` 1010:d322 "full list" (131 bytes); `scene_object_init_strip` 1010:1eb2 "Não foi possível
+  abrir o arquivo: %s" with a path over 65 characters. The box shows, and the next window message goes
+  through a clobbered `g_applic`.
+- Not reached: the lists never fill with the shipped data and every shipped bitmap path is short.
+- Port: `ini.messageBoxPrintf` truncates to 99 bytes. Confidence 9 (code); the effect after the box is
+  inferred.
+
+### L7. A background larger than 1295×1039 overflows the occupancy grid
+- `occupancy_grid_ctor` 1010:0ba6 sizes the grid to `(bgHeight >> 4) + 1` rows × `(bgWidth >> 4) + 1`
+  columns; above 0x41 rows / 0x51 columns it shows "Estouro do número de linhas/colunas da matriz de
+  ocupação" (1010:92d0 / 1010:9310) and then still clears every cell with `occupancy_grid_set_cell`, whose
+  `row * 81 + col` index runs past `g_occupancyCount` (1050:140a) and `g_occupancyObject` (1050:289c, which
+  ends at `g_game` 1050:7ae0). Later occupy/query calls index past them the same way.
+- Not reached: every shipped `Screen=` background is 640×480 (41×41 cells).
+- Port: out-of-range cells read as free and writes are dropped (`grid` module notes). Confidence 9.

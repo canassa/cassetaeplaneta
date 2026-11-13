@@ -7,8 +7,9 @@
 //! Faithful behaviours worth knowing:
 //! - `add` only checks the capacity when the list is not empty, and with a
 //!   full list it shows the "Erro Fatal!!" box and returns without adding
-//!   (the object is left untouched). The 131-byte message is cut to the
-//!   shared 100-byte message buffer, as everywhere in the port.
+//!   (the object is left untouched). The 131-byte message overruns the
+//!   shared 100-byte message buffer in the original (BUGS.md L6); the port
+//!   truncates it.
 //! - `attachToScene`, for a non-portable 3D object of the scene, draws and
 //!   occupies it, then sets `visible = 1`, resets its rectangles and clears
 //!   `linked` (the asm writes +0x45a/+0x45e relative to the Object3D's

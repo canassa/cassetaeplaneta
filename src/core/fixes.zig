@@ -5,8 +5,10 @@
 //! Not bugs but choices: `quit_on_ini_error` (quit where the original only
 //! shows a message box and carries on).
 //!
-//! Latent bugs (L1–L4) are not flags: the port never executes them either,
-//! and where it would, it returns an error instead of corrupting memory.
+//! Latent bugs (L*) are not flags: the port never executes them either,
+//! and where it would, it returns an error instead of corrupting memory (or,
+//! where the callers cannot return errors, truncates / drops the write /
+//! panics naming the bug: L5–L7).
 //! Add a flag here (with its BUGS.md id) when you port a bug's site.
 
 pub const Fixes = struct {

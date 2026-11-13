@@ -3,8 +3,9 @@
 //! The cell arrays (`g_occupancyCount`, `g_occupancyObject`) live in `world.Grid`
 //! and are addressed flat (`row * 81 + col`, 16-bit wrapping like the original),
 //! so a column past 81 spills into the next row exactly as in the DGROUP array.
-//! An index outside the 65x81 cells would be memory corruption in the original:
-//! here reads see a free cell and writes are dropped.
+//! An index outside the 65x81 cells would be memory corruption in the original
+//! (BUGS.md L7; only past the ctor's "Estouro" box): here reads see a free cell
+//! and writes are dropped, since the backdrop dispatchers cannot return errors.
 //!
 //! Naming: `occupancy_grid_*` functions take `*Grid` (`grid.occupy`); the
 //! `grid_backdrop_*` virtual slots take the backdrop (`grid.backdropOccupy`).
