@@ -57,6 +57,7 @@ const animation = @import("behaviour/animation.zig");
 const occupancy = @import("behaviour/occupancy.zig");
 const render = @import("behaviour/render.zig");
 const space3d = @import("behaviour/space3d.zig");
+const movement = @import("behaviour/movement.zig");
 const visibility = @import("behaviour/visibility.zig");
 
 const Error = errors.Error;
@@ -318,6 +319,8 @@ fn loadGameImpl(g: *Game, name: []const u8) Error!void {
     }
     if (scene_unit.getHasPlayer(g, scene)) {
         space3d.moveToAndDrop(g, player, px, py, bd);
+        // B26: the walk would go on from the old scene's next position.
+        if (g.fixes.scene_entry_stops_walk) movement.cancelWalk(player);
         visibility.show(g, player, bd);
     }
     if (scene_unit.getHasStatusBar(g, scene)) render.draw(g, g.statusBar.?, bd);

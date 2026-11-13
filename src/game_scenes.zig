@@ -41,6 +41,7 @@ const animation = @import("behaviour/animation.zig");
 const occupancy = @import("behaviour/occupancy.zig");
 const render = @import("behaviour/render.zig");
 const space3d = @import("behaviour/space3d.zig");
+const movement = @import("behaviour/movement.zig");
 const visibility = @import("behaviour/visibility.zig");
 
 /// The original's unchecked pointers: a missing one is a crash there.
@@ -92,6 +93,8 @@ fn enterScene(g: *Game, x: i16, y: i16) void {
     }
     if (scene_mod.getHasPlayer(g, scene)) {
         space3d.moveToAndDrop(g, must(Object, player), x, y, bd);
+        // B26: the walk would go on from the old scene's next position.
+        if (g.fixes.scene_entry_stops_walk) movement.cancelWalk(must(Object, player));
         visibility.show(g, must(Object, player), bd);
     }
     if (scene_mod.getHasStatusBar(g, scene)) render.draw(g, must(Object, status_bar), bd);

@@ -316,6 +316,22 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   position to the dropped one, as `mover_show` does.
 - **Confidence:** 9 (code, port repro).
 
+### B26. A walk that is still going on when the scene changes resumes in the new scene (and leaves a frame behind)
+- **Where:** `game_take_exit` 1018:12c6, `ini_game_switch_scene` 1018:15ea and `ini_game_load_game` 1018:5274
+  put the player with `moveToAndDrop` + `show` + `playIdle` and never stop its movement; WM_SYSTIMER
+  (1018:01e2) runs `moveTick` on the player's timer (shared with its animation) while `moving` is set.
+- **What the code does:** a walk started before the exit animation ends (a click while the door opens, or
+  an exit clicked mid-walk) keeps `moving`, the Bresenham state and `nextX/nextY` from the old scene. The
+  first tick in the new scene steps from that stale next position: the player jumps there (`prevX/prevY`
+  are the arrival point) and `mover_restore_background` 1010:b3fa (one frame plus one step from
+  `min(x, prevX)`) does not cover the frame `mover_show` drew at the arrival point.
+- **Effect:** a copy of the player's walking frame stays next to the player (e.g. the corridor entered from
+  the bedroom), and the player is somewhere else than where the exit put it, walking on towards the old
+  scene's target. It stays until something repaints that area.
+- **Port:** reproduced (`game_scenes.enterScene`, `save.loadGame`); `Fixes.scene_entry_stops_walk` cancels
+  the walk on arrival (no 0x404, the timer keeps running for the idle animation).
+- **Confidence:** 8 (code, port repro; the click timing in the original).
+
 ## Harmless: wrong paths rescued by the wave fallback
 
 `wave_open` retries `<root>pan\wav\<file name>.wav`, and `PAN\WAV\` holds a copy of almost every wave, so these

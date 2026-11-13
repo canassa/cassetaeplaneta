@@ -319,6 +319,19 @@ fn moveableMoveTick(g: *Game, obj: *Object, bd: *Backdrop) void {
     moveTickBody(g, obj, bd, false);
 }
 
+/// B26 fix (not in the original): forgets a walk in progress without the
+/// stop's side effects (the timer, shared with the animation, keeps
+/// running; no 0x404), so the next tick does not resume it from the stale
+/// next position.
+pub fn cancelWalk(obj: *Object) void {
+    const m = &obj.mover;
+    m.moving = 0;
+    m.stepX = abs16(m.stepX);
+    m.stepY = abs16(m.stepY);
+    m.targetX = obj.x;
+    m.targetY = obj.y;
+}
+
 /// The body shared by mover_stop_moving_dc and moveable_stop_moving_dc.
 fn stopMovingDcBody(g: *Game, obj: *Object) void {
     const m = &obj.mover;

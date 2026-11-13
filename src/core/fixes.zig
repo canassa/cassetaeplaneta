@@ -58,6 +58,9 @@ pub const Fixes = struct {
     /// takes its position as its previous one, so picking it up again
     /// erases its image.
     drop_syncs_previous_position: bool = false,
+    /// B26: entering a scene cancels the player's walk, so the next timer
+    /// tick does not resume the old scene's walk (and leave a frame behind).
+    scene_entry_stops_walk: bool = false,
     /// U1: draw the status-bar text.
     status_bar_text: bool = false,
     /// `ini_fatal_error` ("Erro Fatal!") quits (`error.Fatal`) instead of
