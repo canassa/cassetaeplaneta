@@ -6,7 +6,7 @@
 //! result sends the player to the prison on a win or costs a life on a loss.
 //! A click on the bottom strip (y 0x168..0x1cc, control panel closed) goes
 //! to 3fentseg. A click that hits no door repeats the previous choice
-//! (initially 0: the sauna).
+//! (initially -1: nothing; BUGS.md B15, fix `hall_door_click_only`).
 //!
 //! Original bugs reproduced: the shuffle happens once per run (B10, fix
 //! `hall_shuffle_each_visit`) and the INI exit of door 139 to 3fpapclo is
@@ -103,20 +103,24 @@ fn rightButton(g: *Game, s: *State, m: Msg) i16 {
     const q = backdrop.queryRect(g, bd, @as(i16, @bitCast(m.lo())) +% bd.originX, @as(i16, @bitCast(y)) +% bd.originY, 0x10, 0x10);
     s.hitObject = q.obj;
     const hitFlag: i8 = @truncate(q.result);
+    var hit_door = false;
     if (hitFlag > 0 and s.hitObject != null) {
         if (y >= 0x168 and !panels.isOpen(g, g.controlPanel.?) and y <= 0x1cc) {
             // 1020:9bda "3fentseg"
             return leave(g, s, "3fentseg", 0xf0, 0xaa, 1, 1, 0);
         }
+        hit_door = true;
         switch (s.hitObject.?.id) {
             0x8b => s.doorChoice = s.doorTargets[3],
             0x8c => s.doorChoice = s.doorTargets[4],
             0x8d => s.doorChoice = s.doorTargets[2],
             0x8e => s.doorChoice = s.doorTargets[1],
             0x8f => s.doorChoice = s.doorTargets[0],
-            else => {},
+            else => hit_door = false,
         }
     }
+    // B15: a click that hit no door still takes the last door chosen.
+    if (g.fixes.hall_door_click_only and !hit_door) return 1;
     switch (s.doorChoice) {
         // 1020:9bf4 "3fsauna"
         0 => return leave(g, s, "3fsauna", 0, 0, 0, 0, 0),

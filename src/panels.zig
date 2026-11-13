@@ -63,9 +63,10 @@ pub fn drawTexts(g: *Game, obj: *Object, bd: *Backdrop) void {
         const y = screen_height -% getVisibleHeight(g, obj);
         _ = g.plat.textOut(surf, style, x, y, msg);
     }
-    // sprintf("%7.7d", g_score): the long argument is read as a 16-bit int.
-    const score: i16 = @truncate(g.score);
-    const mag: u32 = @abs(@as(i32, score));
+    // sprintf("%7.7d", g_score): the long argument is read as a 16-bit int
+    // (BUGS.md B19; `Fixes.score_32bit` shows the whole score).
+    const score: i32 = if (g.fixes.score_32bit) g.score else @as(i16, @truncate(g.score));
+    const mag: u32 = @abs(score);
     if (score < 0) {
         _ = cstr.print(&p.scoreText, "-{d:0>7}", .{mag});
     } else {

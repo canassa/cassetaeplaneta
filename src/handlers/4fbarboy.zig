@@ -475,7 +475,9 @@ fn waveDone(g: *Game, s: *State) i16 {
         return 0;
     }
     // The right item: consumed, the drunk is carried off, the barman answers.
+    // No score for it (BUGS.md B16): the other scenes add `scoreUse` here.
     const item = must(Object, g.selectedItem);
+    if (g.fixes.barboy_right_item_score) g.score +%= item.portable.scoreUse;
     visibility.hideAndInvalidate(g, item, 0, bd);
     _ = object_list.remove(&g.globalObjects, item);
     draw_list.remove(&g.drawList, item);

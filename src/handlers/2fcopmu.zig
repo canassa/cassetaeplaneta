@@ -277,6 +277,10 @@ fn idle(g: *Game, s: *State, switched_in: bool) i16 {
         switchCutscene(g, "2apremu2");
         switched = true;
     }
+    // After the switch the original carries on: it stops the freed cop
+    // (skipped here, BUGS.md B17) and, the greeting being pending again,
+    // plays garots05 over the arrest and leaves the greeting flags stale.
+    if (switched and g.fixes.roadblock_return_after_switch) return 0;
     if (!switched) animation.stopAndRedraw(g, s.cop.?, g.scene.?.backdrop.?);
     if (s.greetingPending == 0) return 0;
     playFile(g, "fase2\\2fcopmu\\garots05.WAV");

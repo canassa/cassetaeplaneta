@@ -34,6 +34,17 @@ pub const Fixes = struct {
     /// B14: the scene destructor deletes the Is_1Animation scene's own
     /// animation object (and its bitmaps) too.
     free_scene_animation: bool = false,
+    /// B15: a right click in 3fhall that hits no door does nothing (instead
+    /// of taking the last door chosen again).
+    hall_door_click_only: bool = false,
+    /// B16: 4fbarboy adds the right item's `scoreUse` like the other scenes.
+    barboy_right_item_score: bool = false,
+    /// B17: 2fcopmu returns after switching to the arrest scene (no
+    /// garots05 over it, no stale greeting flags).
+    roadblock_return_after_switch: bool = false,
+    /// B19: the control panel shows, and the save keeps, the whole 32-bit
+    /// score (not its low word).
+    score_32bit: bool = false,
     /// U1: draw the status-bar text.
     status_bar_text: bool = false,
     /// `ini_fatal_error` ("Erro Fatal!") quits (`error.Fatal`) instead of

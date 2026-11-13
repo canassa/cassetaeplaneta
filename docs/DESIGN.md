@@ -468,6 +468,27 @@ SDL is declared by hand (`@cImport` is gone in 0.17; no translate-c).
 - **Constructors** set `kind` (and the fields the original sets): a derived
   ctor calls the base ctor first, then overwrites `kind`, as the vtable
   pointer is overwritten (`condition.flagConditionCtor`).
+- **Virtual bases in constructors**: MSVC passes a hidden "construct the
+  virtual bases" flag; the port keeps it as the last parameter,
+  `init_vbases: bool` — true from the most-derived constructor (unit
+  `object_create`, which allocates the object with `g.gpa.create(Object)`:
+  the scalar destructors free it with `g.gpa.destroy`), false when a part
+  constructor chains to another (`object_init`). Constructors of classes
+  without a unit prefix keep the class name: `directionalPlayerCtor`,
+  `controlPanelCtor`.
+- **Argument order**: always the original's source order (Ghidra's far
+  pascal list reversed), even when another unit's port already shows a
+  different order in a comment — e.g. `portable.drawIcon(g, obj, bd, x, y)`.
+- **Stale calls after a scene switch**: `game_scenes.switchScene` deletes the
+  old scene and its objects at once; where a handler then still calls a slot
+  on one of those freed objects (BUGS.md B17: 2fblitg, 2fcopmau, 2fcopmu),
+  the port skips that one call — it cannot be reproduced and has no visible
+  effect — with a comment at the site, and keeps everything else the handler
+  does after the switch.
+- **Leaks**: memory the original never frees (BUGS.md B14, the portables'
+  icons) is parked with `g.leakObject` / `g.leakDib`: it stays allocated
+  for the run, as in the original, and `main` frees it after `app_exit`
+  (Windows reclaiming the task), so the run ends without leaks.
 - **Fixes**: `src/core/fixes.zig`, read as `g.fixes.<flag>` at the bug
   site. Add a flag (with its BUGS.md id) when you port a bug's site.
   Latent bugs (BUGS.md L*) get no flag. Where one would crash the

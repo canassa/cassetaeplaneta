@@ -10,9 +10,10 @@
 //! - B4 (BUGS.md): `loadGame` never closes the save file (every load, new
 //!   game included, leaks a handle). `Fixes.close_loaded_save` closes it
 //!   after the objects are read.
-//! - `Score=` is written through `%d` with a 32-bit argument, so only the
-//!   low 16 bits are saved (a score above 32767 reloads wrapped/negative);
-//!   the load sign-extends the 16-bit value. (No flag: not in BUGS.md.)
+//! - B19: `Score=` is written through `%d` with a 32-bit argument, so only
+//!   the low 16 bits are saved (a score above 32767 reloads wrapped/negative);
+//!   the load sign-extends the 16-bit value. `Fixes.score_32bit` writes and
+//!   reads the whole long.
 //! - `loadObjects` keeps its `x`/`y` locals across lines: an `Invent=` line
 //!   for an item already carried places it at the position of the previous
 //!   `Stat=`/`Portab=` line (uninitialised stack bytes before the first one;
@@ -117,8 +118,9 @@ pub fn saveGame(g: *Game, name: []const u8) void {
     const player = g.player orelse @panic("save: no player");
     put(g, fd, &ok, "PlayerX={d}\r\n", .{player.x});
     put(g, fd, &ok, "PlayerY={d}\r\n\r\n", .{player.y});
-    // `%d` with a 32-bit argument: the low word only.
-    put(g, fd, &ok, "Score={d}\r\n", .{@as(i16, @truncate(g.score))});
+    // `%d` with a 32-bit argument: the low word only (B19).
+    const saved: i32 = if (g.fixes.score_32bit) g.score else @as(i16, @truncate(g.score));
+    put(g, fd, &ok, "Score={d}\r\n", .{saved});
     put(g, fd, &ok, "Lives={d}\r\n\r\n", .{g.lives});
     var cur = g.globalObjects.head;
     while (cur) |o| : (cur = o.next) {
@@ -241,6 +243,16 @@ fn loadPortab(g: *Game, id: i16, x: i16, y: i16) void {
 /// the others from the HD one): builds the start scene, restores player
 /// position, score, lives and objects, re-attaches everything, redraws and
 /// sends 0x401. Returns `g`. A missing file only shows a warning.
+/// The `Score=` line as a long (`Fixes.score_32bit`, B19); 0 when missing
+/// or unreadable.
+fn readScore32(g: *Game, fd: File) Error!i32 {
+    if (!try ini.findKey(&g.ini, g.plat, g.fixes, fd, "Score")) return 0;
+    var buf: [256]u8 = @splat(0);
+    _ = try ini.readLine(g.plat, g.fixes, fd, &buf);
+    const text = std.mem.trim(u8, cstr.slice(&buf), " \t");
+    return std.fmt.parseInt(i32, text, 10) catch 0;
+}
+
 // @orig 1018:5274 ini_game_load_game
 pub fn loadGame(g: *Game, name: []const u8) *Game {
     loadGameImpl(g, name) catch |e| die(g, e);
@@ -267,7 +279,8 @@ fn loadGameImpl(g: *Game, name: []const u8) Error!void {
     var lives: i16 = 0;
     _ = try readers.readPlayerX(&g.ini, g.plat, g.fixes, fd, .{&px});
     _ = try readers.readPlayerY(&g.ini, g.plat, g.fixes, fd, .{&py});
-    _ = try readers.readScore(&g.ini, g.plat, g.fixes, fd, .{&score});
+    var score32: ?i32 = null;
+    if (g.fixes.score_32bit) score32 = try readScore32(g, fd) else _ = try readers.readScore(&g.ini, g.plat, g.fixes, fd, .{&score});
     _ = try readers.readLives(&g.ini, g.plat, g.fixes, fd, .{&lives});
     // GetDC + PatBlt(BLACKNESS, clearWidth x clearHeight): nothing to clear.
     const scene = g.scene orelse @panic("save: createStartScene returned NULL");
@@ -277,8 +290,8 @@ fn loadGameImpl(g: *Game, name: []const u8) Error!void {
     player.x = px;
     player.y = py;
     const pl = playerOf(g);
-    pl.actor.score = score; // sign-extended
-    g.score = score;
+    pl.actor.score = score32 orelse score; // sign-extended
+    g.score = score32 orelse score;
     playerOf(g).actor.lives = lives;
     g.lives = lives;
     loadObjects(g, fd);
@@ -311,4 +324,39 @@ fn loadGameImpl(g: *Game, name: []const u8) Error!void {
     if (scene_unit.getHasPlayer(g, scene)) animation.playIdle(g, player, bd);
     // ReleaseDC, InvalidateRect(window): the platform's screen needs neither.
     _ = g.send(.{ .id = msg.noite.scene_started });
+}
+
+// @orig 1018:5274 ini_game_load_game oracle=asset
+test "a saved game loads back: scene, position, score, lives, carried item" {
+    const app = @import("app.zig");
+    var t = try @import("core/game.zig").TestGame.initOptions(std.testing.allocator, .{ .save_dir = ".zig-cache/test-save" });
+    defer t.deinit();
+    const g = t.game;
+    g.wndProc = app.wndProc;
+    try app.start(g); // the game from assets/CASSETA.INI (first scene: the intro)
+    defer app.reclaimLeaks(g);
+    defer app.exit(g);
+    const player = g.player.?;
+    // An item of the shipped INI into the player's inventory.
+    var item = g.globalObjects.head.?;
+    while (!item.is(.portable)) item = item.next.?;
+    _ = object_list.remove(&g.globalObjects, item);
+    _ = object_list.add(g, &playerOf(g).actor.inventory, item);
+    cstr.copy(&g.savedPosition.scene, "1fsala");
+    g.savedPosition.hasPlayer = 1;
+    g.savedPosition.hasControlPanel = 1;
+    player.x = 123;
+    player.y = 77;
+    g.score = 4321;
+    g.lives = 2;
+    saveGame(g, "jogot");
+    _ = object_list.remove(&playerOf(g).actor.inventory, item);
+    _ = object_list.add(g, &g.globalObjects, item);
+    g.score = 0;
+    g.lives = 0;
+    _ = loadGame(g, "jogot");
+    try std.testing.expectEqualStrings("1fsala", cstr.slice(&g.scene.?.name));
+    try std.testing.expectEqual(@as(i32, 4321), g.score);
+    try std.testing.expectEqual(@as(i16, 2), g.lives);
+    try std.testing.expectEqual(@as(?*Object, item), playerOf(g).actor.inventory.head);
 }

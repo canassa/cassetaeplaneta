@@ -161,6 +161,69 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   ini_scene_handle_message, handler_1fcozin0, two object helpers — none frees it).
 - **Confidence:** 9 (code); 5 (that the growth is ever noticed).
 
+### B15. 3fhall: a right click on anything but a door takes the last door again
+- **Where:** `handler_3fhall` 1020:7c66–7d37; `g_s3fhallDoorChoice` (1050:0bc8, initially −1).
+- **What the code does:** the door id → `doorChoice` mapping (7ce4–7d1b) runs only when the pick hit door
+  0x8b–0x8f, but every right click reaches `switch (doorChoice)` at 7d1e: no hit, a hit on the player or the
+  floor, a bottom-strip click that hits nothing. The first time −1 matches no case (click swallowed).
+- **Effect:** back in the hall after choosing a door (TIRO loss, 3ffarao/3fentseg exits, 3fstree2), a right
+  click on the floor or the player goes to that door's destination again (relaunches TIRO, the sauna, …).
+  The bottom-strip test (y 0x168..0x1cc, any object hit) also catches clicks on the lowest ~46 px of the
+  doors, which go to 3fentseg.
+- **Port:** reproduced (`src/handlers/3fhall.zig`); `Fixes.hall_door_click_only` ignores clicks that hit no door.
+- **Confidence:** 9 (code); 8 (reachable).
+
+### B16. 4fbarboy: the right item earns no score
+- **Where:** `handler_4fbarboy` 1020:a050, the MM_WOM_DONE right-item path (after 1020:b0a2).
+- **What the code does:** the item (Portable 273, the Martian) is hidden and moved to the used list, but its
+  `scoreUse` (+0x4a) is never added; every other give-item scene adds it (2fportdi 1020:4992, 2fblitg 1595,
+  2fcopmau 1f86, 2fcopmu 2aa5, 2fgaydir 6abe).
+- **Effect:** the player misses 500 points (and has already paid the 50 `scoreTake` on the drop).
+- **Port:** reproduced (`src/handlers/4fbarboy.zig`); `Fixes.barboy_right_item_score` adds it.
+- **Confidence:** 9.
+
+### B17. The roadblock handlers keep running after switching to the arrest scene (use after free)
+- **Where:** `handler_2fblitg` (switch 1020:1557, then 18dc–18f5), `handler_2fcopmau` (23a6, then 23ab–23c6),
+  `handler_2fcopmu` (2a67 time-out and 2eaf no gift, then 2eb4–2f0a).
+- **What the code does:** `ini_game_switch_scene` (1018:15ea) deletes the old scene with all its objects
+  (`scene_scalar_dtor` 1018:1954), the cop included; the handler then calls the cop's stopAndRedraw (slot
+  0xcc) through the freed block's vtable. 2fcopmu goes on: `resetOffers` has just set
+  `g_s2fcopmuGreetingPending` to 1, so it opens and plays `fase2\2fcopmu\garots05.WAV` and leaves
+  `greetingSaid` = 1, `greetingPending` = 0.
+- **Effect:** the use after free is normally invisible (the block still holds a vtable or has been reused
+  by the new scene's object); other heap reuse would crash. In 2fcopmu the boys' line plays over the
+  2apremu2 arrest, and on the next visit the stale flags skip garots05 (without the gift the arrest follows
+  the cop's greeting at once).
+- **Port:** the stale call on the freed cop is skipped (it cannot be reproduced; docs/DESIGN.md
+  "Conventions"); the 2fcopmu wave and flags are reproduced, `Fixes.roadblock_return_after_switch`
+  returns right after the switch.
+- **Confidence:** 9 (code); 7 (effects).
+
+### B18. 2fportdi: a second offer while the doorman answers loses the first item
+- **Where:** `handler_2fportdi` 1020:4442–4515 (WM_RBUTTONUP while the doorman's animation runs).
+- **What the code does:** it stops the doorman, `portable_pick_up(selectedItem)`, `wave_stop(doorman.wave)`,
+  then carries on into the offer (offerCount++, a new reply, returns 0 so the engine drops the item). But
+  `selectedItem` is already the new item B; item A, dropped on the scene by the previous offer, is never
+  picked up, and `wave_stop` flushes the doorman's own NomeWAVE channel, not A's reply.
+- **Effect:** the two replies overlap; A's reply end charges B's `scoreMisuse` and returns B; A stays on
+  the scene, uncharged; the offer counter advances twice.
+- **Port:** reproduced (`src/handlers/2fportdi.zig`); no fix flag (A's pointer is lost by then).
+- **Confidence:** 9 (code); 6 (timing).
+
+### B19. The 32-bit score is shown and saved as a 16-bit int
+- **Where:** `control_panel_draw_texts` 1018:2184–21af (format `%7.7d`, 1018:270e); `ini_game_save_game`
+  1018:4a30–4a49 (`Score=%d`, 1018:5eb8); `ini_game_load_game` 1018:542e–5447 (`ini_read_score` 1018:adbe,
+  then `CWD`).
+- **What the code does:** both `sprintf`s push the dword `g_score` (1050:002c) for a `%d`, which reads the
+  low word only (the lives text has its own `sprintf`, so no argument shifts); the loader reads a 16-bit
+  `%d` and sign-extends it into `g_score` and the player's score.
+- **Effect:** above 32767 the panel shows a negative score (32768 → `-0032768`); saving and loading makes
+  the wrap permanent. Reachability: the positive Portable/ZoomPort scores add up to about 18 400 (ZoomPort
+  69 alone gives 10 000 on use) plus nine minigames' scores, so passing 32767 is plausible.
+- **Port:** reproduced (`src/panels.zig`, `src/save.zig`); `Fixes.score_32bit` shows, writes and reads the
+  whole long.
+- **Confidence:** 9 (code); 6 (that a normal playthrough passes 32767).
+
 ## Harmless: wrong paths rescued by the wave fallback
 
 `wave_open` retries `<root>pan\wav\<file name>.wav`, and `PAN\WAV\` holds a copy of almost every wave, so these
@@ -174,6 +237,39 @@ not rescued), `fase4\4fbarboy\barcaido.wav`, `fase4\4fbar\okvamp.wav`, `pair0/1/
 `vaifundo.wav`, `vaias.wav`. The disc root also carries copies of ASSASS02, BOIOLS01–03, MAEEMAE, MUSICAR,
 PLMULS03, PMAUS03, PORTGS03 and STONES03 — apparently a late workaround for the same problem.
 Confidence 9 (string scan of the EXE + disc listing + fallback rule).
+
+## Harmless: dead or redundant code in the handlers
+- **Dead WAVE lookups:** `handler_2fgaydir`'s "present" branch (1020:63a3–6416) looks up a WAVE line into
+  `g_s2fgaydirWavePath` (1050:a778) and then plays `boiolr01.wav`; `handler_4fbarboy`'s fourth offer
+  (1020:a61c–a6af) runs `ini_find_wave(0xdf, 3, item)` + `ini_asset_path` and then plays `barcaido.wav`.
+  Neither INI section has a matching line.
+- **4fbar, sportsman answer:** reads the picture position from `g_s4fbarSpeso` (1050:aaa0, at 1020:de0a)
+  instead of `g_s4fbarSpesp` (aaa8); objects 287 and 288 are both at 375,46 and never move.
+- **4fbar, esoteric answer:** right answer switches to 4FSACAET, discards the update list and switches to
+  4FSACAET again (1020:dd1a, e238); a wrong answer with lives < 0 builds 4FSACAET before 6fsaida
+  (dd96 → e6e2). The scene is just built twice (0x401 is sent synchronously; the second switch frees the
+  first scene's waves).
+- **4fbar, offer counter:** `g_s4fbarOfferCount` (only at 1020:e790–e7a1) is set back to 15 on the 25th
+  offer, which is swallowed (`return 1`, selection left set until the next right button); afterwards every
+  10th offer gets no reply.
+Confidence 8–9.
+
+## Harmless: engine leftovers
+- **Objects are deleted through their virtual-base pointer:** `scene_dtor` 1018:28da–2905 (every scene
+  change), `object_list_delete_all` 1010:d474 and `game_dtor` 1010:edcc (at exit) call
+  `scene_object_scalar_dtor` 1010:d762 non-virtually on list pointers, which point at the SceneObject virtual
+  base placed after the derived part. Derived destructors never run, and `_ffree` 1008:21b2 only sets a bit
+  at `p-2` — inside the object, not the block header — so every deleted scene object's block (~1.5 KB)
+  stays in use: roughly 1 MB over a long session, no corruption. The port frees the objects (memory is not
+  observable), keeping the skipped derived destructors (portable icons, inventories: see B14's parking).
+- **`loadObjects` keeps x/y across lines** (`ini_game_load_objects` 1018:4c8e, locals BP-0x12/-0x14): an
+  `Invent=` line for an item already carried (inventory is not cleared before a load) gets the position of
+  the previous `Stat=`/`Portab=` line (4e8a–4e97). The writer always emits those lines first and dropping
+  the item sets a new position. Reproduced (`src/save.zig`).
+- **RealizePalette's result is read from an uninitialised local** in `AppWndProc` (WM_ACTIVATE 1018:3400–3462,
+  WM_QUERYNEWPALETTE/WM_PALETTECHANGED 1018:3567–35cf) when the scene has no backdrop; that only happens
+  between the scene constructor and `ini_scene_create`, when no message is pumped. The port uses 0.
+Confidence 8–9.
 
 ---
 
@@ -251,3 +347,60 @@ Confidence 9 (string scan of the EXE + disc listing + fallback rule).
   ends at `g_game` 1050:7ae0). Later occupy/query calls index past them the same way.
 - Not reached: every shipped `Screen=` background is 640×480 (41×41 cells).
 - Port: out-of-range cells read as free and writes are dropped (`grid` module notes). Confidence 9.
+
+### L8. A fourth closet pick overruns `Game.pickedItems`
+- `noite_game_handle_message_hook` 1018:c49c–c52b writes `pickedItems[pickedCount]` (Game +0x69a, 3 × 12
+  bytes; count +0x6c6) unchecked. 3fpapclo resets the count only when a verdict wave ends (1020:90dd, 92bf,
+  9414), but a drawer exit (ids 146–165) still works during the verdict wave and leaving the scene means
+  that wave end never reaches it. The 4th pick writes over pickActive/pickArmed/`pickRetry`/`pickAdded`
+  (+0x6be..0x6c4); `returnItems` then treats 0000:0001 as an object pointer (GPF).
+- Not reached: 3fpapclo is unreachable (B6). Port: `game_hook` panics with this id (reachable only with
+  `Fixes.pope_closet_reachable`). Confidence 8.
+
+### L9. Exit lookups accept `index == exitCount`; the exit table has no bound
+- `game_create_exit_scene` 1018:11ea rejects only `exitCount < exitIndex`, so index == exitCount reads the
+  unset `exits[exitCount]`; `game_take_exit` 1018:12c6 has no check. `scene_add_exit` 1018:2a44 (and
+  `_alt` 2a8c, `_at` 298c, `_to_scene` 29e6) store `exits[exitCount++]` (`Exit *[25]`, Scene+8) unchecked:
+  a 26th exit overwrites `exitCount`, then `name`.
+- Not reached: exit indexes come only from the add functions; the most exits in a shipped scene is 20
+  (3fpapclo). Port: a NULL slot panics (`src/game.zig`). Confidence 9.
+
+### L10. Perspective view and axis divisors are not checked for zero
+- `perspective_backdrop_set_view` 1010:ada1–adbe divides by `view3d_z − (viewHeight − view_y)`;
+  `perspective_backdrop_set_axis` 1010:adfa–ae11 (axis_x == 0) by `vanishY − (viewHeight − axis_y)`. Zero
+  is an integer-divide fault.
+- Not reached: no shipped `Screen=` line (116) makes either divisor 0 (none is within ±4). Port: panics
+  with a message (`src/backdrop.zig`). Confidence 9.
+
+### L11. Vacating a cell that was not occupied leaves a phantom occupant
+- `occupancy_grid_vacate_cell` 1010:d884 (only caller `occupancy_grid_vacate` 1010:d9be) clears the cell's
+  object, then `CMP count,0; JLE inc; DEC`: a positive count is decremented, anything ≤ 0 incremented — an
+  empty cell (0) becomes occupied (1) with no object, a blocked one (−1) becomes free. It also clears the
+  object pointer while other occupants remain.
+- Would fire on a vacate of cells the object never occupied (hiding an object twice: the hide paths do not
+  test `visible`); the cell then blocks like an invisible obstacle until the scene is rebuilt. No such
+  double vacate was found in the shipped scenes (needs a trace). Port: reproduced (`src/grid.zig`).
+  Confidence 9 (arithmetic); 4 (reached).
+
+---
+
+## Not bugs (checked)
+
+- **4fsacaet takes no life on an INV loss:** by design — the loss scene does: `handler_4fmarte` 1028:03f9
+  (`DEC; JZ`: game over at 0, else 4fbar), and 4fmarte is reached only from the 4fsacaet loss.
+- **3fstree2 does nothing when `minigameWon[3]` is 0:** it is entered only from `handler_3fstreet`
+  1020:8900 when the minigame was won; no INI exit leads there and it cannot be saved in (no control panel).
+- **2fportdi always looks up WAVE replies for Number 0x17** (1020:4644): every `[2fportdi]` WAVE line is
+  Number 23 — only the doorman answers. Its 4th-offer check in MM_WOM_DONE is always reached (the angry
+  wave's end, or wave_play's faked 0x3bd).
+- **2fgaydir's right-button compare chain** (`JMP 5c14` after `SUB AX,0xe1`) is a merged tail: the
+  effective id is 0x10c.
+- **3fhall's TIRO timer branch returns 0:** neither the engine default nor the hook handles WM_TIMER.
+- **4fbarboy leaves `selectedItem` set after a wrong item:** its MM_WOM_DONE path dereferences it, so
+  clearing it would turn an unclaimed wave end into a NULL dereference; nothing visible follows.
+- **4fbar's PtInRect** compares window coordinates with scene coordinates, but `[4fbar]` is 640×480 and
+  never scrolls. Its `DEC; JNS` lives test is in B1; `okvamp.wav` is rescued by `PAN\WAV`.
+- **The `exit_has_key_object` call in `ini_scene_handle_message`** (1018:9548) pushes a dword NULL (66-prefixed),
+  the take flag and `this`: 10 bytes, matching its `RETF 0xa`.
+- **`portable_move_to_scene`'s name swap** through a stack temporary: it has 20 bytes and the names
+  copied are at most 19 characters (`strncpy 0x13` everywhere they are set; the longest section name has 9).

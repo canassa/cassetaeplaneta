@@ -122,6 +122,9 @@ pub fn handleMessageHook(g: *Game, m: Msg) i32 {
     }
 
     if (obj.is(.portable) and g.pickArmed != 0) {
+        // Unchecked in the original: a 4th pick overwrites the pick flags
+        // (BUGS.md L8, only reachable with `pope_closet_reachable`).
+        if (g.pickedCount >= g.pickedItems.len) @panic("game_hook: 4th closet pick overruns pickedItems (BUGS.md L8)");
         const slot = &g.pickedItems[g.pickedCount];
         slot.object = obj;
         slot.x = obj.x;
