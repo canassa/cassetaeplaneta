@@ -128,6 +128,36 @@ pub const TextStyle = struct {
 };
 pub const BkMode = enum(u16) { transparent = 1, @"opaque" = 2 };
 
+/// MCI error codes (MCIERR_*) the platform returns.
+pub const mcierr = struct {
+    pub const invalid_device_id: u32 = 257;
+    pub const unrecognized_command: u32 = 261;
+    pub const invalid_device_name: u32 = 263;
+    pub const out_of_memory: u32 = 264;
+    pub const unsupported_function: u32 = 274;
+    pub const file_not_found: u32 = 275;
+    pub const duplicate_alias: u32 = 289;
+    pub const invalid_file: u32 = 296;
+};
+
+/// mciGetErrorString: the text MMSYSTEM gives for an MCI error code
+/// (English Windows wording; the Portuguese Windows 3.1 text the original
+/// players saw is not known). Unknown codes get a generic text. Same on
+/// every backend.
+pub fn mciGetErrorString(code: u32) []const u8 {
+    return switch (code) {
+        mcierr.invalid_device_id => "Invalid MCI device ID. Use the ID returned when opening the MCI device.",
+        mcierr.unrecognized_command => "The driver cannot recognize the specified command.",
+        mcierr.invalid_device_name => "The specified device is not open or is not recognized by MCI.",
+        mcierr.out_of_memory => "Your system does not have enough memory for this task. Quit one or more applications to increase available memory, and then try again.",
+        mcierr.unsupported_function => "The MCI device the system is using does not support the specified command.",
+        mcierr.file_not_found => "The specified file cannot be found. Make sure the path and filename are correct.",
+        mcierr.duplicate_alias => "The specified alias is already being used in this application. Use a unique alias.",
+        mcierr.invalid_file => "The specified file cannot be played on the specified MCI device. The file may be corrupt, or not in the correct format.",
+        else => "Unknown MCI error.",
+    };
+}
+
 /// WaveMix flags (WMIX_*).
 pub const wmix = struct {
     // WaveMixOpenChannel / WaveMixCloseChannel
@@ -231,11 +261,13 @@ pub const Platform = struct {
         /// `notify` play posts MM_MCINOTIFY (wParam MCI_NOTIFY_SUCCESSFUL,
         /// lParam device id) when the song ends, timed from its length.
         mciString: *const fn (*anyopaque, command: []const u8) u32,
-        /// MCI_OPEN of an AVI (avivideo, Autodesk FLIC) over the main window.
-        aviOpen: *const fn (*anyopaque, path: []const u8) ?Device,
+        /// MCI_OPEN of an AVI (avivideo, Autodesk FLIC) over the main window:
+        /// 0 and `dev` set, or the MCI error (`mcierr`). MCI_WINDOW (show
+        /// the video window) has no counterpart: it always succeeds.
+        aviOpen: *const fn (*anyopaque, path: []const u8, dev: *Device) u32,
         /// MCI_PLAY with notify: frames are drawn on the screen as they fall
-        /// due, then MM_MCINOTIFY(successful, device).
-        aviPlay: *const fn (*anyopaque, dev: Device) bool,
+        /// due, then MM_MCINOTIFY(successful, device). 0 or the MCI error.
+        aviPlay: *const fn (*anyopaque, dev: Device) u32,
         aviStop: *const fn (*anyopaque, dev: Device) void,
         aviClose: *const fn (*anyopaque, dev: Device) void,
         // Other programs (the minigames)
@@ -354,10 +386,10 @@ pub const Platform = struct {
     pub fn mciString(p: Platform, command: []const u8) u32 {
         return p.vtable.mciString(p.ptr, command);
     }
-    pub fn aviOpen(p: Platform, path: []const u8) ?Device {
-        return p.vtable.aviOpen(p.ptr, path);
+    pub fn aviOpen(p: Platform, path: []const u8, dev: *Device) u32 {
+        return p.vtable.aviOpen(p.ptr, path, dev);
     }
-    pub fn aviPlay(p: Platform, dev: Device) bool {
+    pub fn aviPlay(p: Platform, dev: Device) u32 {
         return p.vtable.aviPlay(p.ptr, dev);
     }
     pub fn aviStop(p: Platform, dev: Device) void {

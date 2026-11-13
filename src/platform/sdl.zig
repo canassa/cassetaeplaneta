@@ -308,10 +308,10 @@ pub const Sdl = struct {
     fn mciString(ptr: *anyopaque, command: []const u8) u32 {
         return self(ptr).sim.mciString(ticks(ptr), command);
     }
-    fn aviOpen(ptr: *anyopaque, path: []const u8) ?p.Device {
-        return self(ptr).sim.aviOpen(path);
+    fn aviOpen(ptr: *anyopaque, path: []const u8, dev: *p.Device) u32 {
+        return self(ptr).sim.aviOpen(path, dev);
     }
-    fn aviPlay(ptr: *anyopaque, dev: p.Device) bool {
+    fn aviPlay(ptr: *anyopaque, dev: p.Device) u32 {
         const s = self(ptr);
         return s.sim.aviPlay(ticks(ptr), dev, &s.screen_buf);
     }

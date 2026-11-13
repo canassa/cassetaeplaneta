@@ -531,11 +531,11 @@ pub const Sim = struct {
 
     // ---- MCI strings ----------------------------------------------------------
 
-    const mcierr_unrecognized_command: u32 = 261;
-    const mcierr_invalid_device_name: u32 = 263;
-    const mcierr_file_not_found: u32 = 275;
-    const mcierr_duplicate_alias: u32 = 289;
-    const mcierr_unsupported_function: u32 = 274;
+    const mcierr_unrecognized_command = p.mcierr.unrecognized_command;
+    const mcierr_invalid_device_name = p.mcierr.invalid_device_name;
+    const mcierr_file_not_found = p.mcierr.file_not_found;
+    const mcierr_duplicate_alias = p.mcierr.duplicate_alias;
+    const mcierr_unsupported_function = p.mcierr.unsupported_function;
     const mci_notify_successful: u16 = 1;
     const mci_notify_superseded: u16 = 2;
     const mci_notify_aborted: u16 = 4;
@@ -733,16 +733,18 @@ pub const Sim = struct {
         s.gpa.free(v.bytes);
     }
 
-    pub fn aviOpen(s: *Sim, path: []const u8) ?p.Device {
-        const bytes = s.readHost(path) orelse return null;
+    /// MCI_OPEN of an AVI: 0 and `out` set, or the MCI error (file not
+    /// found; not a FLIC AVI this decoder reads; out of memory).
+    pub fn aviOpen(s: *Sim, path: []const u8, out: *p.Device) u32 {
+        const bytes = s.readHost(path) orelse return p.mcierr.file_not_found;
         const avi = s.gpa.create(flic.Avi) catch {
             s.gpa.free(bytes);
-            return null;
+            return p.mcierr.out_of_memory;
         };
         avi.* = flic.Avi.parse(s.gpa, bytes) catch {
             s.gpa.destroy(avi);
             s.gpa.free(bytes);
-            return null;
+            return p.mcierr.invalid_file;
         };
         const dev: p.Device = 0x100 + s.next_device;
         s.next_device += 1;
@@ -750,13 +752,15 @@ pub const Sim = struct {
             avi.deinit(s.gpa);
             s.gpa.destroy(avi);
             s.gpa.free(bytes);
-            return null;
+            return p.mcierr.out_of_memory;
         };
-        return dev;
+        out.* = dev;
+        return 0;
     }
 
-    pub fn aviPlay(s: *Sim, now: u32, dev: p.Device, screen: *p.Screen) bool {
-        const i = s.video(dev) orelse return false;
+    /// MCI_PLAY with notify: 0, or MCIERR_INVALID_DEVICE_ID.
+    pub fn aviPlay(s: *Sim, now: u32, dev: p.Device, screen: *p.Screen) u32 {
+        const i = s.video(dev) orelse return p.mcierr.invalid_device_id;
         const v = &s.videos.items[i];
         if (s.opts.decode_video and v.decoder == null) {
             v.decoder = flic.Decoder.init(s.gpa, v.avi) catch null;
@@ -769,7 +773,7 @@ pub const Sim = struct {
         v.playing = true;
         v.since = now;
         s.schedule(now +% v.avi.durationMs(), .{ .message = .{ .id = wm.mm_mcinotify, .wparam = mci_notify_successful, .lparam = dev } });
-        return true;
+        return 0;
     }
 
     /// Draws the frames of the playing videos that fell due by `now` onto
@@ -879,8 +883,10 @@ test "wave and avi durations come from the file headers" {
     defer s.deinit();
     var screen: p.Screen = .{};
     // 1AMAO.AVI: 29 frames at 357000 µs (avih bytes 0x20 and 0x30)
-    const dev = s.aviOpen("\\1amao.avi").?;
-    try std.testing.expect(s.aviPlay(0, dev, &screen));
+    var dev: p.Device = 0;
+    try std.testing.expectEqual(@as(u32, 0), s.aviOpen("\\1amao.avi", &dev));
+    try std.testing.expectEqual(@as(u32, 0), s.aviPlay(0, dev, &screen));
+    try std.testing.expectEqual(p.mcierr.file_not_found, s.aviOpen("\\nothere.avi", &dev));
     try std.testing.expectEqual(@as(?u32, 29 * 357), s.nextDue());
     s.aviClose(dev, &screen);
     try std.testing.expectEqual(@as(?u32, null), s.nextDue());
@@ -966,8 +972,9 @@ test "AVI frames are drawn onto the screen as they fall due" {
     var s = Sim.init(std.testing.allocator, std.testing.io, .{ .decode_video = true });
     defer s.deinit();
     var screen: p.Screen = .{};
-    const dev = s.aviOpen("\\1AMAO.AVI").?;
-    try std.testing.expect(s.aviPlay(0, dev, &screen));
+    var dev: p.Device = 0;
+    try std.testing.expectEqual(@as(u32, 0), s.aviOpen("\\1AMAO.AVI", &dev));
+    try std.testing.expectEqual(@as(u32, 0), s.aviPlay(0, dev, &screen));
     try std.testing.expect(s.videoUpdate(0, &screen)); // frame 0
     try std.testing.expect(!s.videoUpdate(100, &screen)); // frame 1 is due at 357 ms
     try std.testing.expect(s.videoUpdate(357, &screen));

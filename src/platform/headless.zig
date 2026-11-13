@@ -128,10 +128,10 @@ pub const Headless = struct {
         const h = self(ptr);
         return h.sim.mciString(h.now, command);
     }
-    fn aviOpen(ptr: *anyopaque, path: []const u8) ?p.Device {
-        return self(ptr).sim.aviOpen(path);
+    fn aviOpen(ptr: *anyopaque, path: []const u8, dev: *p.Device) u32 {
+        return self(ptr).sim.aviOpen(path, dev);
     }
-    fn aviPlay(ptr: *anyopaque, dev: p.Device) bool {
+    fn aviPlay(ptr: *anyopaque, dev: p.Device) u32 {
         const h = self(ptr);
         return h.sim.aviPlay(h.now, dev, &h.screen_buf);
     }

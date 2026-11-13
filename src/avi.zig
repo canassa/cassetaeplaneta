@@ -2,12 +2,12 @@
 //!
 //! The original talks to MCI (`MCI_OPEN`/`MCI_PLAY`/`MCI_CLOSE`/`MCI_STOP` on
 //! an `avivideo` device); here that is `Platform.aviOpen/aviPlay/aviClose/
-//! aviStop`, which return success/failure instead of an MCI error code. The
+//! aviStop`, which return the MCI error code like mciSendCommand. The
 //! `hwnd` parameters are dropped (one window), and the `MCI_WINDOW` command
-//! that shows the child window after the open has no platform counterpart:
-//! the sim draws the frames on the screen. When MCI fails the original shows
-//! the MCI error string in a "MCI Erro" box; the platform has no error
-//! strings, so `mci_error_text` stands in for it.
+//! that shows the child window after the open has no platform counterpart
+//! (it always succeeds, so its error box never shows): the sim draws the
+//! frames on the screen. When MCI fails the original shows
+//! mciGetErrorString's text in a "MCI Erro" box (`platform.mciGetErrorString`).
 
 const std = @import("std");
 const Game = @import("core/game.zig").Game;
@@ -18,12 +18,10 @@ const platform = @import("platform/platform.zig");
 const ini = @import("ini.zig");
 const animation = @import("behaviour/animation.zig");
 
-/// Stand-in for MCIGETERRORSTRING (the platform reports no error codes).
-const mci_error_text = "Erro MCI";
-
-fn mciError(g: *Game) void {
+/// mciGetErrorString(err, buf, 256) + MessageBox(text, "MCI Erro", MB_ICONEXCLAMATION).
+fn mciError(g: *Game, err: u32) void {
     // Caption string at 1010:d796.
-    _ = g.plat.messageBox("MCI Erro", mci_error_text, platform.mb.iconexclamation);
+    _ = g.plat.messageBox("MCI Erro", platform.mciGetErrorString(err), platform.mb.iconexclamation);
 }
 
 /// Animation slot 00: marks the animation as an AVI clip.
@@ -71,21 +69,22 @@ pub fn openAvi(g: *Game, obj: *Object, name: []const u8) u16 {
     cstr.copy(&base, splitFname(&path));
     cstr.copy(&path, ini.assetPath(&g.ini, &g.driveCD, &g.driveHD, &base, -2));
     if (!animation.isAvi(g, obj)) return 0;
-    var dev = g.plat.aviOpen(cstr.slice(&path));
-    if (dev == null) {
+    var dev: platform.Device = 0;
+    var err = g.plat.aviOpen(cstr.slice(&path), &dev);
+    if (err != 0) {
         _ = cstr.print(&path, "{s}{s}.avi", .{ cstr.slice(&g.driveCD), cstr.slice(name) });
-        dev = g.plat.aviOpen(cstr.slice(&path));
-        if (dev == null) {
+        err = g.plat.aviOpen(cstr.slice(&path), &dev);
+        if (err != 0) {
             _ = cstr.print(&path, "{s}pan\\avi\\{s}.avi", .{ cstr.slice(&g.driveCD), cstr.slice(&base) });
-            dev = g.plat.aviOpen(cstr.slice(&path));
+            err = g.plat.aviOpen(cstr.slice(&path), &dev);
         }
-        if (dev == null) {
-            mciError(g);
+        if (err != 0) {
+            mciError(g, err);
             return 0;
         }
     }
     g.aviPlaying = obj;
-    obj.anim.aviDevice = dev.?;
+    obj.anim.aviDevice = dev;
     // MCI_WINDOW (show the video child window): no platform counterpart.
     return obj.anim.aviDevice;
 }
@@ -95,7 +94,8 @@ pub fn openAvi(g: *Game, obj: *Object, name: []const u8) u16 {
 // @orig 1010:ccbe animation_play_avi
 pub fn playAvi(g: *Game, obj: *Object, device: u16) void {
     if (!animation.isAvi(g, obj)) return;
-    if (!g.plat.aviPlay(device)) mciError(g);
+    const err = g.plat.aviPlay(device);
+    if (err != 0) mciError(g, err);
 }
 
 /// Animation slot 05: for an AVI animation clears the playing-AVI state,
