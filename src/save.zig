@@ -28,8 +28,9 @@
 //! cannot return errors (their callers are other units).
 //!
 //! No counterpart: GetDC/ReleaseDC, the `PatBlt(BLACKNESS)` of
-//! `clearWidth` x `clearHeight` (both zero: BUGS.md U3) and the final
-//! InvalidateRect (the screen is the platform's).
+//! `clearWidth` x `clearHeight` (both zero: BUGS.md U3). The final
+//! InvalidateRect is `queue.paint_pending`: the WM_PAINT it causes blits
+//! the whole new backdrop.
 
 const std = @import("std");
 const Game = @import("core/game.zig").Game;
@@ -322,7 +323,8 @@ fn loadGameImpl(g: *Game, name: []const u8) Error!void {
     if (scene_unit.getHasStatusBar(g, scene)) render.draw(g, g.statusBar.?, bd);
     if (scene_unit.getHasControlPanel(g, scene)) render.draw(g, cp, bd);
     if (scene_unit.getHasPlayer(g, scene)) animation.playIdle(g, player, bd);
-    // ReleaseDC, InvalidateRect(window): the platform's screen needs neither.
+    // ReleaseDC; InvalidateRect(window, NULL, ...).
+    g.queue.paint_pending = true;
     _ = g.send(.{ .id = msg.noite.scene_started });
 }
 
