@@ -26,6 +26,10 @@ pub const platform = struct {
     pub const sim = @import("platform/sim.zig");
     pub const headless = @import("platform/headless.zig");
     pub const sdl = @import("platform/sdl.zig");
+    pub const font = @import("platform/font.zig");
+    pub const flic = @import("platform/flic.zig");
+    pub const midi = @import("platform/midi.zig");
+    pub const mixer = @import("platform/mixer.zig");
 };
 const units = @import("units.zig");
 const Game = core.game.Game;
@@ -125,4 +129,8 @@ test {
     std.testing.refAllDecls(core);
     std.testing.refAllDecls(platform.sim);
     std.testing.refAllDecls(platform.headless);
+    std.testing.refAllDecls(platform.font);
+    std.testing.refAllDecls(platform.flic);
+    std.testing.refAllDecls(platform.midi);
+    std.testing.refAllDecls(platform.mixer);
 }

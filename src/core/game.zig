@@ -153,6 +153,17 @@ pub const Game = struct {
     conditionFalse: world.Condition = .{ .kind = .flag, .value = 0 },
     // @orig g_crtHoldRand
     rand: Rand = .{},
+    // Shared sprintf buffers (unnamed DGROUP areas; sizes up to the next
+    // global). Whoever formats into one owns it until the next call, as in
+    // the original.
+    // @orig DGROUP 9d26 (concat_strings)
+    concatBuf: [256]u8 = @splat(0),
+    // @orig DGROUP 7cd6 (message_box_printf)
+    messageBuf: [100]u8 = @splat(0),
+    // @orig DGROUP 9e28 (wave_open's PAN\WAV fallback path)
+    wavePathBuf: [50]u8 = @splat(0),
+    // @orig DGROUP 13d8 (load_dib's PAN\BMP fallback path)
+    dibPathBuf: [50]u8 = @splat(0),
     ini: modstate.Ini = .{},
     sound: modstate.Sound = .{},
     /// The scene handlers' globals (`handler.SceneStates`).

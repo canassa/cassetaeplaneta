@@ -59,17 +59,18 @@ fn unread(plat: Platform, fd: File) void {
 /// the port propagates the returned error).
 // @orig 1018:98d0 ini_fatal_error
 pub fn fatalError(plat: Platform, msg: []const u8) error{Fatal} {
-    plat.messageBox("Erro Fatal!", msg);
+    _ = plat.messageBox("Erro Fatal!", msg, platform.mb.ok);
     return error.Fatal;
 }
 
 /// Formats `fmt` (C printf syntax) with one 32-bit argument and shows it in a
 /// warning box. The CRT `sprintf` is replaced: supports `%d %i %u %x %X %c`
 /// (16-bit, the low word of `arg`), their `l` forms (32-bit) and `%%`; other
-/// text is copied. The original's shared buffer is 256 bytes here.
+/// text is copied. `buf` is the original's shared buffer (DGROUP 7cd6, 100
+/// bytes: `g.messageBuf`); the text is truncated to it. The box is
+/// MB_ICONEXCLAMATION.
 // @orig 1018:3644 message_box_printf
-pub fn messageBoxPrintf(plat: Platform, caption: []const u8, fmt: []const u8, arg: u32) void {
-    var buf: [256]u8 = undefined;
+pub fn messageBoxPrintf(plat: Platform, buf: []u8, caption: []const u8, fmt: []const u8, arg: u32) void {
     var w: std.Io.Writer = .fixed(buf[0 .. buf.len - 1]);
     const f = cstr.slice(fmt);
     var i: usize = 0;
@@ -98,7 +99,9 @@ pub fn messageBoxPrintf(plat: Platform, caption: []const u8, fmt: []const u8, ar
         };
         r catch break;
     }
-    plat.messageBox(caption, w.buffered());
+    const n = w.buffered().len;
+    buf[n] = 0;
+    _ = plat.messageBox(caption, buf[0..n], platform.mb.iconexclamation);
 }
 
 /// Scans the whole file once and records every `[section]` name (lower-cased,
@@ -382,8 +385,8 @@ pub fn randomBelow(rand: *crt.Rand, plat: Platform, n: i16) i16 {
     return @rem(rand.rand(), n);
 }
 
-/// Concatenates `a` and `b` into `buf` (the original's shared buffer, which
-/// the caller owns here) and returns the result.
+/// Concatenates `a` and `b` into `buf` (the original's shared buffer at
+/// DGROUP 9d26, 256 bytes: `g.concatBuf`) and returns the result.
 // @orig 1018:aeaa concat_strings
 pub fn concatStrings(buf: []u8, a: []const u8, b: []const u8) []const u8 {
     return cstr.print(buf, "{s}{s}", .{ cstr.slice(a), cstr.slice(b) });

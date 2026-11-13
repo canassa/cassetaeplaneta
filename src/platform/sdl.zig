@@ -1,6 +1,8 @@
 //! SDL3 backend: a 640×480 window showing the palettized screen, mouse and
-//! arrow keys as Win16 input messages, the real clock. Files and media
-//! timing come from `Sim` (silent for now). SDL is declared by hand below
+//! arrow keys as Win16 input messages, the real clock, and an audio stream
+//! fed from `Sim`'s mixer (waves, AVI soundtracks, MIDI through
+//! TinySoundFont with the SoundFont in `$NOITE_SOUNDFONT`). Files, media
+//! timing and video frames come from `Sim`. SDL is declared by hand below
 //! (Zig 0.17 has no @cImport; only the calls used are declared).
 
 const std = @import("std");
@@ -8,6 +10,8 @@ const p = @import("platform.zig");
 const Sim = @import("sim.zig").Sim;
 const Options = @import("sim.zig").Options;
 const msg = @import("../core/msg.zig");
+const midi = @import("midi.zig");
+const mixer = @import("mixer.zig");
 const wm = msg.wm;
 
 const c = struct {
@@ -15,6 +19,11 @@ const c = struct {
     const Renderer = opaque {};
     const Texture = opaque {};
     const init_video: u32 = 0x20;
+    const init_audio: u32 = 0x10;
+    const AudioStream = opaque {};
+    const AudioSpec = extern struct { format: u32, channels: c_int, freq: c_int };
+    const audio_s16le: u32 = 0x8010;
+    const audio_device_default_playback: u32 = 0xFFFFFFFF;
     const pixelformat_xrgb8888: u32 = 0x16161804;
     const textureaccess_streaming: c_int = 1;
     const event_quit: u32 = 0x100;
@@ -50,6 +59,12 @@ const c = struct {
     extern "c" fn SDL_GetTicks() u64;
     extern "c" fn SDL_PollEvent(e: *Event) bool;
     extern "c" fn SDL_WaitEventTimeout(e: *Event, timeout_ms: i32) bool;
+    extern "c" fn SDL_OpenAudioDeviceStream(dev: u32, spec: *const AudioSpec, callback: ?*const anyopaque, userdata: ?*anyopaque) ?*AudioStream;
+    extern "c" fn SDL_ResumeAudioStreamDevice(stream: *AudioStream) bool;
+    extern "c" fn SDL_PutAudioStreamData(stream: *AudioStream, buf: *const anyopaque, len: c_int) bool;
+    extern "c" fn SDL_GetAudioStreamQueued(stream: *AudioStream) c_int;
+    extern "c" fn SDL_DestroyAudioStream(stream: *AudioStream) void;
+    extern "c" fn getenv(name: [*:0]const u8) ?[*:0]const u8;
 };
 
 pub const Sdl = struct {
@@ -62,13 +77,58 @@ pub const Sdl = struct {
     buttons: u16 = 0,
     /// An event taken by `wait` that `poll` has not returned yet.
     held: ?c.Event = null,
+    audio: ?*c.AudioStream = null,
+    synth: ?midi.Synth = null,
+    mix_buf: [2048]i16 = undefined,
+
+    /// Audio kept queued ahead of the device (~90 ms of 44.1 kHz stereo s16).
+    const audio_ahead_bytes = 4096 * 4;
 
     pub fn init(s: *Sdl, gpa: std.mem.Allocator, io: std.Io, opts: Options) !void {
-        if (!c.SDL_Init(c.init_video)) return fail("SDL_Init");
+        if (!c.SDL_Init(c.init_video | c.init_audio)) return fail("SDL_Init");
         const win = c.SDL_CreateWindow("Casseta & Planeta - Noite Animal", p.screen_width, p.screen_height, 0) orelse return fail("SDL_CreateWindow");
         const ren = c.SDL_CreateRenderer(win, null) orelse return fail("SDL_CreateRenderer");
         const tex = c.SDL_CreateTexture(ren, c.pixelformat_xrgb8888, c.textureaccess_streaming, p.screen_width, p.screen_height) orelse return fail("SDL_CreateTexture");
-        s.* = .{ .sim = .init(gpa, io, opts), .window = win, .renderer = ren, .texture = tex };
+        var o = opts;
+        o.decode_video = true;
+        const spec: c.AudioSpec = .{ .format = c.audio_s16le, .channels = 2, .freq = mixer.out_rate };
+        const stream = c.SDL_OpenAudioDeviceStream(c.audio_device_default_playback, &spec, null, null);
+        if (stream == null) std.log.warn("no audio: {s}", .{std.mem.span(c.SDL_GetError())});
+        o.keep_audio = stream != null;
+        s.* = .{ .sim = .init(gpa, io, o), .window = win, .renderer = ren, .texture = tex, .audio = stream };
+        if (stream) |st| {
+            _ = c.SDL_ResumeAudioStreamDevice(st);
+            s.synth = loadSynth(gpa, io);
+        }
+        // `s` does not move from here on: the mixer points at the synth.
+        if (s.synth) |*syn| s.sim.mix.synth = syn;
+    }
+
+    /// The MIDI synthesizer over `$NOITE_SOUNDFONT` (set by the dev shell);
+    /// without it music is silent (its timing and notifications still work).
+    fn loadSynth(gpa: std.mem.Allocator, io: std.Io) ?midi.Synth {
+        const path = std.mem.span(c.getenv("NOITE_SOUNDFONT") orelse {
+            std.log.warn("NOITE_SOUNDFONT is not set: no music", .{});
+            return null;
+        });
+        const sf2 = std.Io.Dir.cwd().readFileAlloc(io, path, gpa, .limited(256 << 20)) catch |e| {
+            std.log.warn("cannot read SoundFont {s}: {t}", .{ path, e });
+            return null;
+        };
+        defer gpa.free(sf2);
+        return midi.Synth.init(gpa, sf2, mixer.out_rate) catch |e| {
+            std.log.warn("bad SoundFont {s}: {t}", .{ path, e });
+            return null;
+        };
+    }
+
+    /// Keeps the audio stream fed from the mixer.
+    fn pumpAudio(s: *Sdl) void {
+        const st = s.audio orelse return;
+        while (c.SDL_GetAudioStreamQueued(st) < audio_ahead_bytes) {
+            s.sim.mix.render(&s.mix_buf);
+            if (!c.SDL_PutAudioStreamData(st, &s.mix_buf, @intCast(s.mix_buf.len * 2))) return;
+        }
     }
 
     fn fail(what: []const u8) error{SdlFailed} {
@@ -77,6 +137,9 @@ pub const Sdl = struct {
     }
 
     pub fn deinit(s: *Sdl) void {
+        if (s.audio) |st| c.SDL_DestroyAudioStream(st);
+        s.sim.mix.synth = null;
+        if (s.synth) |*syn| syn.deinit();
         s.sim.deinit();
         c.SDL_DestroyTexture(s.texture);
         c.SDL_DestroyRenderer(s.renderer);
@@ -150,6 +213,8 @@ pub const Sdl = struct {
 
     fn poll(ptr: *anyopaque) ?p.Event {
         const s = self(ptr);
+        s.pumpAudio();
+        if (s.sim.videoUpdate(ticks(ptr), &s.screen_buf)) present(ptr);
         if (s.sim.poll(ticks(ptr))) |ev| return ev;
         if (s.held) |held| {
             s.held = null;
@@ -167,7 +232,9 @@ pub const Sdl = struct {
         var to = deadline;
         if (s.sim.nextDue()) |d| to = if (to) |t| @min(t, d) else d;
         const now = ticks(ptr);
-        const ms: i32 = if (to) |t| @max(0, @as(i32, @bitCast(t -% now))) else 100;
+        var ms: i32 = if (to) |t| @max(0, @as(i32, @bitCast(t -% now))) else 100;
+        // Wake up often enough to feed the audio stream and the video.
+        if (s.audio != null or s.sim.videos.items.len > 0) ms = @min(ms, 10);
         var e: c.Event = undefined;
         if (c.SDL_WaitEventTimeout(&e, ms)) s.held = e;
     }
@@ -187,9 +254,11 @@ pub const Sdl = struct {
         _ = c.SDL_RenderPresent(s.renderer);
     }
 
-    fn textOut(_: *anyopaque, _: i16, _: i16, _: u32, _: []const u8) void {}
-    fn textExtent(_: *anyopaque, text: []const u8) u32 {
-        return @as(u32, @intCast(text.len * 8)) | 16 << 16;
+    fn textOut(ptr: *anyopaque, surf: p.Surface, style: p.TextStyle, x: i16, y: i16, text: []const u8) bool {
+        return self(ptr).sim.textOut(surf, style, x, y, text);
+    }
+    fn textExtent(ptr: *anyopaque, text: []const u8) u32 {
+        return self(ptr).sim.textExtent(text);
     }
     fn open(ptr: *anyopaque, path: []const u8, mode: p.OpenMode) ?p.File {
         return self(ptr).sim.open(path, mode);
@@ -206,18 +275,35 @@ pub const Sdl = struct {
     fn close(ptr: *anyopaque, f: p.File) void {
         self(ptr).sim.close(f);
     }
-    fn waveOpen(ptr: *anyopaque, path: []const u8) ?p.Wave {
-        return self(ptr).sim.waveOpen(path);
+    fn mixGetInfo(ptr: *anyopaque) u16 {
+        return self(ptr).sim.mixGetInfo();
     }
-    fn waveFree(_: *anyopaque, _: p.Wave) void {}
-    fn wavePlay(ptr: *anyopaque, channel: u8, w: p.Wave, loops: i16) bool {
-        return self(ptr).sim.wavePlay(ticks(ptr), channel, w, loops);
+    fn mixConfigureInit(ptr: *anyopaque, channels: u16, rate_khz: u16) p.MixSession {
+        return self(ptr).sim.mixConfigureInit(channels, rate_khz);
     }
-    fn waveFlush(ptr: *anyopaque, channel: u8) void {
-        self(ptr).sim.waveFlush(channel);
+    fn mixOpenChannel(ptr: *anyopaque, ses: p.MixSession, channel: i16, flags: u32) u16 {
+        return self(ptr).sim.mixOpenChannel(ses, channel, flags);
     }
-    fn mixActivate(_: *anyopaque, _: bool) bool {
-        return true;
+    fn mixCloseChannel(ptr: *anyopaque, ses: p.MixSession, channel: i16, flags: u32) u16 {
+        return self(ptr).sim.mixCloseChannel(ses, channel, flags);
+    }
+    fn mixCloseSession(ptr: *anyopaque, ses: p.MixSession) u16 {
+        return self(ptr).sim.mixCloseSession(ses);
+    }
+    fn mixActivate(ptr: *anyopaque, ses: p.MixSession, active: bool) u16 {
+        return self(ptr).sim.mixActivate(ses, active);
+    }
+    fn waveOpen(ptr: *anyopaque, ses: p.MixSession, path: []const u8) ?p.Wave {
+        return self(ptr).sim.waveOpen(ses, path);
+    }
+    fn waveFree(ptr: *anyopaque, ses: p.MixSession, w: p.Wave) u16 {
+        return self(ptr).sim.waveFree(ses, w);
+    }
+    fn wavePlay(ptr: *anyopaque, params: p.PlayParams) u16 {
+        return self(ptr).sim.wavePlay(ticks(ptr), params);
+    }
+    fn waveFlush(ptr: *anyopaque, ses: p.MixSession, channel: i16, flags: u32) u16 {
+        return self(ptr).sim.waveFlush(ses, channel, flags);
     }
     fn mciString(ptr: *anyopaque, command: []const u8) u32 {
         return self(ptr).sim.mciString(ticks(ptr), command);
@@ -226,13 +312,16 @@ pub const Sdl = struct {
         return self(ptr).sim.aviOpen(path);
     }
     fn aviPlay(ptr: *anyopaque, dev: p.Device) bool {
-        return self(ptr).sim.aviPlay(ticks(ptr), dev);
+        const s = self(ptr);
+        return s.sim.aviPlay(ticks(ptr), dev, &s.screen_buf);
     }
     fn aviStop(ptr: *anyopaque, dev: p.Device) void {
-        self(ptr).sim.aviStop(dev);
+        const s = self(ptr);
+        s.sim.aviStop(dev, &s.screen_buf);
     }
     fn aviClose(ptr: *anyopaque, dev: p.Device) void {
-        self(ptr).sim.aviStop(dev);
+        const s = self(ptr);
+        s.sim.aviClose(dev, &s.screen_buf);
     }
     fn winExec(ptr: *anyopaque, command: []const u8) u16 {
         return self(ptr).sim.winExec(command);
@@ -247,8 +336,9 @@ pub const Sdl = struct {
         const s = self(ptr);
         _ = if (show) c.SDL_ShowWindow(s.window) else c.SDL_HideWindow(s.window);
     }
-    fn messageBox(_: *anyopaque, caption: []const u8, text: []const u8) void {
-        std.log.warn("MessageBox [{s}] {s}", .{ caption, text });
+    fn messageBox(_: *anyopaque, caption: []const u8, text: []const u8, style: u16) i16 {
+        std.log.warn("MessageBox [{s}] {s} (style {x})", .{ caption, text, style });
+        return p.defaultButton(style);
     }
 
     const vtable: p.Platform.VTable = .{
@@ -265,11 +355,16 @@ pub const Sdl = struct {
         .write = write,
         .seek = seek,
         .close = close,
+        .mixGetInfo = mixGetInfo,
+        .mixConfigureInit = mixConfigureInit,
+        .mixOpenChannel = mixOpenChannel,
+        .mixCloseChannel = mixCloseChannel,
+        .mixCloseSession = mixCloseSession,
+        .mixActivate = mixActivate,
         .waveOpen = waveOpen,
         .waveFree = waveFree,
         .wavePlay = wavePlay,
         .waveFlush = waveFlush,
-        .mixActivate = mixActivate,
         .mciString = mciString,
         .aviOpen = aviOpen,
         .aviPlay = aviPlay,

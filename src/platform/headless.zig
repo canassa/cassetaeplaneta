@@ -72,10 +72,11 @@ pub const Headless = struct {
     fn present(ptr: *anyopaque) void {
         self(ptr).presents += 1;
     }
-    fn textOut(_: *anyopaque, _: i16, _: i16, _: u32, _: []const u8) void {}
-    fn textExtent(_: *anyopaque, text: []const u8) u32 {
-        // System font cell 8×16 (approximation until a font is chosen).
-        return @as(u32, @intCast(text.len * 8)) | 16 << 16;
+    fn textOut(ptr: *anyopaque, surf: p.Surface, style: p.TextStyle, x: i16, y: i16, text: []const u8) bool {
+        return self(ptr).sim.textOut(surf, style, x, y, text);
+    }
+    fn textExtent(ptr: *anyopaque, text: []const u8) u32 {
+        return self(ptr).sim.textExtent(text);
     }
     fn open(ptr: *anyopaque, path: []const u8, mode: p.OpenMode) ?p.File {
         return self(ptr).sim.open(path, mode);
@@ -92,19 +93,36 @@ pub const Headless = struct {
     fn close(ptr: *anyopaque, f: p.File) void {
         self(ptr).sim.close(f);
     }
-    fn waveOpen(ptr: *anyopaque, path: []const u8) ?p.Wave {
-        return self(ptr).sim.waveOpen(path);
+    fn mixGetInfo(ptr: *anyopaque) u16 {
+        return self(ptr).sim.mixGetInfo();
     }
-    fn waveFree(_: *anyopaque, _: p.Wave) void {}
-    fn wavePlay(ptr: *anyopaque, channel: u8, w: p.Wave, loops: i16) bool {
+    fn mixConfigureInit(ptr: *anyopaque, channels: u16, rate_khz: u16) p.MixSession {
+        return self(ptr).sim.mixConfigureInit(channels, rate_khz);
+    }
+    fn mixOpenChannel(ptr: *anyopaque, ses: p.MixSession, channel: i16, flags: u32) u16 {
+        return self(ptr).sim.mixOpenChannel(ses, channel, flags);
+    }
+    fn mixCloseChannel(ptr: *anyopaque, ses: p.MixSession, channel: i16, flags: u32) u16 {
+        return self(ptr).sim.mixCloseChannel(ses, channel, flags);
+    }
+    fn mixCloseSession(ptr: *anyopaque, ses: p.MixSession) u16 {
+        return self(ptr).sim.mixCloseSession(ses);
+    }
+    fn mixActivate(ptr: *anyopaque, ses: p.MixSession, active: bool) u16 {
+        return self(ptr).sim.mixActivate(ses, active);
+    }
+    fn waveOpen(ptr: *anyopaque, ses: p.MixSession, path: []const u8) ?p.Wave {
+        return self(ptr).sim.waveOpen(ses, path);
+    }
+    fn waveFree(ptr: *anyopaque, ses: p.MixSession, w: p.Wave) u16 {
+        return self(ptr).sim.waveFree(ses, w);
+    }
+    fn wavePlay(ptr: *anyopaque, params: p.PlayParams) u16 {
         const h = self(ptr);
-        return h.sim.wavePlay(h.now, channel, w, loops);
+        return h.sim.wavePlay(h.now, params);
     }
-    fn waveFlush(ptr: *anyopaque, channel: u8) void {
-        self(ptr).sim.waveFlush(channel);
-    }
-    fn mixActivate(_: *anyopaque, _: bool) bool {
-        return true;
+    fn waveFlush(ptr: *anyopaque, ses: p.MixSession, channel: i16, flags: u32) u16 {
+        return self(ptr).sim.waveFlush(ses, channel, flags);
     }
     fn mciString(ptr: *anyopaque, command: []const u8) u32 {
         const h = self(ptr);
@@ -115,13 +133,15 @@ pub const Headless = struct {
     }
     fn aviPlay(ptr: *anyopaque, dev: p.Device) bool {
         const h = self(ptr);
-        return h.sim.aviPlay(h.now, dev);
+        return h.sim.aviPlay(h.now, dev, &h.screen_buf);
     }
     fn aviStop(ptr: *anyopaque, dev: p.Device) void {
-        self(ptr).sim.aviStop(dev);
+        const h = self(ptr);
+        h.sim.aviStop(dev, &h.screen_buf);
     }
     fn aviClose(ptr: *anyopaque, dev: p.Device) void {
-        self(ptr).sim.aviStop(dev);
+        const h = self(ptr);
+        h.sim.aviClose(dev, &h.screen_buf);
     }
     fn winExec(ptr: *anyopaque, command: []const u8) u16 {
         return self(ptr).sim.winExec(command);
@@ -136,8 +156,9 @@ pub const Headless = struct {
     fn showMain(ptr: *anyopaque, show: bool) void {
         self(ptr).shown = show;
     }
-    fn messageBox(_: *anyopaque, caption: []const u8, text: []const u8) void {
-        std.log.info("MessageBox [{s}] {s}", .{ caption, text });
+    fn messageBox(_: *anyopaque, caption: []const u8, text: []const u8, style: u16) i16 {
+        std.log.info("MessageBox [{s}] {s} (style {x})", .{ caption, text, style });
+        return p.defaultButton(style);
     }
 
     const vtable: p.Platform.VTable = .{
@@ -154,11 +175,16 @@ pub const Headless = struct {
         .write = write,
         .seek = seek,
         .close = close,
+        .mixGetInfo = mixGetInfo,
+        .mixConfigureInit = mixConfigureInit,
+        .mixOpenChannel = mixOpenChannel,
+        .mixCloseChannel = mixCloseChannel,
+        .mixCloseSession = mixCloseSession,
+        .mixActivate = mixActivate,
         .waveOpen = waveOpen,
         .waveFree = waveFree,
         .wavePlay = wavePlay,
         .waveFlush = waveFlush,
-        .mixActivate = mixActivate,
         .mciString = mciString,
         .aviOpen = aviOpen,
         .aviPlay = aviPlay,

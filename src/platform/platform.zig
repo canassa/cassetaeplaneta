@@ -24,6 +24,92 @@ pub const Wave = u16;
 pub const Device = u16;
 
 pub const Rgb = extern struct { r: u8 = 0, g: u8 = 0, b: u8 = 0 };
+/// A DIB colour-table entry (Win16 RGBQUAD).
+pub const RgbQuad = extern struct { blue: u8 = 0, green: u8 = 0, red: u8 = 0, reserved: u8 = 0 };
+/// A WaveMix session handle (WaveMixConfigureInit); 0 = failure.
+pub const MixSession = u16;
+
+/// MessageBox styles (MB_*) and results (ID*).
+pub const mb = struct {
+    pub const ok: u16 = 0x00;
+    pub const okcancel: u16 = 0x01;
+    pub const abortretryignore: u16 = 0x02;
+    pub const yesnocancel: u16 = 0x03;
+    pub const yesno: u16 = 0x04;
+    pub const retrycancel: u16 = 0x05;
+    pub const iconhand: u16 = 0x10;
+    pub const iconquestion: u16 = 0x20;
+    pub const iconexclamation: u16 = 0x30;
+    pub const iconasterisk: u16 = 0x40;
+};
+pub const id = struct {
+    pub const ok: i16 = 1;
+    pub const cancel: i16 = 2;
+    pub const abort: i16 = 3;
+    pub const retry: i16 = 4;
+    pub const ignore: i16 = 5;
+    pub const yes: i16 = 6;
+    pub const no: i16 = 7;
+};
+
+/// The answer a backend without a user gives: the box's first button.
+pub fn defaultButton(style: u16) i16 {
+    return switch (style & 0x0f) {
+        mb.abortretryignore => id.abort,
+        mb.yesnocancel, mb.yesno => id.yes,
+        mb.retrycancel => id.retry,
+        else => id.ok,
+    };
+}
+
+/// An 8-bit DIB GDI draws text into (the backdrop's WinG bitmap). `colors`
+/// is its colour table: GDI maps a COLORREF to the nearest entry.
+pub const Surface = struct {
+    pixels: []u8,
+    width: u16,
+    height: u16,
+    /// Row 0 of `pixels` is the bottom row (positive biHeight).
+    bottom_up: bool,
+    colors: *const [256]RgbQuad,
+};
+
+/// The DC state TextOut uses: SetTextColor, SetBkColor, SetBkMode. GDI's
+/// defaults: black text on an opaque white background.
+pub const TextStyle = struct {
+    color: u32 = 0x000000,
+    bk_color: u32 = 0xffffff,
+    bk_mode: BkMode = .@"opaque",
+};
+pub const BkMode = enum(u16) { transparent = 1, @"opaque" = 2 };
+
+/// WaveMix flags (WMIX_*).
+pub const wmix = struct {
+    // WaveMixOpenChannel / WaveMixCloseChannel
+    pub const opensingle: u32 = 0;
+    pub const openall: u32 = 1;
+    pub const opencount: u32 = 2;
+    // WaveMixFlushChannel
+    pub const all: u32 = 1;
+    pub const noremix: u32 = 2;
+};
+
+/// WaveMixPlay's MIXPLAYPARAMS (minus wSize).
+pub const PlayParams = struct {
+    session: MixSession,
+    channel: i16,
+    wave: Wave,
+    /// hWndNotify is the main window: MM_WOM_DONE (wParam = channel) is
+    /// posted when the wave ends.
+    notify: bool,
+    /// Play count minus one; 0xFFFF loops forever.
+    loops: u16 = 0,
+    /// WMIX_CLEARQUEUE: stop what the channel plays (no notification).
+    clear_queue: bool = false,
+    /// WMIX_USELRUCHANNEL: ignore `channel`, take the least recently used.
+    use_lru_channel: bool = false,
+    /// WMIX_HIPRIORITY (no effect here: the mix starts at once anyway).
+    high_priority: bool = false,
+};
 
 /// The window's client area: what the original's GetDC + WinGBitBlt paint
 /// on. 8-bit palettized; the palette is the realized logical palette.
@@ -64,8 +150,9 @@ pub const Platform = struct {
         screen: *const fn (*anyopaque) *Screen,
         /// Show `screen` (after the palette or pixels changed).
         present: *const fn (*anyopaque) void,
-        /// GDI TextOut with the system font, transparent background.
-        textOut: *const fn (*anyopaque, x: i16, y: i16, color: u32, text: []const u8) void,
+        /// GDI TextOut with the system font (VGASYS.FON) into `s`; (x, y)
+        /// is the top-left of the text. False when no font is available.
+        textOut: *const fn (*anyopaque, s: Surface, style: TextStyle, x: i16, y: i16, text: []const u8) bool,
         /// GetTextExtent: width (lo) and height (hi) of `text` in pixels.
         textExtent: *const fn (*anyopaque, text: []const u8) u32,
         // Files (DOS paths: `\FASE2\X.WAV`, case-insensitive, rooted at the disc)
@@ -75,21 +162,33 @@ pub const Platform = struct {
         /// _llseek: new position, or -1.
         seek: *const fn (*anyopaque, f: File, offset: i32, whence: Whence) i32,
         close: *const fn (*anyopaque, f: File) void,
-        // WaveMix (22 kHz mono, 8 channels)
-        waveOpen: *const fn (*anyopaque, path: []const u8) ?Wave,
-        waveFree: *const fn (*anyopaque, w: Wave) void,
-        /// Play on `channel`; posts MM_WOM_DONE when done. `loops` -1 = forever.
-        wavePlay: *const fn (*anyopaque, channel: u8, w: Wave, loops: i16) bool,
-        waveFlush: *const fn (*anyopaque, channel: u8) void,
-        mixActivate: *const fn (*anyopaque, active: bool) bool,
+        // WaveMix (WAVEMIX.DLL). Results are the DLL's: 0 = success, else
+        // an MMSYSERR code; handles 0/null = failure.
+        /// WaveMixGetInfo.
+        mixGetInfo: *const fn (*anyopaque) u16,
+        /// WaveMixConfigureInit (channels 1 = mono, rate in kHz).
+        mixConfigureInit: *const fn (*anyopaque, channels: u16, rate_khz: u16) MixSession,
+        mixOpenChannel: *const fn (*anyopaque, s: MixSession, channel: i16, flags: u32) u16,
+        mixCloseChannel: *const fn (*anyopaque, s: MixSession, channel: i16, flags: u32) u16,
+        mixCloseSession: *const fn (*anyopaque, s: MixSession) u16,
+        mixActivate: *const fn (*anyopaque, s: MixSession, active: bool) u16,
+        /// WaveMixOpenWave from a file.
+        waveOpen: *const fn (*anyopaque, s: MixSession, path: []const u8) ?Wave,
+        waveFree: *const fn (*anyopaque, s: MixSession, w: Wave) u16,
+        wavePlay: *const fn (*anyopaque, params: PlayParams) u16,
+        /// WaveMixFlushChannel (`flags` wmix.all: every channel).
+        waveFlush: *const fn (*anyopaque, s: MixSession, channel: i16, flags: u32) u16,
         // MCI
-        /// mciSendString for the commands the game sends ("open … alias
-        /// musica", "play musica notify", "pause musica", "close …"); 0 = OK.
-        /// `notify` completions arrive as MM_MCINOTIFY messages.
+        /// mciSendString for the commands the game sends ("open <f> type
+        /// sequencer|waveaudio alias <a>", "play <a> [from 0] [notify]",
+        /// "pause", "stop", "close"); 0 = OK, else an MCIERR code. A
+        /// `notify` play posts MM_MCINOTIFY (wParam MCI_NOTIFY_SUCCESSFUL,
+        /// lParam device id) when the song ends, timed from its length.
         mciString: *const fn (*anyopaque, command: []const u8) u32,
-        /// MCI_OPEN of an AVI (avivideo) over the main window.
+        /// MCI_OPEN of an AVI (avivideo, Autodesk FLIC) over the main window.
         aviOpen: *const fn (*anyopaque, path: []const u8) ?Device,
-        /// MCI_PLAY with notify: MM_MCINOTIFY(successful, device) at the end.
+        /// MCI_PLAY with notify: frames are drawn on the screen as they fall
+        /// due, then MM_MCINOTIFY(successful, device).
         aviPlay: *const fn (*anyopaque, dev: Device) bool,
         aviStop: *const fn (*anyopaque, dev: Device) void,
         aviClose: *const fn (*anyopaque, dev: Device) void,
@@ -102,7 +201,8 @@ pub const Platform = struct {
         /// ShowWindow(main window, SW_SHOW / SW_HIDE).
         showMain: *const fn (*anyopaque, show: bool) void,
         // UI
-        messageBox: *const fn (*anyopaque, caption: []const u8, text: []const u8) void,
+        /// MessageBox(main window, text, caption, style): the button pressed.
+        messageBox: *const fn (*anyopaque, caption: []const u8, text: []const u8, style: u16) i16,
     };
 
     pub fn ticks(p: Platform) u32 {
@@ -123,8 +223,8 @@ pub const Platform = struct {
     pub fn present(p: Platform) void {
         p.vtable.present(p.ptr);
     }
-    pub fn textOut(p: Platform, x: i16, y: i16, color: u32, text: []const u8) void {
-        p.vtable.textOut(p.ptr, x, y, color, text);
+    pub fn textOut(p: Platform, s: Surface, style: TextStyle, x: i16, y: i16, text: []const u8) bool {
+        return p.vtable.textOut(p.ptr, s, style, x, y, text);
     }
     pub fn textExtent(p: Platform, text: []const u8) u32 {
         return p.vtable.textExtent(p.ptr, text);
@@ -144,20 +244,35 @@ pub const Platform = struct {
     pub fn close(p: Platform, f: File) void {
         p.vtable.close(p.ptr, f);
     }
-    pub fn waveOpen(p: Platform, path: []const u8) ?Wave {
-        return p.vtable.waveOpen(p.ptr, path);
+    pub fn mixGetInfo(p: Platform) u16 {
+        return p.vtable.mixGetInfo(p.ptr);
     }
-    pub fn waveFree(p: Platform, w: Wave) void {
-        p.vtable.waveFree(p.ptr, w);
+    pub fn mixConfigureInit(p: Platform, channels: u16, rate_khz: u16) MixSession {
+        return p.vtable.mixConfigureInit(p.ptr, channels, rate_khz);
     }
-    pub fn wavePlay(p: Platform, channel: u8, w: Wave, loops: i16) bool {
-        return p.vtable.wavePlay(p.ptr, channel, w, loops);
+    pub fn mixOpenChannel(p: Platform, s: MixSession, channel: i16, flags: u32) u16 {
+        return p.vtable.mixOpenChannel(p.ptr, s, channel, flags);
     }
-    pub fn waveFlush(p: Platform, channel: u8) void {
-        p.vtable.waveFlush(p.ptr, channel);
+    pub fn mixCloseChannel(p: Platform, s: MixSession, channel: i16, flags: u32) u16 {
+        return p.vtable.mixCloseChannel(p.ptr, s, channel, flags);
     }
-    pub fn mixActivate(p: Platform, active: bool) bool {
-        return p.vtable.mixActivate(p.ptr, active);
+    pub fn mixCloseSession(p: Platform, s: MixSession) u16 {
+        return p.vtable.mixCloseSession(p.ptr, s);
+    }
+    pub fn mixActivate(p: Platform, s: MixSession, active: bool) u16 {
+        return p.vtable.mixActivate(p.ptr, s, active);
+    }
+    pub fn waveOpen(p: Platform, s: MixSession, path: []const u8) ?Wave {
+        return p.vtable.waveOpen(p.ptr, s, path);
+    }
+    pub fn waveFree(p: Platform, s: MixSession, w: Wave) u16 {
+        return p.vtable.waveFree(p.ptr, s, w);
+    }
+    pub fn wavePlay(p: Platform, params: PlayParams) u16 {
+        return p.vtable.wavePlay(p.ptr, params);
+    }
+    pub fn waveFlush(p: Platform, s: MixSession, channel: i16, flags: u32) u16 {
+        return p.vtable.waveFlush(p.ptr, s, channel, flags);
     }
     pub fn mciString(p: Platform, command: []const u8) u32 {
         return p.vtable.mciString(p.ptr, command);
@@ -186,7 +301,7 @@ pub const Platform = struct {
     pub fn showMain(p: Platform, show: bool) void {
         p.vtable.showMain(p.ptr, show);
     }
-    pub fn messageBox(p: Platform, caption: []const u8, text: []const u8) void {
-        p.vtable.messageBox(p.ptr, caption, text);
+    pub fn messageBox(p: Platform, caption: []const u8, text: []const u8, style: u16) i16 {
+        return p.vtable.messageBox(p.ptr, caption, text, style);
     }
 };
