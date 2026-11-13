@@ -2,6 +2,9 @@
 //! `false`: the port reproduces the original. A unit that ports buggy code
 //! reads `g.fixes.<flag>` at the bug site and keeps both paths.
 //!
+//! Not bugs but choices: `quit_on_ini_error` (quit where the original only
+//! shows a message box and carries on).
+//!
 //! Latent bugs (L1–L4) are not flags: the port never executes them either,
 //! and where it would, it returns an error instead of corrupting memory.
 //! Add a flag here (with its BUGS.md id) when you port a bug's site.
@@ -26,4 +29,7 @@ pub const Fixes = struct {
     opaque_copy_black_tail: bool = false,
     /// U1: draw the status-bar text.
     status_bar_text: bool = false,
+    /// `ini_fatal_error` ("Erro Fatal!") quits (`error.Fatal`) instead of
+    /// returning 0 and letting the caller carry on as the original does.
+    quit_on_ini_error: bool = false,
 };

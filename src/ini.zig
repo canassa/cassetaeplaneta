@@ -4,14 +4,19 @@
 //! moves around with `_llseek`; the port does the same through the platform's
 //! DOS file calls. State (`g_ini*`) lives in `modstate.Ini`. Every reader
 //! takes the platform, the open file and (when it touches it) the `Ini` state.
-//! The original's `ini_fatal_error` shows a message box and returns 0, after
-//! which callers carry on; here it is `error.Fatal` (docs/DESIGN.md).
+//! The original's `ini_fatal_error` only shows the "Erro Fatal!" box and
+//! returns 0; callers carry on with that value, and so does the port.
+//! `Fixes.quit_on_ini_error` makes it return `error.Fatal` instead (quit).
+//! The readers that can reach it take `fixes` by value.
 //!
 //! Known divergences, all in data the game never has:
 //! - The CRT `_ctype` table is read for bytes >= 0x80 at negative indices, into
 //!   unrelated DGROUP bytes; here those bytes are neither space nor letters.
 //! - Token/line buffers are written unchecked by the original; an overflow is
 //!   `error.LimitExceeded`.
+//! - At end of file `ini_read_line` / `ini_read_token` return without
+//!   terminating the buffer; the port's buffers start zeroed, so what a
+//!   caller then reads is empty instead of stale stack bytes.
 
 const std = @import("std");
 const platform = @import("platform/platform.zig");
@@ -22,8 +27,10 @@ const crt = @import("core/crt.zig");
 const modstate = @import("core/modstate.zig");
 const Ini = modstate.Ini;
 const ini_sections = @import("ini_sections.zig");
+const Fixes = @import("core/fixes.zig").Fixes;
+const errors = @import("core/errors.zig");
 
-pub const Error = error{ Fatal, LimitExceeded };
+pub const Error = errors.Error;
 
 /// Messages (Latin-1, as in the original's code segment).
 const msg_unexpected_eof = "Fim de arquivo n\xe3o esperado!";
@@ -55,12 +62,13 @@ fn unread(plat: Platform, fd: File) void {
     _ = plat.seek(fd, -1, .cur);
 }
 
-/// Shows `msg` in the "Erro Fatal!" box (the original returns 0 and goes on;
-/// the port propagates the returned error).
+/// Shows `msg` in the "Erro Fatal!" box (MB_OK) and returns 0; the program
+/// goes on. With `fixes.quit_on_ini_error`, returns `error.Fatal` instead.
 // @orig 1018:98d0 ini_fatal_error
-pub fn fatalError(plat: Platform, msg: []const u8) error{Fatal} {
+pub fn fatalError(plat: Platform, fixes: Fixes, msg: []const u8) error{Fatal}!i16 {
     _ = plat.messageBox("Erro Fatal!", msg, platform.mb.ok);
-    return error.Fatal;
+    if (fixes.quit_on_ini_error) return error.Fatal;
+    return 0;
 }
 
 /// Formats `fmt` (C printf syntax) with one 32-bit argument and shows it in a
@@ -109,25 +117,25 @@ pub fn messageBoxPrintf(plat: Platform, buf: []u8, caption: []const u8, fmt: []c
 /// Returns 1. The original indexes the table by `g_iniSectionBuild`, which is
 /// never reset, and copies the name into the 40-byte field unchecked.
 // @orig 1018:98f2 ini_build_section_index
-pub fn buildSectionIndex(ini: *Ini, plat: Platform, fd: File) Error!i16 {
+pub fn buildSectionIndex(ini: *Ini, plat: Platform, fixes: Fixes, fd: File) Error!i16 {
     while (true) {
-        const c = try nextChar(ini, plat, fd);
+        const c = try nextChar(ini, plat, fixes, fd);
         if (c == 0) {
             ini.sections.count = ini.sectionBuild;
             return 1;
         }
         if (c != '[') {
-            _ = try readLine(plat, fd, null);
+            _ = try readLine(plat, fixes, fd, null);
             continue;
         }
-        var name: [51]u8 = undefined;
-        try readToken(plat, fd, &name, ']');
+        var name: [51]u8 = @splat(0);
+        _ = try readToken(plat, fixes, fd, &name, ']');
         const len = cstr.slice(&name).len;
         if (ini.sectionBuild < 0 or ini.sectionBuild >= ini_sections.max_sections or len >= ini_sections.name_len)
             return error.LimitExceeded;
         const entry = &ini.sections.entries[@intCast(ini.sectionBuild)];
         @memcpy(entry.name[0 .. len + 1], name[0 .. len + 1]);
-        _ = try readLine(plat, fd, null);
+        _ = try readLine(plat, fixes, fd, null);
         entry.offset = plat.seek(fd, 0, .cur);
         ini.sectionBuild += 1;
     }
@@ -136,10 +144,10 @@ pub fn buildSectionIndex(ini: *Ini, plat: Platform, fd: File) Error!i16 {
 /// Next character that is not white space or a newline, skipping `;` comment
 /// lines; remembers it in `ini.lastChar`. 0 at end of file.
 // @orig 1018:99fa ini_next_char
-pub fn nextChar(ini: *Ini, plat: Platform, fd: File) Error!u8 {
+pub fn nextChar(ini: *Ini, plat: Platform, fixes: Fixes, fd: File) Error!u8 {
     while (true) {
         var c = readByte(plat, fd) orelse return 0;
-        if (c == ';') c = try skipLine(plat, fd);
+        if (c == ';') c = try skipLine(plat, fixes, fd);
         if (isSpace(c) or c == '\n') continue;
         ini.lastChar = c;
         return c;
@@ -148,17 +156,18 @@ pub fn nextChar(ini: *Ini, plat: Platform, fd: File) Error!u8 {
 
 /// Discards the rest of the current line; returns its terminator.
 // @orig 1018:9a4e ini_skip_line
-pub fn skipLine(plat: Platform, fd: File) Error!u8 {
-    return readLine(plat, fd, null);
+pub fn skipLine(plat: Platform, fixes: Fixes, fd: File) Error!u8 {
+    return readLine(plat, fixes, fd, null);
 }
 
 /// Reads up to and including the next CR or LF into `buf` (when not null),
-/// NUL-terminated; returns the last character read. End of file is fatal.
+/// NUL-terminated; returns the last character read. At end of file: the
+/// fatal box, 0, and the buffer is left unterminated.
 // @orig 1018:9a68 ini_read_line
-pub fn readLine(plat: Platform, fd: File, buf: ?[]u8) Error!u8 {
+pub fn readLine(plat: Platform, fixes: Fixes, fd: File, buf: ?[]u8) Error!u8 {
     var n: usize = 0;
     while (true) {
-        const c = readByte(plat, fd) orelse return fatalError(plat, msg_unexpected_eof);
+        const c = readByte(plat, fd) orelse return @intCast(try fatalError(plat, fixes, msg_unexpected_eof));
         if (buf) |b| {
             if (n + 1 >= b.len) return error.LimitExceeded;
             b[n] = c;
@@ -172,12 +181,13 @@ pub fn readLine(plat: Platform, fd: File, buf: ?[]u8) Error!u8 {
 }
 
 /// Reads characters up to `delim` into `buf`, dropping white space and
-/// lower-casing letters; NUL-terminated. End of file is fatal.
+/// lower-casing letters; NUL-terminated. Returns 1; at end of file the
+/// fatal box's 0, with the buffer unterminated.
 // @orig 1018:9b02 ini_read_token
-pub fn readToken(plat: Platform, fd: File, buf: []u8, delim: u8) Error!void {
+pub fn readToken(plat: Platform, fixes: Fixes, fd: File, buf: []u8, delim: u8) Error!i16 {
     var n: usize = 0;
     while (true) {
-        const c = readByte(plat, fd) orelse return fatalError(plat, msg_unexpected_eof);
+        const c = readByte(plat, fd) orelse return fatalError(plat, fixes, msg_unexpected_eof);
         if (c == delim) break;
         if (isSpace(c) or c == '\n') continue;
         if (n + 1 >= buf.len) return error.LimitExceeded;
@@ -185,6 +195,7 @@ pub fn readToken(plat: Platform, fd: File, buf: []u8, delim: u8) Error!void {
         n += 1;
     }
     buf[n] = 0;
+    return 1;
 }
 
 /// From the current position, scans the lines of the current section for
@@ -193,13 +204,13 @@ pub fn readToken(plat: Platform, fd: File, buf: []u8, delim: u8) Error!void {
 /// when a line starts with another letter than the key's first (the
 /// original compares that first byte exactly, a quirk kept as is).
 // @orig 1018:9bbe ini_find_key
-pub fn findKey(ini: *Ini, plat: Platform, fd: File, key: []const u8) Error!bool {
+pub fn findKey(ini: *Ini, plat: Platform, fixes: Fixes, fd: File, key: []const u8) Error!bool {
     const k = cstr.slice(key);
     const first: u8 = if (k.len > 0) k[0] else 0;
     ini.sectionEnd = 0;
     ini.keySearch = 1;
     while (true) {
-        const c = try nextChar(ini, plat, fd);
+        const c = try nextChar(ini, plat, fixes, fd);
         if (c == '[') {
             ini.sectionEnd = 1;
             ini.keySearch = 0;
@@ -207,10 +218,10 @@ pub fn findKey(ini: *Ini, plat: Platform, fd: File, key: []const u8) Error!bool 
         }
         unread(plat, fd);
         if (first != ini.lastChar) break;
-        var token: [256]u8 = undefined;
-        try readToken(plat, fd, &token, '=');
+        var token: [256]u8 = @splat(0);
+        _ = try readToken(plat, fixes, fd, &token, '=');
         if (cstr.eqlIgnoreCase(&token, k)) return true;
-        _ = try readLine(plat, fd, null);
+        _ = try readLine(plat, fixes, fd, null);
     }
     ini.keySearch = 0;
     return false;
@@ -229,13 +240,14 @@ pub fn close(plat: Platform, fd: File) void {
 }
 
 /// Positions the file in the named section: just after its header when
-/// `after_header`, otherwise back on its `[`. An unknown section is fatal.
+/// `after_header`, otherwise back on its `[`. Returns 1; an unknown section
+/// (or no `[` before it) shows the fatal box and returns 0.
 // @orig 1018:9caa ini_seek_section
-pub fn seekSection(ini: *const Ini, plat: Platform, fd: File, name: []const u8, after_header: bool) Error!void {
+pub fn seekSection(ini: *const Ini, plat: Platform, fixes: Fixes, fd: File, name: []const u8, after_header: bool) Error!i16 {
     const off = ini_sections.findSectionOffset(&ini.sections, name);
-    if (off == -1) return fatalError(plat, msg_no_section);
+    if (off == -1) return fatalError(plat, fixes, msg_no_section);
     _ = plat.seek(fd, off, .set);
-    if (after_header) return;
+    if (after_header) return 1;
     // The original tests an uninitialised stack byte before the first read;
     // it is taken as "not '['" (the offset is past the header, so the first
     // byte read is never the '[' anyway).
@@ -243,10 +255,10 @@ pub fn seekSection(ini: *const Ini, plat: Platform, fd: File, name: []const u8, 
     while (true) {
         if (c == '[') {
             unread(plat, fd);
-            return;
+            return 1;
         }
         _ = plat.seek(fd, -2, .cur);
-        c = readByte(plat, fd) orelse return fatalError(plat, msg_no_section_start);
+        c = readByte(plat, fd) orelse return fatalError(plat, fixes, msg_no_section_start);
     }
 }
 
@@ -269,8 +281,8 @@ pub fn assetPath(ini: *Ini, drive_cd: []const u8, drive_hd: []const u8, name: []
 
 /// The next non-blank character, not consumed.
 // @orig 1018:9dec ini_peek_char
-pub fn peekChar(ini: *Ini, plat: Platform, fd: File) Error!u8 {
-    const c = try nextChar(ini, plat, fd);
+pub fn peekChar(ini: *Ini, plat: Platform, fixes: Fixes, fd: File) Error!u8 {
+    const c = try nextChar(ini, plat, fixes, fd);
     unread(plat, fd);
     return c;
 }
@@ -330,12 +342,14 @@ fn scanInt(line: []const u8, p: *usize) ?i32 {
 /// and its last number to `value`. The numbers read are left in `cache`
 /// (`g_waveCacheA..C`, the sound unit's `cache`), also for non-matching lines.
 /// True when found or when the section ends; false when no `WAVE=` key is
-/// left; a malformed line is fatal. `wave_name` and `value` are only written
+/// left; a malformed line shows the fatal box and returns false. `wave_name`
+/// and `value` are only written
 /// for lines that are parsed (maybe not the matching one).
 // @orig 1018:aa14 ini_find_wave
 pub fn findWave(
     ini: *Ini,
     plat: Platform,
+    fixes: Fixes,
     fd: File,
     number: i16,
     arg2: i16,
@@ -344,23 +358,22 @@ pub fn findWave(
     wave_name: []u8,
     value: *i16,
 ) Error!bool {
-    var line: [257]u8 = undefined;
-    line[0] = 0;
+    var line: [257]u8 = @splat(0);
     while (true) {
-        const p = try peekChar(ini, plat, fd);
+        const p = try peekChar(ini, plat, fixes, fd);
         const c = if (isLower(p)) p - 0x20 else p;
         // The original peeks a second time; the file position is unchanged.
-        _ = try peekChar(ini, plat, fd);
+        _ = try peekChar(ini, plat, fixes, fd);
         if (c == 'W') {
-            if (!try findKey(ini, plat, fd, "WAVE")) return false;
-            _ = try readLine(plat, fd, &line);
+            if (!try findKey(ini, plat, fixes, fd, "WAVE")) return false;
+            _ = try readLine(plat, fixes, fd, &line);
             if (scanWave(cstr.slice(&line), cache, wave_name, value) != 5)
-                return fatalError(plat, msg_wave_fields);
+                return try fatalError(plat, fixes, msg_wave_fields) != 0;
             if (cache[0] == @as(u16, @bitCast(number)) and
                 @as(u16, @bitCast(arg2)) == cache[1] and
                 @as(u16, @bitCast(arg3)) == cache[2]) return true;
         }
-        _ = try readLine(plat, fd, null);
+        _ = try readLine(plat, fixes, fd, null);
         if (c == '[') return true;
     }
 }
@@ -405,7 +418,7 @@ test "buildSectionIndex and findWave agree with assets/CASSETA.INI" {
     const fd = open(plat, "\\CASSETA.INI") orelse return error.SkipZigTest;
     defer close(plat, fd);
     var ini: Ini = .{};
-    try std.testing.expectEqual(@as(i16, 1), try buildSectionIndex(&ini, plat, fd));
+    try std.testing.expectEqual(@as(i16, 1), try buildSectionIndex(&ini, plat, .{}, fd));
 
     // Oracle: every `[name]` line; the offset is just after its CR (readLine stops at CR, before the LF).
     var expected: usize = 0;
@@ -438,7 +451,7 @@ test "buildSectionIndex and findWave agree with assets/CASSETA.INI" {
     var cache: [3]u16 = undefined;
     var name_buf: [50]u8 = undefined;
     var value: i16 = -1;
-    try std.testing.expect(try findWave(&ini, plat, fd, nums[0], nums[1], nums[2], &cache, &name_buf, &value));
+    try std.testing.expect(try findWave(&ini, plat, .{}, fd, nums[0], nums[1], nums[2], &cache, &name_buf, &value));
     try std.testing.expectEqualStrings(wname, cstr.slice(&name_buf));
     try std.testing.expectEqual(nums[3], value);
 }
