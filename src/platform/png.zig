@@ -48,6 +48,36 @@ pub fn encodePng(gpa: std.mem.Allocator, scr: *const p.Screen, out: *std.ArrayLi
     try chunk(gpa, out, "IEND", "");
 }
 
+/// Encodes 640×480 XRGB8888 pixels (as SDL reads them back) as an RGB PNG.
+pub fn encodeRgbPng(gpa: std.mem.Allocator, xrgb: []const u32, out: *std.ArrayList(u8)) !void {
+    const w = p.screen_width;
+    const h = p.screen_height;
+    try out.appendSlice(gpa, "\x89PNG\r\n\x1a\n");
+    var ihdr: [13]u8 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 8, 2, 0, 0, 0 };
+    std.mem.writeInt(u32, ihdr[0..4], w, .big);
+    std.mem.writeInt(u32, ihdr[4..8], h, .big);
+    try chunk(gpa, out, "IHDR", &ihdr);
+    const row = 1 + w * 3;
+    const raw = try gpa.alloc(u8, row * h);
+    defer gpa.free(raw);
+    for (0..h) |y| {
+        raw[y * row] = 0;
+        for (0..w) |x| {
+            const c = xrgb[y * w + x];
+            raw[y * row + 1 + x * 3 ..][0..3].* = .{ @truncate(c >> 16), @truncate(c >> 8), @truncate(c) };
+        }
+    }
+    var z: std.Io.Writer.Allocating = try .initCapacity(gpa, 64 * 1024);
+    defer z.deinit();
+    const window = try gpa.alloc(u8, flate.max_window_len);
+    defer gpa.free(window);
+    var c = try flate.Compress.init(&z.writer, window, .zlib, .level_1);
+    try c.writer.writeAll(raw);
+    try c.finish();
+    try chunk(gpa, out, "IDAT", z.written());
+    try chunk(gpa, out, "IEND", "");
+}
+
 fn chunk(gpa: std.mem.Allocator, out: *std.ArrayList(u8), kind: *const [4]u8, data: []const u8) !void {
     var len: [4]u8 = undefined;
     std.mem.writeInt(u32, &len, @intCast(data.len), .big);

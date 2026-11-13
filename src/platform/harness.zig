@@ -42,6 +42,9 @@ pub const Harness = struct {
     failed: bool = false,
     /// The time of the last `step`.
     now: u32 = 0,
+    /// The SDL backend: each dump also writes what the window shows, read
+    /// back from the renderer (`<name>-window.png`).
+    sdl: ?*@import("sdl.zig").Sdl = null,
 
     pub fn init(gpa: std.mem.Allocator, io: std.Io, opts: Options, assets_dir: []const u8) !Harness {
         var h: Harness = .{ .gpa = gpa, .io = io, .opts = opts, .assets_dir = assets_dir };
@@ -150,6 +153,20 @@ pub const Harness = struct {
         writeScreen(h.gpa, h.io, g.plat.screen(), path, h.opts.dump_bmp) catch |e| {
             std.log.err("dump {s}: {t}", .{ path, e });
         };
+        if (h.sdl) |s| {
+            const px = h.gpa.create([p.screen_width * p.screen_height]u32) catch return;
+            defer h.gpa.destroy(px);
+            if (!s.readBack(px)) {
+                std.log.err("dump: SDL read-back failed", .{});
+                return;
+            }
+            var out: std.ArrayList(u8) = .empty;
+            defer out.deinit(h.gpa);
+            png.encodeRgbPng(h.gpa, px, &out) catch return;
+            var wbuf: [520]u8 = undefined;
+            const wpath = std.fmt.bufPrint(&wbuf, "{s}-window.png", .{path[0 .. path.len - 4]}) catch return;
+            std.Io.Dir.cwd().writeFile(h.io, .{ .sub_path = wpath, .data = out.items }) catch |e| std.log.err("dump {s}: {t}", .{ wpath, e });
+        }
     }
 
     /// Switches to an INI scene. Without flags: those of the first exit

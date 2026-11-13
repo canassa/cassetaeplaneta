@@ -164,6 +164,7 @@ pub fn main(init: std.process.Init) !void {
         var s: platform.sdl.Sdl = undefined;
         try s.init(gpa, io, args.opts);
         defer s.deinit();
+        hn.sdl = &s;
         const g = try Game.create(gpa, s.platform());
         g.fixes = args.fixes;
         defer g.destroy();

@@ -65,6 +65,11 @@ const c = struct {
     extern "c" fn SDL_GetAudioStreamQueued(stream: *AudioStream) c_int;
     extern "c" fn SDL_DestroyAudioStream(stream: *AudioStream) void;
     extern "c" fn getenv(name: [*:0]const u8) ?[*:0]const u8;
+    /// SDL_Surface's public head (SDL 3).
+    const Surface = extern struct { flags: u32, format: u32, w: c_int, h: c_int, pitch: c_int, pixels: ?*anyopaque };
+    extern "c" fn SDL_RenderReadPixels(r: *Renderer, rect: ?*const anyopaque) ?*Surface;
+    extern "c" fn SDL_ConvertSurface(s: *Surface, format: u32) ?*Surface;
+    extern "c" fn SDL_DestroySurface(s: *Surface) void;
 };
 
 pub const Sdl = struct {
@@ -252,6 +257,22 @@ pub const Sdl = struct {
         _ = c.SDL_RenderClear(s.renderer);
         _ = c.SDL_RenderTexture(s.renderer, s.texture, null, null);
         _ = c.SDL_RenderPresent(s.renderer);
+    }
+
+    /// Test hook: what the renderer shows, read back from SDL (not the
+    /// game's 8-bit screen), as XRGB8888 into `out`. False on failure.
+    pub fn readBack(s: *Sdl, out: *[p.screen_width * p.screen_height]u32) bool {
+        const raw = c.SDL_RenderReadPixels(s.renderer, null) orelse return false;
+        defer c.SDL_DestroySurface(raw);
+        const conv = c.SDL_ConvertSurface(raw, c.pixelformat_xrgb8888) orelse return false;
+        defer c.SDL_DestroySurface(conv);
+        if (conv.w < p.screen_width or conv.h < p.screen_height) return false;
+        const base: [*]const u8 = @ptrCast(conv.pixels orelse return false);
+        for (0..p.screen_height) |y| {
+            const src: [*]align(1) const u32 = @ptrCast(base + y * @as(usize, @intCast(conv.pitch)));
+            @memcpy(out[y * p.screen_width ..][0..p.screen_width], src[0..p.screen_width]);
+        }
+        return true;
     }
 
     fn textOut(ptr: *anyopaque, surf: p.Surface, style: p.TextStyle, x: i16, y: i16, text: []const u8) bool {
