@@ -33,16 +33,11 @@ pub const State = struct {
     bed: ?*Object = null,
 };
 
-/// `SceneObject.wave` as the sound unit's handle (Object.wave is u8, Wave u16).
-fn waveOf(obj: *Object) ?u16 {
-    return if (obj.wave) |w| w else null;
-}
-
 /// The tail shared by left click and right click while the radio plays.
 fn stopRadio(g: *Game, s: *State, bd: *Backdrop) i16 {
     const radio = s.radio.?;
     animation.stopAndRedraw(g, radio, bd);
-    sound.stop(&g.sound, g.plat, waveOf(radio));
+    sound.stop(&g.sound, g.plat, radio.wave);
     occupancy.reoccupy(g, s.bed.?, g.scene.?.backdrop.?);
     s.radioOn = 0;
     return 0;
@@ -67,7 +62,7 @@ pub fn handle(g: *Game, m: Msg) i16 {
             const radio = s.radio.?;
             _ = frames.setCurFrame(radio, 0);
             tick.play(g, radio.as(.animation).?, bd);
-            _ = sound.play(g, msg.main_window, waveOf(hit));
+            _ = sound.play(g, msg.main_window, hit.wave);
             s.radioOn = 1;
             return 1;
         },
@@ -84,7 +79,7 @@ pub fn handle(g: *Game, m: Msg) i16 {
             return stopRadio(g, s, g.scene.?.backdrop.?);
         },
         msg.wm.mm_wom_done => {
-            if (s.radioOn != 0) _ = sound.play(g, msg.main_window, waveOf(s.radio.?));
+            if (s.radioOn != 0) _ = sound.play(g, msg.main_window, s.radio.?.wave);
             return 1;
         },
         msg.noite.scene_started => {

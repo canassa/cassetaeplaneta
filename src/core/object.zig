@@ -12,6 +12,7 @@
 
 const std = @import("std");
 const Condition = @import("world.zig").Condition;
+const Wave = @import("../platform/platform.zig").Wave;
 
 /// The instantiated classes. Mover, Animation and Player alone are never
 /// instantiated; Actor2D/Player2D are dead (not ported).
@@ -310,9 +311,6 @@ pub const StatusBarPart = struct {
     textX: i16 = 0,
 };
 
-/// A WaveMix wave opened by the `sound` unit (index into `Sound.waves`).
-pub const WaveRef = u8;
-
 pub const Object = struct {
     kind: Kind,
 
@@ -363,8 +361,9 @@ pub const Object = struct {
     clip: Rect = .{},
     // @orig SceneObject+0x478 (scene a persistent object belongs to)
     sceneName: [22]u8 = @splat(0),
-    // @orig SceneObject+0x48e (NomeWAVE)
-    wave: ?WaveRef = null,
+    // @orig SceneObject+0x48e (NomeWAVE: the WaveMix handle `sound.open`
+    // returned, NULL = none; pass it to `sound.play/stop` as is)
+    wave: ?Wave = null,
     // @orig SceneObject+0x492 (slots 00/01: "used/touched" mark)
     unk492: u16 = 0,
     // @orig SceneObject+0x494 (never set by the shipped game)

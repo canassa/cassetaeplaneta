@@ -33,9 +33,7 @@ pub fn handle(g: *Game, m: Msg) i16 {
     if (obj.id == 0x6f) {
         _ = frames.setCurFrame(obj, 0);
         animation.playOnce(g, obj, g.scene.?.backdrop.?);
-        // obj.wave indexes the wave table (the original holds the handle).
-        const wave = if (obj.wave) |w| g.sound.waves[w] else null;
-        _ = sound.play(g, msg.main_window, wave);
+        _ = sound.play(g, msg.main_window, obj.wave);
         return 1;
     }
     if (obj.id == 0x6e) _ = frames.setCurFrame(obj, 0);
