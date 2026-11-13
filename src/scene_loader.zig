@@ -43,8 +43,13 @@ const space3d = @import("behaviour/space3d.zig");
 const visibility = @import("behaviour/visibility.zig");
 
 /// Errors that end the original program or corrupt its memory: nothing in
-/// the shipped data reaches them.
+/// the shipped data reaches them, except `error.Fatal` (the original's
+/// `exit(1)` after its "Erro Fatal" box), which ends the run the same way.
 fn die(e: anyerror) noreturn {
+    if (e == error.Fatal) {
+        @import("std").log.err("the original exits here: exit(1) after its \"Erro Fatal\" box", .{});
+        @import("std").process.exit(1);
+    }
     @panic(@errorName(e));
 }
 
