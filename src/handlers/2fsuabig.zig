@@ -164,7 +164,12 @@ pub fn handle(g: *Game, m: Msg) i16 {
                 return 0;
             }
             // A wrong offer: the item goes back to the player's inventory.
-            const item = must(Object, g.selectedItem).as(.portable) orelse @panic("2fsuabig: asPortable returned NULL");
+            // With only `hitObject` set (a right click on anything, then any
+            // wave end) there is no item: the original reads through NULL
+            // (BUGS.md B24).
+            if (g.selectedItem == null and g.fixes.reply_without_item) return 0;
+            const sel = g.selectedItem orelse @panic("2fsuabig: reply end with no item selected (original GPF, BUGS.md B24)");
+            const item = sel.as(.portable) orelse @panic("2fsuabig: asPortable returned NULL");
             s.returnedItem = item;
             _ = portable.pickUp(g, item, must(Object, must(Object, g.player).as(.player)));
             frames.resetRects(item);

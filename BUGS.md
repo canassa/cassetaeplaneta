@@ -282,15 +282,18 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   are parked (`object_init.sceneObjectDtor`), the cut-off ones stay unfreed as in the original.
 - **Confidence:** 8.
 
-### B24. A right click on the boys in the bar crashes the game (4fbarboy)
-- **Where:** `handler_4fbarboy` 1020:a050, MM_WOM_DONE: with no dialogue flag set and `g_s4fbarboyRightItem`
-  0 it takes the wrong-item path and reads `Game.selectedItem->scoreMisuse` unchecked.
-- **What the code does:** the handler swallows right clicks on most of its objects, but not on the boys
+### B24. A wave that ends with no item offered crashes the bar and the hold-up (4fbarboy, 2fsuabig)
+- **Where:** `handler_4fbarboy` 1020:a050 and `handler_2fsuabig` 1020:0000, MM_WOM_DONE: the wrong-item path
+  reads `Game.selectedItem` unchecked. 4fbarboy gets there with no dialogue flag set and
+  `g_s4fbarboyRightItem` 0; 2fsuabig only tests that the selected item *and* the hit object are both NULL.
+- **What the code does:** 4fbarboy swallows right clicks on most of its objects, but not on the boys
   (228, `garots08`): the engine default plays their NomeWAVE, and its end arrives with no item selected.
+  In 2fsuabig any right click stores the object under it in `g_s2fsuabigHitObject`, so the next wave end
+  (with no item) passes the test.
 - **Effect:** a NULL far-pointer read: a general protection fault (the game is closed by Windows).
-- **Port:** panics naming this bug, as the original faults; `Fixes.barboy_reply_without_item` ignores
-  that wave end.
-- **Confidence:** 7 (code; that the boys' click reaches the engine default).
+- **Port:** panics naming this bug, as the original faults; `Fixes.reply_without_item` ignores that wave
+  end.
+- **Confidence:** 7 (code; which clicks lead there).
 
 ## Harmless: wrong paths rescued by the wave fallback
 

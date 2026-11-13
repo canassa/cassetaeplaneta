@@ -457,7 +457,7 @@ fn waveDone(g: *Game, s: *State) i16 {
         // Any other wave that ends here (the boys' line after a right
         // click on them) comes with no item: the original reads through
         // the NULL pointer and faults (BUGS.md B24).
-        if (g.selectedItem == null and g.fixes.barboy_reply_without_item) return 0;
+        if (g.selectedItem == null and g.fixes.reply_without_item) return 0;
         const sel = g.selectedItem orelse @panic("4fbarboy: reply end with no item selected (original GPF, BUGS.md B24)");
         g.score +%= sel.portable.scoreMisuse;
         const item = sel.as(.portable) orelse @panic("4fbarboy: asPortable returned NULL");
