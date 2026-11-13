@@ -146,6 +146,21 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
 - **Evidence:** disassembly of 1010:04c4–04d7 and 1010:05c6.
 - **Confidence:** 9 (code); 3 (that the shipped game ever reaches it).
 
+### B14. Every cutscene leaks its animation and bitmaps
+- **Where:** `scene_dtor` 1018:2896; `Scene.animation` (+0x94), set by `ini_scene_create` for an
+  `Is_1Animation` scene (its own `Exit=` line, never added to the scene's object list).
+- **What the code does:** the destructor deletes the objects of the scene's list and the backdrop, but
+  nothing ever deletes `Scene+0x94` (no function that reads it frees it; `GlobalFree` is called only
+  by `load_dib`, `frame_dtor`, `scene_object_dtor`, `backdrop_dtor` and the CRT).
+- **Effect:** each 1Animation scene left (intro, cutscenes, the 6fsaida endings…) keeps its Exit object,
+  its strip array and its 640×480 DIB (≈300 KB of global memory) until the program ends. A long session
+  slowly eats memory; Windows reclaims it at exit.
+- **Port:** the object is parked in `Game.leakedObjects` (freed after `app_exit`, as Windows would);
+  `Fixes.free_scene_animation` deletes it in the scene destructor.
+- **Evidence:** disassembly of 1018:2896; xrefs of +0x94 (scene_ctor, ini_scene_create,
+  ini_scene_handle_message, handler_1fcozin0, two object helpers — none frees it).
+- **Confidence:** 9 (code); 5 (that the growth is ever noticed).
+
 ## Harmless: wrong paths rescued by the wave fallback
 
 `wave_open` retries `<root>pan\wav\<file name>.wav`, and `PAN\WAV\` holds a copy of almost every wave, so these

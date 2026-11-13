@@ -171,6 +171,12 @@ pub const Game = struct {
     dibPathBuf: [50]u8 = @splat(0),
     ini: modstate.Ini = .{},
     sound: modstate.Sound = .{},
+    // Memory the original never frees (not a global of the original). Win16
+    // frees a task's global memory when it ends, so these blocks stay
+    // allocated for the rest of the run, as in the original, and `main`
+    // releases them after app_exit (`reclaimLeaks`).
+    leakedObjects: std.ArrayList(*Object) = .empty,
+    leakedDibs: std.ArrayList(*object.Dib) = .empty,
     /// The scene handlers' globals (`handler.SceneStates`).
     scenes: handler.SceneStates = .{},
 
@@ -181,8 +187,31 @@ pub const Game = struct {
     }
 
     pub fn destroy(g: *Game) void {
+        g.leakedObjects.deinit(g.gpa);
+        g.leakedDibs.deinit(g.gpa);
         g.scene_arena.deinit();
         g.gpa.destroy(g);
+    }
+
+    /// Parks an object the original leaks (see `leakedObjects`). Out of
+    /// memory for the list: the object is simply lost, as in the original.
+    pub fn leakObject(g: *Game, obj: *Object) void {
+        g.leakedObjects.append(g.gpa, obj) catch {};
+    }
+
+    /// Parks a DIB the original leaks (see `leakedObjects`).
+    pub fn leakDib(g: *Game, d: *object.Dib) void {
+        g.leakedDibs.append(g.gpa, d) catch {};
+    }
+
+    /// Frees the parked DIBs (the parked objects need the units' destructors:
+    /// `main` deletes them first). What Windows does when the task ends.
+    pub fn reclaimLeakedDibs(g: *Game) void {
+        for (g.leakedDibs.items) |d| {
+            g.gpa.free(d.bits);
+            g.gpa.destroy(d);
+        }
+        g.leakedDibs.clearRetainingCapacity();
     }
 
     /// A handler's globals: `const s = g.sceneState(State);`.
@@ -209,6 +238,11 @@ pub const Game = struct {
     }
     pub fn killTimer(g: *Game, id: u16) void {
         _ = g.queue.killTimer(.normal, id);
+    }
+    /// PostQuitMessage: sets the queue's quit flag (it cannot fail); WM_QUIT
+    /// comes once the posted messages are drained.
+    pub fn postQuitMessage(g: *Game) void {
+        g.queue.quit_pending = true;
     }
     /// SetSystemTimer (USER ordinal 11, g_setSystemTimer) → WM_SYSTIMER.
     pub fn setSystemTimer(g: *Game, id: u16, ms: u16) void {

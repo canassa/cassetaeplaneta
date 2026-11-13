@@ -111,13 +111,26 @@ fn run(g: *Game, stop_at: ?u32) !void {
         if (stop_at) |limit| if (g.plat.ticks() >= limit) break;
         g.plat.wait(g.queue.nextDue());
     }
+    // WinMain calls app_exit after the message loop (also when the headless
+    // time limit ends the run).
+    if (comptime @hasDecl(units.app, "exit")) units.app.exit(g);
+    reclaimLeaks(g);
+}
+
+/// What Windows does when the task ends: frees the memory the original
+/// never released (`Game.leakedObjects` / `leakedDibs`).
+fn reclaimLeaks(g: *Game) void {
+    for (g.leakedObjects.items) |o| units.object_init.sceneObjectScalarDtor(g, o, 1);
+    g.leakedObjects.clearRetainingCapacity();
+    g.reclaimLeakedDibs();
 }
 
 /// A platform event, as Windows would hand it to the game.
 fn deliver(g: *Game, ev: platform.api.Event) void {
     switch (ev) {
-        // WM_CLOSE → DefWindowProc → DestroyWindow → WM_DESTROY.
-        .quit => _ = g.send(.{ .id = wm.destroy }),
+        // Closing the window sends WM_CLOSE (through the game first, then
+        // DefWindowProc → DestroyWindow → WM_DESTROY).
+        .quit => _ = g.send(.{ .id = wm.close }),
         // WM_ACTIVATE is sent, not posted.
         .activate => |on| _ = g.send(.{ .id = wm.activate, .wparam = @intFromBool(on) }),
         .input => |m| g.queue.postInput(m),

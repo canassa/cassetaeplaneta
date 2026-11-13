@@ -31,6 +31,9 @@ pub const Fixes = struct {
     opaque_copy_black_tail: bool = false,
     /// B13: load_dib closes a bitmap file it cannot read as a DIB.
     close_unreadable_dib: bool = false,
+    /// B14: the scene destructor deletes the Is_1Animation scene's own
+    /// animation object (and its bitmaps) too.
+    free_scene_animation: bool = false,
     /// U1: draw the status-bar text.
     status_bar_text: bool = false,
     /// `ini_fatal_error` ("Erro Fatal!") quits (`error.Fatal`) instead of

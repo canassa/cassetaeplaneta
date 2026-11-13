@@ -72,7 +72,9 @@ pub fn iniSceneCtor(scene: *Scene, ini_file: i16, name: []const u8, has_player: 
 // @orig 1018:2896 scene_dtor
 /// Resets the game's sorted draw pool, deletes every object of the scene's
 /// list (base scalar destructor) and the backdrop (allocated with
-/// `g.gpa`; the pointer is cleared after the free).
+/// `g.gpa`; the pointer is cleared after the free). The Is_1Animation
+/// scene's own Exit object (`animation`, not in the list) is never deleted
+/// (BUGS.md B14): it is parked with `g.leakObject` unless the fix is on.
 pub fn dtor(g: *Game, scene: *Scene) void {
     var cur = scene.objects.head;
     draw_list.reset(&g.drawList);
@@ -87,6 +89,10 @@ pub fn dtor(g: *Game, scene: *Scene) void {
         _ = backdrop.scalarDtor(g, bd, 1);
         g.gpa.destroy(bd);
         scene.backdrop = null;
+    }
+    if (scene.animation) |a| {
+        if (g.fixes.free_scene_animation) object_init.sceneObjectScalarDtor(g, a, 1) else g.leakObject(a);
+        scene.animation = null;
     }
 }
 

@@ -83,9 +83,17 @@ pub fn sceneObjectCtor(
 /// frees `rleBits`' global block — the very block of the strip's DIB that
 /// the strip destructor just freed (a double free there). The port's
 /// `rleBits` only aliases the DIB bits, so it is just dropped.
+/// No code of the original frees a Portable's inventory icon (GlobalFree is
+/// called only by load_dib, frame_dtor, this destructor, backdrop_dtor and
+/// the CRT): the block lives until the task ends, so the port parks it
+/// (`g.leakDib`).
 pub fn sceneObjectDtor(g: *Game, obj: *Object) void {
     if (obj.frames.len != 0) frames.frameVectorDtor(g, obj);
     if (misc.isRle(g, obj)) obj.rleBits = null;
+    if (obj.kind == .portable) if (obj.portable.icon) |d| {
+        g.leakDib(d);
+        obj.portable.icon = null;
+    };
 }
 
 // @orig 1010:d762 scene_object_scalar_dtor
