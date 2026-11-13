@@ -70,7 +70,10 @@ pub const Headless = struct {
         return &self(ptr).screen_buf;
     }
     fn present(ptr: *anyopaque) void {
-        self(ptr).presents += 1;
+        const h = self(ptr);
+        h.presents += 1;
+        // Frame dumps: AVI frames that fell due (only with decode_video).
+        _ = h.sim.videoUpdate(h.now, &h.screen_buf);
     }
     fn textOut(ptr: *anyopaque, surf: p.Surface, style: p.TextStyle, x: i16, y: i16, text: []const u8) bool {
         return self(ptr).sim.textOut(surf, style, x, y, text);

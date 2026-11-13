@@ -36,6 +36,8 @@ pub const Game = struct {
     wndProc: WndProc = noWndProc,
     /// Message log for trace diffing (null = off).
     trace: ?*std.ArrayList(u8) = null,
+    /// The last messages dispatched (debugging: printed on a panic).
+    trail: Trail = .{},
     quit: bool = false,
 
     // ---- struct Game ----
@@ -225,6 +227,8 @@ pub const Game = struct {
     /// SendMessage(main window): dispatched at once, nested.
     pub fn send(g: *Game, m: Msg) i32 {
         g.log('S', m);
+        g.trail.depth +|= 1;
+        defer g.trail.depth -|= 1;
         return g.wndProc(g, m);
     }
 
@@ -268,12 +272,37 @@ pub const Game = struct {
     }
 
     fn log(g: *Game, how: u8, m: Msg) void {
+        g.trail.push(g.plat.ticks(), how, m);
         const t = g.trace orelse return;
         var buf: [64]u8 = undefined;
         const line = std.fmt.bufPrint(&buf, "{d} {c} {x:0>4} {x:0>4} {x:0>8}\n", .{
             g.plat.ticks(), how, m.id, m.wparam, @as(u32, @bitCast(m.lparam)),
         }) catch return;
         t.appendSlice(g.gpa, line) catch {};
+    }
+};
+
+/// A ring of the last messages the window procedure got (`S` sent, `Q`
+/// from the queue), with the SendMessage nesting depth. Debugging only.
+pub const Trail = struct {
+    pub const len = 64;
+    pub const Entry = struct { at: u32, how: u8, depth: u8, m: Msg };
+    entries: [len]Entry = undefined,
+    count: usize = 0,
+    depth: u8 = 0,
+
+    pub fn push(t: *Trail, at: u32, how: u8, m: Msg) void {
+        t.entries[t.count % len] = .{ .at = at, .how = how, .depth = t.depth, .m = m };
+        t.count += 1;
+    }
+
+    /// Number of entries kept; `get(0)` is the oldest.
+    pub fn size(t: *const Trail) usize {
+        return @min(t.count, len);
+    }
+    pub fn get(t: *const Trail, i: usize) Entry {
+        const start = t.count - t.size();
+        return t.entries[(start + i) % len];
     }
 };
 
