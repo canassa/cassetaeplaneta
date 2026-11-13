@@ -12,8 +12,11 @@ such; a click 3 s into the 22 s opening video skips it to the title
 screen (title.png); JOGAR then NOVO JOGO start a new game whose opening
 video Esc skips to the bedroom, 1fquarbo (bedroom.png); a right click on
 desk drawer 3 opens 1fgvboy3 (drawer.png), as in tools/play/full.input.
-Then the footer link reloads into the Corrigida version: the loader shows
-it chosen, the load comes from Cache Storage (cache.png) and is quicker,
+At 1280×960, 1920×1080, two phone sizes and an exact 2× (no letterbox)
+the canvas fills the window in one dimension, keeps its aspect ratio, is
+centred, and the tool buttons stay in the window and off the game unless
+the letterbox has no room for them (window-WxH.png). Then the version
+button reloads into the Corrigida version: the loader shows it chosen, the load comes from Cache Storage (cache.png) and is quicker,
 and the wasm has every fix on. Exits non-zero on the first failed check
 or on a page error.
 """
@@ -104,6 +107,27 @@ def main():
         def shot(name):
             page.locator("#screen").screenshot(path=str(out / name))
 
+        def check_fit(vw, vh):
+            page.set_viewport_size({"width": vw, "height": vh})
+            time.sleep(0.5)
+            box = page.locator("#screen").bounding_box()
+            tools = page.locator("#tools").bounding_box()
+            overlay = page.evaluate("document.getElementById('tools').classList.contains('overlay')")
+            page.screenshot(path=str(out / f"window-{vw}x{vh}.png"))
+            what = f"{vw}x{vh}: canvas {box['width']:.1f}x{box['height']:.1f} at {box['x']:.1f},{box['y']:.1f}"
+            check(abs(box["width"] - vw) <= 1 or abs(box["height"] - vh) <= 1, f"{what} fills the window")
+            check(abs(box["width"] / box["height"] - 638 / 459) < 0.005, f"{vw}x{vh}: aspect ratio kept")
+            check(abs(box["x"] * 2 + box["width"] - vw) <= 1 and abs(box["y"] * 2 + box["height"] - vh) <= 1,
+                  f"{vw}x{vh}: centred")
+            inside = tools["x"] >= 0 and tools["y"] >= 0 and tools["x"] + tools["width"] <= vw \
+                and tools["y"] + tools["height"] <= vh
+            apart = (tools["x"] >= box["x"] + box["width"] or tools["x"] + tools["width"] <= box["x"]
+                     or tools["y"] >= box["y"] + box["height"] or tools["y"] + tools["height"] <= box["y"])
+            room = max(vw - box["width"], vh - box["height"]) / 2
+            check(inside and (apart or (overlay and room < tools["height"])),
+                  f"{vw}x{vh}: tools {'over the game' if overlay else 'in the letterbox'}"
+                  f" ({tools['width']:.0f}x{tools['height']:.0f} at {tools['x']:.0f},{tools['y']:.0f})")
+
         def load():
             t0 = time.time()
             page.wait_for_function("window.noite.ready || window.noite.failure", timeout=600_000)
@@ -147,12 +171,14 @@ def main():
         check(peak > 1000, f"sound reaches WebAudio (peak sample {peak})")
         fs = page.evaluate("window.noite.frameStats")
         print(f"      {fs['frames']} frames, {fs['avgMs']:.2f} ms per game turn on average, worst {fs['worstMs']:.0f} ms")
+        for vw, vh in ((1920, 1080), (390, 844), (844, 390), (1276, 918), (1280, 960)):
+            check_fit(vw, vh)
         click(287, 275, "right")  # desk drawer 3
         check(wait_scene("1fgvboy3", 40), "a right click on the desk drawer opens it (1fgvboy3)")
         time.sleep(1.5)
         shot("drawer.png")
 
-        # The footer link reloads into the other version (after a confirm).
+        # The version button reloads into the other version (after a confirm).
         page.once("dialog", lambda d: d.accept())
         page.click("#switch")
         page.wait_for_load_state()

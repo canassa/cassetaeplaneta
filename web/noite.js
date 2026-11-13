@@ -371,12 +371,79 @@
     window.addEventListener("blur", () => wasm.noite_focus(false));
   }
 
+  /**
+   * Scales the canvas to the largest size that fits the window with the
+   * client area's aspect ratio (fractional, snapped to device pixels),
+   * centred on a black letterbox, and places the tool buttons: in the
+   * letterbox below or beside the game when it has room for them, else as
+   * a faint overlay in the top right corner. Input maps through the
+   * canvas's bounding box, so it stays exact at any scale.
+   */
   function fit() {
     const stage = $("stage");
-    const s = Math.min(stage.clientWidth / CW, stage.clientHeight / CH);
-    const scale = s >= 1 ? Math.floor(s) : s; // whole pixels when it fits
-    canvas.style.width = CW * scale + "px";
-    canvas.style.height = CH * scale + "px";
+    const sw = stage.clientWidth, sh = stage.clientHeight;
+    const dpr = window.devicePixelRatio || 1;
+    const s = Math.min(sw / CW, sh / CH);
+    const w = Math.floor(CW * s * dpr + 1e-6) / dpr, h = Math.floor(CH * s * dpr + 1e-6) / dpr;
+    canvas.style.width = w + "px";
+    canvas.style.height = h + "px";
+    placeTools(sw, sh, w, h);
+  }
+
+  const GAP = 4; // tools' distance from the game and the window edge
+
+  function placeTools(sw, sh, w, h) {
+    const tools = $("tools");
+    if (tools.hidden) return;
+    const below = (sh - h) / 2, side = (sw - w) / 2;
+    const st = tools.style;
+    st.left = st.right = st.top = st.bottom = "";
+    tools.className = "";
+    if (tools.offsetHeight <= below) {
+      // A strip under the game: centred in it, right-aligned with the game.
+      st.bottom = (below - tools.offsetHeight) / 2 + "px";
+      st.right = Math.max(GAP, side) + "px";
+      return;
+    }
+    for (const cls of ["", "column"]) {
+      tools.className = cls;
+      if (tools.offsetWidth + 2 * GAP <= side) {
+        // A strip beside the game: its bottom right corner.
+        st.right = (side - tools.offsetWidth) / 2 + "px";
+        st.bottom = Math.max(GAP, below) + "px";
+        return;
+      }
+    }
+    tools.className = "overlay";
+    st.top = Math.max(GAP, below + GAP) + "px";
+    st.right = Math.max(GAP, side + GAP) + "px";
+  }
+
+  const fullscreenElement = () => document.fullscreenElement || document.webkitFullscreenElement;
+
+  /** Fullscreen API, wrapped: false when the browser has none. */
+  function toggleFullscreen() {
+    const el = document.documentElement;
+    try {
+      if (fullscreenElement()) {
+        (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      } else {
+        const p = (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+        if (p && p.catch) p.catch(() => {});
+      }
+    } catch (e) {
+      console.warn("fullscreen:", e);
+    }
+  }
+
+  /** Refits on every change of the window's size or orientation. */
+  function watchSize() {
+    addEventListener("resize", fit);
+    addEventListener("orientationchange", fit);
+    if (window.visualViewport) visualViewport.addEventListener("resize", fit);
+    if (window.ResizeObserver) new ResizeObserver(fit).observe($("stage"));
+    document.addEventListener("fullscreenchange", fit);
+    document.addEventListener("webkitfullscreenchange", fit);
   }
 
   // ---- main ---------------------------------------------------------------------
@@ -434,18 +501,33 @@
     });
   }
 
-  /** The line under the canvas: the version, and a reload into the other one. */
-  function showFoot() {
+  /** The tool buttons: a reload into the other version, and fullscreen. */
+  function showTools() {
     const other = prefs.version === "original" ? "corrigida" : "original";
-    $("foot-version").textContent = `Versão ${VERSION_NAMES[prefs.version]} ·`;
-    $("switch").textContent = `jogar a versão ${VERSION_NAMES[other]}`;
-    $("switch").onclick = () => {
+    const sw = $("switch");
+    sw.textContent = `Versão ${VERSION_NAMES[prefs.version]} ⇄`;
+    sw.title = `Jogar a versão ${VERSION_NAMES[other]}`;
+    sw.onclick = () => {
+      sw.blur();
       if (!confirm(`Recarregar a página com a versão ${VERSION_NAMES[other]}? O que não foi salvo se perde.`)) return;
       writePrefs({ ...prefs, version: other });
       location.href = location.pathname + "?versao=" + other;
     };
-    $("foot").hidden = false;
-    document.body.classList.add("playing");
+    const fs = $("fullscreen");
+    fs.hidden = !(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+    fs.onclick = () => {
+      fs.blur();
+      toggleFullscreen();
+    };
+    // On a touch screen the faint overlay lights up for a while on a tap.
+    const tools = $("tools");
+    let dim = 0;
+    tools.addEventListener("pointerdown", () => {
+      tools.classList.add("lit");
+      clearTimeout(dim);
+      dim = setTimeout(() => tools.classList.remove("lit"), 3000);
+    });
+    tools.hidden = false;
   }
 
   async function main() {
@@ -467,9 +549,9 @@
       wasm._initialize();
       $("loader").hidden = true;
       canvas.hidden = false;
-      showFoot();
+      showTools();
       fit();
-      addEventListener("resize", fit);
+      watchSize();
       attachInput();
       const rc = wasm.noite_start(prefs.version === "corrigida" ? 1 : 0, prefs.skip ? 1 : 0);
       if (rc !== 0) throw new Error(`o jogo não iniciou (${rc})`);
