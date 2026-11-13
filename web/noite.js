@@ -286,6 +286,8 @@
 
   const logFns = [console.error, console.warn, console.info, console.debug];
   let stderrLine = "";
+  // The last lines written (a panic and its report), shown by fail().
+  const stderrTail = [];
 
   const env = {
     js_now: () => performance.now(),
@@ -335,7 +337,11 @@
       }
       const lines = stderrLine.split("\n");
       stderrLine = lines.pop();
-      for (const l of lines) (fd === 1 ? console.log : console.error)(l);
+      for (const l of lines) {
+        (fd === 1 ? console.log : console.error)(l);
+        stderrTail.push(l);
+        if (stderrTail.length > 40) stderrTail.shift();
+      }
       dv.setUint32(nwritten, total, true);
       return 0;
     },
@@ -660,6 +666,10 @@
     $("status").textContent = "Não foi possível continuar.";
     $("error").hidden = false;
     $("error").textContent = String(e && e.message ? e.message : e);
+    // A panic's message and report: on a phone there's no console to read.
+    const tail = stderrTail.join("\n").trim();
+    $("report").hidden = !tail;
+    $("report").textContent = tail;
     $("retry").hidden = false;
     $("options").hidden = true;
   }
