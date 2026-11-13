@@ -22,6 +22,7 @@ const world = @import("core/world.zig");
 const Backdrop = world.Backdrop;
 const Scene = world.Scene;
 const cstr = @import("core/cstr.zig");
+const ini = @import("ini.zig");
 const msg_mod = @import("core/msg.zig");
 const Msg = msg_mod.Msg;
 const wm = msg_mod.wm;
@@ -199,8 +200,39 @@ fn sysTimer(g: *Game, m: Msg) i32 {
         if (hasPanel(g)) render.draw(g, must(Object, g.controlPanel), bdOf(g));
         if (hasStatusBar(g)) render.draw(g, must(Object, g.statusBar), bdOf(g));
     }
+    if (g.fixes.panel_follows_inventory and hasPanel(g)) panelFollowsInventory(g);
     flushUpdates(g);
     return 0;
+}
+
+/// B34's fix (not in the original): the panel draws its icons into the
+/// backdrop only, and only a slide or a drop puts them on the screen; an
+/// item handed back by a give-item scene's reply (to the first slot) left
+/// the old icons showing. When the inventory of the open, still panel is
+/// not the one last shown, redraw it as a drop does.
+fn panelFollowsInventory(g: *Game) void {
+    const panel = must(Object, g.controlPanel);
+    const key = inventoryKey(g);
+    // A slide redraws the whole panel, its end with the icons.
+    if (!panels.isOpen(g, panel) or animation.isRunning(g, panel)) {
+        g.panelShows = key;
+        return;
+    }
+    if (g.panelShows == key) return;
+    g.panelShows = key;
+    render.erase(g, panel, bdOf(g));
+    visibility.redrawOverlapping(g, panel, bdOf(g), 1);
+    render.draw(g, panel, bdOf(g));
+    _ = visibility.invalidate(g, panel);
+}
+
+/// The items of the player's inventory, in panel order.
+fn inventoryKey(g: *Game) u64 {
+    var h = std.hash.Wyhash.init(0);
+    const player = g.player orelse return 0;
+    var it = player.actor.inventory.head;
+    while (it) |o| : (it = o.next) h.update(std.mem.asBytes(&o.id));
+    return h.final();
 }
 
 /// The control panel slides open at the bottom edge of the window (y >
@@ -324,6 +356,10 @@ fn rightUp(g: *Game, m: Msg) i32 {
     const panel = must(Object, g.controlPanel);
     if (!panels.isOutside(g, panel, sx0, sy)) return 1;
     const sel = g.selectedItem orelse return 1;
+    // B30's fix: an offer (the scene's handler has started the reply) is
+    // not a drop; the item stays in the character's hands, as it does in
+    // the original. Asked before the item enters the grid.
+    const offered = g.fixes.drop_falls_onto_support and isOfferTarget(g, sx0, sy);
 
     render.erase(g, panel, bdOf(g));
     visibility.redrawOverlapping(g, panel, bdOf(g), 1);
@@ -348,7 +384,7 @@ fn rightUp(g: *Game, m: Msg) i32 {
     g.unk001A = 0;
     if (g.fixes.drop_falls_onto_support) {
         // B30: fall straight down onto a real support, or to the floor.
-        fallToRest(g, sel, sx);
+        fallToRest(g, sel, sx, offered);
     } else if (support) |sup| {
         if (!position.hitboxOverlaps(g, sel, sup)) {
             // Rest on the top of the support, halfway between its near and
@@ -371,6 +407,56 @@ fn rightUp(g: *Game, m: Msg) i32 {
     render.draw(g, sel, bdOf(g));
     _ = visibility.invalidate(g, sel);
     return 1;
+}
+
+/// Whether the object under (`x`, `y`) (scrolled; the handlers' 16x16
+/// query) takes offers: a `WAVE=` line of the current scene (the replies
+/// to items given, `WAVE=<object>,<variant>,<item>,…`) names it. Not in
+/// the original (B30's fix). Leaves the INI file anywhere: its readers seek
+/// their section first.
+fn isOfferTarget(g: *Game, x: i16, y: i16) bool {
+    const q = backdrop_mod.queryRect(g, bdOf(g), x, y, 16, 16);
+    if (q.result <= 0) return false;
+    const obj = q.obj orelse return false;
+    const fd = g.iniFile;
+    const found = ini.seekSection(&g.ini, g.plat, g.fixes, fd, cstr.slice(&g.curSceneName), true) catch return false;
+    if (found == 0) return false;
+    // The section's lines, up to the next header: is one `WAVE=<id>,`?
+    var line: [16]u8 = undefined;
+    var n: usize = 0;
+    var buf: [512]u8 = undefined;
+    while (true) {
+        const got = g.plat.read(fd, &buf);
+        if (got == 0) return false;
+        for (buf[0..got]) |c| {
+            if (c == '\r' or c == '\n') {
+                if (waveLineNames(line[0..n], obj.id)) return true;
+                n = 0;
+            } else if (n == 0 and (c == ' ' or c == '\t')) {
+                continue;
+            } else if (n == 0 and c == '[') {
+                return false;
+            } else if (n < line.len) {
+                line[n] = c;
+                n += 1;
+            }
+        }
+    }
+}
+
+/// `WAVE=<id>,…` (case-insensitive key, blanks around the number).
+fn waveLineNames(line: []const u8, id: i16) bool {
+    if (line.len < 5 or !std.ascii.eqlIgnoreCase(line[0..5], "WAVE=")) return false;
+    const end = std.mem.indexOfScalar(u8, line, ',') orelse return false;
+    const v = std.fmt.parseInt(i16, std.mem.trim(u8, line[5..end], " \t"), 10) catch return false;
+    return v == id;
+}
+
+test "waveLineNames" {
+    try std.testing.expect(waveLineNames("WAVE=6,0,68,fase2", 6));
+    try std.testing.expect(waveLineNames("wave= 13 ,0,66", 13));
+    try std.testing.expect(!waveLineNames("WAVE=6,0,68", 68));
+    try std.testing.expect(!waveLineNames("Local=6,0,22", 6));
 }
 
 /// The window rows (back, front) of `other`'s top face, where a dropped
@@ -417,16 +503,17 @@ fn restFace(g: *Game, sel: *Object, other: *Object) ?RestFace {
 /// released to the first support face met at or under that row, resting on
 /// the face's middle row unless it was released lower on the face; with
 /// none, it falls to the floor row. It never moves up: released on or
-/// below its rest row, it stays.
-fn fallToRest(g: *Game, sel: *Object, sx: i16) void {
+/// below its rest row, it stays. An `offered` item stays where it was
+/// released (no support).
+fn fallToRest(g: *Game, sel: *Object, sx: i16, offered: bool) void {
     const bd = bdOf(g);
     const half: i16 = @divTrunc(frames.height(sel), 2);
     const released: i16 = sel.y -% bd.originY +% half;
     const floor: i16 = bd.viewHeight -% 100 -% half;
-    var rest: i16 = @max(released, floor);
+    var rest: i16 = if (offered) released else @max(released, floor);
     var on: ?*Object = null;
     const lists = [2]?*object.ObjectList{ bd.sceneList, &g.globalObjects };
-    for (lists) |list| {
+    for (if (offered) lists[0..0] else &lists) |list| {
         var cur: ?*Object = if (list) |l| l.head else null;
         while (cur) |other| : (cur = other.next) {
             const face = restFace(g, sel, other) orelse continue;

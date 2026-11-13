@@ -437,7 +437,9 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   place, on the support's top with its anchor on its bottom row (the `ZoomPort=` items' anchor is their
   top-left corner, which put them behind the bed they lie on); the fall's steps reset that place
   (`portable_move_to_and_drop`), so its stop restores it. With B25's fix, the previous position stays synced
-  (the drop sets it, the fall's stop resets it).
+  (the drop sets it, the fall's stop resets it). An offer is left alone: an item released on an object that a
+  `WAVE=` line of the scene names (the handler has started its reply and takes the item back at the end) stays
+  where it was released, as in the original, instead of falling to the floor while the reply plays.
 - **Confidence:** 9 (code, port repro).
 
 ### B31. The sitting room's package is cut in half by the table when the player walks by
@@ -488,6 +490,21 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
 - **Port:** reproduced (`src/scene_loader.zig`); `Fixes.static_redraw_whole_frame` resets the rectangles
   before that first draw.
 - **Confidence:** 9 (code, port repro).
+
+### B34. A refused item comes back to the first panel slot, but the open panel still shows the old icons
+- **Where:** an offer is a drop: `handler_2fsuabig` 1020:0000 starts the reply and returns 0 (1020:018b), so
+  `game_handle_message` 1018:0000 WM_RBUTTONUP drops the item at the release point and redraws the panel
+  without it (erase, draw, invalidate). At the reply's end (MM_WOM_DONE, 1020:057a) `portable_pick_up` 1010:6fe6
+  → `object_list_add` 1010:d322 links it back at the head of the inventory: the first slot. Nothing puts the
+  panel on the screen again: `control_panel_draw` 1018:1f1c (WM_SYSTIMER default) draws the icons into the
+  backdrop only; a slide or a drop is needed. The other give-item handlers (B23's list) hand items back
+  the same way.
+- **Effect:** while the panel stays open (no mouse move above it, e.g. on a touch screen), its icons are one
+  slot off from the items: dragging the first icon offers the refused item again, with the same reply. In
+  2fsuabig: the camera refused, the Oscar's icon in the first slot offers the camera.
+- **Port:** reproduced; `Fixes.panel_follows_inventory` redraws the open, still panel as a drop does at the
+  next WM_SYSTIMER when the inventory differs from the one it last showed.
+- **Confidence:** 8 (code, port repro).
 
 ## Harmless: wrong paths rescued by the wave fallback
 

@@ -42,6 +42,10 @@ pub const Game = struct {
     /// Not in the original: the item being dragged out of the control panel
     /// and the pointer, for `Fixes.drag_shows_item`.
     drag: Drag = .{},
+    /// Not in the original: the inventory the open control panel's icons
+    /// show on the screen (`game_input.inventoryKey`), for
+    /// `Fixes.panel_follows_inventory`; null = not known yet.
+    panelShows: ?u64 = null,
     /// Not in the original: the one-button control mode (`src/one_button.zig`),
     /// a front-end option. Its `filter` sees every queued message before the
     /// window procedure; null = off (input is dispatched unchanged).

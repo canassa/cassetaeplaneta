@@ -79,6 +79,8 @@ pub const Fixes = struct {
     /// B30: a dropped item falls straight down onto the first real support
     /// (a 3D box under it whose top is below the release point) or to the
     /// floor row; it never rises, and a door or picture never holds it up.
+    /// An item offered to a character (released on an object a `WAVE=`
+    /// reply of the scene names) stays where it was released, as before.
     drop_falls_onto_support: bool = false,
     /// B31: an object whose elevation is the top of another's 3D box, with
     /// overlapping hit boxes, is in front of it in the draw order (the
@@ -92,6 +94,10 @@ pub const Fixes = struct {
     /// ketchup, the parents' room's father) is drawn whole on re-entry, not
     /// only the part the last overlap of the previous visit left dirty.
     static_redraw_whole_frame: bool = false,
+    /// B34: the open control panel is redrawn on the screen when the
+    /// inventory changes under it (an offered item handed back to the
+    /// first slot), so its icons are the items a drag takes.
+    panel_follows_inventory: bool = false,
     /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"):
     /// while an inventory item is dragged out of the control panel (right
     /// button held), its panel icon follows the pointer. The original shows
