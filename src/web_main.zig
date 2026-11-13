@@ -1,0 +1,135 @@
+//! Noite Animal in a browser: the wasm32-wasi root (`zig build web`). The
+//! page (`web/noite.js`) downloads the disc's files, then calls
+//! `noite_start` once and `noite_frame` on every animation frame; input
+//! and audio go through the other exports.
+//!
+//! `noite_frame` is one turn of `main.zig`'s message loop without the
+//! wait: deliver the platform's events, dispatch every message that is
+//! due, present. The browser's frame callback replaces WaitMessage, so the
+//! game logic and the message order are the native ones.
+
+const std = @import("std");
+const Game = @import("core/game.zig").Game;
+const wm = @import("core/msg.zig").wm;
+const api = @import("platform/platform.zig");
+const web = @import("platform/web.zig");
+const mixer = @import("platform/mixer.zig");
+const harness = @import("platform/harness.zig");
+const units = @import("units.zig");
+
+pub const std_options: std.Options = .{ .logFn = log };
+
+fn log(comptime level: std.log.Level, comptime scope: @EnumLiteral(), comptime format: []const u8, args: anytype) void {
+    _ = scope;
+    var buf: [1024]u8 = undefined;
+    const text = std.fmt.bufPrint(&buf, format, args) catch buf[0..];
+    web.js.js_log(@backingInt(level), text.ptr, text.len);
+}
+
+pub const panic = std.debug.FullPanic(panicWithReport);
+
+fn panicWithReport(text: []const u8, first_trace_addr: ?usize) noreturn {
+    if (game) |g| {
+        game = null; // a panic inside the report must not recurse
+        harness.report(g);
+    }
+    std.debug.defaultPanic(text, first_trace_addr orelse @returnAddress());
+}
+
+const gpa = std.heap.c_allocator;
+var backend: web.Web = undefined;
+var game: ?*Game = null;
+var audio_buf: [8192 * 2]i16 = undefined;
+
+/// wasi-libc's start code references `main`; a reactor never calls it.
+export fn __main_argc_argv(argc: c_int, argv: ?*anyopaque) c_int {
+    _ = argc;
+    _ = argv;
+    return 0;
+}
+
+/// WinMain up to the message loop. 0 on success.
+export fn noite_start() i32 {
+    backend.init(gpa);
+    const g = Game.create(gpa, backend.platform()) catch return 1;
+    game = g;
+    g.wndProc = units.app.wndProc;
+    units.app.start(g) catch |e| {
+        std.log.err("app start: {t}", .{e});
+        return 2;
+    };
+    return 0;
+}
+
+/// One turn of the message loop. Returns 1 once the game has quit (after
+/// app_exit), 0 otherwise.
+export fn noite_frame() i32 {
+    const g = game orelse return 1;
+    // Like main.zig: the clock stands still while messages are dispatched,
+    // so a message that keeps re-posting itself would never let go; give
+    // the page its frame back after a while instead.
+    var budget: u32 = 50_000;
+    while (!g.quit and budget > 0) : (budget -= 1) {
+        while (g.plat.poll()) |ev| deliver(g, ev);
+        if (!g.dispatchPending()) break;
+    }
+    if (budget == 0) std.log.warn("message storm: 50000 messages in one frame", .{});
+    if (g.quit) {
+        game = null;
+        units.app.exit(g);
+        units.app.reclaimLeaks(g);
+        backend.show();
+        return 1;
+    }
+    g.plat.present();
+    backend.show();
+    return 0;
+}
+
+/// A platform event, as Windows would hand it to the game (main.zig).
+fn deliver(g: *Game, ev: api.Event) void {
+    switch (ev) {
+        .quit => _ = g.send(.{ .id = wm.close }),
+        .activate => |on| _ = g.send(.{ .id = wm.activate, .wparam = @intFromBool(on) }),
+        .input => |m| g.queue.postInput(m),
+        .message => |m| _ = g.post(m),
+    }
+}
+
+export fn noite_mouse(kind: u32, button: u32, x: u32, y: u32) void {
+    backend.mouse(@truncate(kind), @truncate(button), @truncate(@min(x, 0xffff)), @truncate(@min(y, 0xffff)));
+}
+
+/// `code`: KeyboardEvent.keyCode; only the arrows are passed on.
+export fn noite_key(down: bool, code: u32) void {
+    const k = std.enums.fromInt(web.Key, code) orelse return;
+    backend.key(down, k);
+}
+
+export fn noite_focus(on: bool) void {
+    backend.focus(on);
+}
+
+export fn noite_close() void {
+    backend.close();
+}
+
+/// Mixes `frames` frames (≤ 8192) of 44.1 kHz stereo s16; returns where
+/// they are in memory.
+export fn noite_audio(frames: u32) [*]const i16 {
+    const n = @as(usize, @min(frames, audio_buf.len / 2)) * 2;
+    backend.sim.mix.render(audio_buf[0..n]);
+    return &audio_buf;
+}
+
+export fn noite_audio_rate() u32 {
+    return mixer.out_rate;
+}
+
+/// Test hook (tools/web/test.py): the current INI scene's name, NUL
+/// terminated ("" before the first scene).
+export fn noite_scene() [*]const u8 {
+    const g = game orelse return "";
+    const s = g.scene orelse return "";
+    return &s.name;
+}

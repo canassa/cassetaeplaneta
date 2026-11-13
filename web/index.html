@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Casseta &amp; Planeta — Noite Animal</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; background: #000; color: #ddd;
+    font: 15px/1.4 system-ui, sans-serif; overflow: hidden; }
+  #stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  canvas { image-rendering: pixelated; image-rendering: crisp-edges; display: block;
+    background: #000; touch-action: none; cursor: default; }
+  .panel { position: absolute; max-width: 30rem; width: calc(100% - 32px); padding: 1.25rem 1.5rem;
+    background: #111; border: 1px solid #333; border-radius: 8px; box-sizing: border-box; }
+  .panel h1 { font-size: 1.1rem; margin: 0 0 .75rem; color: #fff; }
+  .bar { height: 10px; background: #222; border-radius: 5px; overflow: hidden; margin: .75rem 0 .5rem; }
+  .bar > div { height: 100%; width: 0; background: #e8b830; transition: width .15s; }
+  .stats { font-variant-numeric: tabular-nums; color: #aaa; font-size: .9rem; }
+  .error { color: #ff8070; white-space: pre-wrap; }
+  button { font: inherit; padding: .4rem 1rem; margin-top: .75rem; background: #e8b830; color: #000;
+    border: 0; border-radius: 4px; cursor: pointer; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="screen" width="640" height="480" hidden></canvas>
+  <div id="loader" class="panel">
+    <h1>Casseta &amp; Planeta — Noite Animal</h1>
+    <div id="status">Preparando…</div>
+    <div class="bar"><div id="bar"></div></div>
+    <div id="stats" class="stats"></div>
+    <div id="error" class="error" hidden></div>
+    <button id="retry" hidden>Tentar de novo</button>
+  </div>
+  <div id="away" class="panel" hidden>
+    <h1>Minijogo</h1>
+    <div>Os minijogos não fazem parte desta versão: o jogo continua como se você tivesse vencido.</div>
+  </div>
+</div>
+<script src="noite.js"></script>
+</body>
+</html>

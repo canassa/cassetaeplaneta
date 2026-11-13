@@ -53,6 +53,44 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run the port's tests");
     test_step.dependOn(&run_tests.step);
 
+    // `zig build web`: the browser build in zig-out/web/ (docs/WEB.md) —
+    // noite.wasm (wasm32-wasi reactor, self-hosted wasm backend and
+    // linker; wasi-libc for TinySoundFont's malloc and math), the page
+    // (web/) and manifest.json (tools/web/manifest.py: the disc files the
+    // game opens). The disc and the SoundFont are copied next to it by
+    // tools/web/build-site.sh, not by this step.
+    const web_step = b.step("web", "Build the browser version into zig-out/web");
+    const web_mod = b.createModule(.{
+        .root_source_file = b.path("src/web_main.zig"),
+        .target = b.resolveTargetQuery(.{ .cpu_arch = .wasm32, .os_tag = .wasi }),
+        .optimize = optimize,
+        .link_libc = true,
+    });
+    web_mod.addCSourceFile(.{
+        .file = b.path("vendor/tinysoundfont/tsf_impl.c"),
+        .flags = &.{ "-std=c99", "-fno-sanitize=shift" },
+    });
+    web_mod.addIncludePath(b.path("vendor/tinysoundfont"));
+    const wasm = b.addExecutable(.{
+        .name = "noite",
+        .root_module = web_mod,
+        .use_llvm = false,
+        .use_lld = false,
+    });
+    wasm.entry = .disabled;
+    wasm.rdynamic = true;
+    wasm.wasi_exec_model = .reactor;
+    wasm.stack_size = 8 << 20;
+    const web_dir: std.Build.InstallDir = .{ .custom = "web" };
+    web_step.dependOn(&b.addInstallArtifact(wasm, .{ .dest_dir = .{ .override = web_dir } }).step);
+    web_step.dependOn(&b.addInstallDirectory(.{ .source_dir = b.path("web"), .install_dir = web_dir, .install_subdir = "" }).step);
+    const manifest = b.addSystemCommand(&.{ "python3", "tools/web/manifest.py", "--out" });
+    manifest.setCwd(b.path("."));
+    const manifest_json = manifest.addOutputFileArg("manifest.json");
+    manifest.addFileInput(b.path("tools/web/manifest.py"));
+    manifest.addFileInput(b.path("tools/web/files.txt"));
+    web_step.dependOn(&b.addInstallFileWithDir(manifest_json, web_dir, "manifest.json").step);
+
     // `noite initdata` generates a program that prints the defaults of the
     // `// @orig g_*` fields and runs it here against the port's module.
     const dump_step = b.step("initdata", "Print the defaults of the @orig g_* fields (noite initdata)");
