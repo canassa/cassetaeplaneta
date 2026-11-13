@@ -17,7 +17,7 @@ pub fn handle(g: *Game, m: Msg) i16 {
         update_list.discard(&g.updateList);
         // 1018:f17a "6fsaida"; player at (0, 0), no player / control panel,
         // status bar, no 1animation, no click exit.
-        _ = game_scenes.switchScene(g, "6fsaida", 0, 0, 0, 0, 1, 0, 0);
+        _ = game_scenes.switchScene(g, "6fsaida", 0, 0, 0, 0, 0, 1, 0);
         return 1;
     }
     g.lives -%= 1;
