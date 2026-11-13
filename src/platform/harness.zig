@@ -138,6 +138,15 @@ pub const Harness = struct {
             g.aviPlaying = null;
             _ = sound.mixInit(g);
         }
+        // The options/slot screens return to the saved position, which the
+        // panel records on the way in: give a direct jump one to return to.
+        if (g.savedPosition.scene[0] == 0) {
+            cstr.copy(&g.savedPosition.scene, "1fquarbo");
+            g.savedPosition.playerX = 240;
+            g.savedPosition.playerY = 250;
+            g.savedPosition.hasPlayer = 1;
+            g.savedPosition.hasControlPanel = 1;
+        }
         if (h.opts.verbose) std.debug.print("[{d}] jump to {s} at ({d},{d}) player {d} panel {d} bar {d}\n", .{
             g.plat.ticks(), j.name, f.x, f.y, f.player, f.panel, f.status,
         });

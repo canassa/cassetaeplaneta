@@ -62,6 +62,17 @@ var current_game: ?*Game = null;
 
 pub const panic = std.debug.FullPanic(panicWithReport);
 
+/// Segfaults (a use after free in the port) get the same report.
+pub const debug = struct {
+    pub fn handleSegfault(addr: ?usize, name: []const u8, ctx: ?std.debug.CpuContextPtr) noreturn {
+        if (current_game) |g| {
+            current_game = null;
+            platform.harness.report(g);
+        }
+        std.debug.defaultHandleSegfault(addr, name, ctx);
+    }
+};
+
 fn panicWithReport(text: []const u8, first_trace_addr: ?usize) noreturn {
     if (current_game) |g| {
         current_game = null; // a panic inside the report must not recurse
