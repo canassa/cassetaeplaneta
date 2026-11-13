@@ -3,6 +3,7 @@
 //!     noite [--headless] [--ms N] [--assets DIR] [--save DIR] [--trace FILE]
 //!           [--input FILE] [--dump DIR] [--dump-every MS] [--bmp]
 //!           [--scene NAME [--take ID,ID…]] [--minigame win|lose] [--quiet]
+//!           [--fix NAME,…|all]
 //!
 //! The test harness (`platform/harness.zig`): `--input` plays a script of
 //! timed mouse/keyboard input (`platform/script.zig`), `--dump` writes
@@ -55,6 +56,8 @@ const Args = struct {
     opts: platform.sim.Options = .{},
     trace: ?[]const u8 = null,
     harness: platform.harness.Options = .{},
+    /// `--fix a,b` / `--fix all`: BUGS.md fixes (src/core/fixes.zig).
+    fixes: core.fixes.Fixes = .{},
 };
 
 /// The running game, for the panic report.
@@ -62,7 +65,9 @@ var current_game: ?*Game = null;
 
 pub const panic = std.debug.FullPanic(panicWithReport);
 
-/// Segfaults (a use after free in the port) get the same report.
+/// Segfaults (a use after free in the port) get the same report. A hung
+/// run can be stopped the same way: `timeout -s SEGV 60 noite …` prints
+/// the report and the stack of the hung code.
 pub const debug = struct {
     pub fn handleSegfault(addr: ?usize, name: []const u8, ctx: ?std.debug.CpuContextPtr) noreturn {
         if (current_game) |g| {
@@ -108,6 +113,24 @@ pub fn main(init: std.process.Init) !void {
             args.harness.dump_bmp = true;
         } else if (std.mem.eql(u8, a, "--scene")) {
             args.harness.scene = it.next() orelse return error.MissingValue;
+        } else if (std.mem.eql(u8, a, "--fix")) {
+            const list = it.next() orelse return error.MissingValue;
+            var names = std.mem.tokenizeScalar(u8, list, ',');
+            while (names.next()) |name| {
+                var found = false;
+                inline for (@typeInfo(core.fixes.Fixes).@"struct".field_names) |field| {
+                    // `all` is every bug fix; quitting on INI errors is a choice.
+                    const in_all = std.mem.eql(u8, name, "all") and !std.mem.eql(u8, field, "quit_on_ini_error");
+                    if (in_all or std.mem.eql(u8, name, field)) {
+                        @field(args.fixes, field) = true;
+                        found = true;
+                    }
+                }
+                if (!found) {
+                    std.log.err("unknown fix {s} (see src/core/fixes.zig)", .{name});
+                    return error.BadArgument;
+                }
+            }
         } else if (std.mem.eql(u8, a, "--take")) {
             args.harness.take = it.next() orelse return error.MissingValue;
         } else if (std.mem.eql(u8, a, "--quiet")) {
@@ -133,6 +156,7 @@ pub fn main(init: std.process.Init) !void {
         var h = platform.headless.Headless.init(gpa, io, args.opts);
         defer h.deinit();
         const g = try Game.create(gpa, h.platform());
+        g.fixes = args.fixes;
         defer g.destroy();
         if (args.trace != null) g.trace = &trace;
         try run(g, &hn, args.ms);
@@ -141,6 +165,7 @@ pub fn main(init: std.process.Init) !void {
         try s.init(gpa, io, args.opts);
         defer s.deinit();
         const g = try Game.create(gpa, s.platform());
+        g.fixes = args.fixes;
         defer g.destroy();
         if (args.trace != null) g.trace = &trace;
         try run(g, &hn, null);
@@ -169,7 +194,18 @@ fn run(g: *Game, hn: *platform.harness.Harness, stop_at: ?u32) !void {
     if (comptime @hasDecl(units.app, "start")) try units.app.start(g);
     hn.afterStart(g);
 
+    // The virtual clock stands still while messages are dispatched: a
+    // message that keeps re-posting itself would spin here for ever.
+    var storm_tick: u32 = 0;
+    var storm_count: u32 = 0;
     while (!g.quit) {
+        if (g.plat.ticks() != storm_tick) {
+            storm_tick = g.plat.ticks();
+            storm_count = 0;
+        } else if (storm_count > 50_000) {
+            @panic("message storm: 50000 messages without the clock moving (a hang)");
+        }
+        storm_count += 1;
         while (g.plat.poll()) |ev| deliver(g, ev);
         if (g.dispatchPending()) {
             hn.noteScene(g);
