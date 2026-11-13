@@ -22,7 +22,7 @@ const animation = @import("behaviour/animation.zig");
 const mci_error_text = "Erro MCI";
 
 fn mciError(g: *Game) void {
-    // @orig 1010:d796 "MCI Erro"
+    // Caption string at 1010:d796.
     _ = g.plat.messageBox("MCI Erro", mci_error_text, platform.mb.iconexclamation);
 }
 
@@ -106,7 +106,7 @@ pub fn closeAvi(g: *Game, obj: *Object, device: u16) void {
     g.aviPlaying = null;
     g.ini.rec.isAvi = 0;
     g.plat.aviClose(device);
-    // @orig 1010:946e ""
+    // The empty string at 1010:946e.
     setAviName(g, obj, "");
 }
 
