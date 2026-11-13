@@ -42,7 +42,44 @@ pub const Options = struct {
     decode_video: bool = false,
     /// Keep PCM for the mixer (the SDL backend).
     keep_audio: bool = false,
+    /// A file store that replaces `assets_dir` and `save_dir` (the web
+    /// backend, which has no file system).
+    host_files: ?HostFiles = null,
 };
+
+/// Files from somewhere other than the host file system. Paths are
+/// `hostKey`s: lower case, `/`-separated, relative to the disc root.
+pub const HostFiles = struct {
+    ctx: *anyopaque,
+    /// The whole file (saves first, then the disc), owned by the caller
+    /// (`gpa`); null if there is none.
+    read: *const fn (ctx: *anyopaque, gpa: std.mem.Allocator, key: []const u8) ?[]u8,
+    /// Stores a written file (a save) under `key`.
+    save: *const fn (ctx: *anyopaque, key: []const u8, data: []const u8) void,
+};
+
+/// A DOS path as a `HostFiles` key: drive dropped, `\` → `/`, empty and
+/// `.` components dropped, lower case (DOS names are case-insensitive).
+/// Null if it does not fit `buf`.
+pub fn hostKey(buf: []u8, dos: []const u8) ?[]const u8 {
+    var path = dos;
+    if (path.len >= 2 and path[1] == ':') path = path[2..];
+    var n: usize = 0;
+    var it = std.mem.tokenizeAny(u8, path, "\\/");
+    while (it.next()) |part| {
+        const name = std.mem.trim(u8, part, " ");
+        if (name.len == 0 or std.mem.eql(u8, name, ".")) continue;
+        if (n != 0) {
+            if (n == buf.len) return null;
+            buf[n] = '/';
+            n += 1;
+        }
+        if (n + name.len > buf.len) return null;
+        _ = std.ascii.lowerString(buf[n..][0..name.len], name);
+        n += name.len;
+    }
+    return buf[0..n];
+}
 
 const OpenFile = struct {
     data: std.ArrayList(u8) = .empty,
@@ -248,6 +285,10 @@ pub const Sim = struct {
     }
 
     fn readHost(s: *Sim, dos: []const u8) ?[]u8 {
+        if (s.opts.host_files) |h| {
+            var kb: [512]u8 = undefined;
+            return h.read(h.ctx, s.gpa, hostKey(&kb, dos) orelse return null);
+        }
         var nb: [512]u8 = undefined;
         const rel = normalise(&nb, dos);
         var rb: [512]u8 = undefined;
@@ -319,7 +360,13 @@ pub const Sim = struct {
 
     pub fn close(s: *Sim, f: p.File) void {
         const of = s.file(f) orelse return;
-        if (of.save_path) |sp| {
+        if (of.save_path) |sp| save: {
+            if (s.opts.host_files) |h| {
+                var kb: [512]u8 = undefined;
+                if (hostKey(&kb, sp)) |key| h.save(h.ctx, key, of.data.items);
+                s.gpa.free(sp);
+                break :save;
+            }
             const dir = std.fs.path.dirname(sp);
             var root = std.Io.Dir.cwd().openDir(s.io, ".", .{}) catch null;
             if (root) |*r| {
@@ -1001,4 +1048,13 @@ test "AVI frames are drawn onto the screen as they fall due" {
     try std.testing.expect(std.mem.indexOfNone(u8, &screen.pixels, &.{0}) != null);
     s.aviClose(dev, &screen);
     try std.testing.expectEqual(@as(u8, 0), screen.palette[1].r); // restored
+}
+
+test "hostKey turns DOS paths into lower-case store keys" {
+    var buf: [64]u8 = undefined;
+    try std.testing.expectEqualStrings("fase2/2fcopmau/pmaus03.wav", hostKey(&buf, "D:\\FASE2\\\\2fcopmau\\PMAUS03.WAV").?);
+    try std.testing.expectEqualStrings("hd/jogo1.ini", hostKey(&buf, "\\hd\\.\\JOGO1.INI").?);
+    try std.testing.expectEqualStrings("velha.mid", hostKey(&buf, "\\velha.mid").?);
+    var small: [4]u8 = undefined;
+    try std.testing.expectEqual(@as(?[]const u8, null), hostKey(&small, "\\velha.mid"));
 }
