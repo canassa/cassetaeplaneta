@@ -29,12 +29,18 @@
             # through pkg-config. Declared by hand in Zig (no translate-c).
             pkgs.sdl3
             pkgs.pkg-config
+            # General MIDI SoundFont for the MIDI synth
+            # (src/platform/midi.zig); exported as NOITE_SOUNDFONT below.
+            pkgs.soundfont-generaluser-gs
+            # objdump -mi386 for the 32-bit code of segment 1000.
+            pkgs.binutils
           ];
 
           # One global Zig cache for this project only, shared by every
           # worktree under work/ (each keeps its own local .zig-cache).
           shellHook = ''
             export ZIG_GLOBAL_CACHE_DIR="''${ZIG_GLOBAL_CACHE_DIR:-''${XDG_CACHE_HOME:-$HOME/.cache}/zig-noite}"
+            export NOITE_SOUNDFONT="''${NOITE_SOUNDFONT:-${pkgs.soundfont-generaluser-gs}/share/soundfonts/GeneralUser-GS.sf2}"
           '';
         };
       });
