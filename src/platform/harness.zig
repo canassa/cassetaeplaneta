@@ -13,6 +13,7 @@ const script = @import("script.zig");
 const game_scenes = @import("../game_scenes.zig");
 const avi = @import("../avi.zig");
 const sound = @import("../sound.zig");
+const portable = @import("../portable.zig");
 
 pub const Options = struct {
     input: ?[]const u8 = null,
@@ -22,6 +23,8 @@ pub const Options = struct {
     dump_bmp: bool = false,
     /// Start in this INI scene instead of the opening.
     scene: ?[]const u8 = null,
+    /// Comma-separated portables (INI Numbers) to carry into `scene`.
+    take: ?[]const u8 = null,
     /// Print scene changes and message boxes.
     verbose: bool = true,
 };
@@ -65,6 +68,10 @@ pub const Harness = struct {
     pub fn afterStart(h: *Harness, g: *Game) void {
         const name = h.opts.scene orelse return;
         g.queue.posted = .{};
+        if (h.opts.take) |list| {
+            var it = std.mem.tokenizeScalar(u8, list, ',');
+            while (it.next()) |w| take(g, std.fmt.parseInt(i16, w, 10) catch continue);
+        }
         h.jump(g, .{ .name = name });
     }
 
@@ -107,6 +114,7 @@ pub const Harness = struct {
                     }
                 },
                 .wait => {},
+                .take => |id| take(g, id),
                 .quit => {
                     g.quit = true;
                     return true;
@@ -248,6 +256,23 @@ pub fn writeScreen(gpa: std.mem.Allocator, io: std.Io, scr: *const p.Screen, pat
     defer out.deinit(gpa);
     if (bmp) try png.encodeBmp(gpa, scr, &out) else try png.encodePng(gpa, scr, &out);
     try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = path, .data = out.items });
+}
+
+/// Test helper: portable `id` goes into the player's inventory, as a pick
+/// up would put it (only from another scene's global objects).
+fn take(g: *Game, id: i16) void {
+    const player = g.player orelse return;
+    var it = g.globalObjects.head;
+    while (it) |o| : (it = o.next) {
+        if (o.id != id or !o.is(.portable)) continue;
+        if (g.scene) |s| if (std.ascii.eqlIgnoreCase(std.mem.trim(u8, cstr.slice(&o.sceneName), " "), std.mem.trim(u8, cstr.slice(&s.name), " "))) {
+            std.debug.print("take {d}: it is in the current scene, pick it up instead\n", .{id});
+            return;
+        };
+        _ = portable.pickUp(g, o, player);
+        return;
+    }
+    std.debug.print("take {d}: no such portable in the global objects\n", .{id});
 }
 
 /// One line: scene, player position, inventory ids, held item, lives, score.

@@ -2,7 +2,7 @@
 //!
 //!     noite [--headless] [--ms N] [--assets DIR] [--save DIR] [--trace FILE]
 //!           [--input FILE] [--dump DIR] [--dump-every MS] [--bmp]
-//!           [--scene NAME] [--minigame win|lose] [--quiet]
+//!           [--scene NAME [--take ID,ID…]] [--minigame win|lose] [--quiet]
 //!
 //! The test harness (`platform/harness.zig`): `--input` plays a script of
 //! timed mouse/keyboard input (`platform/script.zig`), `--dump` writes
@@ -108,6 +108,8 @@ pub fn main(init: std.process.Init) !void {
             args.harness.dump_bmp = true;
         } else if (std.mem.eql(u8, a, "--scene")) {
             args.harness.scene = it.next() orelse return error.MissingValue;
+        } else if (std.mem.eql(u8, a, "--take")) {
+            args.harness.take = it.next() orelse return error.MissingValue;
         } else if (std.mem.eql(u8, a, "--quiet")) {
             args.harness.verbose = false;
         } else if (std.mem.eql(u8, a, "--minigame")) {

@@ -22,6 +22,10 @@
 //!     wait NAME [MS]    hold the script until NAME is the scene (fail
 //!                       after MS, default 120000); every later time
 //!                       moves by the time waited
+//!     take ID           put portable ID (INI Number) in the player's
+//!                       inventory (testing; not from the current scene)
+//!     offer SLOT X Y    open the panel, drag inventory slot SLOT (0-7) to
+//!                       X Y and release it there (takes 2 s)
 //!     quit              end the run
 //!
 //! Mouse commands keep track of the buttons held, as `wParam` (MK_*).
@@ -38,6 +42,7 @@ pub const Action = union(enum) {
     state,
     expect: []const u8,
     wait: Wait,
+    take: i16,
     quit,
 };
 
@@ -193,6 +198,19 @@ pub fn parse(gpa: std.mem.Allocator, text: []u8) ParseError!Script {
             try s.steps.append(gpa, .{ .at = t, .action = .{ .scene = j } });
         } else if (eq(u8, cmd, "log")) {
             try s.steps.append(gpa, .{ .at = t, .action = .{ .log = std.mem.trim(u8, words.rest(), " \t") } });
+        } else if (eq(u8, cmd, "take")) {
+            try s.steps.append(gpa, .{ .at = t, .action = .{ .take = try num(i16, words.next(), line_no) } });
+        } else if (eq(u8, cmd, "offer")) {
+            const slot = try num(u16, words.next(), line_no);
+            const x = try num(u16, words.next(), line_no);
+            const y = try num(u16, words.next(), line_no);
+            const sx: u16 = 110 + 56 * slot;
+            try s.steps.append(gpa, .{ .at = t, .action = .{ .input = msg.Msg.make(wm.mousemove, 0, 320, 465) } });
+            try s.steps.append(gpa, .{ .at = t + 1500, .action = .{ .input = msg.Msg.make(wm.mousemove, 0, sx, 430) } });
+            try s.steps.append(gpa, .{ .at = t + 1500, .action = .{ .input = msg.Msg.make(wm.rbuttondown, msg.mk.rbutton, sx, 430) } });
+            try s.steps.append(gpa, .{ .at = t + 1600, .action = .{ .input = msg.Msg.make(wm.mousemove, msg.mk.rbutton, x, 300) } });
+            try s.steps.append(gpa, .{ .at = t + 1700, .action = .{ .input = msg.Msg.make(wm.mousemove, msg.mk.rbutton, x, y) } });
+            try s.steps.append(gpa, .{ .at = t + 2000, .action = .{ .input = msg.Msg.make(wm.rbuttonup, 0, x, y) } });
         } else if (eq(u8, cmd, "wait")) {
             const name = words.next() orelse return bad(line_no, "missing scene");
             const max: u32 = if (words.peek() != null) try num(u32, words.next(), line_no) else 120_000;
