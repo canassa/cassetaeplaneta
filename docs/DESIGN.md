@@ -217,6 +217,55 @@ Type-test slots 43–57 and 5D/5E are `Object.is/as`.
 | GameVtbl (14) | flattened to NoiteGame: `game_input` (00 handleMessage), `game_hook` (01), `game` (02–06 creators, 08 onCreate), `game_scenes` (07 init, 0C/0D), `save` (09–0B) |
 | ConditionVtbl (3) | `condition`: `switch (cond.kind)` (base / flag) |
 
+## Backdrop, pixels and palette (binding contract)
+
+What `update_list`, `grid`, `occupancy` and the render units already
+assume; the `backdrop` unit implements exactly this.
+
+- **The WinG bitmap** (`Backdrop.pixels`) is the *whole background*:
+  `bgWidth` × `bgHeight`, 8 bpp, rows padded to 4 bytes, described by
+  `Backdrop.bmiHeader` (`backdrop_init_dib_header`: biWidth = bgWidth,
+  biHeight = bgHeight × dibOrientation). Coordinates into it are scene
+  coordinates; the window shows the `viewWidth` × `viewHeight` block at
+  (`originX`, `originY`). Allocate it in `g.scene_arena`.
+- **Orientation**: `platform.wingRecommendDibFormat` always recommends a
+  top-down DIB (biHeight -1) and returns TRUE, so `dibOrientation` is -1,
+  row 0 is the top, and every object's `dibFormatOk` is 1. Code that walks
+  the bitmap goes through `bd.surface()` (`platform.Surface`, which knows
+  `bottom_up` and `stride()`) or `dib.copy*` with `&bd.bmiHeader` — never
+  its own row arithmetic.
+- **Blits to the window**: WinGBitBlt(hdc, dx, dy, w, h, bd->hdc, sx, sy)
+  → `g.plat.wingBitBlt(dx, dy, w, h, bd.surface(), sx, sy)` (clipped to
+  the screen and the bitmap). `backdrop_blit_to_dc` is
+  `wingBitBlt(0, 0, viewWidth, viewHeight, surface, originX, originY)`.
+- **Palette**: the logical palette and `bmiColors` hold the same colours
+  (statics 0–9/246–255 from `platform.getSystemPaletteEntries`, background
+  colours 10–245, `backdrop_set_static_colors/set_dib_colors`).
+  SelectPalette + RealizePalette on a window DC →
+  `g.plat.realizePalette(&bd.bmiColors)`. `Backdrop.hdc/hpalette/
+  oldBitmap` and the objects' copies of the colour table and palette
+  (SceneObject+0x4e/+0x44e, never read) have no field. CreatePalette,
+  WinGCreateDC/CreateBitmap, SelectObject, GetDC/ReleaseDC have no
+  counterpart; their failure boxes never show.
+- **Text** into the bitmap: `g.plat.textOut(bd.surface(), style, x, y, s)`.
+- **Grid dispatchers**: `backdrop.isRectOccupied/isRectFree/queryRect/
+  queryRectFirst/occupy/vacate` forward to `grid.backdropIsRectOccupied/
+  backdropIsRectFree/backdropQueryRect/backdropQueryRectFirst/
+  backdropOccupy/backdropVacate` (the GridBackdrop implementations;
+  PerspectiveBackdrop does not override them). `backdrop.createWithGrid`
+  builds the grid with `grid.init(g, grid, bd.bgWidth, bd.bgHeight,
+  cell_shift, cell_shift)` (shift 4, from `createWithGrid(g, bd, 4)`) into
+  a `Grid` it allocates (`operator new(0x10)`; null on failure).
+- **Rectangle queries**: Backdrop slot 03 `queryRectFirst(x, y, w, h,
+  &outObj, &outFirst, &outFlag)` and slot 04 `queryRect(x, y, w, h,
+  &outObj, &outFlag)` (source order) return `world.RectQuery {result,
+  flag, obj, first}`. The grid clears the out-parameters on entry, so
+  every field is valid whatever `result` is; callers that store `*outObj`
+  into a global (1fsala, 1fquarbo) store `q.obj` unconditionally.
+- **Grid out of range**: an index outside the 65×81 cells (only after the
+  ctor's "Estouro" box, BUGS.md L7) reads a free cell and drops writes —
+  the dispatchers cannot return errors.
+
 ## State
 
 `Game` (`src/core/game.zig`) is the original Game object (classes
@@ -319,7 +368,11 @@ function is the Ghidra name in camelCase **minus the unit's class prefix**
 `wave_play` → `sound.play`); a dispatcher is the vtable field name
 (`render.draw`, `movement.moveTo`, `space3d.findSupport`). Implementation
 functions of a slot are `<class><Slot>` (`moverMoveTo`, `exitTick`). Keep
-`pub` whatever another unit calls.
+`pub` whatever another unit calls. Only the prefix of the class the unit
+is about is stripped; a unit that also holds another class's functions
+keeps that class's prefix (`frame_ctor` in `frames` → `frames.frameCtor`,
+`occupancy_grid_occupy` in `grid` → `grid.occupy` but
+`grid_backdrop_occupy` → `grid.backdropOccupy`).
 
 ## Platform layer
 
@@ -379,7 +432,9 @@ SDL is declared by hand (`@cImport` is gone in 0.17; no translate-c).
 - **Strings**: original `char[N]` fields/locals stay `[N]u8`, NUL-terminated;
   functions take `[]const u8` and end at the first NUL (`cstr.slice`).
   strcpy/strcat/sprintf → `cstr.copy/cat/print` (truncate, always
-  terminate). Code-segment string constants → Zig literals.
+  terminate). Code-segment string constants → Zig literals; cite their
+  address in a plain comment (`// 1010:d796`), never an `@orig` tag
+  (`noite check` takes every `@orig` for a function).
 - **Sentinels vs optionals**: pointers → `?*T` (NULL = null). Integer
   sentinels the callers compare against (-1 section offset, -1 timer id,
   -1 exit index, 0 "not found" ids) stay as values — faithful, translates
@@ -415,6 +470,24 @@ SDL is declared by hand (`@cImport` is gone in 0.17; no translate-c).
   pointer is overwritten (`condition.flagConditionCtor`).
 - **Fixes**: `src/core/fixes.zig`, read as `g.fixes.<flag>` at the bug
   site. Add a flag (with its BUGS.md id) when you port a bug's site.
+  Latent bugs (BUGS.md L*) get no flag. Where one would crash the
+  original (a NULL write = GPF) and the callers cannot return errors
+  (dispatchers, handlers), the port panics with the BUGS id in the message
+  (`draw_list.remove`, L5); where it would corrupt memory, see "Original
+  limits".
+- **Frees**: where the original frees a block and leaves its pointer
+  dangling, the port clears the pointer after freeing (a second free is a
+  harmless failure in Win16 but a crash in Zig's allocator), e.g.
+  `frames.frameDtor`.
+- **Shared message buffer**: `ini.messageBoxPrintf(plat, &g.messageBuf,
+  caption, fmt, arg)` replaces message_box_printf; `arg` is an integer or a
+  C string (`%s`). The original's sprintf overruns the 100-byte buffer for
+  longer texts (BUGS.md L6); the port truncates to 99 bytes. Use it for
+  every message_box_printf call instead of formatting by hand.
+- **Media handles**: `Object.wave` is the `?platform.Wave` that
+  `sound.open` returned (pass it to `sound.play/stop` unchanged); MCI calls
+  return the MCI error code and `platform.mciGetErrorString` gives its
+  text.
 - **CRT/API**: replaced, not ported (`noite` statuses `replaced`); their
   behaviour is in `core/crt.zig`, `core/cstr.zig`, `Game.send/post/
   setTimer…` or the platform. Cite them with plain comments.

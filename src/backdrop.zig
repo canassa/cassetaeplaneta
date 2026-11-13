@@ -4,6 +4,15 @@
 //! their final signatures; their bodies panic until the unit is ported
 //! (docs/DESIGN.md "Virtual slots → dispatchers"). Replace each body, keep
 //! the signature (other units already call it).
+//!
+//! Contract for this unit (docs/DESIGN.md "Backdrop, pixels and palette"):
+//! the WinG bitmap is bgWidth × bgHeight, top-down (`dibOrientation` -1,
+//! from `platform.wingRecommendDibFormat`), reached through
+//! `Backdrop.surface()`; blits are `g.plat.wingBitBlt`, palette realizes
+//! `g.plat.realizePalette(&bd.bmiColors)`, the static colours
+//! `platform.getSystemPaletteEntries`. Slots 01–06 forward to the `grid`
+//! unit's `backdrop*` functions; `createWithGrid` builds the grid with
+//! `grid.init(g, grid, bd.bgWidth, bd.bgHeight, cell_shift, cell_shift)`.
 
 const stub = @import("core/stub.zig");
 const Game = @import("core/game.zig").Game;
