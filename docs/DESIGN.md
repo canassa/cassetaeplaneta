@@ -393,9 +393,12 @@ Close`), other programs (`winExec`, `findWindow`, `postTo`, `showMain`)
 and `messageBox(caption, text, style) → button`.
 
 Backends: **headless** (virtual clock, scripted input; tests, traces;
-message boxes answer their first button) and **SDL3** (window, palette →
-XRGB texture, mouse/arrow keys as Win16 messages, real clock, audio).
-Both share `sim.zig`, which owns every piece of state and **times every
+message boxes answer their first button), **SDL3** (window, palette →
+XRGB texture, mouse/arrow keys as Win16 messages, real clock, audio) and
+**web** (`web.zig`, wasm32 in a browser page; files from the page's
+downloaded store through `Sim`'s `HostFiles`, one loop turn per animation
+frame from `web_main.zig` — docs/WEB.md).
+All three share `sim.zig`, which owns every piece of state and **times every
 notification from the media itself** — WAVE data size, the MIDI tempo map
 (`midi.songLengthMs`), AVI µs/frame × frames — so the two backends post
 the same messages at the same ticks; SDL only renders `sim.mix` and shows

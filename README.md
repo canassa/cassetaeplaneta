@@ -44,3 +44,17 @@ Original bugs are reproduced; `--fix all` (or `--fix name,…`, see
   plays from the title screen to the sportsman ending, checking every scene.
 - **SDL without a display**: `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy`
   (or `disk` with `SDL_AUDIO_DISK_OUTPUT_FILE=out.raw` to capture the mix).
+
+## Web build
+
+The same game in a browser (wasm32, self-hosted backend; design, layout
+and the nginx setup in `docs/WEB.md`):
+
+```sh
+nix develop -c tools/web/build-site.sh            # site in zig-out/site/ (188 MB)
+nix develop -c python3 -m http.server -d zig-out/site 8080   # http://localhost:8080
+nix develop .#web -c python3 tools/web/test.py    # headless Chromium check
+```
+
+The page downloads the disc files the game opens (once; later visits load
+them from Cache Storage), then runs the game; saves go to localStorage.
