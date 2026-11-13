@@ -20,6 +20,8 @@ pub const Msg = struct {
     pub fn hi(m: Msg) u16 {
         return @truncate(@as(u32, @bitCast(m.lparam)) >> 16);
     }
+    /// lParam = MAKELONG(lo_word, hi_word): the original pushes it as two
+    /// words (e.g. the minigame hello, `MAKELONG(hwnd, 0)`).
     pub fn make(id: u16, wparam: u16, lo_word: u16, hi_word: u16) Msg {
         return .{ .id = id, .wparam = wparam, .lparam = @bitCast(@as(u32, lo_word) | @as(u32, hi_word) << 16) };
     }

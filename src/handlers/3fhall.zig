@@ -61,8 +61,8 @@ pub fn handle(g: *Game, m: Msg) i16 {
             s.minigameWnd = g.plat.findWindow(minigame_title) orelse 0;
             if (s.minigameWnd == 0) return 0;
             g.killTimer(0x14);
-            // PostMessage(minigame, 0x40b, 0, lParam = our window).
-            _ = g.plat.postTo(s.minigameWnd, Msg{ .id = msg.noite.minigame_hello, .wparam = 0, .lparam = msg.main_window });
+            // PostMessage(minigame, 0x40b, 0, MAKELONG(our window, 0)).
+            _ = g.plat.postTo(s.minigameWnd, Msg.make(msg.noite.minigame_hello, 0, msg.main_window, 0));
             return 0;
         },
         msg.wm.systimer => {
