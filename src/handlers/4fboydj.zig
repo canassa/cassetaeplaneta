@@ -41,7 +41,7 @@ pub const State = struct {
         .{ .left = 0x10e, .top = 0x186, .right = 0x127, .bottom = 0x19a },
         .{ .left = 0x122, .top = 0x1a0, .right = 0x13b, .bottom = 0x1b3 },
     },
-    // @orig 1040:002c (the click point; ES:[0x2c] after MOV ES,[0x1240])
+    // 1040:002c (the click point; ES:[0x2c] after MOV ES,[0x1240])
     clickX: i16 = 0,
     clickY: i16 = 0,
     // @orig g_s4fboydjButtonRects (1040:0030)
