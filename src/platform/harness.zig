@@ -309,9 +309,7 @@ pub fn printState(g: *const Game) void {
 
 /// The panic report: the current scene and the last messages, oldest first.
 pub fn report(g: *const Game) void {
-    std.debug.print("\n=== noite panic report ===\n", .{});
-    if (g.scene) |s| std.debug.print("scene {s} (#{d}), ticks {d}\n", .{ cstr.slice(&s.name), s.sceneNumber, g.plat.ticks() }) else std.debug.print("no scene\n", .{});
-    std.debug.print("last messages (S sent, Q queued; indent = SendMessage depth):\n", .{});
+    std.debug.print("\n=== noite panic report ===\nticks {d}; last messages (S sent, Q queued; indent = SendMessage depth):\n", .{g.plat.ticks()});
     for (0..g.trail.size()) |i| {
         const e = g.trail.get(i);
         var pad: [16]u8 = @splat(' ');
@@ -319,6 +317,8 @@ pub fn report(g: *const Game) void {
             e.at, e.how, pad[0..@min(@as(usize, e.depth) * 2, pad.len)], msgName(e.m.id), e.m.wparam, @as(u32, @bitCast(e.m.lparam)),
         });
     }
+    // Last: the scene pointer may be the dangling one that crashed.
+    if (g.scene) |s| std.debug.print("scene {s} (#{d})\n", .{ cstr.slice(&s.name), s.sceneNumber }) else std.debug.print("no scene\n", .{});
     std.debug.print("=== end of report ===\n", .{});
 }
 

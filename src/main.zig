@@ -223,6 +223,7 @@ fn run(g: *Game, hn: *platform.harness.Harness, stop_at: ?u32) !void {
     // WinMain calls app_exit after the message loop (also when the headless
     // time limit ends the run).
     if (comptime @hasDecl(units.app, "exit")) {
+        current_game = null; // the scene goes away: no report from here on
         units.app.exit(g);
         units.app.reclaimLeaks(g);
     }
