@@ -13,6 +13,14 @@ base=/var/www/cassetaeplaneta
 url=https://cassetaeplaneta.canassa.com
 site=zig-out/site
 
+# Ship only committed code: refuse uncommitted changes to tracked files
+# (submodules aside).
+if [ -n "$(git status --porcelain --untracked-files=no --ignore-submodules)" ]; then
+  echo "deploy-web: uncommitted changes; commit them or deploy from a clean worktree" >&2
+  git status --short --untracked-files=no --ignore-submodules >&2
+  exit 1
+fi
+
 tools/web/build-site.sh "$site"
 
 release=$(date -u +%Y%m%dT%H%M%SZ)
