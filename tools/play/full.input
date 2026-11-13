@@ -1,0 +1,127 @@
+# Full playthrough, title screen to the sportsman ending (see README.md).
+#
+#   zig-out/bin/noite --headless --ms 560000 --input tools/play/full.input [--dump DIR]
+#
+# The run is deterministic (headless virtual clock): the random choices
+# (roadblock cop, hall doors, bar quiz question) depend on the time of the
+# calls, so changing the timing of an earlier line can change them.
+
+# Title menu: JOGAR, then NOVO JOGO; the opening video ends in the bedroom.
+22000 dump title
+22000 click 290 345
++1500 click 370 412
++1000 wait 1fquarbo 200000
++1000 dump bedroom
+
+# Act 1 — the house.
+# Bedroom: desk drawer 3 holds the wallet (71).
++1000 rclick 287 275
++0 wait 1fgvboy3 33000
++1000 rclick 286 261
++1500 rclick 300 330
++0 wait 1fquarbo 33000
+# Through the door to the corridor.
++1000 click 130 360
++4500 rclick 95 80
++0 wait 1fcorred 33000
++1000 dump corridor
+# Parents' room: the present (98), then the key (82) in the dresser.
++100 click 211 360
++5000 rclick 211 150
++0 wait 1fquarpa 33000
++1000 click 80 380
++4000 rclick 40 395
++1500 click 312 360
++4000 rclick 312 214
++0 wait 1fgvpai2 33000
++1000 rclick 276 327
++1500 rclick 300 390
++0 wait 1fquarpa 33000
+# Corridor again: the bible (48), then the living room.
++1000 click 600 360
++4000 rclick 600 150
++0 wait 1fcorred 33000
++1000 rclick 343 329
++1500 click 30 360
++5000 rclick 20 200
++0 wait 1fsala 33000
++1000 dump livingroom
+# Living room: the gift (107) and the Oscar (108); on to the kitchen.
++100 rclick 598 380
++1500 rclick 340 70
++1500 click 454 330
++3000 rclick 454 120
++0 wait 1fcozin0 33000
++1000 move 320 465
++1500 dump inventory
++100 move 320 200
+# Kitchen: the burger (54), around the tomatoes to the garage door.
++1600 rclick 58 390
++1100 hold down 1000
++1500 hold left 2500
++3000 rclick 18 200
++0 wait 1fgarage 33000
+# Garage: the car takes the key.
++1000 hold left 1500
++2000 rclick 320 300
++0 wait 1amao2 33000
+
+# Act 2 — the roadblock: the good cop takes the wallet.
++1000 wait 2bfedriv 50100
+# The cop is random (by the second of the click): this one gives the good cop.
++2000 rclick 300 200
++0 wait 2fblitg 42100
++1000 dump roadblock
++100 move 320 465
++1500 rdown 390 430
++100 move 300 300
++100 move 290 150
++300 rup 290 150
++900 dump bribe
++0 wait 3fsegura 45000
+
+# Act 3 — the building.
++1000 wait 3fentseg 42100
++100 hold left 200
++600 rclick 140 200
++0 wait 3fhall 33000
++1000 dump hall
+# Door 2 of this run's shuffle: the shooting gallery (stub: won) -> prison.
++100 rclick 327 200
++0 wait 3fprisao 38000
++1000 hold right 400
++800 rclick 338 300
+# The street escape; the guard's stale timer ends it in the hall.
++1000 rclick 460 200
++0 wait 3fhall 63000
+# Door 5: the disco.
++1000 rclick 94 200
++0 wait 4finifes 33000
++1000 dump disco
+
+# Act 4 — the disco.
++100 rclick 500 100
++0 wait 4fbarboy 33000
++3000 move 320 465
++1500 rdown 110 430
++100 move 270 300
++100 move 270 120
++300 rup 270 120
++0 wait 4FDJ 50500
++1000 rclick 207 280
++8000 rclick 207 280
++10000 dump dj
++100 rclick 450 340
++8000 rclick 450 340
++8000 rclick 446 250
++0 wait 4FPISTAV 40000
++1000 rclick 500 100
++0 wait 4fbar 33000
+# The sportsman's quiz: this run asks about Independiente (answer C).
++2000 rclick 396 290
++1500 dump quiz
++200 rclick 430 250
++0 wait espquete 41000
++1000 wait 6fsai1 51000
++0 wait fundinic 48000
++1000 dump end

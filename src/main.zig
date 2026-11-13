@@ -147,6 +147,10 @@ pub fn main(init: std.process.Init) !void {
     if (args.trace) |path| {
         try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = path, .data = trace.items });
     }
+    if (hn.failed or hn.script.timed_out) {
+        std.log.err("an expect of the input script failed", .{});
+        std.process.exit(1);
+    }
 }
 
 /// WinMain + app_message_loop. `stop_at`: headless time limit.

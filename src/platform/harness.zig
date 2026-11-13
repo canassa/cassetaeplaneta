@@ -35,6 +35,10 @@ pub const Harness = struct {
     next_dump: u32 = 0,
     dumps: u32 = 0,
     last_scene: [20]u8 = @splat(0),
+    /// An `expect` failed.
+    failed: bool = false,
+    /// The time of the last `step`.
+    now: u32 = 0,
 
     pub fn init(gpa: std.mem.Allocator, io: std.Io, opts: Options, assets_dir: []const u8) !Harness {
         var h: Harness = .{ .gpa = gpa, .io = io, .opts = opts, .assets_dir = assets_dir };
@@ -66,7 +70,7 @@ pub const Harness = struct {
 
     /// The earliest time the harness needs the loop to wake up.
     pub fn nextDue(h: *const Harness) ?u32 {
-        var t = h.script.nextAt();
+        var t = h.script.nextAt(h.now);
         if (h.opts.dump_dir != null and h.opts.dump_every != 0) {
             t = if (t) |x| @min(x, h.next_dump) else h.next_dump;
         }
@@ -83,7 +87,9 @@ pub const Harness = struct {
             h.dump(g, "");
             while (h.next_dump <= now) h.next_dump += h.opts.dump_every;
         }
-        while (h.script.due(now)) |a| {
+        h.now = now;
+        const scene_name = if (g.scene) |sc| cstr.slice(&sc.name) else "";
+        while (h.script.due(now, scene_name)) |a| {
             did = true;
             switch (a) {
                 .input => |m| g.queue.postInput(m),
@@ -91,6 +97,16 @@ pub const Harness = struct {
                 .scene => |j| h.jump(g, j),
                 .log => |text| std.debug.print("[{d}] log: {s}\n", .{ now, text }),
                 .state => printState(g),
+                .expect => |name| {
+                    const cur = if (g.scene) |sc| cstr.slice(&sc.name) else "";
+                    if (std.ascii.eqlIgnoreCase(std.mem.trim(u8, cur, " "), name)) {
+                        if (h.opts.verbose) std.debug.print("[{d}] expect {s}: ok\n", .{ now, name });
+                    } else {
+                        std.debug.print("[{d}] expect {s}: FAILED, the scene is {s}\n", .{ now, name, cur });
+                        h.failed = true;
+                    }
+                },
+                .wait => {},
                 .quit => {
                     g.quit = true;
                     return true;

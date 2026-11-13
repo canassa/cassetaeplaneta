@@ -18,6 +18,10 @@
 //!                       switch to an INI scene now (as `--scene`)
 //!     log TEXT          print a marker in the log
 //!     state             print the scene, player, inventory, lives, score
+//!     expect NAME       fail the run (exit 1) unless NAME is the scene
+//!     wait NAME [MS]    hold the script until NAME is the scene (fail
+//!                       after MS, default 120000); every later time
+//!                       moves by the time waited
 //!     quit              end the run
 //!
 //! Mouse commands keep track of the buttons held, as `wParam` (MK_*).
@@ -32,8 +36,12 @@ pub const Action = union(enum) {
     scene: SceneJump,
     log: []const u8,
     state,
+    expect: []const u8,
+    wait: Wait,
     quit,
 };
+
+pub const Wait = struct { name: []const u8, max_ms: u32 };
 
 pub const SceneJump = struct {
     name: []const u8,
@@ -58,22 +66,55 @@ pub const Script = struct {
     /// Owns the text the actions' slices point into.
     text: []u8 = &.{},
     next: usize = 0,
+    /// How far the `wait`s have pushed the remaining steps.
+    shift: u32 = 0,
+    /// A `wait` in progress: its deadline.
+    waiting_until: ?u32 = null,
+    /// A `wait` gave up.
+    timed_out: bool = false,
 
     pub fn deinit(s: *Script, gpa: std.mem.Allocator) void {
         s.steps.deinit(gpa);
         gpa.free(s.text);
     }
 
-    pub fn nextAt(s: *const Script) ?u32 {
+    /// When the script next needs the loop (`now` while waiting: it polls
+    /// the scene every 50 ms).
+    pub fn nextAt(s: *const Script, now: u32) ?u32 {
         if (s.next >= s.steps.items.len) return null;
-        return s.steps.items[s.next].at;
+        if (s.waiting_until != null) return now + 50;
+        return s.steps.items[s.next].at + s.shift;
     }
 
-    /// The next action due at `now`, if any.
-    pub fn due(s: *Script, now: u32) ?Action {
-        if (s.next >= s.steps.items.len or s.steps.items[s.next].at > now) return null;
-        s.next += 1;
-        return s.steps.items[s.next - 1].action;
+    /// The next action due at `now`, if any; `scene` is the current scene's
+    /// name (for `wait`, which is consumed here).
+    pub fn due(s: *Script, now: u32, scene: []const u8) ?Action {
+        while (s.next < s.steps.items.len) {
+            const st = s.steps.items[s.next];
+            if (st.at + s.shift > now) return null;
+            if (st.action != .wait) {
+                s.next += 1;
+                return st.action;
+            }
+            const w = st.action.wait;
+            if (std.ascii.eqlIgnoreCase(std.mem.trim(u8, scene, " "), w.name)) {
+                s.shift = now - st.at;
+                s.waiting_until = null;
+                s.next += 1;
+                continue;
+            }
+            const deadline = s.waiting_until orelse now + w.max_ms;
+            if (now >= deadline) {
+                std.debug.print("[{d}] wait {s}: FAILED, the scene is {s}\n", .{ now, w.name, scene });
+                s.timed_out = true;
+                s.waiting_until = null;
+                s.next += 1;
+                continue;
+            }
+            s.waiting_until = deadline;
+            return null;
+        }
+        return null;
     }
 };
 
@@ -152,6 +193,12 @@ pub fn parse(gpa: std.mem.Allocator, text: []u8) ParseError!Script {
             try s.steps.append(gpa, .{ .at = t, .action = .{ .scene = j } });
         } else if (eq(u8, cmd, "log")) {
             try s.steps.append(gpa, .{ .at = t, .action = .{ .log = std.mem.trim(u8, words.rest(), " \t") } });
+        } else if (eq(u8, cmd, "wait")) {
+            const name = words.next() orelse return bad(line_no, "missing scene");
+            const max: u32 = if (words.peek() != null) try num(u32, words.next(), line_no) else 120_000;
+            try s.steps.append(gpa, .{ .at = t, .action = .{ .wait = .{ .name = name, .max_ms = max } } });
+        } else if (eq(u8, cmd, "expect")) {
+            try s.steps.append(gpa, .{ .at = t, .action = .{ .expect = words.next() orelse return bad(line_no, "missing scene") } });
         } else if (eq(u8, cmd, "state")) {
             try s.steps.append(gpa, .{ .at = t, .action = .state });
         } else if (eq(u8, cmd, "quit")) {
