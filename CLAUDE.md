@@ -43,12 +43,13 @@ one Zig file (module, behaviour or scene handler) owning a set of functions.
 noite import                 # refresh from Ghidra (needs the MCP bridge; keeps tracking)
 noite status [--segments]    # counts by status / kind / segment, units
 noite show <addr|name>       # row, callers/callees, decompile (--asm) — no Ghidra needed
+noite show <vtable>          # a vtable's slots -> functions (g_statusBarVtbl, 1018:c5bc)
 noite show <struct|global>   # layout / declaration + the functions that use it
 noite mark <fn…> -s dead     # fix a status by hand (--by <addr> for absorbed)
 noite unit new <name> -k module|behaviour|handler [--path src/x.zig] [--notes …]
 noite unit add <unit> <fn…> [--match 'backdrop_*'] [--move];  unit rm <fn…>
 noite unit show <unit> / unit list / unit sync   # sync: stubs + src/units.zig (main only)
-noite unit dep add|rm <unit> <on> [--note] / dep show <unit> / dep cycles
+noite unit dep add|rm <unit> <on> [--note] / dep show <unit> / dep cycles [--all]
 noite unit dep infer         # virtual-slot deps (auto; keeps manual) from the decompile/asm +
                              # DESIGN.md slot table + noite/deps.py (other vtables); rerun after import
 noite plan export|apply      # db/plan.tsv: units, fn->unit, hand-set statuses, manual deps; unit new/add/rm,
@@ -65,16 +66,21 @@ from `@orig` tags), `noite unit dep infer`.
 Workflow (one agent per unit, any number in parallel):
 
 1. `noite next` — units whose callees outside the unit are all done and
-   whose `unit dep`s (virtual-call owners) are done (`--blocked` says what
-   blocks the rest; units in a dependency cycle are flagged).
+   whose manual `unit dep`s are done. Virtual-call (auto) deps are soft:
+   every slot's dispatcher is declared in the skeleton, so they only show
+   as info (`--blocked` says what blocks the rest and lists the soft deps;
+   units in a hard-dependency cycle are flagged).
 2. `noite start <unit>` — atomic claim; makes worktree `work/<unit>/` on
    branch `port/<unit>`, with each function's snapshot in `work/<unit>/.ref/`
    (`types.md`: layouts of the structs and declarations of the globals the
-   unit touches). In a worktree, `. .ref/env.sh` reuses the main checkout's
+   unit touches; `strings.md`: each function's string constants, exact
+   bytes from the EXE). In a worktree, `. .ref/env.sh` reuses the main checkout's
    `.venv` (`UV_PROJECT_ENVIRONMENT` + `UV_NO_SYNC=1`, no venv per worktree)
    and sets `NIX_CONFIG='warn-dirty = false'` to silence nix's "Git tree is
    dirty" warning.
-3. In the worktree, write the unit's file only: one
+3. In the worktree, write the unit's file only (it already declares the
+   virtual-slot dispatchers the unit owns: replace their bodies, keep their
+   signatures): one
    `// @orig <seg:off> <name>` per function (`(absorbed)` for stubs it
    absorbs); tests optional for now — tag them with
    `// @orig <seg:off> <name> oracle=emulated|asset|documented|trace`.

@@ -18,10 +18,14 @@ src/core/                shared types and Win16 replacements (skeleton, not unit
   queue.zig              the emulated Win16 message queue and timers
   handler.zig            Handler type, per-scene State storage
   fixes.zig              Fixes (BUGS.md fixes, all off)
+  errors.zig             the one error set (LimitExceeded, Fatal)
+  stub.zig               `unported()`: body of a declared, not yet ported function
   cstr.zig crt.zig       C strings in fixed buffers; the CRT rand()
 src/platform/            the platform layer (not units)
   platform.zig           the Platform interface
-  sim.zig                files over assets/, media timing, minigame stub
+  sim.zig                files over assets/, font, WaveMix, MCI, video, minigame stub
+  font.zig flic.zig      VGASYS.FON reader/renderer; AVI (Autodesk FLIC) decoder
+  midi.zig mixer.zig     TinySoundFont wrapper (vendor/); the PCM/MIDI mixer
   headless.zig sdl.zig   backends
 src/<unit>.zig           module units
 src/behaviour/<unit>.zig behaviour units (one group of virtual slots)
@@ -89,11 +93,28 @@ pub fn moveTick(g: *Game, obj: *Object, bd: *Backdrop) void {
 fn playerMoveTick(g: *Game, obj: *Object, bd: *Backdrop) void { … }
 ```
 
-Signatures: `(g: *Game, obj: *Object, <args in source order>)`. `hwnd`
-and `hdc` parameters are dropped (one window; the DC is the platform
-screen); the `…Dc` and plain variants both stay (two functions, two tags).
-`Backdrop *` arguments stay explicit (`bd: *Backdrop`). Flags-only
-returns are `bool`; other returns keep the original type (`i16`, `?*Object`).
+Signatures: `(g: *Game, obj: *Object, <args in source order>)`. Ghidra
+lists a far pascal (`__stdcall16far`) function's parameters in stack
+order, which is the **source order reversed** (`set_anchor(this, y, x)` is
+`setAnchor(g, obj, x, y)`; a far pointer split into `p, p_seg` is one
+parameter). `hwnd` and `hdc` parameters are dropped (one window; the DC is
+the platform screen); the `…Dc` and plain variants both stay (two
+functions, two tags). `Backdrop *` arguments stay explicit (`bd:
+*Backdrop`). Flags-only returns are `bool`; other returns keep the
+original type (`i16`, `?*Object`); always-written out-parameters join the
+return value (`space3d.Support`, `world.RectQuery`).
+
+**Every dispatcher is already declared** (skeleton): the slot's owning
+unit file has the `pub fn` with its final signature and a body that is
+`stub.unported(...)`, or, for kinds that use a trivial absorbed default,
+a switch whose arm is that default (tagged `(absorbed)`). Callers use them
+before the owner is ported; the owner replaces the bodies and keeps the
+signatures (other units already call them; changing one means editing
+their files, which the owner cannot do — record it with `noite failed`
+instead). Flattened single-class vtables (Backdrop, Scene, Game) have
+plain functions as "dispatchers": `backdrop.queryRect(g, bd, …)` forwards
+to the `grid` implementation; Backdrop slots 13–16 (type tests) are not
+declared: the backdrop is always a PerspectiveBackdrop.
 
 ### SceneObject slots (kinds: L local, A animated, M moveable, Ac actor, P player, E exit, Po portable, C control_panel, S status_bar)
 
@@ -193,7 +214,7 @@ Type-test slots 43–57 and 5D/5E are `Object.is/as`.
 | ControlPanelVtbl (17) | 00–07 Animation; 08–10 plain functions in `panels` (one kind) |
 | Backdrop/Grid/PerspectiveBackdrop | flattened: only PerspectiveBackdrop exists; base stubs absorbed; `backdrop` (+ `grid` queries, `projection` math) |
 | SceneVtbl (16) | flattened to the INI scene class: `scene` (+ `scene_loader` for slot 07 create) |
-| GameVtbl (14) | flattened to NoiteGame: `game` (00 dispatch, 02/04/05/06 creators, 08 onCreate), `game_hook` (01), `game_scenes` (07 init, 0C/0D), `save` (09–0B) |
+| GameVtbl (14) | flattened to NoiteGame: `game_input` (00 handleMessage), `game_hook` (01), `game` (02–06 creators, 08 onCreate), `game_scenes` (07 init, 0C/0D), `save` (09–0B) |
 | ConditionVtbl (3) | `condition`: `switch (cond.kind)` (base / flag) |
 
 ## State
@@ -210,12 +231,16 @@ picked items, saved position, the handler table, the CRT `rand` state,
 the message queue and timers, `fixes`, the platform, and every handler's
 `State` (`g.scenes`).
 
-Access: engine, behaviour and handler code take `*Game`. **Leaf modules
-take the narrowest thing**: `grid` takes `*Grid`, `draw_list` `*DrawList`
+Access: engine, behaviour and handler code take `*Game`, and so does any
+function that posts or sends a message or shows a message box (e.g.
+`sound.open`, `sound.play`, `sound.mixInit`). **Leaf modules take the
+narrowest thing**: `grid` takes `*Grid`, `draw_list` `*DrawList`
 (+ a comparison callback where it needs the virtual isInFrontOf),
 `update_list` `*UpdateList`, `object_list` `*ObjectList`, `projection`
 `*const Backdrop` + plain numbers, `ini` `*Ini` + `Platform`, `sound` `*Sound` + `Platform`, `dib`
-bytes/`Dib`. That keeps them testable with no `Game`.
+bytes/`Dib`. That keeps them testable with no `Game`. A leaf that reaches
+a bug site takes `fixes: Fixes` **by value** (`dib.copy`, the `ini`
+readers); DOS file handles (`fd: File`) are always passed explicitly.
 
 Allocation: objects, DIBs and scenes are `g.gpa.create`/`destroy`d where
 the original calls `new`/`delete` (units `object_create`, `object_init`,
@@ -301,35 +326,53 @@ functions of a slot are `<class><Slot>` (`moverMoveTo`, `exitTick`). Keep
 `src/platform/platform.zig` — a vtable interface (`Platform`, like
 `std.mem.Allocator`): clock (`ticks`, `unixTime`), events (`poll`, `wait`),
 screen (640×480 8-bit + 256-colour palette, `present`; GetDC + WinGBitBlt
-become writes into `screen().pixels`), GDI text (`textOut`, `textExtent`),
+become writes into `screen().pixels`), GDI text (`textOut` into a
+`Surface` — the backdrop's DIB and colour table — with a `TextStyle` =
+SetTextColor/SetBkColor/SetBkMode, default opaque white; `textExtent`),
 DOS files (`open/read/write/seek/close` on `\FASE2\X.WAV`-style paths,
 case-insensitive over `assets/`, writes to `save/` which is read first),
-WaveMix (`waveOpen/Free/Play/Flush`, `mixActivate`), MCI (`mciString` for
-the music/waveaudio commands, `aviOpen/Play/Stop/Close`), other programs
-(`winExec`, `findWindow`, `postTo`, `showMain`) and `messageBox`.
+WaveMix (`mixGetInfo`, `mixConfigureInit`, `mixOpenChannel`,
+`mixCloseChannel`, `mixCloseSession`, `mixActivate`, `waveOpen/Free/
+Play/Flush` with `PlayParams`: notify, loops, CLEARQUEUE, USELRUCHANNEL —
+results are the DLL's: 0 ok, MMSYSERR codes, 0/null handles), MCI
+(`mciString` for the sequencer/waveaudio commands, `aviOpen/Play/Stop/
+Close`), other programs (`winExec`, `findWindow`, `postTo`, `showMain`)
+and `messageBox(caption, text, style) → button`.
 
-Backends: **headless** (virtual clock, scripted input; tests, traces) and
-**SDL3** (window, palette → XRGB texture, mouse/arrow keys as Win16
-messages, real clock). Both share `sim.zig`: files, media durations from
-the file headers and the minigame stub, so they emit the same events.
+Backends: **headless** (virtual clock, scripted input; tests, traces;
+message boxes answer their first button) and **SDL3** (window, palette →
+XRGB texture, mouse/arrow keys as Win16 messages, real clock, audio).
+Both share `sim.zig`, which owns every piece of state and **times every
+notification from the media itself** — WAVE data size, the MIDI tempo map
+(`midi.songLengthMs`), AVI µs/frame × frames — so the two backends post
+the same messages at the same ticks; SDL only renders `sim.mix` and shows
+the frames `sim.videoUpdate` draws.
+
+- **Text**: `VGASYS.FON` from the disc (NE resource 0x8008, FNT v2),
+  COLORREF → nearest colour-table entry (PALETTEINDEX as is).
+- **Video**: the game AVIs are 640×480 8-bit Autodesk FLIC in AVI (`AFLC`;
+  only BYTE_RUN, DELTA_FLC, COLOR_256 and PSTAMP occur) with 22 050 Hz
+  8-bit mono PCM. Frames go to the screen at (0,0) as they fall due; the
+  screen palette is restored on stop/close. Seven files on the disc have
+  damaged frames (2ACOPSEX, CARNIBOY, 2ACOPMAU, 2ACOPMU, PAN\AVI\
+  2APREBO2/2APREMA2): the decoder reports the frame and playback goes on.
+  `SAMPLE.AVI` (Cinepak) is a disc extra, unsupported.
+- **Music**: MCI `sequencer` through TinySoundFont (`vendor/tinysoundfont`,
+  MIT) with the GeneralUser GS SoundFont (`$NOITE_SOUNDFONT`, set by the
+  dev shell; without it music is silent but still notifies). Interrupting
+  a `notify` play posts MCI_NOTIFY_ABORTED (SUPERSEDED when the new
+  command notifies). Resume after pause restarts the song's sound, not
+  its timing (unverified detail).
+- **Audio**: one mixer (8 WaveMix channels, the MCI wave device, the AVI
+  track, MIDI) at 44.1 kHz stereo into an SDL audio stream.
+- **Minigames** (separate EXEs): stubbed by `sim.zig` — the handshake is
+  answered and a configurable result is reported.
 
 Verified: SDL3 3.4 (nixpkgs, via pkg-config) links and runs with Zig
 0.17.0 Debug, **self-hosted x86_64 backend and Zig's own linker**
-(`use_llvm = false, use_lld = false`, set in `build.zig`), ~1 s builds.
+(`use_llvm = false, use_lld = false`, set in `build.zig`); the C of
+TinySoundFont compiles with the bundled clang (`-fno-sanitize=shift`).
 SDL is declared by hand (`@cImport` is gone in 0.17; no translate-c).
-
-Not implemented yet (platform tasks, not tracker units):
-- **Video**: the 79 game AVIs are 640×480 8-bit **Autodesk FLIC in AVI**
-  (fourcc `AFLC`; each `00dc` chunk is a FLC frame chunk, magic `F1FA`,
-  deltas type 7/SS2) with 8-bit mono 22 050 Hz PCM audio. `SAMPLE.AVI`
-  (Cinepak) is a disc extra, unused. A pure-Zig FLC decoder is small.
-- **Audio**: WAVs are 8-bit PCM; mixing via SDL audio streams (8 channels).
-- **Music**: `VELHA.MID` through MCI `sequencer` ("musica" alias). SDL3 has
-  no MIDI; needs a synth (open question). Until then music never notifies.
-- **Text**: the control panel's score/lives use GDI TextOut with the system
-  font; needs a bitmap font.
-- **Minigames** (separate EXEs): stubbed by `sim.zig` — the handshake is
-  answered and a configurable result is reported.
 
 ## Conventions
 
@@ -341,12 +384,16 @@ Not implemented yet (platform tasks, not tracker units):
   sentinels the callers compare against (-1 section offset, -1 timer id,
   -1 exit index, 0 "not found" ids) stay as values — faithful, translates
   one-to-one. Optionals for "no handle" from the platform (`?File`).
-- **Errors**: malformed data → a Zig error, never a panic. Original fatal
-  paths (`ini_fatal_error`, FatalAppExit, the "Estouro …" checks) →
-  `error.Fatal` after `plat.messageBox` with the original text; it
-  propagates to `main`. Non-fatal MessageBoxes → `plat.messageBox` and go on.
-  Platform failures behave like the API's failure value (OpenFile -1 →
-  null, WinExec < 32).
+- **Errors**: one set, `core/errors.zig` (`error{LimitExceeded, Fatal}`;
+  add I/O members there if ever needed). Malformed data → a Zig error,
+  never a panic. An original path that only shows a message box and
+  returns (`ini_fatal_error`'s "Erro Fatal!", the "Estouro …" boxes) keeps
+  doing exactly that: `plat.messageBox` with the original text and style,
+  then the original return value, and the caller carries on.
+  `error.Fatal` is only for paths that really terminate (FatalAppExit,
+  exit(), a crash) — or where a `Fixes` flag asks to quit instead
+  (`quit_on_ini_error`); it propagates to `main`. Platform failures behave
+  like the API's failure value (OpenFile -1 → null, WinExec < 32).
 - **Original limits** (150 INI sections, 25 exits, 100 draw nodes / update
   entries, 30 waves, 400 handlers, 65×81 grid, `char[N]`): fixed arrays of
   the original size. Where the original checks, port the check; where it
@@ -355,7 +402,17 @@ Not implemented yet (platform tasks, not tracker units):
   test should show the shipped data stays inside.
 - **Integers**: `int` → `i16`, `unsigned` → `u16`, `long` → `i32`, `BYTE`
   → `u8`; wrapping ops where the original can overflow; `@divTrunc`/
-  `@rem` for C `/` `%`.
+  `@rem` for C `/` `%`. An int flag (field, parameter or return) becomes
+  `bool` when every use only tests zero/non-zero; otherwise it stays `i16`.
+- **Shared buffers**: the original's unnamed DGROUP sprintf buffers are
+  `Game` fields of the original size — `concatBuf` (9d26, concat_strings),
+  `messageBuf` (7cd6, message_box_printf), `wavePathBuf` (9e28, wave_open),
+  `dibPathBuf` (13d8, load_dib); add others the same way. Leaf functions
+  take the buffer as a parameter. Named module globals live in their
+  state struct (`g_waveCacheA..C` → `g.sound.cache`).
+- **Constructors** set `kind` (and the fields the original sets): a derived
+  ctor calls the base ctor first, then overwrites `kind`, as the vtable
+  pointer is overwritten (`condition.flagConditionCtor`).
 - **Fixes**: `src/core/fixes.zig`, read as `g.fixes.<flag>` at the bug
   site. Add a flag (with its BUGS.md id) when you port a bug's site.
 - **CRT/API**: replaced, not ported (`noite` statuses `replaced`); their
@@ -367,19 +424,26 @@ Not implemented yet (platform tasks, not tracker units):
 - **Reading the original**: the decompile drops arguments of virtual calls
   and can show wrong operands around them; take formulas from the
   disassembly (`.ref/*.asm`). A trivial virtual getter is a field read.
+- **Names**: the Ghidra name minus the unit's prefix, camelCased, digits
+  kept attached (`dib_rows_copy32` → `dib.rowsCopy32`, `object3d_overlaps_3d`
+  slot → `overlaps3d`).
+- **INI offsets**: a section's offset (`Ini.sections`) points just after
+  the header line's CR, i.e. at its LF (`ini_read_line` stops at CR).
 - **Tests** optional; when written, oracle per the skill.
 
 ## Units and porting order
 
 89 units: 26 modules, 9 behaviours, 53 handlers, `ini_sections` (done).
-`noite next` orders by **direct** calls only. Virtual calls
-(`CALLF [BX+off]`, slot = off/4) are invisible to it, so a unit is also
-blocked until **every unit owning a slot it calls is done** (slot table
-above). Before `noite start`, check the slots your functions call and pick
-another unit if an owner is pending. The phases are the expected order:
+`noite next` blocks a unit on its **direct** calls into unported
+functions and on manual deps only. Virtual calls (`CALLF [BX+off]`, slot =
+off/4) are **soft** deps (`noite unit dep show`, `next --blocked`): the
+owner's dispatcher is already declared, so the caller compiles; until the
+owner is ported, the call panics "unported" at run time, which tests that
+reach it will show. Cycles are checked on hard deps (`noite unit dep
+cycles`). The phases are the expected order:
 
-1. **Leaves**: `dib`, `condition`, `projection`, `ini`, `sound` (ready
-   now), then `frames`, `misc`, `grid`, `update_list`.
+1. **Leaves**: `dib`, `condition`, `projection`, `ini`, `sound` (done),
+   then `frames`, `misc`, `grid`, `update_list`.
 2. **Construction**: `object_init`, `object_list`, `object_create`,
    `backdrop`, `ini_readers`, `avi`.
 3. **Behaviours**, in this expected order (verify the slots you call):
@@ -390,7 +454,6 @@ another unit if an owner is pending. The phases are the expected order:
    `game`, `game_scenes`, `save`, `game_hook`, `game_input`, `app`.
 5. **Handlers** (53), once phase 4 is done.
 
-A dispatcher can only be called once its unit is merged (a missing `pub fn`
-does not compile). If two pending behaviour units need each other's slots,
-don't work around it with a local copy: `noite failed <unit> "needs slot
-<name> (<unit>)"` and take another unit.
+Never work around an unported slot with a local copy: call the declared
+dispatcher. If its signature cannot express what the original does,
+`noite failed <unit> "slot <name> (<owner>) needs …"` and take another unit.

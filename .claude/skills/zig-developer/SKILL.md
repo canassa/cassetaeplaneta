@@ -99,10 +99,13 @@ struct. Messages go through `g.post` / `g.send` / `g.setTimer` /
 public names are the Ghidra name in camelCase minus its class prefix
 (`wave_play` → `sound.play`); handler globals go in the handler's `State`
 (`g.sceneState(State)`). C strings stay `[N]u8` (`core/cstr.zig`); pointer
-NULL → `?*T`, integer sentinels stay; original fatal errors →
-`error.Fatal`; unchecked original limits → `error.LimitExceeded`. A unit
-calling a virtual slot needs the slot's owning unit done first (slot table
-in the design; `noite next` can't see virtual calls).
+NULL → `?*T`, integer sentinels stay; a message box the original shows
+and then returns from stays exactly that (`error.Fatal` only where the
+original terminates); unchecked original limits → `error.LimitExceeded`.
+Every virtual slot's dispatcher is already declared (panicking stub) in its
+owner's file: call it freely; if you own it, replace the body and keep the
+signature. Ghidra lists far pascal parameters reversed (source order is
+the reverse).
 
 ## Naming
 
