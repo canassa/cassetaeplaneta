@@ -252,29 +252,30 @@ fn createPortable(g: *Game, zoom: bool) void {
 /// them, loads every `Portable=`/`ZoomPort=` item into the global
 /// objects, shows what the scene has and posts 0x401.
 ///
-/// Failures: no name or no CASSETUP.INI show the "Erro Fatal!" box and
-/// post WM_DESTROY; the original returns NULL there, this returns `g`
-/// (the declared signature has no null). A game INI that cannot be opened
-/// shows its box and returns `g` without posting anything.
+/// Failures: no name or no CASSETUP.INI show the "Erro Fatal!" box, post
+/// WM_DESTROY and return null (the original returns NULL; its caller
+/// ignores it).
+/// A game INI that cannot be opened shows its box and returns `g` without
+/// posting anything.
 ///
 /// The CRT/USER parts have no counterpart: `_fullpath("")` (the current
 /// directory) is the root `\` of the platform's file namespace, so
 /// `baseDir` is `\`; `_access` is an open; GetPrivateProfileString is
 /// `profileString`.
-pub fn init(g: *Game, name: []const u8) *Game {
+pub fn init(g: *Game, name: []const u8) ?*Game {
     const nm = cstr.slice(name);
     if (nm.len == 0) {
         // Nome do jogo indefinido
         ini.messageBoxPrintf(g.plat, &g.messageBuf, "Erro Fatal!", "Nome do jogo indefinido em gen_applic::Init", 0);
         _ = g.post(Msg.make(wm.destroy, 0, 0, 0));
-        return g;
+        return null;
     }
     _ = cstr.print(&g.baseDir, "{s}\\", .{""});
     const setup = g.plat.open("\\cassetup.ini", .read) orelse {
         // Path do setup.ini nao existe
         ini.messageBoxPrintf(g.plat, &g.messageBuf, "Erro Fatal!", "Path do setup.ini nao existe em gen_applic::Init", 0);
         _ = g.post(Msg.make(wm.destroy, 0, 0, 0));
-        return g;
+        return null;
     };
     var text: [4096]u8 = undefined;
     var len: usize = 0;
@@ -292,7 +293,7 @@ pub fn init(g: *Game, name: []const u8) *Game {
     if (g.ini.file == null) {
         g.ini.file = ini.open(g.plat, cstr.print(&path, "{s}{s}.ini", .{ cstr.slice(&g.driveHD), nm }));
     }
-    g.iniFile = if (g.ini.file) |f| @bitCast(f) else 0;
+    g.iniFile = g.ini.file orelse 0;
     if (g.ini.file == null) {
         _ = ini.fatalError(g.plat, g.fixes, "N\xe3o consegui abrir o .ini do jogo") catch |e| die(e);
         return g;
@@ -305,7 +306,7 @@ pub fn init(g: *Game, name: []const u8) *Game {
     // PatBlt(hdc, 0, 0, clearWidth, clearHeight, BLACKNESS): both are 0
     // (BUGS.md U3), nothing is blanked.
     const scene = must(Scene, g.scene);
-    const pos: i32 = g.plat.seek(fd, 0, .cur); // ini_tell: the full position (DX:AX)
+    const pos = ini.tell(g.plat, fd);
     _ = scene_loader.create(g, scene);
     _ = ini.seek(g.plat, fd, pos);
     g.player = game.createPlayer(g);

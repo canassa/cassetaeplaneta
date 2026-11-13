@@ -393,16 +393,16 @@ pub fn findWave(
     }
 }
 
-/// Low word of the file's current position.
+/// The file's current position (`_tell`'s long, returned in DX:AX).
 // @orig 1018:aafa ini_tell
-pub fn tell(plat: Platform, fd: File) i16 {
-    return @truncate(plat.seek(fd, 0, .cur));
+pub fn tell(plat: Platform, fd: File) i32 {
+    return plat.seek(fd, 0, .cur);
 }
 
-/// Moves to an absolute position; returns the low word of the result.
+/// Moves to an absolute position; returns `_lseek`'s long result.
 // @orig 1018:ab12 ini_seek
-pub fn seek(plat: Platform, fd: File, pos: i32) i16 {
-    return @truncate(plat.seek(fd, pos, .set));
+pub fn seek(plat: Platform, fd: File, pos: i32) i32 {
+    return plat.seek(fd, pos, .set);
 }
 
 /// Reseeds the CRT generator from the clock and returns `rand() % n`
