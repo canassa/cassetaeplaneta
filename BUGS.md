@@ -506,6 +506,20 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   next WM_SYSTIMER when the inventory differs from the one it last showed.
 - **Confidence:** 8 (code, port repro).
 
+### B35. A walk that starts or stops shows the player as two poses for a moment
+- **Where:** `directional_player_move_to` 1010:e5e8 (and the edge walks 1010:e6c4/e76e, the stop 1010:e818 →
+  `directional_player_play_idle` 1010:e59e) switch the strip with `animation_set_strip` 1010:24fa, which
+  redraws nothing when the frame size stays the same. Until the player's own timer redraws it, another
+  animation's tick (`animated3d_tick` 1010:631e: `scene_object_reset_rects` on the player, then its slot 58
+  `object3d_redraw_overlapping` 1010:5e10) draws the player's clip rectangle over each object it stands in
+  front of with the *new* frame, over the old frame still in the backdrop, and invalidates it.
+- **Effect:** with the kitchen's cockroach or ketchup animating, a click that starts a walk (or one blocked at
+  once, e.g. against the stove or the tomatoes) shows the idle pose with pieces of the walking profile over
+  it, for one tick (two when the first step is blocked: the stop goes back to strip 3 the same way).
+- **Port:** reproduced (`1fcozin0`, the player against the tomatoes, the cockroach running);
+  `Fixes.player_strip_redraws` redraws the player whole (and what stands in front of it) on its strip change.
+- **Confidence:** 8 (code, port repro).
+
 ## Harmless: wrong paths rescued by the wave fallback
 
 `wave_open` retries `<root>pan\wav\<file name>.wav`, and `PAN\WAV\` holds a copy of almost every wave, so these

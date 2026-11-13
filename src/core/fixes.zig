@@ -98,6 +98,10 @@ pub const Fixes = struct {
     /// inventory changes under it (an offered item handed back to the
     /// first slot), so its icons are the items a drag takes.
     panel_follows_inventory: bool = false,
+    /// B35: a strip change of the player (a walk starting or stopping, the
+    /// idle pose) redraws it whole at once, so another animation's tick
+    /// does not draw the new frame's overlapping pieces over the old one.
+    player_strip_redraws: bool = false,
     /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"):
     /// while an inventory item is dragged out of the control panel (right
     /// button held), its panel icon follows the pointer. The original shows

@@ -302,6 +302,13 @@ pub fn setStrip(g: *Game, obj: *Object, strip: i16, bd: *Backdrop) *Frame {
     if (old.width == new.width and old.height == new.height) {
         obj.curStrip = strip;
         obj.curFrame = 0;
+        // B35: the player's new frame goes on screen whole at once, so another
+        // animation's tick cannot patch it piecewise over the old one.
+        if (g.fixes.player_strip_redraws and obj.kind == .player and obj.visible != 0) {
+            frames.resetRects(obj);
+            visibility.redraw(g, obj, bd);
+            visibility.redrawOverlapping(g, obj, bd, 1);
+        }
     } else {
         visibility.hide(g, obj, bd);
         _ = visibility.invalidate(g, obj);
