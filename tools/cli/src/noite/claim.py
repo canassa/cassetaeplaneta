@@ -412,6 +412,61 @@ def unported_stubs(path: Path) -> list[str]:
     ]
 
 
+# A finish rebases onto main and runs the gates; if main moved meanwhile (a
+# commit pushed straight to main), the fast-forward fails and it starts over.
+FF_RETRIES = 5
+
+
+def _rebase_and_gate(
+    conn: sqlite3.Connection, wt: Path, u: sqlite3.Row, unit: str
+) -> tuple[check.Report, list[sqlite3.Row], list[str], int]:
+    """Rebase the unit's branch onto main and run every gate; raises ClaimError."""
+    if git(wt, "rebase", "main", check_=False).returncode != 0:
+        git(wt, "rebase", "--abort", check_=False)
+        raise ClaimError(f"rebasing port/{unit} onto main conflicts; resolve in {wt} and retry")
+    files = changed_files(wt)
+    if not files:
+        raise ClaimError(f"port/{unit} has no commits beyond main")
+    bad = check_ownership(conn, unit, files)
+    if bad:
+        raise ClaimError("the branch touches files it does not own:\n  " + "\n  ".join(bad))
+
+    zig_changed = [f for f in files if f.endswith(".zig") and (wt / f).exists()]
+    if zig_changed:
+        run_gate(wt, ["zig", "fmt", "--check", *zig_changed])
+    run_gate(wt, ["zig", "build"])
+    run_gate(wt, ["zig", "build", "test"])
+
+    rep = check.run(conn, wt)
+    if not rep.ok:
+        raise ClaimError("`noite check` failed:\n  " + "\n  ".join(rep.errors))
+    members = conn.execute(
+        "SELECT addr, name, status FROM functions WHERE unit = ?", (unit,)
+    ).fetchall()
+    untagged = [
+        f"{r['addr']} {r['name']}"
+        for r in members
+        if r["status"] == Status.IN_PROGRESS and r["addr"] not in rep.code_tags
+    ]
+    if untagged:
+        raise ClaimError(
+            "functions of the unit have no @orig tag (port them, or "
+            "`noite unit rm` them before start next time):\n  " + "\n  ".join(untagged)
+        )
+    if u["path"] not in check.imported_paths(wt):
+        raise ClaimError(f"{u['path']} is not imported anywhere, so its tests never run")
+    stubs = unported_stubs(wt / u["path"])
+    if stubs:
+        raise ClaimError(
+            f"{u['path']} still has skeleton stubs (replace each body, keep the signature):\n  "
+            + "\n  ".join(stubs)
+        )
+    unit_warnings = [w for w in rep.warnings if u["path"] in w]
+
+    commits = int(git(wt, "rev-list", "--count", "main..HEAD").stdout.strip())
+    return rep, members, unit_warnings, commits
+
+
 def finish(conn: sqlite3.Connection, root: Path, unit: str, *, push: bool = True) -> Finished:
     u = _require_claimed(conn, unit)
     wt = paths.worktree_path(root, unit)
@@ -423,50 +478,18 @@ def finish(conn: sqlite3.Connection, root: Path, unit: str, *, push: bool = True
         raise ClaimError(f"the main checkout {root} is not on branch main")
 
     with finish_lock(root):
-        if git(wt, "rebase", "main", check_=False).returncode != 0:
-            git(wt, "rebase", "--abort", check_=False)
-            raise ClaimError(f"rebasing port/{unit} onto main conflicts; resolve in {wt} and retry")
-        files = changed_files(wt)
-        if not files:
-            raise ClaimError(f"port/{unit} has no commits beyond main")
-        bad = check_ownership(conn, unit, files)
-        if bad:
-            raise ClaimError("the branch touches files it does not own:\n  " + "\n  ".join(bad))
-
-        zig_changed = [f for f in files if f.endswith(".zig") and (wt / f).exists()]
-        if zig_changed:
-            run_gate(wt, ["zig", "fmt", "--check", *zig_changed])
-        run_gate(wt, ["zig", "build"])
-        run_gate(wt, ["zig", "build", "test"])
-
-        rep = check.run(conn, wt)
-        if not rep.ok:
-            raise ClaimError("`noite check` failed:\n  " + "\n  ".join(rep.errors))
-        members = conn.execute(
-            "SELECT addr, name, status FROM functions WHERE unit = ?", (unit,)
-        ).fetchall()
-        untagged = [
-            f"{r['addr']} {r['name']}"
-            for r in members
-            if r["status"] == Status.IN_PROGRESS and r["addr"] not in rep.code_tags
-        ]
-        if untagged:
-            raise ClaimError(
-                "functions of the unit have no @orig tag (port them, or "
-                "`noite unit rm` them before start next time):\n  " + "\n  ".join(untagged)
-            )
-        if u["path"] not in check.imported_paths(wt):
-            raise ClaimError(f"{u['path']} is not imported anywhere, so its tests never run")
-        stubs = unported_stubs(wt / u["path"])
-        if stubs:
-            raise ClaimError(
-                f"{u['path']} still has skeleton stubs (replace each body, keep the signature):\n  "
-                + "\n  ".join(stubs)
-            )
-        unit_warnings = [w for w in rep.warnings if u["path"] in w]
-
-        commits = int(git(wt, "rev-list", "--count", "main..HEAD").stdout.strip())
-        git(root, "merge", "--ff-only", paths.branch_name(unit))
+        branch = paths.branch_name(unit)
+        for _attempt in range(FF_RETRIES):
+            rep, members, unit_warnings, commits = _rebase_and_gate(conn, wt, u, unit)
+            merged = git(root, "merge", "--ff-only", branch, check_=False)
+            if merged.returncode == 0:
+                break
+            ancestor = git(root, "merge-base", "--is-ancestor", "main", branch, check_=False)
+            if ancestor.returncode == 0:  # fast-forwardable: something else blocks the merge
+                raise ClaimError(f"fast-forwarding main to {branch} failed:\n{merged.stderr}")
+            # main moved while the gates ran (a commit straight to main): rebase again.
+        else:
+            raise ClaimError(f"main kept moving; {FF_RETRIES} rebases of {branch} did not land")
 
         ported = [r["addr"] for r in members if r["status"] == Status.IN_PROGRESS]
         stamp = now()

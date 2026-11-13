@@ -142,6 +142,34 @@ def test_finish(setup: tuple[sqlite3.Connection, Path], monkeypatch: pytest.Monk
     assert ready(conn) == ["middle"]
 
 
+def test_finish_retries_when_main_moves_during_the_gates(
+    setup: tuple[sqlite3.Connection, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    conn, repo = setup
+    builds: list[str] = []
+
+    def gate(cwd: Path, cmd: list[str]) -> None:
+        if cmd == ["zig", "build"]:
+            builds.append(git(cwd, "rev-parse", "HEAD").strip())
+            if len(builds) == 1:  # someone commits straight to main meanwhile
+                (repo / "README").write_text("moved\n")
+                git(repo, "add", "README")
+                git(repo, "commit", "-qm", "moved")
+
+    monkeypatch.setattr(claim, "run_gate", gate)
+    s = claim.start(conn, repo, "leaves", "a1")
+    (s.worktree / "src/leaves.zig").write_text(
+        "// @orig 1010:0100 leaf_a\npub fn a() void {}\n"
+        "// @orig 1010:0200 leaf_b\npub fn b() void {}\n"
+    )
+    git(s.worktree, "commit", "-qam", "port leaves")
+    r = claim.finish(conn, repo, "leaves", push=False)
+    assert len(builds) == 2 and builds[0] != builds[1]  # gated again after the rebase
+    assert r.commits == 1
+    assert (repo / "README").read_text() == "moved\n"
+    assert "@orig 1010:0200" in (repo / "src/leaves.zig").read_text()
+
+
 def test_finish_rejects_foreign_files(
     setup: tuple[sqlite3.Connection, Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
