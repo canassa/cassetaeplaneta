@@ -9,10 +9,10 @@
 //!   full list it shows the "Erro Fatal!!" box and returns without adding
 //!   (the object is left untouched). The 131-byte message is cut to the
 //!   shared 100-byte message buffer, as everywhere in the port.
-//! - `attachToScene` writes the word 1 at SceneObject+0x45a and a zero dword
-//!   at +0x45e for a non-portable 3D object of the scene; +0x45a is the
-//!   `linked` pointer here, so the port sets `linked = null` (the word 1
-//!   would be an invalid pointer), `unk45E = 0` and `queued = 0`.
+//! - `attachToScene`, for a non-portable 3D object of the scene, draws and
+//!   occupies it, then sets `visible = 1`, resets its rectangles and clears
+//!   `linked` (the asm writes +0x45a/+0x45e relative to the Object3D's
+//!   virtual-base pointer minus 4, i.e. SceneObject+0x456/+0x45a).
 
 const std = @import("std");
 const Game = @import("core/game.zig").Game;
@@ -132,10 +132,9 @@ pub fn attachToScene(g: *Game, list: *ObjectList, scene: *Scene) void {
                 } else {
                     render.draw(g, obj, bd);
                     _ = occupancy.occupy(g, obj, bd);
-                    obj.linked = null; // original: word 1 at +0x45a
+                    obj.visible = 1;
                     frames.resetRects(obj);
-                    obj.unk45E = 0;
-                    obj.queued = 0;
+                    obj.linked = null;
                     continue;
                 }
             } else {
