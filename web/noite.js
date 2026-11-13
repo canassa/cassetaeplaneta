@@ -370,11 +370,28 @@
   const RATE = 44100, CHUNK = 2048, AHEAD = 0.15;
   let audio = null, nextTime = 0, silentFrom = performance.now(), silentDone = 0;
 
-  function startAudio() {
+  // Mobile browsers suspend the context when the page goes to the
+  // background ("interrupted" on iOS) and don't always resume it, so every
+  // gesture and every return to the page resumes it; a context still stuck
+  // at a gesture a second after a resume is replaced (inside that gesture).
+  let resumedAt = 0;
+  function startAudio(gesture = true) {
     if (audio) {
-      if (audio.state === "suspended") audio.resume();
-      return;
+      if (audio.state === "running") {
+        resumedAt = 0;
+        return;
+      }
+      if (gesture && resumedAt && performance.now() - resumedAt > 1000) {
+        audio.close().catch(() => {});
+        audio = null;
+        resumedAt = 0;
+      } else {
+        audio.resume().catch(() => {});
+        if (gesture && !resumedAt) resumedAt = performance.now();
+        return;
+      }
     }
+    if (!gesture) return;
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     try {
@@ -382,9 +399,14 @@
     } catch {
       audio = new AC(); // the buffers are 44.1 kHz; WebAudio resamples
     }
-    audio.resume();
+    audio.resume().catch(() => {});
     nextTime = 0;
   }
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") startAudio(false);
+  });
+  window.addEventListener("pageshow", () => startAudio(false));
 
   function mixChunk(frames) {
     const ptr = wasm.noite_audio(frames);
@@ -444,6 +466,7 @@
       e.preventDefault();
     });
     const up = (e) => {
+      startAudio();
       const [x, y] = screenPos(e);
       wasm.noite_mouse(2, e.button, x, y);
       e.preventDefault();
@@ -675,6 +698,8 @@
     get audioPeak() { return audioPeak; },
     get frameStats() { return { frames, avgMs: frames ? frameMs / frames : 0, worstMs }; },
     get audioState() { return audio ? audio.state : "none"; },
+    /** What a phone does to the context when the page goes to the background. */
+    suspendAudio() { return audio && audio.suspend(); },
     /** Items the player carries (-1 before the start). */
     get inventory() { return wasm ? wasm.noite_inventory() : -1; },
     get scene() {
