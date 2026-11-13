@@ -71,14 +71,24 @@ pub fn fatalError(plat: Platform, fixes: Fixes, msg: []const u8) error{Fatal}!i1
     return 0;
 }
 
-/// Formats `fmt` (C printf syntax) with one 32-bit argument and shows it in a
+/// Formats `fmt` (C printf syntax) with one argument and shows it in a
 /// warning box. The CRT `sprintf` is replaced: supports `%d %i %u %x %X %c`
-/// (16-bit, the low word of `arg`), their `l` forms (32-bit) and `%%`; other
-/// text is copied. `buf` is the original's shared buffer (DGROUP 7cd6, 100
-/// bytes: `g.messageBuf`); the text is truncated to it. The box is
-/// MB_ICONEXCLAMATION.
+/// (16-bit, the low word of `arg`), their `l` forms (32-bit), `%s` and
+/// `%%`; other text is copied. `arg` is an integer (the original's pushed
+/// word/dword) or a C string (`[]const u8`/`*[N]u8`, read up to its NUL;
+/// the original's far `char *`); a conversion that does not match the
+/// argument's kind prints nothing. `buf` is the original's shared buffer
+/// (DGROUP 7cd6, 100 bytes: `g.messageBuf`). The original's `sprintf` is
+/// unchecked and a longer text overruns DGROUP (BUGS.md L6); here it is
+/// truncated to 99 bytes. The box is MB_ICONEXCLAMATION.
 // @orig 1018:3644 message_box_printf
-pub fn messageBoxPrintf(plat: Platform, buf: []u8, caption: []const u8, fmt: []const u8, arg: u32) void {
+pub fn messageBoxPrintf(plat: Platform, buf: []u8, caption: []const u8, fmt: []const u8, arg: anytype) void {
+    const is_str = comptime switch (@typeInfo(@TypeOf(arg))) {
+        .int, .comptime_int => false,
+        else => true,
+    };
+    const num: u32 = if (is_str) 0 else @truncate(@as(u64, @bitCast(@as(i64, arg))));
+    const str: []const u8 = if (is_str) cstr.slice(arg) else "";
     var w: std.Io.Writer = .fixed(buf[0 .. buf.len - 1]);
     const f = cstr.slice(fmt);
     var i: usize = 0;
@@ -95,14 +105,19 @@ pub fn messageBoxPrintf(plat: Platform, buf: []u8, caption: []const u8, fmt: []c
             i += 1;
             if (i >= f.len) break;
         }
-        const wlo: u16 = @truncate(arg);
+        if (f[i] == 's') {
+            w.writeAll(str) catch break;
+            continue;
+        }
+        if (is_str and f[i] != '%') continue;
+        const wlo: u16 = @truncate(num);
         const r = switch (f[i]) {
             '%' => w.writeByte('%'),
-            'd', 'i' => if (long) w.print("{d}", .{@as(i32, @bitCast(arg))}) else w.print("{d}", .{@as(i16, @bitCast(wlo))}),
-            'u' => if (long) w.print("{d}", .{arg}) else w.print("{d}", .{wlo}),
-            'x' => if (long) w.print("{x}", .{arg}) else w.print("{x}", .{wlo}),
-            'X' => if (long) w.print("{X}", .{arg}) else w.print("{X}", .{wlo}),
-            'c' => w.writeByte(@truncate(arg)),
+            'd', 'i' => if (long) w.print("{d}", .{@as(i32, @bitCast(num))}) else w.print("{d}", .{@as(i16, @bitCast(wlo))}),
+            'u' => if (long) w.print("{d}", .{num}) else w.print("{d}", .{wlo}),
+            'x' => if (long) w.print("{x}", .{num}) else w.print("{x}", .{wlo}),
+            'X' => if (long) w.print("{X}", .{num}) else w.print("{X}", .{wlo}),
+            'c' => w.writeByte(@truncate(num)),
             else => {},
         };
         r catch break;

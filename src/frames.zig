@@ -20,6 +20,7 @@ const world = @import("core/world.zig");
 const Backdrop = world.Backdrop;
 const platform = @import("platform/platform.zig");
 const cstr = @import("core/cstr.zig");
+const ini = @import("ini.zig");
 
 pub const Error = dib_mod.Error;
 
@@ -227,13 +228,7 @@ pub fn initStrip(
     try allocFrames(g, obj, 1);
     const d = try dib_mod.loadDib(g.gpa, g.plat, g.fixes, &g.dibPathBuf, &g.driveCD, path);
     if (d == null) {
-        // message_box_printf("Erro Fatal!!", "N\xe3o foi poss\xedvel abrir o arquivo: %s", path);
-        // The shared 100-byte buffer is unchecked in the original.
-        const text = "N\xe3o foi poss\xedvel abrir o arquivo: ";
-        const p = cstr.slice(path);
-        if (text.len + p.len >= g.messageBuf.len) return error.LimitExceeded;
-        const msg = cstr.print(&g.messageBuf, "{s}{s}", .{ text, p });
-        _ = g.plat.messageBox("Erro Fatal!!", msg, platform.mb.iconexclamation);
+        ini.messageBoxPrintf(g.plat, &g.messageBuf, "Erro Fatal!!", "N\xe3o foi poss\xedvel abrir o arquivo: %s", path);
     }
     frameInit(&obj.frames[0], d, count, w, h, hit_x, hit_y, hit_w, hit_h);
 }
