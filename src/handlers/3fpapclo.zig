@@ -24,6 +24,7 @@
 
 const Game = @import("../core/game.zig").Game;
 const Object = @import("../core/object.zig").Object;
+const Backdrop = @import("../core/world.zig").Backdrop;
 const msg = @import("../core/msg.zig");
 const Msg = msg.Msg;
 const backdrop = @import("../backdrop.zig");
@@ -62,7 +63,7 @@ fn obj(o: ?*Object) *Object {
     return o.?;
 }
 
-fn bdOf(g: *Game) *@import("../core/world.zig").Backdrop {
+fn bdOf(g: *Game) *Backdrop {
     return g.scene.?.backdrop.?;
 }
 
@@ -117,7 +118,7 @@ pub fn handle(g: *Game, m: Msg) i16 {
     const s = g.sceneState(State);
     switch (m.id) {
         msg.wm.rbuttondown => return rightButton(g, s, m),
-        msg.wm.lbuttondown, msg.wm.lbuttonup, 0x203 => return if (m.id == msg.wm.lbuttondown) 1 else 0,
+        msg.wm.lbuttondown => return 1,
         msg.wm.timer => return timer(g, s, m.wparam),
         msg.wm.mm_wom_done => return waveDone(g, s),
         msg.noite.scene_started => return sceneStarted(g, s),
