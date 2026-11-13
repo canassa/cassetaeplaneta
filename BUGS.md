@@ -227,6 +227,46 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   whole long.
 - **Confidence:** 9 (code); 6 (that a normal playthrough passes 32767).
 
+### B20. Giving the bible to the rock star freezes the game (2fshardi)
+- **Where:** `handler_2fshardi` 1020:32b2, MM_WOM_DONE with `g_s2fshardiRightItem` set (the right-item
+  branch after the score/used-list block): 2sshaa (object 11) plays once and `wave_play(2sshaa.wave)`;
+  only the 0x403 for object 11 leaves the scene (`2ffesta3`).
+- **What the code does:** 2sshaa's NomeWAVE `fase2\2fshardi\stones08` is on neither the disc nor `PAN\WAV`
+  (B9), so its wave is NULL and `wave_play` posts MM_WOM_DONE at once. The handler takes the same branch
+  again (the right-item flag and the selected item are never cleared there): the score gets `scoreUse`
+  again, the item is added to the used list again, 2sshaa restarts and another MM_WOM_DONE is posted.
+  Posted messages come before timers, so 2sshaa's play-once never ticks and the 0x403 never comes.
+- **Effect:** after the bible is accepted the scene stops redrawing and the game hangs (the queue spins).
+  With the wave present the loop would only restart 2sshaa every few seconds until its 0x403.
+- **Evidence:** the port reproduces it (the harness stops on a "message storm"); disc listing.
+- **Port:** reproduced; `Fixes.shardi_reply_once` ignores the repeated MM_WOM_DONE once the item is in the
+  used list, and the scene ends on 2sshaa's 0x403.
+- **Confidence:** 8 (code and data); 6 (that the shipped CD had no other copy of the wave).
+
+### B21. A stale animation timer can end a one-animation video scene early (3fstreet)
+- **Where:** `ini_scene_handle_message` 1018:915e, WM_SYSTIMER for an Is_1Animation scene: the exit is ticked
+  when the timer id equals the exit's NumTimer and `g_iniIsAVI` is 0; `animation_stop` is the only place that
+  kills an animation's system timer (`scene_dtor` does not).
+- **What the code does:** an animation still running when its scene is left keeps its system timer (e.g.
+  3fsegura's guard, timer 5, 150 ms, never stopped). 3fstreet's video exit also uses timer 5: when the video
+  ends, `animation_close_avi` clears `g_iniIsAVI`, the handler launches XILINDRO and the next stale tick
+  runs `exit_tick` on the exit, which posts 0x402 and takes the INI exit to `3fhall`.
+- **Effect:** depending on which comes first, the street escape minigame result arrives in 3fhall (whose
+  handler takes it for the shooting gallery's: a win sends the player to 3fprisao), or the hall's own
+  FindWindow poll reports a lost game (a life) first. The player can end up in the hall without having
+  played the escape, or lose a life for it.
+- **Evidence:** port traces (`noite --trace`): timer 5 runs from 3fsegura on; the code paths above.
+- **Port:** reproduced; no fix flag.
+- **Confidence:** 7 (code); 5 (how often the timing lines up in the original).
+
+### B22. 2ftaxi keeps handling a click on the scene it has just deleted (use after free)
+- **Where:** `handler_2ftaxi` 1020:9a3a: a right click on the exit to 3fentseg switches scenes and returns 0.
+- **What the code does:** `ini_scene_handle_message` goes on with its `this` (the deleted scene): the engine's
+  WM_RBUTTONDOWN default reads `this->isClickExit`. The far heap gives the new scene (same size, allocated
+  right after the delete) the same block, so `this` reads the new scene and nothing visible happens.
+- **Port:** `game_scenes.switchScene` reuses the old scene's block for the new one, as the heap does.
+- **Confidence:** 8 (code); 7 (block reuse).
+
 ## Harmless: wrong paths rescued by the wave fallback
 
 `wave_open` retries `<root>pan\wav\<file name>.wav`, and `PAN\WAV\` holds a copy of almost every wave, so these

@@ -356,6 +356,12 @@ fn waveDone(g: *Game, s: *State) i16 {
 /// then the party arrival follows (the gift's trick pictures stay here).
 fn rightWaveDone(g: *Game, s: *State) i16 {
     const bd = bdOf(g);
+    // BUGS.md B20: 2sshaa's wave is not on the disc, so its play below posts
+    // MM_WOM_DONE at once and this runs again, for ever (posted messages
+    // starve the timer that would end 2sshaa's animation).
+    if (g.fixes.shardi_reply_once) if (g.selectedItem) |item| {
+        if (object_list.contains(&g.usedObjects, item)) return 1;
+    };
     if (g.selectedItem) |item| {
         g.score +%= item.portable.scoreUse;
         visibility.hideAndInvalidate(g, item, 0, bd);

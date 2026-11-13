@@ -42,6 +42,10 @@ pub const Fixes = struct {
     /// B17: 2fcopmu returns after switching to the arrest scene (no
     /// garots05 over it, no stale greeting flags).
     roadblock_return_after_switch: bool = false,
+    /// B20: 2fshardi waits for 2sshaa's animation after the right item
+    /// instead of replaying it on every (instant, the wave is missing)
+    /// MM_WOM_DONE, which freezes the game.
+    shardi_reply_once: bool = false,
     /// B19: the control panel shows, and the save keeps, the whole 32-bit
     /// score (not its low word).
     score_32bit: bool = false,
