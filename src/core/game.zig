@@ -243,6 +243,11 @@ pub const Game = struct {
     /// SendMessage(main window): dispatched at once, nested.
     pub fn send(g: *Game, m: Msg) i32 {
         g.log('S', m);
+        // A new scene drops the one-button walk-then-act: its target
+        // belonged to the old scene, freed by now (the Scene block itself
+        // is reused, so `Pending.scene` cannot tell). 0x401 is sent, so
+        // the mode's filter, which sees queued messages, misses it.
+        if (m.id == msg.noite.scene_started) g.oneButton.pending = null;
         g.trail.depth +|= 1;
         defer g.trail.depth -|= 1;
         return g.wndProc(g, m);
