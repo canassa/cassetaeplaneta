@@ -350,18 +350,25 @@ pub fn readDibInfo(plat: Platform, fh: ?platform.File) ?Dib {
 /// the port has no resources.
 ///
 /// When the file opens but is not a readable DIB, the original returns without
-/// closing it; so does the port.
-pub fn loadDib(gpa: std.mem.Allocator, plat: Platform, drive_cd: []const u8, name: []const u8) ?*Dib {
+/// closing it (BUGS.md B13; `fixes.close_unreadable_dib` closes it). The
+/// fallback path is formatted into `path_buf` (`g.dibPathBuf`, 50 bytes in
+/// the original, unchecked: a longer path is `error.LimitExceeded`).
+pub fn loadDib(gpa: std.mem.Allocator, plat: Platform, fixes: Fixes, path_buf: []u8, drive_cd: []const u8, name: []const u8) Error!?*Dib {
     const nm = cstr.slice(name);
     var fh = plat.open(nm, .read);
     if (fh == null) {
-        var buf: [256]u8 = undefined;
-        const path = cstr.print(&buf, "{s}pan\\bmp\\{s}.bmp", .{ cstr.slice(drive_cd), splitFname(nm) });
+        const cd = cstr.slice(drive_cd);
+        const fname = splitFname(nm);
+        if (cd.len + "pan\\bmp\\".len + fname.len + ".bmp".len >= path_buf.len) return error.LimitExceeded;
+        const path = cstr.print(path_buf, "{s}pan\\bmp\\{s}.bmp", .{ cd, fname });
         fh = plat.open(path, .read);
         if (fh == null) return null;
     }
     const f = fh.?;
-    var info = readDibInfo(plat, f) orelse return null;
+    var info = readDibInfo(plat, f) orelse {
+        if (fixes.close_unreadable_dib) plat.close(f);
+        return null;
+    };
     const dib = gpa.create(Dib) catch {
         plat.close(f);
         return null;
@@ -605,7 +612,8 @@ test "loadDib reads a bmp from the disc" {
     const plat = h.platform();
     const file = try std.Io.Dir.cwd().readFileAlloc(testing.io, "assets/ABERT.BMP", testing.allocator, .limited(1 << 24));
     defer testing.allocator.free(file);
-    const dib = loadDib(testing.allocator, plat, "", "\\ABERT.BMP") orelse return error.TestUnexpectedResult;
+    var path_buf: [50]u8 = undefined;
+    const dib = try loadDib(testing.allocator, plat, .{}, &path_buf, "", "\\ABERT.BMP") orelse return error.TestUnexpectedResult;
     defer {
         testing.allocator.free(dib.bits);
         testing.allocator.destroy(dib);
@@ -616,7 +624,7 @@ test "loadDib reads a bmp from the disc" {
     try testing.expectEqualSlices(u8, file[54..58], std.mem.asBytes(&dib.colors[0]));
     try testing.expectEqualSlices(u8, file[off..][0..dib.bits.len], dib.bits);
     // The pan\bmp fallback finds the same bitmap by name.
-    try testing.expect(loadDib(testing.allocator, plat, "\\", "nosuch.bmp") == null);
+    try testing.expect(try loadDib(testing.allocator, plat, .{}, &path_buf, "\\", "nosuch.bmp") == null);
 }
 
 // @orig 1010:09d0 hmemmove_backward oracle=documented

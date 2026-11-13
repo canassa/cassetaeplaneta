@@ -27,6 +27,8 @@ pub const Fixes = struct {
     hall_shuffle_each_visit: bool = false,
     /// B12: the opaque row copy copies black pixels at row ends too.
     opaque_copy_black_tail: bool = false,
+    /// B13: load_dib closes a bitmap file it cannot read as a DIB.
+    close_unreadable_dib: bool = false,
     /// U1: draw the status-bar text.
     status_bar_text: bool = false,
     /// `ini_fatal_error` ("Erro Fatal!") quits (`error.Fatal`) instead of

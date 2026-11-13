@@ -136,6 +136,16 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
 - **Evidence:** disassembly; reproduced by running the original routine in an emulator against a row-copy model.
 - **Confidence:** 9 (code); the visible effect depends on index 0 appearing in those columns.
 
+### B13. A bitmap file that is not a readable DIB stays open (file-handle leak)
+- **Where:** `load_dib` 1010:041c; the `read_dib_info` result test at 1010:04d5–04d7.
+- **What the code does:** after `OpenFile` succeeds, `read_dib_info` returns NULL for a file that is too short,
+  has an unknown header size or too many colours; `JZ 0x1010:04bb` then returns NULL directly, skipping the
+  `_lclose` at 1010:05c9 that every other path after the open reaches (including the GlobalReAlloc failure).
+- **Effect:** each such load leaves one DOS handle open. The shipped BMPs all read fine, so the game is not
+  expected to hit it; a corrupt or truncated asset would leak a handle per load (Win16 default: 20).
+- **Evidence:** disassembly of 1010:04c4–04d7 and 1010:05c6.
+- **Confidence:** 9 (code); 3 (that the shipped game ever reaches it).
+
 ## Harmless: wrong paths rescued by the wave fallback
 
 `wave_open` retries `<root>pan\wav\<file name>.wav`, and `PAN\WAV\` holds a copy of almost every wave, so these
