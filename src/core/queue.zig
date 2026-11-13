@@ -91,6 +91,14 @@ pub const Queue = struct {
         return false;
     }
 
+    /// The armed timer `id` of that kind, or null.
+    pub fn findTimer(q: *const Queue, kind: TimerKind, id: u16) ?Timer {
+        for (q.timers[0..q.timer_count]) |t| {
+            if (t.kind == kind and t.id == id) return t;
+        }
+        return null;
+    }
+
     /// The next message GetMessage/PeekMessage would return at `now`.
     pub fn next(q: *Queue, now: u32) ?Msg {
         if (q.posted.pop()) |m| return m;

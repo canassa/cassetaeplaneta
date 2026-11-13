@@ -259,27 +259,40 @@ fn moverMoveToEdgeH(g: *Game, obj: *Object, bd: *Backdrop, dir: i16) void {
 // @orig 1010:c154 mover_step
 /// Advances the next position one Bresenham step towards the target.
 fn moverStep(obj: *Object) void {
+    const s = stepFrom(obj);
+    obj.nextX = s.x;
+    obj.nextY = s.y;
+    obj.mover.lineErr = s.err;
+}
+
+const Step = struct { x: i16, y: i16, err: i16 };
+
+/// mover_step's arithmetic: the next position and line error one step on
+/// from the current next position, leaving the object as it is.
+fn stepFrom(obj: *const Object) Step {
     const m = &obj.mover;
     const e = m.lineErr;
+    var s: Step = .{ .x = obj.nextX, .y = obj.nextY, .err = e };
     if (m.errIncX == 0) {
         if (e < 1) {
-            obj.nextX +%= m.stepX;
-            obj.nextY +%= m.stepY;
-            m.lineErr = e +% m.errIncDiag;
+            s.x +%= m.stepX;
+            s.y +%= m.stepY;
+            s.err = e +% m.errIncDiag;
         } else {
-            obj.nextY +%= m.stepY;
-            m.lineErr = e +% m.errIncY;
+            s.y +%= m.stepY;
+            s.err = e +% m.errIncY;
         }
     } else {
         if (e < 1) {
-            obj.nextX +%= m.stepX;
-            m.lineErr = e +% m.errIncX;
+            s.x +%= m.stepX;
+            s.err = e +% m.errIncX;
         } else {
-            obj.nextX +%= m.stepX;
-            obj.nextY +%= m.stepY;
-            m.lineErr = e +% m.errIncDiag;
+            s.x +%= m.stepX;
+            s.y +%= m.stepY;
+            s.err = e +% m.errIncDiag;
         }
     }
+    return s;
 }
 
 // @orig 1010:c1ea mover_at_target
@@ -317,6 +330,49 @@ fn moverMoveTick(g: *Game, obj: *Object, bd: *Backdrop) void {
 // @orig 1010:6146 moveable_move_tick
 fn moveableMoveTick(g: *Game, obj: *Object, bd: *Backdrop) void {
     moveTickBody(g, obj, bd, false);
+}
+
+/// Not in the original (`Fixes.smooth_item_fall`): the system timer that
+/// draws a dropped item between the steps of its fall. The INI objects'
+/// timers are 1-10, and the scene's WM_SYSTIMER loop only ticks 5-10.
+pub const smooth_fall_timer: u16 = 0xfa11;
+
+/// `Fixes.smooth_item_fall`: after a drop started the item's fall, runs
+/// `smooth_fall_timer` at a fifth of the item's timer period (its steps are
+/// 10 rows, so the in-between frames move 2).
+pub fn smoothFallStart(g: *Game, obj: *Object) void {
+    if (!g.fixes.smooth_item_fall or obj.kind != .portable or !isMoving(g, obj)) return;
+    g.setSystemTimer(smooth_fall_timer, @bitCast(@divTrunc(obj.mover.timerPeriod, 5)));
+}
+
+/// One `smooth_fall_timer` tick: puts the falling item `obj` (the selected
+/// one) between its last step and the next, in proportion to the time since
+/// its own timer last fired. The steps still come from that timer
+/// (`moveTick`, as in the original) from the next position this does not
+/// touch, so the fall's path, end and timing do not change, and the item's
+/// timer (shared with other objects) keeps its period. The timer stops
+/// with the fall, or when the item's timer is gone.
+pub fn smoothFallTick(g: *Game, obj: ?*Object, bd: *Backdrop) void {
+    const o = obj orelse return g.killSystemTimer(smooth_fall_timer);
+    if (o.kind != .portable or !isMoving(g, o)) return g.killSystemTimer(smooth_fall_timer);
+    const t = g.queue.findTimer(.system, @bitCast(o.mover.timerId)) orelse
+        return g.killSystemTimer(smooth_fall_timer);
+    if (o.visible == 0) return;
+    const period: i32 = @intCast(t.period);
+    const left: i32 = @bitCast(t.due -% g.plat.ticks());
+    if (left <= 0 or left >= period) return;
+    const s = stepFrom(o);
+    const x = between(o.nextX, s.x, period - left, period);
+    const y = between(o.nextY, s.y, period - left, period);
+    if (x == o.x and y == o.y) return;
+    frames.resetRects(o);
+    placeAt(g, o, x, y, bd);
+    visibility.redrawOverlapping(g, o, bd, 1);
+}
+
+/// `from` moved the fraction `num / den` (< 1) of the way to `to`.
+fn between(from: i16, to: i16, num: i32, den: i32) i16 {
+    return @intCast(from + @divTrunc((@as(i32, to) - from) * num, den));
 }
 
 /// B26 fix (not in the original): forgets a walk in progress without the
@@ -461,6 +517,13 @@ fn directionalPlayerMoveToEdgeV(g: *Game, obj: *Object, bd: *Backdrop, dir: i16)
 fn directionalPlayerStopMovingDc(g: *Game, obj: *Object, bd: *Backdrop) void {
     actorStopMovingDc(g, obj, bd);
     animation.playIdle(g, obj, bd);
+}
+
+test "the in-between frames of a fall" {
+    const std = @import("std");
+    try std.testing.expectEqual(@as(i16, 102), between(100, 110, 40, 200));
+    try std.testing.expectEqual(@as(i16, 108), between(100, 110, 160, 200));
+    try std.testing.expectEqual(@as(i16, -8), between(0, -10, 80, 100));
 }
 
 test "the Mover-class variants compile" {

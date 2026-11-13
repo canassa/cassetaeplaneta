@@ -86,6 +86,10 @@ pub const Fixes = struct {
     /// nothing. Drawn over the presented frame (`Screen.overlay`), never
     /// into the screen or the backdrop; game logic is unchanged.
     drag_shows_item: bool = false,
+    /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"):
+    /// a dropped item's fall is drawn in 2-row frames between its 10-row
+    /// steps (same steps, same end, same timing).
+    smooth_item_fall: bool = false,
     /// U1: draw the status-bar text.
     status_bar_text: bool = false,
     /// `ini_fatal_error` ("Erro Fatal!") quits (`error.Fatal`) instead of

@@ -182,6 +182,8 @@ fn sysTimer(g: *Game, m: Msg) i32 {
             } else {
                 movement.moveTick(g, player, bdOf(g));
             }
+        } else if (id == movement.smooth_fall_timer) {
+            movement.smoothFallTick(g, g.selectedItem, bdOf(g));
         } else if (g.selectedItem) |sel| {
             if (timerIs(g, sel, id)) {
                 if (movement.isMoving(g, sel)) {
@@ -357,6 +359,7 @@ fn rightUp(g: *Game, m: Msg) i32 {
     } else {
         movement.moveTo(g, sel, sx, bdOf(g).viewHeight -% 100, bdOf(g));
     }
+    movement.smoothFallStart(g, sel);
     render.draw(g, panel, bdOf(g));
     _ = visibility.invalidate(g, panel);
     frames.resetRects(sel);

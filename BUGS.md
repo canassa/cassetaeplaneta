@@ -505,6 +505,13 @@ Usability changes the "Corrigida" version (`Fixes.all()`) turns on; the original
   item's panel icon is drawn centred on the pointer, as an overlay the platform adds when it shows the frame
   (`Screen.overlay`), never into the screen buffer or backdrop; it goes with the release or anything that clears
   the selection (drop, offer, scene change). Game logic is unchanged.
+- **A dropped item falls smoothly** (`Fixes.smooth_item_fall`). The original moves a falling item 10 rows per tick
+  of its own timer (`portableCtor` step 0,10; timer 4 at 200 ms for most items, 100 ms for some), 5–10 frames a
+  second. With the flag a system timer (id 0xfa11, a fifth of the item's period; `movement.smoothFallTick`)
+  draws the item between its last step and the next, in proportion to the time since the item's timer last
+  fired (2 rows a frame). The steps still come from the item's timer, unchanged, so the path, the end, the 3D
+  place and the time the fall ends are the original's, and that timer (shared with other objects) keeps its
+  period.
 
 ---
 
