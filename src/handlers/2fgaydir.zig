@@ -509,6 +509,9 @@ fn womDone(g: *Game, s: *State) i16 {
         g.score +%= sel.portable.scoreUse;
         hide(g, sel);
         _ = object_list.remove(&g.globalObjects, sel);
+        // Unlike the other scenes it is not put on the used list: the
+        // original loses (leaks) it; the port parks it until exit.
+        g.leakObject(sel);
         draw_list.remove(&g.drawList, sel);
         stop(g, s.sgayf);
         stop(g, s.sshav);
