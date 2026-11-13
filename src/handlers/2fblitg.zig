@@ -223,9 +223,13 @@ fn rightButtonUp(g: *Game, s: *State, m: Msg) i16 {
 /// A wave finished: the time-out, or the end of a reply (wrong item goes
 /// back to the inventory, the right one is used up and the scene ends).
 fn womDone(g: *Game, s: *State) void {
+    // Set when the time-out has already switched to the arrest: the old
+    // scene, the cop and the hit object are freed (BUGS.md B17).
+    var switched = false;
     if (s.timedOut != 0) {
         resetOffers(s);
         gotoArrest(g);
+        switched = true;
         // The old scene (and the cop) is gone; the original now touches the
         // freed cop with the new backdrop, which has no visible effect.
         if (g.selectedItem == null or s.hitObject == null) return;
@@ -244,8 +248,13 @@ fn womDone(g: *Game, s: *State) void {
         frames.resetRects(ret);
         visibility.hideAndInvalidate(g, ret, 0, g.scene.?.backdrop.?);
         visibility.redrawOverlapping(g, ret, g.scene.?.backdrop.?, 0);
-        occupancy.reoccupy(g, s.hitObject.?, g.scene.?.backdrop.?);
-        animation.stopAndRedraw(g, cop, g.scene.?.backdrop.?);
+        // After the time-out switch the hit object and the cop are freed:
+        // the original's reoccupy and stopAndRedraw on them are skipped
+        // (an offer still pending when the time-out wave ends).
+        if (!switched) {
+            occupancy.reoccupy(g, s.hitObject.?, g.scene.?.backdrop.?);
+            animation.stopAndRedraw(g, cop, g.scene.?.backdrop.?);
+        }
         if (s.offerCount >= 4) {
             resetOffers(s);
             gotoArrest(g);

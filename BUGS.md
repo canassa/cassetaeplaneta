@@ -196,7 +196,10 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   the cop's greeting at once).
 - **Port:** the stale call on the freed cop is skipped (it cannot be reproduced; docs/DESIGN.md
   "Conventions"); the 2fcopmu wave and flags are reproduced, `Fixes.roadblock_return_after_switch`
-  returns right after the switch.
+  returns right after the switch. In 2fblitg an offer still pending when the time-out wave ends goes on
+  into the wrong-item path after the switch: the item returns to the inventory (score penalty) and the
+  reoccupy of the freed hit object and the cop's stopAndRedraw are skipped (in the original they would
+  write a phantom into the new scene's occupancy grid).
 - **Confidence:** 9 (code); 7 (effects).
 
 ### B18. 2fportdi: a second offer while the doorman answers loses the first item
