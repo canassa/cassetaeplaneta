@@ -205,6 +205,7 @@ fn run(g: *Game, hn: *platform.harness.Harness, stop_at: ?u32) !void {
             hn.noteScene(g);
             continue;
         }
+        units.game_input.showDrag(g);
         g.plat.present();
         if (hn.step(g)) continue;
         if (stop_at) |limit| if (g.plat.ticks() >= limit) break;

@@ -382,7 +382,10 @@ screen (640×480 8-bit + 256-colour palette, `present`, which shows only the
 top-left `client_width`×`client_height` = 638×459 — the original's client area
 under its caption and border, see `platform.zig`; dumps and the canvas/window
 are that size too, game coordinates unchanged; GetDC + WinGBitBlt
-become writes into `screen().pixels`), GDI text (`textOut` into a
+become writes into `screen().pixels`; `screen().overlay`, not Windows, is a
+picture each backend and the dumps draw over the shown frame without touching
+`pixels`: the dragged item of `Fixes.drag_shows_item`, set by
+`game_input.showDrag` before each present), GDI text (`textOut` into a
 `Surface` — the backdrop's DIB and colour table — with a `TextStyle` =
 SetTextColor/SetBkColor/SetBkMode, default opaque white; `textExtent`),
 DOS files (`open/read/write/seek/close` on `\FASE2\X.WAV`-style paths,

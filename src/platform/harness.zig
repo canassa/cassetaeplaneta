@@ -14,6 +14,7 @@ const game_scenes = @import("../game_scenes.zig");
 const avi = @import("../avi.zig");
 const sound = @import("../sound.zig");
 const portable = @import("../portable.zig");
+const game_input = @import("../game_input.zig");
 
 pub const Options = struct {
     input: ?[]const u8 = null,
@@ -142,6 +143,7 @@ pub const Harness = struct {
     /// Writes the screen to `<dir>/<n>-<ticks>[-name].png`.
     pub fn dump(h: *Harness, g: *Game, name: []const u8) void {
         const dir = h.opts.dump_dir orelse return;
+        game_input.showDrag(g);
         g.plat.present();
         var path_buf: [512]u8 = undefined;
         const ext = if (h.opts.dump_bmp) "bmp" else "png";

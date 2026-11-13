@@ -39,6 +39,7 @@ const update_list = @import("update_list.zig");
 const draw_list = @import("draw_list.zig");
 const projection = @import("projection.zig");
 const sound = @import("sound.zig");
+const dib = @import("dib.zig");
 const backdrop_mod = @import("backdrop.zig");
 const animation = @import("behaviour/animation.zig");
 const misc = @import("behaviour/misc.zig");
@@ -252,6 +253,7 @@ fn rightDown(g: *Game, m: Msg) i32 {
                 g.selectedItem = panels.getInventoryItemAt(g, panel, &player.actor.inventory, sx, sy);
                 if (g.selectedItem != null) {
                     g.itemSelected = 1;
+                    if (g.fixes.drag_shows_item) g.drag.item = g.selectedItem;
                     return 1;
                 }
                 g.itemSelected = 0;
@@ -447,6 +449,41 @@ fn fallToRest(g: *Game, sel: *Object, sx: i16) void {
     sel.portable.restElev = elev;
     // moveTo takes the bottom row.
     movement.moveTo(g, sel, sx, rest +% frames.height(sel) -% half, bd);
+}
+
+/// `Fixes.drag_shows_item` (not in the original): puts the dragged item's
+/// panel icon, centred on the pointer, in the screen overlay the platform
+/// draws over the frame it shows; hides it when no drag is on (released,
+/// or the selection cleared by a drop, an offer, a scene change). Call it
+/// before presenting.
+pub fn showDrag(g: *Game) void {
+    const ov = &g.plat.screen().overlay;
+    ov.shown = false;
+    if (!g.fixes.drag_shows_item) return;
+    const item = g.drag.item orelse return;
+    if (g.itemSelected == 0 or g.selectedItem != item) {
+        g.drag.item = null;
+        return;
+    }
+    const p = &item.portable;
+    const icon = p.icon orelse return;
+    const max: i16 = @TypeOf(ov.*).max_side;
+    if (p.iconW <= 0 or p.iconH <= 0 or p.iconW > max or p.iconH > max) return;
+    // The panel's blit (portable.drawIcon) into a top-down DIB of the
+    // overlay's size, cleared to the transparent index.
+    const stride: i16 = (p.iconW +% 3) & ~@as(i16, 3);
+    const hdr: object.BitmapInfoHeader = .{ .biWidth = stride, .biHeight = -@as(i32, p.iconH) };
+    const n: usize = @intCast(stride *% p.iconH);
+    @memset(ov.pixels[0..n], g.unk001C);
+    const orient: i16 = @truncate(item.dibFormatOk);
+    const drawn = dib.copyTransparent(&hdr, ov.pixels[0..n], 0, 0, icon.bits, &icon.header, 0, 0, p.iconW, orient *% p.iconH, g.unk001C) catch false;
+    if (!drawn) return;
+    ov.width = @intCast(stride);
+    ov.height = @intCast(p.iconH);
+    ov.transparent = g.unk001C;
+    ov.x = g.drag.x -% @divTrunc(p.iconW, 2);
+    ov.y = g.drag.y -% @divTrunc(p.iconH, 2);
+    ov.shown = true;
 }
 
 /// 0x402: the exit animation finished; take the exit (wParam = index).

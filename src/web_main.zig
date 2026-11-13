@@ -85,6 +85,7 @@ export fn noite_frame() i32 {
         backend.show();
         return 1;
     }
+    units.game_input.showDrag(g);
     g.plat.present();
     backend.show();
     return 0;

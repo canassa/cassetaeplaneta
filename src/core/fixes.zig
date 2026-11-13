@@ -80,6 +80,12 @@ pub const Fixes = struct {
     /// (a 3D box under it whose top is below the release point) or to the
     /// floor row; it never rises, and a door or picture never holds it up.
     drop_falls_onto_support: bool = false,
+    /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"):
+    /// while an inventory item is dragged out of the control panel (right
+    /// button held), its panel icon follows the pointer. The original shows
+    /// nothing. Drawn over the presented frame (`Screen.overlay`), never
+    /// into the screen or the backdrop; game logic is unchanged.
+    drag_shows_item: bool = false,
     /// U1: draw the status-bar text.
     status_bar_text: bool = false,
     /// `ini_fatal_error` ("Erro Fatal!") quits (`error.Fatal`) instead of

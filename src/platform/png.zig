@@ -37,6 +37,7 @@ pub fn encodePng(gpa: std.mem.Allocator, scr: *const p.Screen, out: *std.ArrayLi
     for (0..h) |y| {
         raw[y * (w + 1)] = 0;
         @memcpy(raw[y * (w + 1) + 1 ..][0..w], scr.pixels[y * p.screen_width ..][0..w]);
+        scr.overlayRow(u8, y, raw[y * (w + 1) + 1 ..][0..w], &p.identity_lut);
     }
     var z: std.Io.Writer.Allocating = try .initCapacity(gpa, 64 * 1024);
     defer z.deinit();
@@ -118,7 +119,9 @@ pub fn encodeBmp(gpa: std.mem.Allocator, scr: *const p.Screen, out: *std.ArrayLi
     var y: usize = h;
     while (y > 0) {
         y -= 1;
-        try out.appendSlice(gpa, scr.pixels[y * p.screen_width ..][0..w]);
+        var row: [w]u8 = scr.pixels[y * p.screen_width ..][0..w].*;
+        scr.overlayRow(u8, y, &row, &p.identity_lut);
+        try out.appendSlice(gpa, &row);
         try out.appendNTimes(gpa, 0, (4 - w % 4) % 4); // rows pad to 4 bytes
     }
 }

@@ -21,7 +21,10 @@ the canvas fills the window in one dimension, keeps its aspect ratio, is
 centred, and the tool buttons stay in the window and off the game unless
 the letterbox has no room for them (window-WxH.png). Then the version
 button reloads into the Corrigida version: the loader shows it chosen, the load comes from Cache Storage (cache.png) and is quicker,
-and the wasm has every fix on. Last, a simulated deploy (a copy of the
+and the wasm has every fix on; a new game there, to the corridor with
+the wallet (as in tools/play/full.input), drags the wallet out of the
+panel: its icon follows the pointer (drag.png) and is gone once it is
+released over the panel (drag-released.png). Last, a simulated deploy (a copy of the
 site with noite.js and one disc file changed, restamped by
 tools/web/stamp.py, served at the same origin): the reload downloads
 only that file, runs the new noite.js and drops the stale cache entry.
@@ -187,6 +190,69 @@ def main():
             page.wait_for_function("window.noite.started || window.noite.failure", timeout=60_000)
             check(not page.evaluate("window.noite.failure"), "Jogar starts the game")
 
+        def region(x, y, r=20):
+            """The canvas's RGBA bytes of the (2r)² square centred on (x, y)."""
+            return page.evaluate("""([x, y, r]) => Array.from(document.getElementById("screen")
+                .getContext("2d").getImageData(x - r, y - r, 2 * r, 2 * r).data)""", [x, y, r])
+
+        def changed(a, b):
+            return sum(a[i:i + 3] != b[i:i + 3] for i in range(0, len(a), 4))
+
+        def drag_shows_item():
+            """Corrigida: the wallet dragged out of the panel follows the
+            pointer (Fixes.drag_shows_item) and goes with the release."""
+            check(wait_scene("abert", 10), "Corrigida: the opening video plays (abert)")
+            time.sleep(3)
+            click(320, 240)
+            check(wait_scene("fundinic", 3), "Corrigida: a click skips to the title")
+            time.sleep(1.5)
+            click(290, 345)  # JOGAR
+            time.sleep(2)
+            click(370, 412)  # NOVO JOGO
+            check(wait_scene("abertura", 20), "Corrigida: a new game starts")
+            time.sleep(2)
+            page.keyboard.press("Escape")
+            check(wait_scene("1fquarbo", 5), "Corrigida: the bedroom (1fquarbo)")
+            time.sleep(1)
+            click(287, 275, "right")  # desk drawer 3
+            check(wait_scene("1fgvboy3", 40), "Corrigida: the drawer opens (1fgvboy3)")
+            time.sleep(1)
+            click(286, 261, "right")  # the wallet
+            time.sleep(1.5)
+            click(300, 330, "right")
+            check(wait_scene("1fquarbo", 40), "Corrigida: back in the bedroom with the wallet")
+            time.sleep(1)
+            click(130, 360)
+            time.sleep(4.5)
+            click(95, 80, "right")
+            check(wait_scene("1fcorred", 40), "Corrigida: the corridor (1fcorred)")
+            time.sleep(1)
+            page.mouse.move(*at(320, 452))  # open the panel (y > 440)
+            time.sleep(1.5)
+            page.mouse.move(*at(116, 425))
+            time.sleep(0.3)
+            before = region(300, 200)
+            panel_before = region(300, 430)
+            page.mouse.down(button="right")  # slot 0: the wallet
+            for x, y in ((150, 380), (200, 320), (250, 260), (300, 200)):
+                page.mouse.move(*at(x, y))
+                time.sleep(0.1)
+            time.sleep(0.3)
+            during = region(300, 200)
+            shot("drag.png")
+            n = changed(before, during)
+            check(n > 300, f"Corrigida: the dragged item's icon is drawn at the pointer ({n} pixels changed)")
+            page.mouse.move(*at(300, 430))  # back over the panel: no drop
+            time.sleep(0.2)
+            page.mouse.up(button="right")
+            time.sleep(0.5)
+            after = region(300, 200)
+            shot("drag-released.png")
+            n = changed(before, after)
+            n += changed(panel_before, region(300, 430))
+            check(n == 0, f"Corrigida: released on the panel, the icon is gone ({n} pixels differ)")
+            check(not errors, "Corrigida: drag, no page errors")
+
         def manifest():
             return page.evaluate("""async () => {
                 const html = await (await fetch("./", { cache: "no-cache" })).text();
@@ -287,6 +353,7 @@ def main():
         check(page.evaluate("JSON.parse(localStorage.getItem('noite:prefs')).version") == "corrigida",
               "the choice is remembered")
         check(not errors, "no page errors")
+        drag_shows_item()
 
         if not args.url:
             # A deploy: noite.js and one disc file change; the rest keeps its hash.

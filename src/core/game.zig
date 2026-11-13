@@ -39,6 +39,9 @@ pub const Game = struct {
     /// The last messages dispatched (debugging: printed on a panic).
     trail: Trail = .{},
     quit: bool = false,
+    /// Not in the original: the item being dragged out of the control panel
+    /// and the pointer, for `Fixes.drag_shows_item`.
+    drag: Drag = .{},
 
     // ---- struct Game ----
     // @orig Game+0x4
@@ -272,7 +275,10 @@ pub const Game = struct {
             return true;
         }
         g.log('Q', m);
+        if (g.fixes.drag_shows_item) g.drag.pointer(m);
         _ = g.wndProc(g, m);
+        // The release ends the drag, whoever handled it.
+        if (m.id == msg.wm.rbuttonup) g.drag.item = null;
         return true;
     }
 
@@ -284,6 +290,25 @@ pub const Game = struct {
             g.plat.ticks(), how, m.id, m.wparam, @as(u32, @bitCast(m.lparam)),
         }) catch return;
         t.appendSlice(g.gpa, line) catch {};
+    }
+};
+
+/// `Fixes.drag_shows_item`: the right button pressed on an inventory slot
+/// (`item`, set where the original sets `itemSelected`, cleared on the
+/// release) and the pointer's last client position.
+pub const Drag = struct {
+    item: ?*Object = null,
+    x: i16 = 0,
+    y: i16 = 0,
+
+    fn pointer(d: *Drag, m: Msg) void {
+        switch (m.id) {
+            msg.wm.mousemove, msg.wm.lbuttondown, msg.wm.rbuttondown, msg.wm.rbuttonup => {
+                d.x = @bitCast(m.lo());
+                d.y = @bitCast(m.hi());
+            },
+            else => {},
+        }
     }
 };
 

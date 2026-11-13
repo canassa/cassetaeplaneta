@@ -64,6 +64,7 @@ pub fn handleMessageHook(g: *Game, m: Msg) i32 {
                     g.selectedItem = panels.getInventoryItemAt(g, cp, &player.actor.inventory, x, y);
                     if (g.selectedItem != null) {
                         g.itemSelected = 1;
+                        if (g.fixes.drag_shows_item) g.drag.item = g.selectedItem;
                         return 0;
                     }
                     g.itemSelected = 0;

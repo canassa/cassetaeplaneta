@@ -203,6 +203,61 @@ pub const PlayParams = struct {
 pub const Screen = struct {
     pixels: [screen_width * screen_height]u8 = @splat(0),
     palette: [256]Rgb = @splat(.{}),
+    /// Not Windows: a picture the backends draw over `pixels` when they
+    /// show the screen (and the harness when it dumps it), never into it.
+    overlay: Overlay = .{},
+
+    /// Draws the overlay's part of screen row `y` (when shown) over `row`
+    /// (the converted row: `row[x]` is screen column `x`), through `lut`
+    /// (palette index to the output's pixel type).
+    pub fn overlayRow(scr: *const Screen, comptime T: type, y: usize, row: []T, lut: *const [256]T) void {
+        const ov = &scr.overlay;
+        if (!ov.shown) return;
+        const oy = @as(i32, @intCast(y)) - ov.y;
+        if (oy < 0 or oy >= ov.height) return;
+        const src = ov.pixels[@as(usize, @intCast(oy)) * ov.width ..][0..ov.width];
+        for (src, 0..) |c, k| {
+            if (c == ov.transparent) continue;
+            const x = @as(i32, ov.x) + @as(i32, @intCast(k));
+            if (x < 0 or x >= row.len or x >= client_width) continue;
+            row[@intCast(x)] = lut[c];
+        }
+    }
+
+    /// `overlayRow` for every row of `out` (`stride` items per row).
+    pub fn drawOverlay(scr: *const Screen, comptime T: type, out: []T, stride: usize, lut: *const [256]T) void {
+        const ov = &scr.overlay;
+        if (!ov.shown) return;
+        const top: usize = @intCast(@max(0, ov.y));
+        const bottom: usize = @intCast(std.math.clamp(@as(i32, ov.y) + ov.height, 0, client_height));
+        var y = top;
+        while (y < bottom and (y + 1) * stride <= out.len) : (y += 1) {
+            scr.overlayRow(T, y, out[y * stride ..][0..@min(stride, screen_width)], lut);
+        }
+    }
+};
+
+/// An 8-bit picture over the screen (the dragged item's icon with
+/// `Fixes.drag_shows_item`), in the screen's palette, clipped to the
+/// client area. Rows are `width` bytes, top-down.
+pub const Overlay = struct {
+    pub const max_side = 64;
+    shown: bool = false,
+    /// Screen position of the top-left pixel.
+    x: i16 = 0,
+    y: i16 = 0,
+    width: u16 = 0,
+    height: u16 = 0,
+    /// The index not drawn.
+    transparent: u8 = 0,
+    pixels: [max_side * max_side]u8 = @splat(0),
+};
+
+/// The identity palette lookup: `Screen.overlayRow` on indexed pixels.
+pub const identity_lut: [256]u8 = blk: {
+    var t: [256]u8 = undefined;
+    for (&t, 0..) |*e, i| e.* = i;
+    break :blk t;
 };
 
 pub const Event = union(enum) {
@@ -438,3 +493,22 @@ pub const Platform = struct {
         return p.vtable.filterInput(p.ptr, m);
     }
 };
+
+test "the overlay is drawn over a copy, clipped, skipping its transparent index" {
+    const gpa = std.testing.allocator;
+    const scr = try gpa.create(Screen);
+    defer gpa.destroy(scr);
+    scr.* = .{};
+    const ov = &scr.overlay;
+    ov.* = .{ .shown = true, .x = client_width - 2, .y = 1, .width = 4, .height = 2, .transparent = 9 };
+    @memcpy(ov.pixels[0..8], &[_]u8{ 1, 9, 3, 4, 5, 6, 7, 8 });
+    var out: [screen_width * 4]u8 = @splat(0);
+    scr.drawOverlay(u8, &out, screen_width, &identity_lut);
+    try std.testing.expectEqualSlices(u8, &.{ 1, 0, 0, 0 }, out[screen_width + client_width - 2 ..][0..4]);
+    try std.testing.expectEqualSlices(u8, &.{ 5, 6, 0, 0 }, out[2 * screen_width + client_width - 2 ..][0..4]);
+    try std.testing.expectEqual(@as(u8, 0), scr.pixels[screen_width + client_width - 2]);
+    ov.shown = false;
+    var row: [screen_width]u8 = @splat(0);
+    scr.overlayRow(u8, 1, &row, &identity_lut);
+    try std.testing.expect(std.mem.allEqual(u8, &row, 0));
+}

@@ -168,6 +168,8 @@ pub const Web = struct {
         var lut: [256][4]u8 = undefined;
         for (&lut, w.screen_buf.palette) |*l, c| l.* = .{ c.r, c.g, c.b, 255 };
         for (w.screen_buf.pixels, 0..) |i, k| w.rgba[k * 4 ..][0..4].* = lut[i];
+        const px: *[p.screen_width * p.screen_height][4]u8 = @ptrCast(&w.rgba);
+        w.screen_buf.drawOverlay([4]u8, px, p.screen_width, &lut);
         js.js_present(&w.rgba);
     }
 

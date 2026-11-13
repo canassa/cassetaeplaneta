@@ -497,6 +497,15 @@ Confidence 8–9.
   but neither field (Game +0x676/+0x678) is written anywhere, including the constructor. The values are whatever
   the heap block held (most likely 0 → no-op). Confidence 9 (no writer); 6 (actual value at run time).
 
+### Corrigida additions (not bugs)
+Usability changes the "Corrigida" version (`Fixes.all()`) turns on; the original lacks them by design.
+- **The dragged item follows the pointer** (`Fixes.drag_shows_item`). Dragging an item out of the control panel
+  (right button held on a slot, until the release) shows nothing in the original: `game_handle_message`
+  (1018:0000) only slides the panel on WM_MOUSEMOVE and there is no `SetCursor` anywhere. With the flag the
+  item's panel icon is drawn centred on the pointer, as an overlay the platform adds when it shows the frame
+  (`Screen.overlay`), never into the screen buffer or backdrop; it goes with the release or anything that clears
+  the selection (drop, offer, scene change). Game logic is unchanged.
+
 ---
 
 ## Latent bugs (code never executed by the shipped game)
