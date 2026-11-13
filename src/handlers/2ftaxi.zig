@@ -43,7 +43,7 @@ pub fn handle(g: *Game, m: Msg) i16 {
             }
             if (hit.id == 0x165) {
                 update_list.discard(&g.updateList);
-                _ = game_scenes.switchScene(g, "3fentseg", 0xaa, 0xf0, 1, 1, 0, 0, 0);
+                _ = game_scenes.switchScene(g, "3fentseg", 0xf0, 0xaa, 1, 1, 0, 0, 0);
                 return 0;
             }
             return 1;
@@ -51,7 +51,7 @@ pub fn handle(g: *Game, m: Msg) i16 {
         msg.noite.movement_finished => {
             if (m.wparam != TAXI_ID) return 0;
             update_list.discard(&g.updateList);
-            _ = game_scenes.switchScene(g, "2fpontoc", 0xfa, 0xf0, 1, 1, 0, 0, 0);
+            _ = game_scenes.switchScene(g, "2fpontoc", 0xf0, 0xfa, 1, 1, 0, 0, 0);
             return 1;
         },
         msg.noite.object_created => {
