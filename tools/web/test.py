@@ -4,8 +4,12 @@
     nix develop -c tools/web/build-site.sh
     nix develop .#web -c python3 tools/web/test.py [--site zig-out/site | --url https://…] [--out zig-out/web-test]
 
-Serves the site on a local port and checks, with screenshots of the canvas
-in --out: the loader downloads every file; no AudioContext before a user
+Serves the site on a local port (with nginx's Cache-Control: immutable
+for `?h=` URLs, no-cache otherwise) and checks, with screenshots of the
+canvas in --out: index.html loads a hashed noite.js; a cache of a loader
+before the hashes is migrated (files whose content matches the manifest's
+hash are reused, a corrupted one is not) and dropped; the loader
+downloads every file, each by its hashed URL; no AudioContext before a user
 gesture; the Original version with video skipping (the defaults) starts
 from the Jogar button with a running AudioContext and reaches the wasm as
 such; a click 3 s into the 22 s opening video skips it to the title
@@ -17,35 +21,78 @@ the canvas fills the window in one dimension, keeps its aspect ratio, is
 centred, and the tool buttons stay in the window and off the game unless
 the letterbox has no room for them (window-WxH.png). Then the version
 button reloads into the Corrigida version: the loader shows it chosen, the load comes from Cache Storage (cache.png) and is quicker,
-and the wasm has every fix on. Exits non-zero on the first failed check
-or on a page error.
+and the wasm has every fix on. Last, a simulated deploy (a copy of the
+site with noite.js and one disc file changed, restamped by
+tools/web/stamp.py, served at the same origin): the reload downloads
+only that file, runs the new noite.js and drops the stale cache entry.
+Exits non-zero on the first failed check or on a page error.
 """
 
 import argparse
-import functools
 import http.server
+import json
 import os
 import pathlib
+import re
+import shutil
 import sys
 import threading
 import time
+from urllib.parse import unquote, urlsplit
 
 from playwright.sync_api import sync_playwright
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(ROOT / "tools" / "web"))
+from stamp import stamp  # noqa: E402
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
+    """The site in `Handler.site` (a deploy swaps it), with the headers of
+    docs/WEB.md; every request path is logged in `Handler.requests`."""
+
     extensions_map = {**http.server.SimpleHTTPRequestHandler.extensions_map, ".wasm": "application/wasm"}
+    site = None
+    requests = []
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, directory=str(Handler.site), **kwargs)
+
+    def do_GET(self):
+        Handler.requests.append(self.path)
+        super().do_GET()
+
+    def end_headers(self):
+        hashed = "h" in dict(q.split("=", 1) for q in urlsplit(self.path).query.split("&") if "=" in q)
+        self.send_header("Cache-Control", "public, max-age=31536000, immutable" if hashed else "no-cache")
+        super().end_headers()
 
     def log_message(self, *args):
         pass
 
 
 def serve(site):
-    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(Handler, directory=str(site)))
+    Handler.site = site
+    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     return httpd
+
+
+def deploy_copy(site, dst, changed_url):
+    """A copy of `site` (hard links) with noite.js and `changed_url` edited
+    and the hashes restamped: a deploy of a new build."""
+    shutil.rmtree(dst, ignore_errors=True)
+    shutil.copytree(site, dst, copy_function=os.link)
+    js = dst / "noite.js"
+    text = js.read_text()
+    js.unlink()  # break the hard link before writing
+    js.write_text(text + "\nwindow.noiteDeployTest = true;\n")
+    f = dst / unquote(changed_url)
+    data = bytearray(f.read_bytes())
+    f.unlink()
+    data[-1] ^= 0xFF
+    f.write_bytes(bytes(data))
+    stamp(dst)
 
 
 def main():
@@ -57,10 +104,11 @@ def main():
     args = ap.parse_args()
     out = pathlib.Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
+    site = pathlib.Path(args.site)
     if args.url:
         url = args.url.rstrip("/") + "/"
     else:
-        httpd = serve(pathlib.Path(args.site))
+        httpd = serve(site)
         url = f"http://127.0.0.1:{httpd.server_address[1]}/"
     errors = []
 
@@ -139,9 +187,53 @@ def main():
             page.wait_for_function("window.noite.started || window.noite.failure", timeout=60_000)
             check(not page.evaluate("window.noite.failure"), "Jogar starts the game")
 
+        def manifest():
+            return page.evaluate("""async () => {
+                const html = await (await fetch("./", { cache: "no-cache" })).text();
+                const src = html.match(/data-manifest="([^"]+)"/)[1];
+                return await (await fetch(src)).json();
+            }""")
+
+        def wait_pruned():
+            page.wait_for_function("window.noite.pruned", timeout=60_000)
+            return page.evaluate("""async () => ({
+                names: await caches.keys(),
+                urls: (await (await caches.open('noite.files')).keys()).map((r) => r.url),
+            })""")
+
+        # A returning player's cache from before the hashes: "noite-<version>",
+        # keyed by the plain URLs. Two good files and a corrupted one.
+        page.goto(url + "seed.html")  # a 404 page of the same origin: no loader
+        files = manifest()["files"]
+        seeded = [files[0]["url"], files[1]["url"], files[2]["url"]]
+        page.evaluate("""async (urls) => {
+            const c = await caches.open("noite-0123456789abcdef");
+            for (const [i, u] of urls.entries()) {
+                const body = new Uint8Array(await (await fetch(u)).arrayBuffer());
+                if (i === 2) body[0] ^= 0xff;
+                await c.put(u, new Response(body));
+            }
+        }""", seeded)
+        Handler.requests.clear()
         page.goto(url)
         first_load = load()
         print(f"      first load {first_load:.1f} s")
+        html = page.evaluate("document.documentElement.outerHTML")
+        check(re.search(r'<script src="noite\.js\?h=[0-9a-f]{16}" data-wasm="noite\.wasm\?h=[0-9a-f]{16}"'
+                        r' data-manifest="manifest\.json\?h=[0-9a-f]{16}">', html) is not None,
+              "index.html loads noite.js, the wasm and the manifest by hash")
+        if not args.url:
+            plain = [r for r in Handler.requests if r not in ("/", "/favicon.ico") and "?h=" not in r]
+            check(not plain, f"every request but the page's carries ?h= ({plain[:3]})")
+            got = {urlsplit(r).path for r in Handler.requests}
+            check(not any(("/" + u) in got for u in seeded[:2]) and ("/" + seeded[2]) in got,
+                  "the old cache's good files are migrated, the corrupted one downloaded")
+        stats = page.evaluate("window.noite.loadStats")
+        check(stats["migrated"] == 2, f"two files migrated from the old cache ({stats})")
+        caches_now = wait_pruned()
+        check(caches_now["names"] == ["noite.files"] and len(caches_now["urls"]) == len(files),
+              f"the old cache is dropped, the new one holds the manifest's files"
+              f" ({caches_now['names']}, {len(caches_now['urls'])} of {len(files)})")
         check(page.evaluate("window.noite.audioState") == "none", "no AudioContext before a user gesture")
         check(page.is_checked('input[name="versao"][value="original"]') and page.is_checked("#skip"),
               "the loader offers Original with video skipping by default")
@@ -195,6 +287,35 @@ def main():
         check(page.evaluate("JSON.parse(localStorage.getItem('noite:prefs')).version") == "corrigida",
               "the choice is remembered")
         check(not errors, "no page errors")
+
+        if not args.url:
+            # A deploy: noite.js and one disc file change; the rest keeps its hash.
+            changed = next(f for f in reversed(files) if f["url"].startswith("assets/") and f["url"].endswith(".BMP"))
+            new_site = out / "site-deploy"
+            before = {name: (site / name).read_bytes() for name in ("index.html", "manifest.json", "noite.js")}
+            deploy_copy(site, new_site, changed["url"])
+            check(all((site / k).read_bytes() == v for k, v in before.items()),
+                  "the deploy copy leaves the built site alone")
+            Handler.site = new_site
+            Handler.requests.clear()
+            page.goto(url)
+            load()
+            stats = page.evaluate("window.noite.loadStats")
+            fetched = sorted(r for r in Handler.requests if r.startswith(("/assets/", "/soundfont/")))
+            new_hash = next(f["hash"] for f in json.loads((new_site / "manifest.json").read_text())["files"]
+                            if f["url"] == changed["url"])
+            check(fetched == [f"/{changed['url']}?h={new_hash}"] and stats["downloaded"] == 1
+                  and stats["fromCache"] == len(files) - 1,
+                  f"after a deploy only the changed file is downloaded ({fetched}, {stats})")
+            check(page.evaluate("window.noiteDeployTest === true"), "the page runs the new noite.js")
+            caches_now = wait_pruned()
+            stale = [u for u in caches_now["urls"] if changed["url"] in u and new_hash not in u]
+            check(len(caches_now["urls"]) == len(files) and not stale,
+                  f"the stale cache entry is dropped ({len(caches_now['urls'])} entries, stale {stale})")
+            play()
+            check(wait_scene("abert", 10), "the new build starts (abert)")
+            check(not errors, "no page errors after the deploy")
+            shutil.rmtree(new_site)
         browser.close()
     if not args.url:
         httpd.shutdown()
