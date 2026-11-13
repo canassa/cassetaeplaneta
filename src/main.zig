@@ -3,7 +3,7 @@
 //!     noite [--headless] [--ms N] [--assets DIR] [--save DIR] [--trace FILE]
 //!           [--input FILE] [--dump DIR] [--dump-every MS] [--bmp]
 //!           [--scene NAME [--take ID,ID…]] [--minigame win|lose] [--quiet]
-//!           [--fix NAME,…|all] [--skip-videos]
+//!           [--fix NAME,…|all[,-NAME…]] [--skip-videos]
 //!
 //! The test harness (`platform/harness.zig`): `--input` plays a script of
 //! timed mouse/keyboard input (`platform/script.zig`), `--dump` writes
@@ -56,7 +56,7 @@ const Args = struct {
     opts: platform.sim.Options = .{},
     trace: ?[]const u8 = null,
     harness: platform.harness.Options = .{},
-    /// `--fix a,b` / `--fix all`: BUGS.md fixes (src/core/fixes.zig).
+    /// `--fix a,b` / `--fix all[,-a]`: BUGS.md fixes (src/core/fixes.zig).
     fixes: core.fixes.Fixes = .{},
 };
 

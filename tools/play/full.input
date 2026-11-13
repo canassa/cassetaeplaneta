@@ -5,6 +5,8 @@
 # The run is deterministic (headless virtual clock): the random choices
 # (roadblock cop, hall doors, bar quiz question) depend on the time of the
 # calls, so changing the timing of an earlier line can change them.
+# With the fixes, leave out the two that change the route (README.md):
+#   --fix all,-hall_shuffle_each_visit,-avi_exit_ignores_timer
 
 # Title menu: JOGAR, then NOVO JOGO; the opening video ends in the bedroom.
 22000 dump title

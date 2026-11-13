@@ -20,7 +20,7 @@ nix develop -c ./zig-out/bin/noite             # the game in an SDL3 window
 ./zig-out/bin/noite --headless --ms 60000      # no window, virtual clock
 ```
 
-Original bugs are reproduced; `--fix all` (or `--fix name,…`, see
+Original bugs are reproduced; `--fix all` (or `--fix name,…`, `all,-name` to leave one out, see
 `src/core/fixes.zig` and `BUGS.md`) turns their fixes on. Videos play to
 the end as in the original; `--skip-videos` lets a click, a right click or
 Esc/Enter/Space end one (a convenience, not a fix). The minigames
@@ -44,6 +44,8 @@ Esc/Enter/Space end one (a convenience, not a fix). The minigames
   `zig-out/smoke/`.
 - **Playthrough**: `./zig-out/bin/noite --headless --ms 560000 --input tools/play/full.input`
   plays from the title screen to the sportsman ending, checking every scene.
+  With the fixes: add `--fix all,-hall_shuffle_each_visit,-avi_exit_ignores_timer`
+  (the script follows this run's hall doors and the 3fstreet shortcut of BUGS.md B21).
 - **SDL without a display**: `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy`
   (or `disk` with `SDL_AUDIO_DISK_OUTPUT_FILE=out.raw` to capture the mix).
 
