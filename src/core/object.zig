@@ -11,7 +11,7 @@
 //! Ghidra struct members; `@orig` cites `Struct+offset`.
 
 const std = @import("std");
-const Condition = @import("world.zig").Condition;
+pub const Condition = @import("world.zig").Condition;
 const Wave = @import("../platform/platform.zig").Wave;
 
 /// The instantiated classes. Mover, Animation and Player alone are never

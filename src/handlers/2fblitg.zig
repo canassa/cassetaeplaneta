@@ -179,7 +179,7 @@ fn rightButtonUp(g: *Game, s: *State, m: Msg) i16 {
         return 1;
     }
     s.offerCount +%= 1;
-    _ = ini.seekSection(&g.ini, g.plat, g.fixes, g.ini.file orelse 0, &g.curSceneName, true) catch |e| @panic(@errorName(e));
+    _ = ini.seekSection(&g.ini, g.plat, g.fixes, g.iniFile, &g.curSceneName, true) catch |e| @panic(@errorName(e));
 
     var right = false;
     if (item.id == WALLET_ITEM) {
@@ -206,7 +206,7 @@ fn rightButtonUp(g: *Game, s: *State, m: Msg) i16 {
     }
 
     // The scripted reply: WAVE=<hit id>,<variant>,<item id>,<file>,<object>.
-    _ = ini.findWave(&g.ini, g.plat, g.fixes, g.ini.file orelse 0, hit.id, s.waveVariant, g.selectedItem.?.id, &g.sound.cache, &g.ini.rec.nomeWave, &g.ini.rec.waveObject) catch |e| @panic(@errorName(e));
+    _ = ini.findWave(&g.ini, g.plat, g.fixes, g.iniFile, hit.id, s.waveVariant, g.selectedItem.?.id, &g.sound.cache, &g.ini.rec.nomeWave, &g.ini.rec.waveObject) catch |e| @panic(@errorName(e));
     s.waveVariant = s.unkA19E;
     // Look up the scene object the reply belongs to (the result is unused).
     s.waveTarget = g.scene.?.objects.head;

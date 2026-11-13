@@ -74,7 +74,7 @@ fn die(e: anyerror) noreturn {
 }
 
 fn iniFd(g: *Game) u16 {
-    return g.ini.file orelse 0;
+    return g.iniFile; // Game+0x680
 }
 
 fn playWave(g: *Game, path: []const u8) void {

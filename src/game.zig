@@ -191,7 +191,7 @@ pub fn createExitScene(g: *Game, exit_index: i16) ?*Scene {
     const cur = g.scene orelse @panic("game.createExitScene: no scene");
     if (cur.exitCount < exit_index) {
         // scene_create_new_scene_default
-        ini.messageBoxPrintf(g.plat, &g.messageBuf, cstr.slice(&cur.name), "Faltou redefinir o m\xe9todo CreateNewScene", 0);
+        ini.messageBoxPrintf(g.plat, &g.messageBuf, cstr.slice(&cur.name), scene_mod.create_new_scene_missing, 0);
         return cur;
     }
     const ex = &(cur.exits[@intCast(exit_index)] orelse @panic("game.createExitScene: no exit")).exit;

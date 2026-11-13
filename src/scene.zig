@@ -8,6 +8,7 @@
 //! Slot 07 base (`create`, 1018:2834) is never reached: the INI scene
 //! overrides it (`scene_loader.create`); it is ported for completeness.
 
+const platform = @import("platform/platform.zig");
 const ini = @import("ini.zig");
 const cstr = @import("core/cstr.zig");
 const Game = @import("core/game.zig").Game;
@@ -64,7 +65,7 @@ pub fn ctor(scene: *Scene, name: []const u8, has_player: i16, has_control_panel:
 // @orig 1018:6ad4 ini_scene_ctor
 /// Constructor of the INI scene class (every game scene): the base
 /// constructor (the vtable swap has no counterpart). `ini_file` is unused.
-pub fn iniSceneCtor(scene: *Scene, ini_file: i16, name: []const u8, has_player: i16, has_control_panel: i16, has_status_bar: i16, is_1animation: i16, is_click_exit: i16) *Scene {
+pub fn iniSceneCtor(scene: *Scene, ini_file: platform.File, name: []const u8, has_player: i16, has_control_panel: i16, has_status_bar: i16, is_1animation: i16, is_click_exit: i16) *Scene {
     _ = ini_file;
     return ctor(scene, name, has_player, has_control_panel, has_status_bar, is_1animation, is_click_exit);
 }
@@ -186,9 +187,13 @@ pub fn createNewScene(g: *Game, scene: *Scene, exit_index: i16) ?*Scene {
     return iniSceneCtor(new, g.iniFile, cstr.slice(name), ex.exit.hasPlayer, ex.exit.hasControlPanel, ex.exit.hasStatusBar, 0, 0);
 }
 
+/// The base Scene's CreateNewScene warning (its caption is the scene name);
+/// `game.createExitScene` shows it too.
+pub const create_new_scene_missing = "Faltou redefinir o m\xe9todo CreateNewScene";
+
 // @orig 1010:441a scene_create_new_scene_default (absorbed)
 fn createNewSceneDefault(g: *Game, scene: *Scene) *Scene {
-    ini.messageBoxPrintf(g.plat, &g.messageBuf, cstr.slice(&scene.name), "Faltou redefinir o m\xe9todo CreateNewScene", 0);
+    ini.messageBoxPrintf(g.plat, &g.messageBuf, cstr.slice(&scene.name), create_new_scene_missing, 0);
     return scene;
 }
 

@@ -98,7 +98,7 @@ fn arrest(g: *Game) void {
 }
 
 fn iniFd(g: *Game) u16 {
-    return g.ini.file orelse 0;
+    return g.iniFile; // Game+0x680
 }
 
 // @orig 1020:1a5a handler_2fcopmau

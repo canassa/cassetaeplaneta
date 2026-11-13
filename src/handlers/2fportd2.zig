@@ -192,7 +192,7 @@ fn rbuttonUp(g: *Game, s: *State, m: Msg) i16 {
         return 0;
     }
     s.offerCount +%= 1;
-    const fd = g.ini.file orelse 0;
+    const fd = g.iniFile;
     const name = cstr.slice(&g.curSceneName);
     _ = ini.seekSection(&g.ini, g.plat, g.fixes, fd, name, true) catch |e| die(e);
     const item = must(Object, g.selectedItem);

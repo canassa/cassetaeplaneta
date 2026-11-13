@@ -202,7 +202,7 @@ fn query(g: *Game, s: *State, m: Msg) i8 {
 
 /// ini_seek_section on the current scene; returns the ini file handle.
 fn seek(g: *Game) u16 {
-    const fd = g.ini.file orelse 0;
+    const fd = g.iniFile;
     _ = ini.seekSection(&g.ini, g.plat, g.fixes, fd, cstr.slice(&g.curSceneName), true) catch |e| die(e);
     return fd;
 }

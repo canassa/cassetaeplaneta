@@ -16,7 +16,8 @@ const world = @import("world.zig");
 const modstate = @import("modstate.zig");
 const handler = @import("handler.zig");
 const Rand = @import("crt.zig").Rand;
-const Platform = @import("../platform/platform.zig").Platform;
+const platform = @import("../platform/platform.zig");
+const Platform = platform.Platform;
 
 pub const max_minigames = 5;
 pub const max_picked = 3;
@@ -69,7 +70,7 @@ pub const Game = struct {
     // @orig Game+0x67c
     selectedItem: ?*Object = null,
     // @orig Game+0x680
-    iniFile: i16 = 0,
+    iniFile: platform.File = 0,
     // @orig Game+0x682 (points at the current scene's INI section name)
     curSceneName: [20]u8 = @splat(0),
     // @orig Game+0x686
@@ -276,19 +277,45 @@ pub const Game = struct {
     }
 };
 
+/// A `Game` over a headless platform, for unit tests:
+///
+///     var t = try TestGame.init(std.testing.allocator);
+///     defer t.deinit();
+///     const g = t.game;
+///
+/// No window procedure is installed (set `g.wndProc` to dispatch).
+pub const TestGame = struct {
+    headless: *Headless,
+    game: *Game,
+
+    pub fn init(gpa: std.mem.Allocator) !TestGame {
+        const h = try gpa.create(Headless);
+        errdefer gpa.destroy(h);
+        h.* = Headless.init(gpa, std.testing.io, .{});
+        errdefer h.deinit();
+        return .{ .headless = h, .game = try Game.create(gpa, h.platform()) };
+    }
+
+    pub fn deinit(t: TestGame) void {
+        const gpa = t.game.gpa;
+        t.game.destroy();
+        t.headless.deinit();
+        gpa.destroy(t.headless);
+    }
+};
+const Headless = @import("../platform/headless.zig").Headless;
+
 /// Until the `app` unit is ported there is no window procedure.
 fn noWndProc(_: *Game, _: Msg) i32 {
     return 0;
 }
 
 test "Game builds with a headless platform" {
-    const Headless = @import("../platform/headless.zig").Headless;
-    var h = Headless.init(std.testing.allocator, std.testing.io, .{});
-    defer h.deinit();
-    const g = try Game.create(std.testing.allocator, h.platform());
-    defer g.destroy();
+    var t = try TestGame.init(std.testing.allocator);
+    defer t.deinit();
+    const g = t.game;
     g.setSystemTimer(1, 50);
-    h.now = 50;
+    t.headless.now = 50;
     try std.testing.expect(g.dispatchPending());
     try std.testing.expect(!g.dispatchPending());
 }

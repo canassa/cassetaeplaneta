@@ -100,7 +100,7 @@ fn switchCutscene(g: *Game, name: []const u8) void {
 }
 
 fn seekCurrentSection(g: *Game) void {
-    _ = ini.seekSection(&g.ini, g.plat, g.fixes, @bitCast(g.iniFile), cstr.slice(&g.curSceneName), true) catch |e| die(e);
+    _ = ini.seekSection(&g.ini, g.plat, g.fixes, g.iniFile, cstr.slice(&g.curSceneName), true) catch |e| die(e);
 }
 
 /// 0x205: the item is released at `hit` (the cop or her post).
@@ -120,7 +120,7 @@ fn dropOnCop(g: *Game, s: *State, hit: *Object) i16 {
         return 1;
     }
     seekCurrentSection(g);
-    _ = ini.findWave(&g.ini, g.plat, g.fixes, @bitCast(g.iniFile), hit.id, s.waveVariant, item.id, &g.sound.cache, &g.ini.rec.nomeWave, &g.ini.rec.waveObject) catch |e| die(e);
+    _ = ini.findWave(&g.ini, g.plat, g.fixes, g.iniFile, hit.id, s.waveVariant, item.id, &g.sound.cache, &g.ini.rec.nomeWave, &g.ini.rec.waveObject) catch |e| die(e);
     s.waveVariant = s.unkA3D4;
     // Looks for the object the WAVE line names (the result is never used).
     s.scanObject = g.scene.?.objects.head;
