@@ -369,7 +369,7 @@ fn	1010:d2b2	object_list	object_list_contains
 fn	1010:d2da	object_list	object_list_find_by_id
 fn	1010:d322	object_list	object_list_add
 fn	1010:d3e4	object_list	object_list_remove
-fn	1010:d474	object_list	object_list_delete_all
+fn	1010:d474	object_init	object_list_delete_all
 fn	1010:d4f6	object_list	object_list_attach_to_scene
 fn	1010:d762	object_init	scene_object_scalar_dtor
 fn	1010:d840	grid	occupancy_grid_occupy_cell
