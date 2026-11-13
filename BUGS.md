@@ -297,6 +297,25 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   end.
 - **Confidence:** 7 (code; which clicks lead there).
 
+### B25. An item dropped onto an object it overlaps leaves its image behind when picked up again
+- **Where:** `game_handle_message` 1018:0000, WM_RBUTTONUP: `moveToAndDrop` (1018:0e1b, Portable's
+  1010:54d0 → `mover_set_position` 1010:2b62, which keeps the old position as the previous one), then the
+  item is drawn and made visible by hand; when `findSupport` returns an object whose hit box overlaps the
+  item's (`scene_object_hitbox_overlaps` at 1018:0f22, JNZ 10d3) no `moveTo` follows. `mover_restore_background`
+  1010:b3fa erases `(min(x, prevX), min(y, prevY), width + |stepX|, height + |stepY|)`.
+- **What the code does:** only the walk to a resting place (its stop, 1010:c968) or `mover_show`/`mover_hide`
+  set the previous position to the current one. Without a walk, `prevX/prevY` stay where the item was last
+  picked up (often another scene). The pick-up (WM_RBUTTONDOWN: `portable_pick_up`, reset_rects,
+  `hideAndInvalidate`, `redrawOverlapping`) restores a rectangle that starts at the old position and is only
+  one frame (plus a step) wide, so it misses the item's image when the two are farther apart than a step.
+- **Effect:** the item's picture stays on the screen (and in the backdrop bitmap) after it is back in the
+  inventory; dropping it again draws a second one. E.g. the wallet dropped on the corridor's bathroom door
+  (animation 256). The give-item scenes (2fportd2, 2fblitg, 2fcopmau, 2fcopmu, 3fprisao…) hit it when an
+  offered item is handed back.
+- **Port:** reproduced (`game_input.rightUp`); `Fixes.drop_syncs_previous_position` sets the previous
+  position to the dropped one, as `mover_show` does.
+- **Confidence:** 9 (code, port repro).
+
 ## Harmless: wrong paths rescued by the wave fallback
 
 `wave_open` retries `<root>pan\wav\<file name>.wav`, and `PAN\WAV\` holds a copy of almost every wave, so these

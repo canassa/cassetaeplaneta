@@ -54,6 +54,10 @@ pub const Fixes = struct {
     /// B19: the control panel shows, and the save keeps, the whole 32-bit
     /// score (not its low word).
     score_32bit: bool = false,
+    /// B25: an item dropped where it stays (no walk to a resting place)
+    /// takes its position as its previous one, so picking it up again
+    /// erases its image.
+    drop_syncs_previous_position: bool = false,
     /// U1: draw the status-bar text.
     status_bar_text: bool = false,
     /// `ini_fatal_error` ("Erro Fatal!") quits (`error.Fatal`) instead of

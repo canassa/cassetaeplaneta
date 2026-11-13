@@ -313,6 +313,13 @@ fn rightUp(g: *Game, m: Msg) i32 {
     render.draw(g, sel, bdOf(g));
     _ = occupancy.occupy(g, sel, bdOf(g));
     sel.visible = 1;
+    // B25: moveToAndDrop left the pick-up position as the previous one;
+    // unless a walk below resets it, the restore of the next pick-up
+    // misses this image.
+    if (g.fixes.drop_syncs_previous_position) {
+        sel.mover.prevX = sel.x;
+        sel.mover.prevY = sel.y;
+    }
     _ = visibility.invalidate(g, sel);
     _ = portable.drop(g, sel, sceneOf(g));
     g.score -%= sel.portable.scoreTake;
