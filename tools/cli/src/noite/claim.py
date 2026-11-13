@@ -392,6 +392,18 @@ def check_ownership(conn: sqlite3.Connection, unit: str, files: list[str]) -> li
     return bad
 
 
+def unported_stubs(path: Path) -> list[str]:
+    """``stub.unported(...)`` calls left in a unit file (the skeleton's
+    dispatcher bodies the unit must replace), as ``line: text``."""
+    if not path.exists():
+        return []
+    return [
+        f"{i}: {line.strip()}"
+        for i, line in enumerate(path.read_text().splitlines(), 1)
+        if "stub.unported(" in line
+    ]
+
+
 def finish(conn: sqlite3.Connection, root: Path, unit: str, *, push: bool = True) -> Finished:
     u = _require_claimed(conn, unit)
     wt = paths.worktree_path(root, unit)
@@ -437,6 +449,12 @@ def finish(conn: sqlite3.Connection, root: Path, unit: str, *, push: bool = True
             )
         if u["path"] not in check.imported_paths(wt):
             raise ClaimError(f"{u['path']} is not imported anywhere, so its tests never run")
+        stubs = unported_stubs(wt / u["path"])
+        if stubs:
+            raise ClaimError(
+                f"{u['path']} still has skeleton stubs (replace each body, keep the signature):\n  "
+                + "\n  ".join(stubs)
+            )
         unit_warnings = [w for w in rep.warnings if u["path"] in w]
 
         commits = int(git(wt, "rev-list", "--count", "main..HEAD").stdout.strip())

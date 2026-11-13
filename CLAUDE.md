@@ -88,7 +88,8 @@ Workflow (one agent per unit, any number in parallel):
 4. `noite finish <unit>` (run it from the main checkout) — rebases on main,
    gates (`zig fmt --check`, `zig build`, `zig build test`, `noite check`,
    every unit function tagged, no files of other units / `db/` /
-   `src/units.zig`), fast-forwards main, marks the functions `ported`,
+   `src/units.zig`, no `stub.unported` left in the unit file),
+   fast-forwards main, marks the functions `ported`,
    removes the worktree and pushes.
    `noite failed <unit> "why"` / `noite release <unit>` give the claim up
    (`-k` keeps the worktree).

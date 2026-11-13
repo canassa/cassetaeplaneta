@@ -154,6 +154,22 @@ def test_finish_rejects_foreign_files(
         claim.finish(conn, repo, "leaves", push=False)
 
 
+def test_finish_rejects_leftover_stubs(
+    setup: tuple[sqlite3.Connection, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    conn, repo = setup
+    monkeypatch.setattr(claim, "run_gate", lambda cwd, cmd: None)
+    s = claim.start(conn, repo, "leaves", "a1")
+    (s.worktree / "src/leaves.zig").write_text(
+        "// @orig 1010:0100 leaf_a\npub fn a() void {}\n"
+        "// @orig 1010:0200 leaf_b\npub fn b() void {}\n"
+        'pub fn slot() void {\n    stub.unported("leaves.slot");\n}\n'
+    )
+    git(s.worktree, "commit", "-qam", "port, forgetting a dispatcher")
+    with pytest.raises(claim.ClaimError, match="skeleton stubs"):
+        claim.finish(conn, repo, "leaves", push=False)
+
+
 def test_start_on_claimed_or_done_unit_is_a_clean_error(
     setup: tuple[sqlite3.Connection, Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
