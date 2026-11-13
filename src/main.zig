@@ -113,16 +113,10 @@ fn run(g: *Game, stop_at: ?u32) !void {
     }
     // WinMain calls app_exit after the message loop (also when the headless
     // time limit ends the run).
-    if (comptime @hasDecl(units.app, "exit")) units.app.exit(g);
-    reclaimLeaks(g);
-}
-
-/// What Windows does when the task ends: frees the memory the original
-/// never released (`Game.leakedObjects` / `leakedDibs`).
-fn reclaimLeaks(g: *Game) void {
-    for (g.leakedObjects.items) |o| units.object_init.sceneObjectScalarDtor(g, o, 1);
-    g.leakedObjects.clearRetainingCapacity();
-    g.reclaimLeakedDibs();
+    if (comptime @hasDecl(units.app, "exit")) {
+        units.app.exit(g);
+        units.app.reclaimLeaks(g);
+    }
 }
 
 /// A platform event, as Windows would hand it to the game.

@@ -289,9 +289,14 @@ pub const TestGame = struct {
     game: *Game,
 
     pub fn init(gpa: std.mem.Allocator) !TestGame {
+        return initOptions(gpa, .{});
+    }
+
+    /// With platform options (e.g. a scratch `save_dir`).
+    pub fn initOptions(gpa: std.mem.Allocator, opts: @import("../platform/sim.zig").Options) !TestGame {
         const h = try gpa.create(Headless);
         errdefer gpa.destroy(h);
-        h.* = Headless.init(gpa, std.testing.io, .{});
+        h.* = Headless.init(gpa, std.testing.io, opts);
         errdefer h.deinit();
         return .{ .headless = h, .game = try Game.create(gpa, h.platform()) };
     }

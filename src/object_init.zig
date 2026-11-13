@@ -86,7 +86,9 @@ pub fn sceneObjectCtor(
 /// No code of the original frees a Portable's inventory icon (GlobalFree is
 /// called only by load_dib, frame_dtor, this destructor, backdrop_dtor and
 /// the CRT): the block lives until the task ends, so the port parks it
-/// (`g.leakDib`).
+/// (`g.leakDib`). Likewise the items in an actor's inventory: the player is
+/// deleted through this base destructor, which knows no inventory, so the
+/// carried items are never deleted (`g.leakObject`).
 pub fn sceneObjectDtor(g: *Game, obj: *Object) void {
     if (obj.frames.len != 0) frames.frameVectorDtor(g, obj);
     if (misc.isRle(g, obj)) obj.rleBits = null;
@@ -94,6 +96,12 @@ pub fn sceneObjectDtor(g: *Game, obj: *Object) void {
         g.leakDib(d);
         obj.portable.icon = null;
     };
+    if (obj.kind == .actor or obj.kind == .player) {
+        var it = obj.actor.inventory.head;
+        while (it) |o| : (it = o.next) g.leakObject(o);
+        obj.actor.inventory.head = null;
+        obj.actor.inventory.count = 0;
+    }
 }
 
 // @orig 1010:d762 scene_object_scalar_dtor

@@ -21,6 +21,7 @@ const game_unit = @import("game.zig");
 const game_input = @import("game_input.zig");
 const backdrop = @import("backdrop.zig");
 const sound = @import("sound.zig");
+const object_init = @import("object_init.zig");
 
 /// Caption of the WaveMix failure boxes (1018:36d8).
 const wave_mix_caption = "Erro Wave Mix";
@@ -58,6 +59,15 @@ pub fn start(g: *Game) !void {
 /// `main` does, so the flags of the scalar destructor are 0).
 pub fn exit(g: *Game) void {
     _ = game_unit.scalarDtor(g, 0);
+}
+
+/// Not in the original: what Windows does when the task ends. Frees the
+/// memory the original never released (`Game.leakedObjects` /
+/// `leakedDibs`); `main` calls it after `exit`.
+pub fn reclaimLeaks(g: *Game) void {
+    for (g.leakedObjects.items) |o| object_init.sceneObjectScalarDtor(g, o, 1);
+    g.leakedObjects.clearRetainingCapacity();
+    g.reclaimLeakedDibs();
 }
 
 // @orig 1018:315c app_message_loop (absorbed)
