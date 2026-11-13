@@ -84,6 +84,10 @@ pub const Fixes = struct {
     /// overlapping hit boxes, is in front of it in the draw order (the
     /// sitting room's package is no longer cut by the table's redraws).
     item_on_support_in_front: bool = false,
+    /// B32: a scene animation's frame (the sitting room's cat) is not drawn
+    /// over the control panel and status bar: they are drawn back into the
+    /// backdrop before the scene's timer puts the frame on the screen.
+    bars_over_scene_animation: bool = false,
     /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"):
     /// while an inventory item is dragged out of the control panel (right
     /// button held), its panel icon follows the pointer. The original shows

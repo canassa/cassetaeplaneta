@@ -457,6 +457,23 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   elevation is the top of another's non-flat box, with overlapping hit boxes, in front of it.
 - **Confidence:** 9 (code, port repro).
 
+### B32. The sitting room's cat is drawn over the open control panel
+- **Where:** `ini_scene_handle_message` 1018:915e, WM_SYSTIMER (ids 5–10): each running object's tick
+  (slot 34, `animated3d_tick` 1010:631e → `scene_object_redraw` 1010:173e, whose erase restores the
+  pristine background over the whole frame) is followed at once by `update_list_flush` 1010:e362. Only
+  afterwards does `game_handle_message` 1018:0000 (WM_SYSTIMER default) draw the control panel and status
+  bar (`control_panel_draw` 1018:1f1c, slot 1B) into the backdrop, and its flush finds the list empty.
+- **What the code does:** the panel is not in the draw list, so `object3d_redraw_overlapping` 1010:5e10
+  never puts it back; the frame rectangle goes to the screen without it, and the panel's redraw only
+  reaches the backdrop bitmap.
+- **Effect:** with the panel open, a right click on the cat (`Animated=111`, `handler_1fsala` 1018:ebf0, a
+  click on the panel's top edge, y 340–397) plays it over the panel: a 137×85 rectangle of cat and rug
+  covers it and stays after the animation ends, until something repaints that area (the player's idle
+  ticks fix the part they overlap). Any scene animation under an open panel does the same.
+- **Port:** reproduced (`src/scene.zig`); `Fixes.bars_over_scene_animation` draws the panel and status
+  bar into the backdrop after each such tick, before the flush.
+- **Confidence:** 9 (code, port repro).
+
 ## Harmless: wrong paths rescued by the wave fallback
 
 `wave_open` retries `<root>pan\wav\<file name>.wav`, and `PAN\WAV\` holds a copy of almost every wave, so these

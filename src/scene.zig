@@ -33,6 +33,7 @@ const avi = @import("avi.zig");
 const animation = @import("behaviour/animation.zig");
 const movement = @import("behaviour/movement.zig");
 const tick = @import("behaviour/tick.zig");
+const render = @import("behaviour/render.zig");
 const game_input = @import("game_input.zig");
 
 /// The scene's backdrop (the original dereferences it unchecked).
@@ -372,6 +373,9 @@ fn systimer(g: *Game, scene: *Scene, m: Msg) i16 {
                     const cur_bd = bdOf(g.scene orelse @panic("scene: no current scene"));
                     tick.tick(g, cur, cur_bd);
                     sound.pump(&g.sound);
+                    // B32: the frame reaches the screen before the engine
+                    // default draws the bars back over it.
+                    if (g.fixes.bars_over_scene_animation) drawBars(g, cur_bd);
                     if (!update_list.isEmpty(&g.updateList)) {
                         // GetDC / ReleaseDC: the screen is the platform's
                         update_list.flush(&g.updateList, g.plat, bdOf(g.scene.?));
@@ -390,6 +394,14 @@ fn systimer(g: *Game, scene: *Scene, m: Msg) i16 {
         if (!more) break;
     }
     return 0;
+}
+
+/// The control panel and the status bar drawn into the backdrop bitmap, as
+/// the engine's WM_SYSTIMER default does after every timer (B32 fix).
+fn drawBars(g: *Game, bd: *Backdrop) void {
+    const scene = g.scene orelse return;
+    if (getHasControlPanel(g, scene)) render.draw(g, g.controlPanel.?, bd);
+    if (getHasStatusBar(g, scene)) render.draw(g, g.statusBar.?, bd);
 }
 
 /// MM_MCINOTIFY: the playing AVI finished (successful or aborted).
