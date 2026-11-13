@@ -69,6 +69,9 @@ pub const Fixes = struct {
     /// B27: the control panel's lives and score follow the panel art's
     /// boxes as it slides (per-frame y) instead of 20-pixel steps.
     panel_text_follows_art: bool = false,
+    /// B28: a right click on an exit plays its wave only when the click
+    /// takes the exit (player within reach, exit enabled).
+    exit_sound_needs_reach: bool = false,
     /// U1: draw the status-bar text.
     status_bar_text: bool = false,
     /// `ini_fatal_error` ("Erro Fatal!") quits (`error.Fatal`) instead of

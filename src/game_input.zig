@@ -261,18 +261,7 @@ fn rightDown(g: *Game, m: Msg) i32 {
     const obj = q.obj orelse return 1;
     misc.slot00(g, obj);
     if (obj.is(.exit)) {
-        if (hasPlayer(g)) {
-            const player = must(Object, g.player);
-            const half_w: i16 = @divTrunc(frames.hitW(obj), 2);
-            var d: i16 = player.x -% obj.x -% half_w;
-            d +%= @divTrunc(frames.hitW(player), 2);
-            d -%= frames.hitX(obj);
-            const a: i16 = frames.hitX(player) +% d;
-            const dist: i16 = if (a < 0) 0 -% a else a;
-            const limit: i16 = @divTrunc(frames.hitW(player) *% 3, 2);
-            if (dist >= limit) return 1;
-        }
-        if (!exit_mod.isEnabled(g, obj)) return 1;
+        if (!exitTakesClick(g, obj)) return 1;
         tick.play(g, obj, bdOf(g));
         g.exitPending = 1;
     } else if (obj.is(.portable)) {
@@ -291,6 +280,24 @@ fn rightDown(g: *Game, m: Msg) i32 {
         animation.playOnce(g, obj.as(.animation).?, bdOf(g));
     }
     return 1;
+}
+
+/// Whether a right click on exit `obj` takes it: the player (when the
+/// scene has one) stands within one and a half of its own hit widths of
+/// the exit, and the exit is enabled.
+pub fn exitTakesClick(g: *Game, obj: *Object) bool {
+    if (hasPlayer(g)) {
+        const player = must(Object, g.player);
+        const half_w: i16 = @divTrunc(frames.hitW(obj), 2);
+        var d: i16 = player.x -% obj.x -% half_w;
+        d +%= @divTrunc(frames.hitW(player), 2);
+        d -%= frames.hitX(obj);
+        const a: i16 = frames.hitX(player) +% d;
+        const dist: i16 = if (a < 0) 0 -% a else a;
+        const limit: i16 = @divTrunc(frames.hitW(player) *% 3, 2);
+        if (dist >= limit) return false;
+    }
+    return exit_mod.isEnabled(g, obj);
 }
 
 /// Releasing the right button over the scene drops the carried item there,

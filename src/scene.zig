@@ -33,6 +33,7 @@ const avi = @import("avi.zig");
 const animation = @import("behaviour/animation.zig");
 const movement = @import("behaviour/movement.zig");
 const tick = @import("behaviour/tick.zig");
+const game_input = @import("game_input.zig");
 
 /// The scene's backdrop (the original dereferences it unchecked).
 fn bdOf(scene: *Scene) *Backdrop {
@@ -320,7 +321,11 @@ pub fn handleMessage(g: *Game, scene: *Scene, m: Msg) i16 {
             if (q.result > 0) {
                 if (g.hitObject) |hit| {
                     if (animation.isAvi(g, hit)) _ = g.plat.mciString("stop musica");
-                    if (!hit.is(.portable)) _ = sound.play(g, msg_mod.main_window, hit.wave);
+                    // B28: the wave plays before the game tests the
+                    // exit's reach; with the fix an exit the click will
+                    // not take stays silent.
+                    const silent = g.fixes.exit_sound_needs_reach and hit.is(.exit) and !game_input.exitTakesClick(g, hit);
+                    if (!hit.is(.portable) and !silent) _ = sound.play(g, msg_mod.main_window, hit.wave);
                 }
             }
             return clickExit(g, scene);

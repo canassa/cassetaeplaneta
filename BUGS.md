@@ -360,6 +360,17 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   art — lives 2 px below the badge (the closed look), score 4 px below its box (glyphs centred).
 - **Confidence:** 9 (code constants and art measurements; cosmetic).
 
+### B28. A door sounds when it is right-clicked from too far away to take it
+- **Where:** `ini_scene_handle_message` 1018:915e, WM_RBUTTONDOWN: `wave_play` of the clicked object's
+  wave (any object but a portable); the reach test is later, in `game_handle_message` 1018:0000
+  (player within 1.5 of its hit width of the exit, exit enabled).
+- **What the code does:** the scene handler plays the wave before the game decides whether the click
+  takes the exit; a click from too far (or on a disabled exit) then does nothing.
+- **Effect:** the door-opening sound plays but the door does not open and the player stays.
+- **Port:** reproduced (`src/scene.zig`); `Fixes.exit_sound_needs_reach` plays an exit's wave only when
+  `game_input.exitTakesClick` says the click takes it. Other objects keep their sound on every click.
+- **Confidence:** 9 (code).
+
 ## Harmless: wrong paths rescued by the wave fallback
 
 `wave_open` retries `<root>pan\wav\<file name>.wav`, and `PAN\WAV\` holds a copy of almost every wave, so these
