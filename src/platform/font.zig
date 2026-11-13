@@ -100,9 +100,10 @@ pub const Font = struct {
     /// TextOut at (x, y) = top-left of the cell, clipped to the buffer. Foreground pixels get `fg`;
     /// when `bg` is non-null (GDI OPAQUE, the default bk mode) the whole cell box of each char is filled with it first.
     /// `bottom_up`: row 0 of `pixels` is the bottom picture row (a DIB with
-    /// positive biHeight); y still counts from the top.
-    pub fn draw(f: *const Font, pixels: []u8, width: usize, height_: usize, bottom_up: bool, x: i16, y: i16, fg: u8, bg: ?u8, text: []const u8) void {
-        const rows = @min(height_, if (width == 0) 0 else pixels.len / width);
+    /// positive biHeight); y still counts from the top. Rows are `stride`
+    /// bytes apart (≥ `width`; a DIB pads them to 4 bytes).
+    pub fn draw(f: *const Font, pixels: []u8, stride: usize, width: usize, height_: usize, bottom_up: bool, x: i16, y: i16, fg: u8, bg: ?u8, text: []const u8) void {
+        const rows = @min(height_, if (stride == 0) 0 else pixels.len / stride);
         var cx: i32 = x;
         for (text) |c| {
             const g = f.glyph(c);
@@ -111,7 +112,7 @@ pub const Font = struct {
                 const py = @as(i32, y) + @as(i32, @intCast(gy));
                 if (py < 0 or py >= rows) continue;
                 const mem_row: usize = if (bottom_up) rows - 1 - @as(usize, @intCast(py)) else @intCast(py);
-                const row = pixels[mem_row * width ..][0..width];
+                const row = pixels[mem_row * stride ..][0..width];
                 for (0..g.width) |gx| {
                     const px = cx + @as(i32, @intCast(gx));
                     if (px < 0 or px >= width) continue;
@@ -204,7 +205,7 @@ test "draw W: box, opaque vs transparent" {
     const W = 40;
     const H = 30;
     var buf: [W * H]u8 = @splat(0);
-    f.draw(&buf, W, H, false, 5, 7, 9, null, "W");
+    f.draw(&buf, W, W, H, false, 5, 7, 9, null, "W");
     var lit: usize = 0;
     for (0..H) |py| for (0..W) |px| {
         const v = buf[py * W + px];
@@ -216,7 +217,7 @@ test "draw W: box, opaque vs transparent" {
     try std.testing.expect(lit > 10);
 
     var buf2: [W * H]u8 = @splat(0);
-    f.draw(&buf2, W, H, false, 5, 7, 9, 3, "W");
+    f.draw(&buf2, W, W, H, false, 5, 7, 9, 3, "W");
     for (0..H) |py| for (0..W) |px| {
         const inside = px >= 5 and px < 19 and py >= 7 and py < 23;
         const v = buf2[py * W + px];
@@ -234,21 +235,21 @@ test "draw clips" {
     const W = 20;
     const H = 20;
     var ref: [W * H]u8 = @splat(0);
-    f.draw(&ref, W, H, false, 0, 0, 1, 2, "W");
+    f.draw(&ref, W, W, H, false, 0, 0, 1, 2, "W");
     // Negative x/y: shifted copy of the reference cell.
     var buf: [W * H]u8 = @splat(0);
-    f.draw(&buf, W, H, false, -3, -5, 1, 2, "W");
+    f.draw(&buf, W, W, H, false, -3, -5, 1, 2, "W");
     for (0..H) |py| for (0..W) |px| {
         const want: u8 = if (px < 11 and py < 11) ref[(py + 5) * W + px + 3] else 0;
         try std.testing.expectEqual(want, buf[py * W + px]);
     };
     // Right/bottom edges and fully off-screen: no panic, nothing outside.
     var b2: [W * H]u8 = @splat(0);
-    f.draw(&b2, W, H, false, 15, 10, 1, 2, "WWW");
+    f.draw(&b2, W, W, H, false, 15, 10, 1, 2, "WWW");
     for (0..H) |py| for (0..W) |px| {
         const want: u8 = if (px >= 15 and py >= 10) ref[(py - 10) * W + px - 15] else 0;
         try std.testing.expectEqual(want, b2[py * W + px]);
     };
-    f.draw(&b2, W, H, false, -32768, 32767, 1, 2, "Pontos");
-    f.draw(&b2, W, H, false, 32000, -32000, 1, 2, "Pontos");
+    f.draw(&b2, W, W, H, false, -32768, 32767, 1, 2, "Pontos");
+    f.draw(&b2, W, W, H, false, 32000, -32000, 1, 2, "Pontos");
 }

@@ -24,6 +24,7 @@ pub const Wave = u16;
 pub const Device = u16;
 
 pub const Rgb = extern struct { r: u8 = 0, g: u8 = 0, b: u8 = 0 };
+const BitmapInfoHeader = @import("../core/object.zig").BitmapInfoHeader;
 /// A DIB colour-table entry (Win16 RGBQUAD).
 pub const RgbQuad = extern struct { blue: u8 = 0, green: u8 = 0, red: u8 = 0, reserved: u8 = 0 };
 /// A WaveMix session handle (WaveMixConfigureInit); 0 = failure.
@@ -62,8 +63,11 @@ pub fn defaultButton(style: u16) i16 {
     };
 }
 
-/// An 8-bit DIB GDI draws text into (the backdrop's WinG bitmap). `colors`
-/// is its colour table: GDI maps a COLORREF to the nearest entry.
+/// An 8-bit DIB as WinG/GDI see it: the backdrop's WinG bitmap that text
+/// is drawn into and that `wingBitBlt` copies to the screen
+/// (`Backdrop.surface()` builds it). Rows are `stride()` bytes apart (the
+/// DIB rule: padded to 4 bytes). `colors` is its colour table: GDI maps a
+/// COLORREF to the nearest entry.
 pub const Surface = struct {
     pixels: []u8,
     width: u16,
@@ -71,7 +75,49 @@ pub const Surface = struct {
     /// Row 0 of `pixels` is the bottom row (positive biHeight).
     bottom_up: bool,
     colors: *const [256]RgbQuad,
+
+    pub fn stride(s: Surface) usize {
+        return (@as(usize, s.width) + 3) & ~@as(usize, 3);
+    }
 };
+
+/// Win16 PALETTEENTRY.
+pub const PaletteEntry = extern struct { red: u8 = 0, green: u8 = 0, blue: u8 = 0, flags: u8 = 0 };
+
+/// The 20 static colours of the Windows 3.1 system palette: entries 0–9
+/// then 246–255 (what GetSystemPaletteEntries returns for them on a
+/// 256-colour display driver).
+pub const static_colors = [20]Rgb{
+    .{ .r = 0, .g = 0, .b = 0 },       .{ .r = 128, .g = 0, .b = 0 },     .{ .r = 0, .g = 128, .b = 0 },
+    .{ .r = 128, .g = 128, .b = 0 },   .{ .r = 0, .g = 0, .b = 128 },     .{ .r = 128, .g = 0, .b = 128 },
+    .{ .r = 0, .g = 128, .b = 128 },   .{ .r = 192, .g = 192, .b = 192 }, .{ .r = 192, .g = 220, .b = 192 },
+    .{ .r = 166, .g = 202, .b = 240 }, .{ .r = 255, .g = 251, .b = 240 }, .{ .r = 160, .g = 160, .b = 164 },
+    .{ .r = 128, .g = 128, .b = 128 }, .{ .r = 255, .g = 0, .b = 0 },     .{ .r = 0, .g = 255, .b = 0 },
+    .{ .r = 255, .g = 255, .b = 0 },   .{ .r = 0, .g = 0, .b = 255 },     .{ .r = 255, .g = 0, .b = 255 },
+    .{ .r = 0, .g = 255, .b = 255 },   .{ .r = 255, .g = 255, .b = 255 },
+};
+
+/// GetSystemPaletteEntries(hdc, start, out.len, out): the static colours
+/// for entries 0–9 and 246–255, black (flags 0) for the others. Returns
+/// the number of entries written. Same on every backend (deterministic).
+pub fn getSystemPaletteEntries(start: u16, out: []PaletteEntry) u16 {
+    for (out, 0..) |*e, k| {
+        const i = @as(usize, start) + k;
+        const c: Rgb = if (i < 10) static_colors[i] else if (i >= 246 and i < 256) static_colors[i - 236] else .{};
+        e.* = .{ .red = c.r, .green = c.g, .blue = c.b };
+    }
+    return @intCast(out.len);
+}
+
+/// WinGRecommendDIBFormat: fills `hdr` with WinG's preferred 8-bit format
+/// — a top-down (biHeight -1), 1-pixel-wide, uncompressed DIB — and returns
+/// TRUE. Every backend recommends the same format, so the backdrop is
+/// always top-down (`Backdrop.dibOrientation` -1) and the objects'
+/// `dibFormatOk` is 1.
+pub fn wingRecommendDibFormat(hdr: *BitmapInfoHeader) bool {
+    hdr.* = .{ .biWidth = 1, .biHeight = -1 };
+    return true;
+}
 
 /// The DC state TextOut uses: SetTextColor, SetBkColor, SetBkMode. GDI's
 /// defaults: black text on an opaque white background.
@@ -222,6 +268,37 @@ pub const Platform = struct {
     }
     pub fn present(p: Platform) void {
         p.vtable.present(p.ptr);
+    }
+    /// SelectPalette(hdc, hpalette) + RealizePalette(hdc) on the window DC:
+    /// the screen palette becomes `colors` (the backdrop's colour table,
+    /// which holds the same colours as its logical palette).
+    pub fn realizePalette(p: Platform, colors: *const [256]RgbQuad) void {
+        const scr = p.screen();
+        for (&scr.palette, colors) |*d, c| d.* = .{ .r = c.red, .g = c.green, .b = c.blue };
+    }
+    /// WinGBitBlt(window DC, dx, dy, w, h, src's WinG DC, sx, sy): SRCCOPY
+    /// of the `w`×`h` block at (sx, sy) of `src` (top-down coordinates,
+    /// whatever the DIB orientation) to (dx, dy) of the screen, clipped to
+    /// both. Negative sizes copy nothing.
+    pub fn wingBitBlt(p: Platform, dx: i16, dy: i16, w: i16, h: i16, src: Surface, sx: i16, sy: i16) void {
+        const scr = p.screen();
+        const stride = src.stride();
+        var row: i32 = 0;
+        while (row < h) : (row += 1) {
+            const y = @as(i32, dy) + row;
+            const syr = @as(i32, sy) + row;
+            if (y < 0 or y >= screen_height or syr < 0 or syr >= src.height) continue;
+            const srow: usize = @intCast(if (src.bottom_up) @as(i32, src.height) - 1 - syr else syr);
+            var col: i32 = 0;
+            while (col < w) : (col += 1) {
+                const x = @as(i32, dx) + col;
+                const sxc = @as(i32, sx) + col;
+                if (x < 0 or x >= screen_width or sxc < 0 or sxc >= src.width) continue;
+                const si = srow * stride + @as(usize, @intCast(sxc));
+                if (si >= src.pixels.len) continue;
+                scr.pixels[@as(usize, @intCast(y)) * screen_width + @as(usize, @intCast(x))] = src.pixels[si];
+            }
+        }
     }
     pub fn textOut(p: Platform, s: Surface, style: TextStyle, x: i16, y: i16, text: []const u8) bool {
         return p.vtable.textOut(p.ptr, s, style, x, y, text);

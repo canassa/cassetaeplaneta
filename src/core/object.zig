@@ -95,7 +95,8 @@ pub const BitmapInfoHeader = extern struct {
     biClrImportant: u32 = 0,
 };
 
-pub const RgbQuad = extern struct { blue: u8 = 0, green: u8 = 0, red: u8 = 0, reserved: u8 = 0 };
+/// Win16 RGBQUAD (the platform's type: `Surface.colors` takes the same tables).
+pub const RgbQuad = @import("../platform/platform.zig").RgbQuad;
 
 /// One bitmap strip of an object (struct `Frame`, 0x12): `count` frames of
 /// `width`×`height` cut from one DIB, plus the hit box.
@@ -335,9 +336,14 @@ pub const Object = struct {
     curStrip: i16 = 0,
     // @orig SceneObject+0x24
     curFrame: i16 = 0,
-    // @orig SceneObject+0x26 / +0x4e: the backdrop's BITMAPINFO patched to the strip
+    // @orig SceneObject+0x26: the backdrop's BITMAPINFOHEADER patched to the
+    // strip (biWidth = frame width, biHeight = count × height, positive).
+    // Not kept: bmiColors (+0x4e) and hpalette (+0x44e), copied from the
+    // backdrop by attach/reattach but never read (drawing goes through the
+    // backdrop's header and the strip's own DIB).
     bmiHeader: BitmapInfoHeader = .{},
-    // @orig SceneObject+0x452 (WinGRecommendDIBFormat result; multiplies draw height)
+    // @orig SceneObject+0x452 (WinGRecommendDIBFormat result, always 1
+    // here; multiplies draw height)
     dibFormatOk: i32 = 0,
     // @orig SceneObject+0x456
     visible: i16 = 0,

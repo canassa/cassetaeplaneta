@@ -9,6 +9,7 @@ const ObjectList = object.ObjectList;
 const Dib = object.Dib;
 const BitmapInfoHeader = object.BitmapInfoHeader;
 const RgbQuad = object.RgbQuad;
+const Surface = @import("../platform/platform.zig").Surface;
 
 pub const max_exits = 25;
 pub const max_draw_nodes = 100;
@@ -50,11 +51,25 @@ pub const Scene = struct {
 };
 
 /// The scene's offscreen view: Backdrop + GridBackdrop + PerspectiveBackdrop
-/// flattened (only PerspectiveBackdrop is instantiated). `pixels` is the
-/// WinG bitmap the original draws into; `backdrop_blit_to_dc` copies it to
-/// the platform screen. Functions: units `backdrop`, `grid`, `projection`.
+/// flattened (only PerspectiveBackdrop is instantiated). Functions: units
+/// `backdrop`, `grid`, `projection`.
+///
+/// Pixel contract (docs/DESIGN.md "Backdrop"): `pixels` is the WinG bitmap
+/// of the *whole background* — `bgWidth` × `bgHeight`, 8 bpp, rows padded
+/// to 4 bytes, described by `bmiHeader` (biWidth = bgWidth, biHeight =
+/// bgHeight × dibOrientation). `wingRecommendDibFormat` always says
+/// top-down, so `dibOrientation` is -1 and row 0 is the top. Coordinates
+/// into it are scene coordinates; the window shows the `viewWidth` ×
+/// `viewHeight` block at (`originX`, `originY`). Read and write it only
+/// through `surface()` (`plat.wingBitBlt`, `plat.textOut`) or `dib.copy*`
+/// with `&bmiHeader` (which honour the orientation).
+///
+/// No counterpart: `hdc` (+0x4, the WinG DC: the bitmap is `pixels`),
+/// `hpalette` (+0xa: its colours are `bmiColors`; SelectPalette +
+/// RealizePalette = `plat.realizePalette(&bd.bmiColors)`), `oldBitmap`
+/// (+0xc).
 pub const Backdrop = struct {
-    // @orig Backdrop+0x6 (WinG DIB bits; viewWidth × viewHeight, 8 bpp)
+    // @orig Backdrop+0x6 (WinG DIB bits; bgWidth × bgHeight, 8 bpp)
     pixels: []u8 = &.{},
     // @orig Backdrop+0xe (the pristine background picture)
     background: ?*Dib = null,
@@ -74,10 +89,12 @@ pub const Backdrop = struct {
     unk1E: u16 = 0,
     // @orig Backdrop+0x20
     unk20: u16 = 0,
-    // @orig Backdrop+0x22 / +0x4a
+    // @orig Backdrop+0x22
     bmiHeader: BitmapInfoHeader = .{},
+    // @orig Backdrop+0x4a (statics 0-9/246-255 + background colours 10-245;
+    // the same colours as the logical palette)
     bmiColors: [256]RgbQuad = @splat(.{}),
-    // @orig Backdrop+0x44a (1 / -1)
+    // @orig Backdrop+0x44a (1 bottom-up / -1 top-down; always -1 here)
     dibOrientation: i32 = 1,
     // @orig Backdrop+0x44e (&Scene.objects)
     sceneList: ?*ObjectList = null,
@@ -97,18 +114,39 @@ pub const Backdrop = struct {
     view3dY: i16 = 0,
     // @orig PerspectiveBackdrop+0x462
     view3dZ: i16 = 0,
+
+    /// The WinG bitmap as the platform's `Surface` (for `wingBitBlt` and
+    /// `textOut`).
+    pub fn surface(bd: *const Backdrop) Surface {
+        return .{
+            .pixels = bd.pixels,
+            .width = @bitCast(bd.bgWidth),
+            .height = @bitCast(bd.bgHeight),
+            .bottom_up = bd.dibOrientation > 0,
+            .colors = &bd.bmiColors,
+        };
+    }
 };
 
-/// Result of the backdrop's rectangle queries (Backdrop slots 03/04,
-/// `grid_backdrop_query_rect*`), which always write their out-parameters.
+/// Result of the backdrop's rectangle queries: Backdrop slot 03
+/// `queryRectFirst(x, y, w, h, &outObj, &outFirst, &outFlag)` and slot 04
+/// `queryRect(x, y, w, h, &outObj, &outFlag)` (source order; callers push
+/// them left to right). The grid query (`occupancy_grid_query_rect`)
+/// clears `*outObj`/`*outFlag` on entry, so every field is always written,
+/// whatever `result` is — callers may store them unconditionally, as the
+/// original does.
 pub const RectQuery = struct {
-    /// The return value (char).
+    /// The return value (char): 0 all cells free, > 0 the first occupied
+    /// cell's count, -1 a negative position or (via `flag`) only blocked
+    /// cells.
     result: i8 = 0,
-    /// `*out_flag`.
+    /// `*outFlag`: -1 if a blocked cell was seen, else 0.
     flag: i8 = 0,
-    /// `*out_obj`.
+    /// `*outObj`: the last object met up to the first occupied cell (null
+    /// if none).
     obj: ?*Object = null,
-    /// `*out_first` (queryRectFirst only).
+    /// `*outFirst` (queryRectFirst only; null from queryRect): the first
+    /// object met (`Grid.firstObject`).
     first: ?*Object = null,
 };
 

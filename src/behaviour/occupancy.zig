@@ -12,6 +12,7 @@ const object = @import("../core/object.zig");
 const Object = object.Object;
 const world = @import("../core/world.zig");
 const Backdrop = world.Backdrop;
+const platform = @import("../platform/platform.zig");
 
 /// What the do-nothing occupy/vacate overrides leave in AX: the DS selector
 /// (`MOV AX,0x1050`); callers ignore it.
@@ -67,18 +68,13 @@ pub fn attach(g: *Game, obj: *Object, bd: *Backdrop) ?*Object {
     };
 }
 
-/// WinGRecommendDIBFormat's result as the original stores it (TRUE).
-const wing_recommend_ok: i32 = 1;
-
 /// Shared by attach and reattach: bind the object's BITMAPINFO to the
 /// backdrop's and size it to the current strip. The object keeps only the
-/// header (`Object` has no colour table or palette handle; the platform
-/// screen owns the palette).
+/// header (`Object` has no colour table or palette handle: the original's
+/// copies are never read).
 fn bindToBackdrop(obj: *Object, bd: *const Backdrop) void {
     obj.bmiHeader = bd.bmiHeader;
-    // WinGRecommendDIBFormat(&bmiHeader): the header was copied from the
-    // backdrop's, which already holds the recommended format.
-    obj.dibFormatOk = wing_recommend_ok;
+    obj.dibFormatOk = @intFromBool(platform.wingRecommendDibFormat(&obj.bmiHeader));
     obj.bmiHeader.biWidth = frames.width(obj);
     const count = frames.curStrip(obj).count;
     const h = frames.height(obj);
@@ -102,13 +98,13 @@ fn sceneObjectAttach(g: *Game, obj: *Object, bd: *Backdrop) *Object {
 
 /// Re-bind the object to a (new) backdrop on a scene change; unlike
 /// `sceneObjectAttach` it always runs. The `hdc` parameter is dropped
-/// (SelectPalette/RealizePalette on it are the platform's palette).
+/// (SelectPalette + RealizePalette on it realize the backdrop's palette
+/// on the screen).
 // @orig 1010:ba48 scene_object_reattach
 pub fn reattach(g: *Game, obj: *Object, bd: *Backdrop) *Object {
-    _ = g;
     obj.unk45E = 0;
     obj.queued = 0;
-    // SelectPalette(hdc, bd.hpalette); RealizePalette(hdc): platform.
+    g.plat.realizePalette(&bd.bmiColors);
     bindToBackdrop(obj, bd);
     obj.linked = null;
     if (obj.attached == 0) obj.attached = 1;

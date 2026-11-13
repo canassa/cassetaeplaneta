@@ -360,7 +360,7 @@ pub const Sim = struct {
         const f = s.systemFont() orelse return false;
         const fg = nearestIndex(surf.colors, style.color);
         const bg: ?u8 = if (style.bk_mode == .@"opaque") nearestIndex(surf.colors, style.bk_color) else null;
-        f.draw(surf.pixels, surf.width, surf.height, surf.bottom_up, x, y, fg, bg, text);
+        f.draw(surf.pixels, surf.stride(), surf.width, surf.height, surf.bottom_up, x, y, fg, bg, text);
         return true;
     }
 
