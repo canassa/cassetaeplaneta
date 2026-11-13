@@ -23,7 +23,11 @@ nix develop -c ./zig-out/bin/noite             # the game in an SDL3 window
 Original bugs are reproduced; `--fix all` (or `--fix name,…`, `all,-name` to leave one out, see
 `src/core/fixes.zig` and `BUGS.md`) turns their fixes on. Videos play to
 the end as in the original; `--skip-videos` lets a click, a right click or
-Esc/Enter/Space end one (a convenience, not a fix). The minigames
+Esc/Enter/Space end one (a convenience, not a fix). `--one-button` plays
+with the left button alone (`src/one_button.zig`, for touch screens): a
+click on a door, an item or a character does what a right click did (the
+player walks over to a door first), anything else walks; an inventory
+item is tapped then placed with the next click, or dragged. The minigames
 (separate EXEs) are stubbed: they report a win, or a loss with
 `--minigame lose`. Saves go to `save/` (`--save DIR`).
 
@@ -46,6 +50,11 @@ Esc/Enter/Space end one (a convenience, not a fix). The minigames
   plays from the title screen to the sportsman ending, checking every scene.
   With the fixes: add `--fix all,-hall_shuffle_each_visit,-avi_exit_ignores_timer`
   (the script follows this run's hall doors and the 3fstreet shortcut of BUGS.md B21).
+  One-button: `--one-button --ms 480000 --input tools/play/onebutton.input` (the
+  whole game with left clicks only, doors clicked from afar, items dropped and
+  offered by tap-tap and by dragging) and
+  `--one-button --scene 1fquarbo --ms 30000 --input tools/play/onebutton-corridor.input`;
+  `tools/smoke.py --one-button` runs the smoke test in that mode.
 - **SDL without a display**: `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy`
   (or `disk` with `SDL_AUDIO_DISK_OUTPUT_FILE=out.raw` to capture the mix).
 
@@ -62,5 +71,6 @@ nix develop .#web -c python3 tools/web/test.py    # headless Chromium check
 
 The page downloads the disc files the game opens (once; later visits load
 them from Cache Storage) while the player picks the version (Original, or
-Corrigida = `--fix all`) and whether videos can be skipped (on by
-default), then runs the game; saves go to localStorage, apart per version.
+Corrigida = `--fix all`), whether videos can be skipped (on by
+default) and the one-button control (on by default on touch screens), then
+runs the game; saves go to localStorage, apart per version.

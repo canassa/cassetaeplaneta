@@ -384,8 +384,8 @@ under its caption and border, see `platform.zig`; dumps and the canvas/window
 are that size too, game coordinates unchanged; GetDC + WinGBitBlt
 become writes into `screen().pixels`; `screen().overlay`, not Windows, is a
 picture each backend and the dumps draw over the shown frame without touching
-`pixels`: the dragged item of `Fixes.drag_shows_item`, set by
-`game_input.showDrag` before each present), GDI text (`textOut` into a
+`pixels`: the dragged item of `Fixes.drag_shows_item` or of the one-button
+mode, set by `game_input.showDrag` before each present), GDI text (`textOut` into a
 `Surface` — the backdrop's DIB and colour table — with a `TextStyle` =
 SetTextColor/SetBkColor/SetBkMode, default opaque white; `textExtent`),
 DOS files (`open/read/write/seek/close` on `\FASE2\X.WAV`-style paths,
@@ -401,7 +401,11 @@ and `messageBox(caption, text, style) → button`. One hook is not Windows:
 (`main.zig`, `web_main.zig`, the harness's scripted input); with
 `Options.skip_videos` (`--skip-videos`, the web page's default) a click or
 Esc/Enter/Space during an AVI clip ends it — its pending MM_MCINOTIFY
-(successful) falls due at once — and is swallowed with its release.
+(successful) falls due at once — and is swallowed with its release. The
+one-button mode (`--one-button`, `src/one_button.zig`) needs the game's
+objects, so it sits on the game side instead: `Game.oneButton.filter`
+sees each queued message before `Game.dispatch` and sends the window
+procedure the right-button messages a left press stands for.
 
 Backends: **headless** (virtual clock, scripted input; tests, traces;
 message boxes answer their first button), **SDL3** (window, palette →

@@ -146,14 +146,17 @@ map $arg_h $noite_cache {
 - **Options.** The loader offers the version — *Original* (the
   original's bugs reproduced, the native default) or *Corrigida* (every
   BUGS.md fix, `Fixes.all()`, as `--fix all`) — and "Pular vídeos com
-  clique ou Esc" (on by default; `--skip-videos` natively, off there). The
+  clique ou Esc" (on by default; `--skip-videos` natively, off there) and
+  "Controle com um botão" (on by default on a touch screen, `(pointer:
+  coarse)`, else off; `--one-button` natively). The
   Jogar button starts the game (and the AudioContext: it is a user
   gesture) once the files are loaded; the choice is kept in localStorage
   (`noite:prefs`, the page works without it) and passed to
-  `noite_start(fixes, skip_videos)`. A line under the canvas names the
+  `noite_start(fixes, skip_videos, one_button)`. A line under the canvas names the
   version and reloads into the other one (`?versao=corrigida|original`,
   after a confirm); the game itself never sees it. `noite_options` reports
-  what the wasm got (`window.noite.fixes`, `.skipVideos`, for the test).
+  what the wasm got (`window.noite.fixes`, `.skipVideos`, `.oneButton`,
+  for the test; `noite_inventory`, `.inventory`, counts the items carried).
 - **Skipping videos** is a platform option, not a fix (`Sim.filterInput`,
   through `Platform.filterInput` on every backend): a left/right button
   press or Esc/Enter/Space while an AVI clip plays moves the clip's
@@ -162,6 +165,31 @@ map $arg_h $noite_cache {
   one notification. The press and its release are kept from the game;
   once the end is delivered, input passes as usual. The page sends Esc,
   Enter and Space to the wasm only when the option is on.
+- **One-button control** (`src/one_button.zig`; not a fix, any version):
+  a filter in front of the window procedure (`Game.oneButton`, seen by
+  `Game.dispatchPending` before the message is dispatched) turns left
+  presses into the original's right-button actions, as real messages, so
+  scene handlers see a right click. In a scene with the player, a click
+  on an exit, an item, an animation (or an object a handler acts on) is a
+  right click on it — an exit out of reach (`game_input.exitInReach`) is
+  walked to first, horizontally, and right-clicked when the walk ends
+  (0x404); a new press, a key or a scene change cancels that — and any
+  other click walks. A click counts for an object when it is on it or
+  left of/above it within the original's 16-pixel probe (not on the cells
+  that overhang its bottom: the floor under a door walks); a tall
+  non-exit hotspot (a character, the corridor's invisible bathroom door)
+  only in its upper two thirds. Without the player every press is the
+  right button, except in the menus (fundinic, fundini1, salvar2),
+  click-to-continue and one-animation scenes. On the open panel: Opções;
+  an inventory slot selects its item — released on the same slot (a tap)
+  it stays selected, with its icon (`Screen.overlay`) at the pointer,
+  until the next click drops or offers it there (on the panel: put back);
+  released elsewhere (a drag) it is dropped or offered there. The bottom
+  strip that slides the panel open does not walk. Off, nothing changes
+  (the traces of `tools/play/full.input` are identical). Original bugs stay
+  reachable as with right clicks: a knock on the bathroom door leaves its
+  animation timer on (B21 then ends the garden video into 4fbar), a tap on
+  the 4fbarboy boys reaches B24's crash in the Original version.
 - **Loop.** `noite_frame` (`src/web_main.zig`), called on every
   `requestAnimationFrame`, is one turn of `main.zig`'s message loop
   without the wait: deliver platform events, dispatch every due message,
@@ -179,7 +207,10 @@ map $arg_h $noite_cache {
   sit in the letterbox when it has room for them, else as a faint overlay
   in the top right corner that lights up on hover or tap.
 - **Input.** Pointer events → WM_MOUSEMOVE/L/RBUTTONDOWN/UP in screen
-  pixels; the arrow keys (and, to skip videos, Esc/Enter/Space) →
+  pixels (a touch is the left button: move + down at the touch, up at the
+  release; `pointercancel` releases too); the canvas takes no browser
+  gestures (`touch-action: none`, no callout or selection, no context
+  menu); the arrow keys (and, to skip videos, Esc/Enter/Space) →
   WM_KEYDOWN/UP; window focus → WM_ACTIVATE.
 - **Audio.** The mixer (`mixer.zig`: WaveMix channels, MCI wave, AVI
   track, MIDI through TinySoundFont, built with Zig's bundled clang
@@ -220,7 +251,13 @@ centred with its aspect ratio, and the buttons stay off the game unless
 the letterbox has no room (`window-WxH.png`); then the version button
 reloads into
 the Corrigida version, which loads every file from Cache Storage, has
-every fix on in the wasm and is remembered. Last, a simulated deploy: a
+every fix on in the wasm and is remembered; a drag there shows the item.
+Then a phone-sized touch context (`has_touch`): the one-button control is
+on by default and reaches the wasm, and with `touchscreen.tap` only the
+videos are skipped, a new game starts, the drawer gives the wallet, a
+tap on the door walks the player out to the corridor, a tap on the
+wallet's slot and one in the scene drop it, a tap on it takes it back
+(`touch-corridor.png`, `touch-drop.png`). Last, a simulated deploy: a
 hard-linked copy of the site with `noite.js` and one disc file changed,
 restamped and served at the same origin; the reload downloads only that
 file, runs the new `noite.js`, drops the stale cache entry and starts the
