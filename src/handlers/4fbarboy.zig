@@ -454,7 +454,11 @@ fn waveDone(g: *Game, s: *State) i16 {
     if (s.served != 0) return 1;
     if (s.rightItem == 0) {
         // A wrong item comes back with a penalty (it stays "selected").
-        const sel = must(Object, g.selectedItem);
+        // Any other wave that ends here (the boys' line after a right
+        // click on them) comes with no item: the original reads through
+        // the NULL pointer and faults (BUGS.md B24).
+        if (g.selectedItem == null and g.fixes.barboy_reply_without_item) return 0;
+        const sel = g.selectedItem orelse @panic("4fbarboy: reply end with no item selected (original GPF, BUGS.md B24)");
         g.score +%= sel.portable.scoreMisuse;
         const item = sel.as(.portable) orelse @panic("4fbarboy: asPortable returned NULL");
         s.returnedItem = item;

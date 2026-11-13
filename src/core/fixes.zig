@@ -46,6 +46,9 @@ pub const Fixes = struct {
     /// instead of replaying it on every (instant, the wave is missing)
     /// MM_WOM_DONE, which freezes the game.
     shardi_reply_once: bool = false,
+    /// B24: 4fbarboy ignores a wave end with no item selected instead of
+    /// reading through the NULL item (a GPF in the original).
+    barboy_reply_without_item: bool = false,
     /// B19: the control panel shows, and the save keeps, the whole 32-bit
     /// score (not its low word).
     score_32bit: bool = false,
