@@ -464,6 +464,15 @@ def main():
         time.sleep(0.5)
         check(page.evaluate("[window.noite.audioContexts - %d, window.noite.audioState]" % n0) == [1, "running"],
               "after the page was hidden a click makes one new running audio context")
+        # A phone back from another app: blur, hidden, visible, and no focus
+        # event. The game must be active again (its sound unpaused).
+        page.evaluate("window.dispatchEvent(new Event('blur'));"
+                      "Object.defineProperty(document, 'visibilityState', {value: 'hidden', configurable: true});"
+                      "document.dispatchEvent(new Event('visibilitychange'))")
+        check(page.evaluate("window.noite.active") is False, "a hidden page deactivates the game")
+        page.evaluate("Object.defineProperty(document, 'visibilityState', {value: 'visible', configurable: true});"
+                      "document.dispatchEvent(new Event('visibilitychange'))")
+        check(page.evaluate("window.noite.active") is True, "showing the page again activates the game, without a focus event")
         fs = page.evaluate("window.noite.frameStats")
         print(f"      {fs['frames']} frames, {fs['avgMs']:.2f} ms per game turn on average, worst {fs['worstMs']:.0f} ms")
         for vw, vh in ((1920, 1080), (390, 844), (844, 390), (1276, 918), (1280, 960)):

@@ -377,6 +377,7 @@
   // gesture while it isn't running) replaces it with a new one, created
   // inside the gesture as iOS requires.
   let stale = false, createdAt = 0;
+  let active = true; // what the game was last told (noite_focus)
   let audioContexts = 0;
   function startAudio(gesture = true) {
     if (audio) {
@@ -511,8 +512,19 @@
     };
     window.addEventListener("keydown", key(true));
     window.addEventListener("keyup", key(false));
-    window.addEventListener("focus", () => wasm.noite_focus(true));
-    window.addEventListener("blur", () => wasm.noite_focus(false));
+    // The game pauses its music and sound when its window is deactivated
+    // (WM_ACTIVATE, as the original). Mobile browsers often send no focus
+    // event when the page comes back from another app, so showing the
+    // page or a tap on it activates the game too.
+    const activate = (on) => {
+      if (on === active) return;
+      active = on;
+      wasm.noite_focus(on);
+    };
+    window.addEventListener("focus", () => activate(true));
+    window.addEventListener("blur", () => activate(false));
+    document.addEventListener("visibilitychange", () => activate(document.visibilityState === "visible"));
+    for (const ev of ["pointerdown", "keydown"]) document.addEventListener(ev, () => activate(true), true);
   }
 
   /**
@@ -773,6 +785,7 @@
     get frameStats() { return { frames, avgMs: frames ? frameMs / frames : 0, worstMs }; },
     get audioState() { return audio ? audio.state : "none"; },
     get audioContexts() { return audioContexts; },
+    get active() { return active; },
     /** What a phone does to the context when the page goes to the background. */
     suspendAudio() { return audio && audio.suspend(); },
     /** Items the player carries (-1 before the start). */
