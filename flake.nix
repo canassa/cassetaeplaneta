@@ -43,6 +43,17 @@
             export NOITE_SOUNDFONT="''${NOITE_SOUNDFONT:-${pkgs.soundfont-generaluser-gs}/share/soundfonts/GeneralUser-GS.sf2}"
           '';
         };
+        # The browser test of the web build (tools/web/test.py): the
+        # default shell plus Playwright and its Chromium. Separate, so the
+        # browsers are only fetched when the web build is tested.
+        web = pkgs.mkShell {
+          inputsFrom = [ self.devShells.${system}.default ];
+          packages = [ (pkgs.python3.withPackages (ps: [ ps.playwright ])) ];
+          shellHook = self.devShells.${system}.default.shellHook + ''
+            export PLAYWRIGHT_BROWSERS_PATH=${pkgs.playwright-driver.browsers}
+            export PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=true
+          '';
+        };
       });
     };
 }
