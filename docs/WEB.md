@@ -190,8 +190,8 @@ map $arg_h $noite_cache {
   reachable as with right clicks: a knock on the bathroom door leaves its
   animation timer on (B21 then ends the garden video into 4fbar), a tap on
   the 4fbarboy boys reaches B24's crash in the Original version.
-  The page also shows on-screen arrows (`#dpad`, in the left letterbox
-  when it fits, else faint over the game's bottom left): held, they hold
+  The page also shows on-screen arrows (`#dpad`, in a strip the game
+  leaves on its right or below it, whichever keeps the game larger): held, they hold
   the arrow keys, for the walks a click's straight line can't make (past
   the cat in 1fsala).
 - **Loop.** `noite_frame` (`src/web_main.zig`), called on every

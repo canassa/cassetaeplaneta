@@ -495,35 +495,37 @@
    * client area's aspect ratio (fractional, snapped to device pixels),
    * centred on a black letterbox, and places the tool buttons: in the
    * letterbox below or beside the game when it has room for them, else as
-   * a faint overlay in the top right corner. Input maps through the
-   * canvas's bounding box, so it stays exact at any scale.
+   * a faint overlay in the top right corner. With the on-screen arrows the
+   * game leaves them a strip on the right or below (whichever keeps it
+   * larger), and they sit in its bottom right corner. Input maps through
+   * the canvas's bounding box, so it stays exact at any scale.
    */
   function fit() {
-    const stage = $("stage");
-    const sw = stage.clientWidth, sh = stage.clientHeight;
+    const stage = $("stage"), pad = $("dpad");
+    const vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight;
+    let right = 0, bottom = 0;
+    if (!pad.hidden) {
+      const pw = pad.offsetWidth + 2 * GAP, ph = pad.offsetHeight + 2 * GAP;
+      if (Math.min((vw - pw) / CW, vh / CH) >= Math.min(vw / CW, (vh - ph) / CH)) right = pw;
+      else bottom = ph;
+    }
+    stage.style.right = right + "px";
+    stage.style.bottom = bottom + "px";
+    const sw = vw - right, sh = vh - bottom;
     const dpr = window.devicePixelRatio || 1;
-    const s = Math.min(sw / CW, sh / CH);
+    const s = Math.max(0, Math.min(sw / CW, sh / CH));
     const w = Math.floor(CW * s * dpr + 1e-6) / dpr, h = Math.floor(CH * s * dpr + 1e-6) / dpr;
     canvas.style.width = w + "px";
     canvas.style.height = h + "px";
-    placeTools(sw, sh, w, h);
-    placeDpad(sw, sh, w, h);
-  }
-
-  function placeDpad(sw, sh, w, h) {
-    const pad = $("dpad");
+    placeTools(sw, sh, w, h, right, bottom);
     if (pad.hidden) return;
-    const side = (sw - w) / 2, below = (sh - h) / 2;
     const st = pad.style;
-    if (pad.offsetWidth + 2 * GAP <= side) {
-      pad.className = "";
-      st.left = (side - pad.offsetWidth) / 2 + "px";
-      st.bottom = Math.max(GAP, below + (h - pad.offsetHeight) / 2) + "px";
+    if (right) {
+      st.right = GAP + "px";
+      st.bottom = Math.max(GAP, (sh - h) / 2) + "px";
     } else {
-      // Over the game, above its bottom strip (the panel's handle).
-      pad.className = "overlay";
-      st.left = Math.max(GAP, side + GAP) + "px";
-      st.bottom = Math.max(GAP, below + h * 0.12) + "px";
+      st.right = Math.max(GAP, (sw - w) / 2) + "px";
+      st.bottom = GAP + "px";
     }
   }
 
@@ -556,7 +558,8 @@
 
   const GAP = 4; // tools' distance from the game and the window edge
 
-  function placeTools(sw, sh, w, h) {
+  /** `right`, `bottom`: the strip the stage leaves the arrows. */
+  function placeTools(sw, sh, w, h, right, bottom) {
     const tools = $("tools");
     if (tools.hidden) return;
     const below = (sh - h) / 2, side = (sw - w) / 2;
@@ -565,22 +568,22 @@
     tools.className = "";
     if (tools.offsetHeight <= below) {
       // A strip under the game: centred in it, right-aligned with the game.
-      st.bottom = (below - tools.offsetHeight) / 2 + "px";
-      st.right = Math.max(GAP, side) + "px";
+      st.bottom = bottom + (below - tools.offsetHeight) / 2 + "px";
+      st.right = right + Math.max(GAP, side) + "px";
       return;
     }
     for (const cls of ["", "column"]) {
       tools.className = cls;
       if (tools.offsetWidth + 2 * GAP <= side) {
         // A strip beside the game: its bottom right corner.
-        st.right = (side - tools.offsetWidth) / 2 + "px";
-        st.bottom = Math.max(GAP, below) + "px";
+        st.right = right + (side - tools.offsetWidth) / 2 + "px";
+        st.bottom = bottom + Math.max(GAP, below) + "px";
         return;
       }
     }
     tools.className = "overlay";
     st.top = Math.max(GAP, below + GAP) + "px";
-    st.right = Math.max(GAP, side + GAP) + "px";
+    st.right = right + Math.max(GAP, side + GAP) + "px";
   }
 
   const fullscreenElement = () => document.fullscreenElement || document.webkitFullscreenElement;
@@ -713,9 +716,9 @@
       wasm = instance.exports;
       wasm._initialize();
       $("loader").hidden = true;
-      if (prefs.oneButton) showDpad();
       canvas.hidden = false;
       showTools();
+      if (prefs.oneButton) showDpad();
       fit();
       watchSize();
       attachInput();

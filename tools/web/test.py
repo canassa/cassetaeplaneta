@@ -351,8 +351,18 @@ def main():
             time.sleep(1.5)
             cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
             time.sleep(0.5)
-            tpage.screenshot(path=str(out / "touch-dpad.png"))
             check(tpage.locator("#screen").screenshot() != before, "touch: holding ◀ walks the player")
+            def pad_outside(vw, vh, name):
+                tpage.set_viewport_size({"width": vw, "height": vh})
+                time.sleep(0.5)
+                g = tpage.locator("#screen").bounding_box()
+                d = pad.bounding_box()
+                apart = (d["x"] >= g["x"] + g["width"] or d["y"] >= g["y"] + g["height"])
+                inside = d["x"] + d["width"] <= vw and d["y"] + d["height"] <= vh
+                tpage.screenshot(path=str(out / name))
+                check(apart and inside, f"touch {vw}x{vh}: the arrows sit outside the game, bottom right ({name})")
+            pad_outside(390, 844, "touch-dpad-portrait.png")
+            pad_outside(844, 390, "touch-dpad.png")
             check(not terrors, "touch: no page errors")
             tctx.close()
 
