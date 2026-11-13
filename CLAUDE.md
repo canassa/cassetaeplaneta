@@ -103,6 +103,17 @@ then `unit sync` and commit); import seeds one unit per `handler_*`. The DB
 is local to the main checkout (worktrees open the main checkout's copy) and
 is not in git.
 
+## Running and testing the port
+
+`README.md` ("Running the port", "Testing the port") has the commands: the
+headless harness (`--input` scripts, `--dump` frames, `--scene` jumps with
+`--take` items, `--fix`), `tools/smoke.py` (every scene; `--offers`,
+`--monkey SEED`) and `tools/play/full.input` (a full scripted playthrough,
+deterministic: random choices depend on the virtual time, so editing an
+early line can change later outcomes — re-tune the script then). Run all
+three after touching engine or handler code; a smoke "orig" line is a crash
+the original has too (its panic names the BUGS.md entry).
+
 ## Binary facts (NOITE.EXE — the minigames share the toolchain)
 
 - **Format:** 16-bit NE, Windows 3.1, Ghidra language `x86:LE:16:Protected Mode`.
