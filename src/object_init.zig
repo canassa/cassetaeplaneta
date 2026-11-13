@@ -97,8 +97,13 @@ pub fn sceneObjectDtor(g: *Game, obj: *Object) void {
         obj.portable.icon = null;
     };
     if (obj.kind == .actor or obj.kind == .player) {
+        // An item the handlers moved to another list while it was still
+        // carried (BUGS.md B23) is that list's to free: only the items the
+        // inventory still owns are parked.
         var it = obj.actor.inventory.head;
-        while (it) |o| : (it = o.next) g.leakObject(o);
+        while (it) |o| : (it = o.next) {
+            if (o.ownerList == &obj.actor.inventory) g.leakObject(o);
+        }
         obj.actor.inventory.head = null;
         obj.actor.inventory.count = 0;
     }

@@ -267,6 +267,21 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
 - **Port:** `game_scenes.switchScene` reuses the old scene's block for the new one, as the heap does.
 - **Confidence:** 8 (code); 7 (block reuse).
 
+### B23. An item picked up from the panel while a reply plays is consumed instead of the offered one
+- **Where:** every give-item handler's MM_WOM_DONE (2fsuabig, 2fblitg, 2fcopmau, 2fcopmu, 2fshardi, 2fportdi,
+  2fportd2, 2fgaydir, 4fbarboy, 4fdj, 4fbar): the reply's end works on `Game.selectedItem`, which the
+  engine overwrites as soon as another inventory slot is pressed (`game_handle_message` WM_RBUTTONDOWN).
+- **What the code does:** with a new item selected (still in the inventory) when the reply ends, the
+  right-item path scores it, `object_list_remove(globalObjects)` does nothing (the item is not there) and
+  `object_list_add(usedObjects)` relinks it: its `next`/`prev` now belong to the used list, the inventory
+  ends at it (the items after it are cut off and lost), and the offered item stays on the scene. The
+  wrong-item path charges `scoreMisuse` and "returns" the new item. A reply that ends while an item is
+  merely selected (any wave end, e.g. 4fbarboy's intro) is taken as a wrong offer of it.
+- **Effect:** quick players lose items and score; the inventory shows fewer items than its count.
+- **Port:** reproduced (the lists are shared the same way); at exit only the items the inventory still owns
+  are parked (`object_init.sceneObjectDtor`), the cut-off ones stay unfreed as in the original.
+- **Confidence:** 8.
+
 ## Harmless: wrong paths rescued by the wave fallback
 
 `wave_open` retries `<root>pan\wav\<file name>.wav`, and `PAN\WAV\` holds a copy of almost every wave, so these
