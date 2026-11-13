@@ -15,13 +15,14 @@ static void noite_setup_channels(tsf *f)
 	tsf_channel_set_bank_preset(f, NOITE_DRUM_CHANNEL, 128, 0);
 }
 
-/* Load a SoundFont from memory and set interleaved stereo output.
+/* Load a SoundFont from memory and set interleaved stereo output, 8 dB
+ * down: at full gain GeneralUser GS clips on VELHA.MID and drowns speech.
  * Returns NULL on bad data. tsf copies what it needs out of `buffer`. */
 tsf *noite_tsf_open(const void *buffer, int size, int sample_rate)
 {
 	tsf *f = tsf_load_memory(buffer, size);
 	if (!f) return TSF_NULL;
-	tsf_set_output(f, TSF_STEREO_INTERLEAVED, sample_rate, 0.0f);
+	tsf_set_output(f, TSF_STEREO_INTERLEAVED, sample_rate, -8.0f);
 	noite_setup_channels(f);
 	return f;
 }
