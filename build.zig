@@ -17,6 +17,14 @@ pub fn build(b: *std.Build) void {
     // SDL3 from the nix dev shell (pkg-config); declared by hand in
     // src/platform/sdl.zig, no translate-c.
     mod.linkSystemLibrary("SDL3", .{});
+    // TinySoundFont + TinyMidiLoader (vendor/tinysoundfont, MIT): the MCI
+    // `sequencer` replacement, driven from src/platform/midi.zig. Shift
+    // sanitizing is off because tsf/tml shift signed values on purpose.
+    mod.addCSourceFile(.{
+        .file = b.path("vendor/tinysoundfont/tsf_impl.c"),
+        .flags = &.{ "-std=c99", "-fno-sanitize=shift" },
+    });
+    mod.addIncludePath(b.path("vendor/tinysoundfont"));
 
     const exe = b.addExecutable(.{
         .name = "noite",
