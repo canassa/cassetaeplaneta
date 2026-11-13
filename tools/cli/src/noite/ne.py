@@ -65,12 +65,18 @@ class NeImage:
 
     def c_string(self, selector: int, offset: int) -> bytes | None:
         """The NUL-terminated string at ``selector:offset`` (without the NUL), if the
-        bytes there look like text: printable ASCII, Latin-1 letters, tab, CR, LF."""
+        bytes there look like text: printable ASCII, Latin-1 letters, tab, CR, LF.
+        An empty string (``""``) counts only in a code segment and right after
+        another string's NUL (MSVC packs a function's literals there); in DGROUP
+        a zero byte is far more often zeroed data."""
         seg = self.segments.get(selector)
         if seg is None or offset >= len(seg.data):
             return None
         end = seg.data.find(b"\0", offset, offset + MAX_STRING)
-        if end <= offset:
+        if end == offset:
+            ok = selector != DGROUP and offset > 0 and seg.data[offset - 1] == 0
+            return b"" if ok else None
+        if end < offset:
             return None
         s = seg.data[offset:end]
         return s if all(_texty(b) for b in s) else None

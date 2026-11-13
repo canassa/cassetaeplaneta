@@ -278,6 +278,12 @@ def write_reference(
         if fstructs or fglobs:
             names = [*fstructs, *(g["name"] for g in fglobs)]
             body.append(f"// types: {', '.join(names)}  (layouts in types.md)")
+        if f["addr"].startswith("1000:"):
+            body.append(
+                "// segment 1000 runs as 32-bit code: Ghidra's 16-bit listing below is garbage"
+                " past the prologue (and stops early); disassemble it with objdump -mi386"
+                " (CLAUDE.md, Binary facts)."
+            )
         if f["plate"]:
             body += ["/*", f["plate"], "*/"]
         body += [

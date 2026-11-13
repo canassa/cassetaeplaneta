@@ -28,12 +28,16 @@ def test_strings_from_the_real_exe(image: NeImage) -> None:
     s = image.c_string(0x1020, 0xD534)
     assert s == b"fase4\\4fboydj\\maeemae.wav"
     assert c_literal(s) == '"fase4\\\\4fboydj\\\\maeemae.wav"'
+    assert image.c_string(0x1010, 0x946E) == b""  # avi's empty literal
 
 
 def test_c_string_rejects_binary() -> None:
     img = NeImage({0x1018: Segment(0x1018, b"ab\x01c\0\0Ol\xe1\r\n\0xyz")})
     assert img.c_string(0x1018, 0) is None  # control byte
-    assert img.c_string(0x1018, 5) is None  # empty string
+    assert img.c_string(0x1018, 5) == b""  # empty string after another's NUL
+    assert img.c_string(0x1018, 4) is None  # empty string after text
+    dg = NeImage({0x1050: Segment(0x1050, b"a\0\0")})
+    assert dg.c_string(0x1050, 2) is None  # empty string in DGROUP
     assert img.c_string(0x1018, 6) == b"Ol\xe1\r\n"
     assert img.c_string(0x1018, 13) is None  # no NUL before the end
     assert img.c_string(0x1028, 0) is None
