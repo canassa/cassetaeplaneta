@@ -12,10 +12,12 @@
 //!     ldown|lup|rdown|rup X Y
 //!     key K             key down + up (K: a number, or left/right/up/down/
 //!                       return/escape/space/f1..f12)
+//!     hold K MS         key down, up MS later (the arrows walk while held)
 //!     dump [NAME]       write a frame dump (needs --dump DIR)
 //!     scene NAME [X Y PLAYER PANEL STATUS ANIM CLICK]
 //!                       switch to an INI scene now (as `--scene`)
 //!     log TEXT          print a marker in the log
+//!     state             print the scene, player, inventory, lives, score
 //!     quit              end the run
 //!
 //! Mouse commands keep track of the buttons held, as `wParam` (MK_*).
@@ -29,6 +31,7 @@ pub const Action = union(enum) {
     dump: []const u8,
     scene: SceneJump,
     log: []const u8,
+    state,
     quit,
 };
 
@@ -125,6 +128,12 @@ pub fn parse(gpa: std.mem.Allocator, text: []u8) ParseError!Script {
             const v = keyCode(k) orelse return bad(line_no, "unknown key");
             try s.steps.append(gpa, .{ .at = t, .action = .{ .input = .{ .id = wm.keydown, .wparam = v } } });
             try s.steps.append(gpa, .{ .at = t + 50, .action = .{ .input = .{ .id = wm.keyup, .wparam = v } } });
+        } else if (eq(u8, cmd, "hold")) {
+            const k = words.next() orelse return bad(line_no, "missing key");
+            const v = keyCode(k) orelse return bad(line_no, "unknown key");
+            const ms = try num(u32, words.next(), line_no);
+            try s.steps.append(gpa, .{ .at = t, .action = .{ .input = .{ .id = wm.keydown, .wparam = v } } });
+            try s.steps.append(gpa, .{ .at = t + ms, .action = .{ .input = .{ .id = wm.keyup, .wparam = v } } });
         } else if (eq(u8, cmd, "dump")) {
             try s.steps.append(gpa, .{ .at = t, .action = .{ .dump = words.next() orelse "" } });
         } else if (eq(u8, cmd, "scene")) {
@@ -143,6 +152,8 @@ pub fn parse(gpa: std.mem.Allocator, text: []u8) ParseError!Script {
             try s.steps.append(gpa, .{ .at = t, .action = .{ .scene = j } });
         } else if (eq(u8, cmd, "log")) {
             try s.steps.append(gpa, .{ .at = t, .action = .{ .log = std.mem.trim(u8, words.rest(), " \t") } });
+        } else if (eq(u8, cmd, "state")) {
+            try s.steps.append(gpa, .{ .at = t, .action = .state });
         } else if (eq(u8, cmd, "quit")) {
             try s.steps.append(gpa, .{ .at = t, .action = .quit });
         } else return bad(line_no, "unknown command");

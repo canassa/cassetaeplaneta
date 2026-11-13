@@ -90,6 +90,7 @@ pub const Harness = struct {
                 .dump => |name| h.dump(g, name),
                 .scene => |j| h.jump(g, j),
                 .log => |text| std.debug.print("[{d}] log: {s}\n", .{ now, text }),
+                .state => printState(g),
                 .quit => {
                     g.quit = true;
                     return true;
@@ -231,6 +232,21 @@ pub fn writeScreen(gpa: std.mem.Allocator, io: std.Io, scr: *const p.Screen, pat
     defer out.deinit(gpa);
     if (bmp) try png.encodeBmp(gpa, scr, &out) else try png.encodePng(gpa, scr, &out);
     try std.Io.Dir.cwd().writeFile(io, .{ .sub_path = path, .data = out.items });
+}
+
+/// One line: scene, player position, inventory ids, held item, lives, score.
+pub fn printState(g: *const Game) void {
+    var buf: [256]u8 = undefined;
+    var w: std.Io.Writer = .fixed(&buf);
+    if (g.player) |pl| {
+        w.print("player ({d},{d}) inv [", .{ pl.x, pl.y }) catch {};
+        var it = pl.actor.inventory.head;
+        while (it) |o| : (it = o.next) w.print(" {d}", .{o.id}) catch {};
+        w.writeAll(" ]") catch {};
+    }
+    if (g.selectedItem) |sel| w.print(" held {d}", .{sel.id}) catch {};
+    const name = if (g.scene) |s| cstr.slice(&s.name) else "-";
+    std.debug.print("[{d}] state: scene {s} {s} lives {d} score {d}\n", .{ g.plat.ticks(), name, w.buffered(), g.lives, g.score });
 }
 
 /// The panic report: the current scene and the last messages, oldest first.
