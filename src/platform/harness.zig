@@ -119,6 +119,7 @@ pub const Harness = struct {
                 },
                 .wait => {},
                 .take => |id| take(g, id),
+                .focus => |on| _ = g.send(.{ .id = msg.wm.activate, .wparam = @intFromBool(on) }),
                 .quit => {
                     g.quit = true;
                     return true;
