@@ -1,5 +1,4 @@
 //! Port unit `handler_3fstree2` (handler). scene handler 1020:897c.
-
 //! The jail-minigame winning cutscene. When its video ends (MM_MCINOTIFY) and
 //! the serial-killer minigame (`minigameWon[3]`) was won too, it goes to the
 //! hall if the jail minigame (`minigameWon[2]`) was also won, else back to
