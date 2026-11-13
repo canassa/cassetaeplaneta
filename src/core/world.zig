@@ -99,6 +99,19 @@ pub const Backdrop = struct {
     view3dZ: i16 = 0,
 };
 
+/// Result of the backdrop's rectangle queries (Backdrop slots 03/04,
+/// `grid_backdrop_query_rect*`), which always write their out-parameters.
+pub const RectQuery = struct {
+    /// The return value (char).
+    result: i8 = 0,
+    /// `*out_flag`.
+    flag: i8 = 0,
+    /// `*out_obj`.
+    obj: ?*Object = null,
+    /// `*out_first` (queryRectFirst only).
+    first: ?*Object = null,
+};
+
 /// The occupancy grid (struct `OccupancyGrid` + the cell globals). Cell
 /// count: 0 free, >0 occupants, -1 blocked, < -1 blocked and occupied.
 /// Functions: unit `grid`.

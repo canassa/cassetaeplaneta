@@ -21,6 +21,7 @@ pub const core = struct {
     pub const handler = @import("core/handler.zig");
     pub const modstate = @import("core/modstate.zig");
     pub const errors = @import("core/errors.zig");
+    pub const stub = @import("core/stub.zig");
 };
 pub const platform = struct {
     pub const api = @import("platform/platform.zig");
