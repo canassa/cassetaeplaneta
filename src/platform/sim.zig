@@ -158,6 +158,9 @@ const Swallowed = struct {
     keys: [skip_keys.len]bool = @splat(false),
 };
 
+/// How long a clip plays before input can skip it.
+pub const skip_grace_ms = 750;
+
 /// The keys that skip a video: VK_RETURN, VK_ESCAPE, VK_SPACE.
 pub const skip_keys = [_]u16{ 0x0d, 0x1b, 0x20 };
 
@@ -914,9 +917,18 @@ pub const Sim = struct {
     /// Ends every playing AVI clip as if it had played to the end: its
     /// pending MM_MCINOTIFY (successful) falls due `now`; frames and sound
     /// stop where they are. The notification is moved, not added, so the
-    /// game gets exactly one. False when no clip has one pending (none
-    /// plays, or its end was already delivered).
-    pub fn skipVideos(s: *Sim, now: u32) bool {
+    /// game gets exactly one. `.none` when no clip has one pending (none
+    /// plays, or its end was already delivered); `.early` (nothing
+    /// skipped) while a clip is in its first `skip_grace_ms`, so the second
+    /// click of a double click that started it doesn't skip it unseen.
+    pub fn skipVideos(s: *Sim, now: u32) enum { none, early, skipped } {
+        for (s.pending.items) |pe| {
+            if (pe.ev != .message) continue;
+            const m = pe.ev.message;
+            if (m.id != wm.mm_mcinotify or m.wparam != mci_notify_successful) continue;
+            const i = s.video(m.lo()) orelse continue;
+            if (now -% s.videos.items[i].since < skip_grace_ms) return .early;
+        }
         var any = false;
         for (s.pending.items) |*pe| {
             if (pe.ev != .message) continue;
@@ -929,13 +941,14 @@ pub const Sim = struct {
             v.playing = false;
             any = true;
         }
-        return any;
+        return if (any) .skipped else .none;
     }
 
     /// Input on its way to the game. With `Options.skip_videos` (quality
     /// of life, not in the original, whose MCIAVI window ignored input) a
     /// left or right button press, or Esc/Enter/Space, while a clip plays
-    /// ends the clip (`skipVideos`) and is swallowed, and so is its release
+    /// ends the clip (`skipVideos`; in its first `skip_grace_ms` it only
+    /// is ignored) and is swallowed, and so is its release
     /// (and the button's MK_* bit in the mouse messages before it). Null =
     /// swallowed; without the option every message passes unchanged.
     pub fn filterInput(s: *Sim, now: u32, m: p.Msg) ?p.Msg {
@@ -968,7 +981,7 @@ pub const Sim = struct {
             wm.keydown => if (key == null) return out,
             else => return out,
         }
-        if (!s.skipVideos(now)) return out;
+        if (s.skipVideos(now) == .none) return out;
         switch (m.id) {
             wm.lbuttondown => s.swallowed.lbutton = true,
             wm.rbuttondown => s.swallowed.rbutton = true,
@@ -1170,21 +1183,25 @@ test "a click skips the playing AVI: one notification, now, and no click" {
     // An unrelated key passes; the click is swallowed, with its move and release.
     const left: msg.Msg = .{ .id = wm.keydown, .wparam = msg.vk.left };
     try std.testing.expectEqual(@as(?p.Msg, left), s.filterInput(200, left));
+    // In the first skip_grace_ms a click is swallowed but skips nothing.
     try std.testing.expectEqual(@as(?p.Msg, null), s.filterInput(200, down));
-    try std.testing.expectEqual(@as(?u32, 200), s.nextDue());
-    try std.testing.expectEqual(@as(u16, 0), s.filterInput(210, msg.Msg.make(wm.mousemove, msg.mk.lbutton, 1, 1)).?.wparam);
+    try std.testing.expectEqual(@as(?p.Msg, null), s.filterInput(250, up));
+    try std.testing.expectEqual(@as(?u32, 100 + 29 * 357), s.nextDue());
+    try std.testing.expectEqual(@as(?p.Msg, null), s.filterInput(900, down));
+    try std.testing.expectEqual(@as(?u32, 900), s.nextDue());
+    try std.testing.expectEqual(@as(u16, 0), s.filterInput(910, msg.Msg.make(wm.mousemove, msg.mk.lbutton, 1, 1)).?.wparam);
     // A second press before the end is delivered is swallowed too.
     const esc: msg.Msg = .{ .id = wm.keydown, .wparam = 0x1b };
-    try std.testing.expectEqual(@as(?p.Msg, null), s.filterInput(220, esc));
-    try std.testing.expectEqual(@as(?p.Msg, null), s.filterInput(230, up));
-    try std.testing.expectEqual(@as(?p.Msg, null), s.filterInput(230, .{ .id = wm.keyup, .wparam = 0x1b }));
-    const ev = s.poll(230).?.message;
+    try std.testing.expectEqual(@as(?p.Msg, null), s.filterInput(920, esc));
+    try std.testing.expectEqual(@as(?p.Msg, null), s.filterInput(930, up));
+    try std.testing.expectEqual(@as(?p.Msg, null), s.filterInput(930, .{ .id = wm.keyup, .wparam = 0x1b }));
+    const ev = s.poll(930).?.message;
     try std.testing.expectEqual(wm.mm_mcinotify, ev.id);
     try std.testing.expectEqual(@as(u16, 1), ev.wparam);
     try std.testing.expectEqual(dev, ev.lo());
     try std.testing.expectEqual(@as(?p.Event, null), s.poll(100_000));
     // The end is out: input reaches the game again.
-    try std.testing.expectEqual(@as(?p.Msg, down), s.filterInput(240, down));
+    try std.testing.expectEqual(@as(?p.Msg, down), s.filterInput(940, down));
     s.aviClose(dev, &screen);
 }
 
