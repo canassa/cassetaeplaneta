@@ -23,7 +23,21 @@ rsync -a --delete --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
   "$site/" "$target:$base/releases/$release/"
 ssh "$target" "ln -s releases/$release $base/next-$release && mv -Tf $base/next-$release $base/current"
 
-for path in / /noite.wasm /manifest.json /assets/CASSETA.INI; do
-  curl --fail --silent --show-error -o /dev/null -w "%{http_code} $path\n" "$url$path"
+# The page, then the hashed URLs it loads (from the built index.html and
+# manifest): each should answer 200 with the Cache-Control of docs/WEB.md.
+mapfile -t paths < <(python3 - "$site" <<'EOF'
+import json, pathlib, re, sys
+site = pathlib.Path(sys.argv[1])
+html = (site / "index.html").read_text()
+print("/")
+for attr in ("src", "data-wasm", "data-manifest"):
+    print("/" + re.search(rf'<script [^>]*\b{attr}="([^"]+)"', html).group(1))
+m = json.loads((site / "manifest.json").read_text())
+ini = next(f for f in m["files"] if f["url"] == "assets/CASSETA.INI")
+print(f"/{ini['url']}?h={ini['hash']}")
+EOF
+)
+for path in "${paths[@]}"; do
+  curl --fail --silent --show-error -o /dev/null -w "%{http_code} %header{cache-control} $path\n" "$url$path"
 done
 echo "deployed release $release"

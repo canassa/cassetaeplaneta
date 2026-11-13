@@ -5,8 +5,10 @@
 #
 # OUT gets the page (zig build web: index.html, noite.js, noite.wasm,
 # manifest.json), the disc files the manifest lists under assets/ and the
-# SoundFont ($NOITE_SOUNDFONT, set by the dev shell) under soundfont/.
-# OUT is replaced. Serve it as is (see docs/WEB.md for the headers).
+# SoundFont ($NOITE_SOUNDFONT, set by the dev shell) under soundfont/;
+# then tools/web/stamp.py gives every file but index.html a content hash
+# (requested as `url?h=<hash>`). OUT is replaced. Serve it as is (see
+# docs/WEB.md for the headers).
 set -euo pipefail
 root=$(cd "$(dirname "$0")/../.." && pwd)
 out=${1:-$root/zig-out/site}
@@ -31,3 +33,4 @@ for f in m["files"]:
     assert dst.stat().st_size == f["size"], url
 print(f"{out}: {len(m['files'])} files, {m['total'] / 1e6:.1f} MB")
 EOF
+python3 tools/web/stamp.py "$out"

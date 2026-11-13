@@ -6,10 +6,13 @@
 The page (web/noite.js) downloads every entry of `files` before the game
 starts and serves the game's opens from them by `keys`:
 
-    {"version": "<hash>",            # Cache Storage name; changes with the files
+    {"version": "<hash>",            # changes with the files
      "total": <bytes>,
      "files": [{"url": "assets/FASE1/X.BMP", "size": 1234}, ...],
      "keys": {"fase1/x.bmp": 0, ...}}  # DOS path, lower case, `/` -> files[i]
+
+tools/web/stamp.py then adds each file's content `hash` (the page fetches
+and caches it as `url?h=<hash>`) and recomputes `version` from them.
 
 Identical files are downloaded once: a key whose content equals another
 listed file's points at that file, and an `HD/` clip that is a copy of

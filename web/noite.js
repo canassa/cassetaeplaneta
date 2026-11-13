@@ -9,6 +9,12 @@
 // `--fix all`) and whether a click or Esc/Enter/Space skips videos
 // (`--skip-videos`); both are remembered in localStorage and passed to
 // `noite_start`. Each version keeps its own saves.
+//
+// Every file but index.html is requested by content hash (`url?h=<hash>`,
+// tools/web/stamp.py): index.html passes the wasm's and the manifest's
+// hashed URLs in its <script> tag's data attributes, and the manifest
+// gives each disc file's hash. Cache Storage keys the files by those
+// URLs, so a deploy re-downloads only what changed.
 "use strict";
 
 (() => {
@@ -21,6 +27,19 @@
   // were two versions; the Corrigida's are kept apart.
   const SAVE_PREFIXES = { original: "noite:save:", corrigida: "noite:corrigida:save:" };
   const VERSION_NAMES = { original: "Original", corrigida: "Corrigida" };
+  // The files of the current manifest, by hashed URL. The name must not
+  // start with "noite-": loaders before the hashes deleted every
+  // "noite-*" cache but their own (their caches are migrated below).
+  const CACHE_NAME = "noite.files";
+  const OLD_CACHE_PREFIX = "noite-";
+
+  // Hashed URLs from index.html (a site stamped by tools/web/stamp.py);
+  // the plain names otherwise, revalidated on every load.
+  const script = document.currentScript;
+  const WASM_URL = (script && script.dataset.wasm) || "noite.wasm";
+  const MANIFEST_URL = (script && script.dataset.manifest) || "manifest.json";
+  const fetchOptions = (url) => (/[?&]h=/.test(url) ? {} : { cache: "no-cache" });
+  const fileUrl = (entry) => (entry.hash ? `${entry.url}?h=${entry.hash}` : entry.url);
 
   const $ = (id) => document.getElementById(id);
   const canvas = $("screen");
@@ -46,7 +65,7 @@
       if (attempt) await new Promise((r) => setTimeout(r, 500 * 2 ** attempt));
       let got = 0;
       try {
-        const res = await fetch(entry.url);
+        const res = await fetch(fileUrl(entry));
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const buf = new Uint8Array(entry.size);
         const reader = res.body.getReader();
@@ -68,61 +87,123 @@
     throw new Error(`${entry.url}: ${lastErr.message}`);
   }
 
-  async function openCache(version) {
+  /** { cache, old: [caches of loaders before the hashes] } or null. */
+  async function openCache() {
     if (!("caches" in self)) return null;
     try {
+      const cache = await caches.open(CACHE_NAME);
+      const old = [];
       for (const name of await caches.keys()) {
-        if (name.startsWith("noite-") && name !== "noite-" + version) await caches.delete(name);
+        if (name.startsWith(OLD_CACHE_PREFIX)) old.push(await caches.open(name));
       }
-      return await caches.open("noite-" + version);
+      return { cache, old };
     } catch {
       return null; // private window, blocked storage: download every time
     }
   }
 
+  /** First 16 hex digits of the SHA-256, as tools/web/stamp.py writes them. */
+  async function shortHash(buf) {
+    const d = new Uint8Array(await crypto.subtle.digest("SHA-256", buf));
+    return Array.from(d.subarray(0, 8), (b) => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  /**
+   * A file from a cache of a loader before the hashes (keyed by the plain
+   * URL), if its content has the manifest's hash: returning players keep
+   * their download.
+   */
+  async function fromOldCache(c, entry) {
+    if (!entry.hash || !c.old.length || !(crypto && crypto.subtle)) return null;
+    for (const old of c.old) {
+      try {
+        const hit = await old.match(entry.url);
+        if (!hit) continue;
+        const buf = new Uint8Array(await hit.arrayBuffer());
+        if (buf.length === entry.size && (await shortHash(buf)) === entry.hash) return buf;
+      } catch {}
+    }
+    return null;
+  }
+
+  /** Drops what the manifest no longer lists, and the old caches. */
+  async function prune(c, files, puts) {
+    try {
+      await Promise.all(puts);
+      const wanted = new Set(files.map((e) => new URL(fileUrl(e), document.baseURI).href));
+      for (const req of await c.cache.keys()) {
+        if (!wanted.has(req.url)) await c.cache.delete(req);
+      }
+      for (const name of await caches.keys()) {
+        if (name.startsWith(OLD_CACHE_PREFIX)) await caches.delete(name);
+      }
+    } catch {}
+    pruned = true;
+  }
+
   async function loadAll() {
-    const res = await fetch("manifest.json", { cache: "no-cache" });
+    const res = await fetch(MANIFEST_URL, fetchOptions(MANIFEST_URL));
     if (!res.ok) throw new Error(`manifest.json: HTTP ${res.status}`);
     const manifest = await res.json();
-    const cache = await openCache(manifest.version);
+    const c = await openCache();
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
     const files = manifest.files;
     const data = new Array(files.length);
-    let done = 0, count = 0, fromCache = 0;
+    let done = 0, count = 0, fromCache = 0, migrated = 0, downloaded = 0;
     progress(0, manifest.total, 0, files.length, "Baixando os arquivos do jogo…");
+
+    const puts = [];
+    const keep = (url, buf) =>
+      puts.push(c.cache.put(url, new Response(buf, {
+        headers: { "Content-Type": "application/octet-stream", "Content-Length": String(buf.length) },
+      })).catch(() => {})); // quota: the next visit downloads again
+
+    /** The entry from Cache Storage (or an old loader's cache), or null. */
+    async function cached(entry, url) {
+      if (!c) return null;
+      try {
+        const hit = await c.cache.match(url);
+        const buf = hit && new Uint8Array(await hit.arrayBuffer());
+        if (buf && buf.length === entry.size) return buf;
+      } catch {}
+      const buf = await fromOldCache(c, entry);
+      if (buf) {
+        migrated++;
+        keep(url, buf);
+      }
+      return buf;
+    }
+
     let next = 0;
     async function worker() {
       while (next < files.length) {
         const i = next++;
         const entry = files[i];
-        let hit = cache && (await cache.match(entry.url).catch(() => null));
-        if (hit) {
-          const buf = new Uint8Array(await hit.arrayBuffer());
-          if (buf.length === entry.size) {
-            data[i] = buf;
-            fromCache++;
-            done += buf.length;
-            count++;
-            progress(done, manifest.total, count, files.length,
-              fromCache === count ? "Carregando do cache…" : null);
-            continue;
-          }
+        const url = fileUrl(entry);
+        const buf = await cached(entry, url);
+        if (buf) {
+          data[i] = buf;
+          fromCache++;
+          done += buf.length;
+          count++;
+          progress(done, manifest.total, count, files.length,
+            fromCache === count ? "Carregando do cache…" : null);
+          continue;
         }
         data[i] = await fetchFile(entry, (n) => {
           done += n;
           progress(done, manifest.total, count, files.length, "Baixando os arquivos do jogo…");
         });
         count++;
+        downloaded++;
         progress(done, manifest.total, count, files.length);
-        if (cache) {
-          cache.put(entry.url, new Response(data[i], {
-            headers: { "Content-Type": "application/octet-stream", "Content-Length": String(entry.size) },
-          })).catch(() => {}); // quota: the next visit downloads again
-        }
+        if (c) keep(url, data[i]);
       }
     }
     await Promise.all(Array.from({ length: CONCURRENCY }, worker));
-    loadStats = { files: files.length, fromCache, bytes: manifest.total };
+    loadStats = { files: files.length, fromCache, migrated, downloaded, bytes: manifest.total };
+    if (c) prune(c, files, puts);
+    else pruned = true;
     for (const [key, i] of Object.entries(manifest.keys)) store.set(key, data[i]);
   }
 
@@ -183,7 +264,7 @@
   // ---- the wasm ---------------------------------------------------------------
 
   let wasm = null; // exports
-  let running = false, ready = false, failure = null, loadStats = null;
+  let running = false, ready = false, failure = null, loadStats = null, pruned = false;
   // For tests: the loudest sample sent to WebAudio, and the cost of the
   // game's turns (ms per frame, worst frame).
   let audioPeak = 0, frameMs = 0, frames = 0, worstMs = 0;
@@ -534,7 +615,7 @@
     $("retry").onclick = () => location.reload();
     const play = waitForPlay();
     try {
-      const wasmBytes = fetch("noite.wasm", { cache: "no-cache" }).then((r) => {
+      const wasmBytes = fetch(WASM_URL, fetchOptions(WASM_URL)).then((r) => {
         if (!r.ok) throw new Error(`noite.wasm: HTTP ${r.status}`);
         return r.arrayBuffer();
       });
@@ -572,6 +653,8 @@
     get skipVideos() { return wasm && running ? (wasm.noite_options() & 2) !== 0 : null; },
     get failure() { return failure; },
     get loadStats() { return loadStats; },
+    /** Cache Storage holds only the manifest's files (after a load). */
+    get pruned() { return pruned; },
     get audioPeak() { return audioPeak; },
     get frameStats() { return { frames, avgMs: frames ? frameMs / frames : 0, worstMs }; },
     get audioState() { return audio ? audio.state : "none"; },
