@@ -104,7 +104,7 @@ fn sceneObjectAttach(g: *Game, obj: *Object, bd: *Backdrop) *Object {
 pub fn reattach(g: *Game, obj: *Object, bd: *Backdrop) *Object {
     obj.unk45E = 0;
     obj.queued = 0;
-    g.plat.realizePalette(&bd.bmiColors);
+    _ = g.plat.realizePalette(&bd.bmiColors);
     bindToBackdrop(obj, bd);
     obj.linked = null;
     if (obj.attached == 0) obj.attached = 1;

@@ -72,7 +72,7 @@ pub fn handle(g: *Game, m: Msg) i16 {
 
 /// 0x40a: wParam = won, lParam = score.
 fn result(g: *Game, s: *State, m: Msg) void {
-    g.plat.realizePalette(&g.scene.?.backdrop.?.bmiColors);
+    _ = g.plat.realizePalette(&g.scene.?.backdrop.?.bmiColors);
     s.minigameRunning = 0;
     g.plat.showMain(true);
     g.minigameWon[3] = @intFromBool(m.wparam != 0);

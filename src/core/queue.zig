@@ -37,6 +37,8 @@ pub const Queue = struct {
     timers: [max_timers]Timer = undefined,
     timer_count: usize = 0,
     paint_pending: bool = false,
+    /// PostQuitMessage was called: WM_QUIT comes after the posted messages.
+    quit_pending: bool = false,
 
     /// PostMessage to the main window; false when the queue is full (the
     /// original ignores the result, so the message is simply lost).
@@ -86,6 +88,10 @@ pub const Queue = struct {
     /// The next message GetMessage/PeekMessage would return at `now`.
     pub fn next(q: *Queue, now: u32) ?Msg {
         if (q.posted.pop()) |m| return m;
+        if (q.quit_pending) {
+            q.quit_pending = false;
+            return .{ .id = wm.quit };
+        }
         if (q.input.pop()) |m| return m;
         if (q.paint_pending) {
             q.paint_pending = false;
@@ -160,4 +166,14 @@ test "the posted queue holds eight messages" {
     var q: Queue = .{};
     for (0..post_capacity) |_| try std.testing.expect(q.post(.{ .id = 0x405 }));
     try std.testing.expect(!q.post(.{ .id = 0x405 }));
+}
+
+test "WM_QUIT comes after the posted messages, before input" {
+    var q: Queue = .{};
+    try std.testing.expect(q.post(.{ .id = 0x401 }));
+    q.quit_pending = true;
+    q.postInput(.{ .id = wm.mousemove });
+    try std.testing.expectEqual(@as(u16, 0x401), q.next(0).?.id);
+    try std.testing.expectEqual(wm.quit, q.next(0).?.id);
+    try std.testing.expectEqual(wm.mousemove, q.next(0).?.id);
 }

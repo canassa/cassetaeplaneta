@@ -82,14 +82,7 @@ fn backdropOf(g: *Game) ?*world.Backdrop {
 /// SelectPalette + RealizePalette on the window DC; the number of palette
 /// entries that changed (RealizePalette's result).
 fn realize(g: *Game, bd: *const world.Backdrop) u16 {
-    const scr = g.plat.screen();
-    const old = scr.palette;
-    g.plat.realizePalette(&bd.bmiColors);
-    var n: u16 = 0;
-    for (old, scr.palette) |a, b| {
-        if (a.r != b.r or a.g != b.g or a.b != b.b) n += 1;
-    }
-    return n;
+    return g.plat.realizePalette(&bd.bmiColors);
 }
 
 /// InvalidateRect(hwnd, NULL, FALSE): WM_PAINT comes when the queue is idle.
@@ -144,8 +137,7 @@ pub fn wndProc(g: *Game, m: Msg) i32 {
             sound.mixClose(&g.sound, g.plat);
             _ = g.plat.mciString("close musica");
             g.killSystemTimer(1);
-            // PostQuitMessage: WM_QUIT is delivered once the queue is empty.
-            if (!g.post(.{ .id = wm.quit })) g.quit = true;
+            g.postQuitMessage();
         },
         wm.activate => {
             const active = m.wparam != 0 and m.hi() == 0;

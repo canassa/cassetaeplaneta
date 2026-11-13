@@ -82,7 +82,7 @@ pub fn isEmpty(list: *const UpdateList) bool {
 /// empties the list. (hdc is the platform screen.)
 // @orig 1010:e362 update_list_flush
 pub fn flush(list: *UpdateList, plat: Platform, bd: *const Backdrop) void {
-    plat.realizePalette(&bd.bmiColors);
+    _ = plat.realizePalette(&bd.bmiColors);
     var i: usize = 0;
     while (i < @as(usize, @intCast(@max(list.count, 0)))) : (i += 1) {
         const obj = list.items[i].?;

@@ -303,10 +303,17 @@ pub const Platform = struct {
     }
     /// SelectPalette(hdc, hpalette) + RealizePalette(hdc) on the window DC:
     /// the screen palette becomes `colors` (the backdrop's colour table,
-    /// which holds the same colours as its logical palette).
-    pub fn realizePalette(p: Platform, colors: *const [256]RgbQuad) void {
+    /// which holds the same colours as its logical palette). Returns
+    /// RealizePalette's result: the number of entries that changed.
+    pub fn realizePalette(p: Platform, colors: *const [256]RgbQuad) u16 {
         const scr = p.screen();
-        for (&scr.palette, colors) |*d, c| d.* = .{ .r = c.red, .g = c.green, .b = c.blue };
+        var n: u16 = 0;
+        for (&scr.palette, colors) |*d, c| {
+            const new: @TypeOf(d.*) = .{ .r = c.red, .g = c.green, .b = c.blue };
+            if (d.r != new.r or d.g != new.g or d.b != new.b) n += 1;
+            d.* = new;
+        }
+        return n;
     }
     /// WinGBitBlt(window DC, dx, dy, w, h, src's WinG DC, sx, sy): SRCCOPY
     /// of the `w`×`h` block at (sx, sy) of `src` (top-down coordinates,

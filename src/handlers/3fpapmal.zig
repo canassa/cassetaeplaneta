@@ -77,7 +77,7 @@ pub fn handle(g: *Game, m: Msg) i16 {
         },
         msg.noite.minigame_result => {
             const bd = g.scene.?.backdrop.?;
-            g.plat.realizePalette(&bd.bmiColors);
+            _ = g.plat.realizePalette(&bd.bmiColors);
             s.minigameRunning = 0;
             g.plat.showMain(true);
             g.score +%= @as(i32, @bitCast(m.lparam));

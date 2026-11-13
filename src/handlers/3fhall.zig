@@ -159,7 +159,7 @@ fn rightButton(g: *Game, s: *State, m: Msg) i16 {
 /// 0x40a from TIRO: wParam = won, lParam = score.
 fn minigameResult(g: *Game, s: *State, m: Msg) i16 {
     // GetDC + SelectPalette(backdrop palette) + RealizePalette + ReleaseDC
-    g.plat.realizePalette(&g.scene.?.backdrop.?.bmiColors);
+    _ = g.plat.realizePalette(&g.scene.?.backdrop.?.bmiColors);
     s.minigameRunning = 0;
     g.plat.showMain(true);
     g.minigameWon[1] = @intFromBool(m.wparam != 0);

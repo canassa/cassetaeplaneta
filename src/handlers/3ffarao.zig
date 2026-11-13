@@ -68,7 +68,7 @@ pub fn handle(g: *Game, m: Msg) i16 {
             return 1;
         },
         noite.minigame_result => {
-            g.plat.realizePalette(&g.scene.?.backdrop.?.bmiColors);
+            _ = g.plat.realizePalette(&g.scene.?.backdrop.?.bmiColors);
             s.minigameRunning = 0;
             g.plat.showMain(true);
             g.minigameWon[0] = @intFromBool(m.wparam != 0);
