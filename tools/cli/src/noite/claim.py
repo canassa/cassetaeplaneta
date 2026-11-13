@@ -254,7 +254,9 @@ def _require_claimable(root: Path, u: sqlite3.Row) -> None:
 # Sourced in a worktree: reuse the main checkout's venv instead of building one per
 # worktree (NO_SYNC keeps uv from re-pointing its editable install at the worktree),
 # and silence nix's "Git tree is dirty" warning.
-ENV_SH = """export UV_PROJECT_ENVIRONMENT={venv}
+ENV_SH = """# Variables only: the tools themselves (zig, uv, python3, objdump) are on PATH
+# only inside the dev shell, so still run them as `nix develop -c <cmd>`.
+export UV_PROJECT_ENVIRONMENT={venv}
 export UV_NO_SYNC=1
 export NIX_CONFIG="warn-dirty = false"
 """

@@ -77,7 +77,9 @@ Workflow (one agent per unit, any number in parallel):
    bytes from the EXE). In a worktree, `. .ref/env.sh` reuses the main checkout's
    `.venv` (`UV_PROJECT_ENVIRONMENT` + `UV_NO_SYNC=1`, no venv per worktree)
    and sets `NIX_CONFIG='warn-dirty = false'` to silence nix's "Git tree is
-   dirty" warning.
+   dirty" warning. It only sets variables: zig, uv/noite, python3, objdump
+   and sqlite3 exist **only inside the dev shell**, so run every tool as
+   `nix develop -c <cmd>` (or under direnv).
 3. In the worktree, write the unit's file only (it already declares the
    virtual-slot dispatchers the unit owns: replace their bodies, keep their
    signatures): one
