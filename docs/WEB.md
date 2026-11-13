@@ -15,17 +15,18 @@ nix develop -c tools/web/build-site.sh [OUT]     # default zig-out/site
 The script runs `zig build web` (→ `zig-out/web/`: the page, `noite.wasm`,
 `manifest.json`), then makes OUT a self-contained site: it copies the page,
 the disc files the manifest lists (from `assets/`) and the SoundFont
-(`$NOITE_SOUNDFONT`, the dev shell's GeneralUser GS from the nix store).
-OUT is deleted and rebuilt.
+(`$NOITE_SOUNDFONT`, the dev shell's GeneralUser GS from the nix store),
+and stamps it with content hashes (`tools/web/stamp.py`, see Caching
+below). OUT is deleted and rebuilt.
 
 Site layout:
 
 ```
 OUT/
-  index.html          the page
+  index.html          the page: the only file loaded without a hash
   noite.js            loader + runtime (no frameworks, no bundler)
   noite.wasm          the game (~3.3 MB, Debug)
-  manifest.json       files to download, DOS path → file
+  manifest.json       files to download (with their hashes), DOS path → file
   assets/…            753 disc files under their real (upper-case) names
   soundfont/GeneralUser-GS.sf2
 ```
@@ -49,14 +50,34 @@ server logic. Needs:
   (`.INI`/`.RLE`/`.FON`/`.SF2` as `application/octet-stream`).
 - **Case**: URLs use the files' real names (`assets/FASE1/1FCORRED/…BMP`),
   exactly as copied; nothing relies on case-insensitive matching.
-- **Caching**:
-  - `index.html`, `noite.js`, `noite.wasm`, `manifest.json` change with
-    every deploy and have fixed names: `Cache-Control: no-cache`
-    (revalidate; ETag/Last-Modified as nginx sends them).
-  - `assets/`, `soundfont/`: never change: `Cache-Control: public,
-    max-age=31536000, immutable`. (The page keeps its own copy in Cache
-    Storage, keyed by the manifest's `version`; a deploy that changes the
-    file list changes the version and the page drops the old copy.)
+- **Caching**: every file but `index.html` is requested with its
+  content hash, `url?h=<hash>` (the first 16 hex digits of its SHA-256).
+  `tools/web/stamp.py` writes them: the manifest gets each disc file's
+  `hash`, and `index.html`'s script tag becomes `<script
+  src="noite.js?h=…" data-wasm="noite.wasm?h=…"
+  data-manifest="manifest.json?h=…">`; noite.js reads the two data
+  attributes and the manifest, so a page always runs the JS, wasm and
+  files of its own build. Headers:
+  - `index.html` (and `/`): `Cache-Control: no-cache` (revalidate,
+    ETag/Last-Modified as nginx sends them) — the only entry point.
+  - any request with an `h` query argument: `Cache-Control: public,
+    max-age=31536000, immutable` — the URL changes when the content does.
+  - the other files without `h`: `no-cache`. Only a page from before the
+    hashes, still open during a deploy, asks for those.
+
+  Cloudflare's browser TTL (4 h on its "static" extensions such as `.js`)
+  raised `no-cache` to `max-age=14400` on the old fixed `noite.js`, so a
+  browser could pair a stale JS with a new wasm; with hashed URLs a stale
+  copy is never asked for. Cloudflare's default cache key includes the
+  query string, so its edge keeps one copy per hash.
+
+  The page keeps the files in Cache Storage (`noite.files`), keyed by the
+  hashed URLs: after a deploy only the files whose hash changed are
+  downloaded, and once the load ends the entries the manifest no longer
+  lists are deleted. Caches of the loader before the hashes
+  (`noite-<version>`, keyed by plain URLs) are read once: a file whose
+  content has the manifest's hash (SHA-256 in the page) moves to the new
+  cache, then the old caches are deleted.
 - **Compression** (optional, saves bandwidth): gzip `application/wasm`,
   `application/javascript`, `application/json`, `text/html`, and the disc
   files (`image/bmp`, `audio/wav`/`audio/x-wav`, `application/octet-stream`
@@ -79,13 +100,18 @@ server {
                image/bmp audio/wav audio/x-wav application/octet-stream;
 
     location / {
-        add_header Cache-Control "no-cache";
-        try_files $uri =404;
+        add_header Cache-Control $noite_cache always;
+        try_files $uri $uri/ =404;
     }
-    location ~ ^/(assets|soundfont)/ {
-        add_header Cache-Control "public, max-age=31536000, immutable";
-        try_files $uri =404;
+    location = /index.html {
+        add_header Cache-Control "no-cache" always;
     }
+}
+
+# http block: hashed URLs are immutable, the rest revalidates.
+map $arg_h $noite_cache {
+    ""      "no-cache";
+    default "public, max-age=31536000, immutable";
 }
 ```
 
@@ -178,8 +204,12 @@ nix develop -c tools/web/build-site.sh
 nix develop .#web -c python3 tools/web/test.py
 ```
 
-`tools/web/test.py` serves the site on a local port and drives headless
-Chromium (Playwright, from the `web` dev shell): the loader finishes, no
+`tools/web/test.py` serves the site on a local port, with the headers
+above, and drives headless Chromium (Playwright, from the `web` dev
+shell): index.html loads noite.js, the wasm and the manifest by hash and
+every other request carries `h=`; a seeded cache of the loader before the
+hashes is migrated (good files reused, a corrupted one downloaded) and
+deleted; the loader finishes, no
 AudioContext exists before a gesture and one runs after Jogar, the wasm
 gets the Original version with video skipping, a click 3 s into the
 opening video reaches the title screen, JOGAR + NOVO JOGO start the
@@ -190,6 +220,10 @@ centred with its aspect ratio, and the buttons stay off the game unless
 the letterbox has no room (`window-WxH.png`); then the version button
 reloads into
 the Corrigida version, which loads every file from Cache Storage, has
-every fix on in the wasm and is remembered. Screenshots go to
+every fix on in the wasm and is remembered. Last, a simulated deploy: a
+hard-linked copy of the site with `noite.js` and one disc file changed,
+restamped and served at the same origin; the reload downloads only that
+file, runs the new `noite.js`, drops the stale cache entry and starts the
+game. Screenshots go to
 `zig-out/web-test/` (`title.png`, `bedroom.png`, `drawer.png`,
 `window-*.png`, `cache.png`).
