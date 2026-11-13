@@ -1,6 +1,6 @@
 //! Port unit `handler_3fsauna` (handler). scene handler 1020:7f58.
 //!
-//! The sauna. A right click (once) plays the attendant's animation and its
+//! The sauna. A right click (once) plays the attendant's animation once and its
 //! wave; when the wave ends the SAUNA minigame (`sauna\sauna.exe`, window
 //! "Sauna Mista") is launched and timer 0x14 polls for its window to hand it
 //! the main window (0x40b). Its 0x40c hides the main window; its 0x40a result
@@ -16,7 +16,7 @@ const Object = @import("../core/object.zig").Object;
 const game_scenes = @import("../game_scenes.zig");
 const sound = @import("../sound.zig");
 const update_list = @import("../update_list.zig");
-const tick = @import("../behaviour/tick.zig");
+const animation = @import("../behaviour/animation.zig");
 
 const wm = msg.wm;
 const noite = msg.noite;
@@ -70,7 +70,9 @@ pub fn handle(g: *Game, m: Msg) i16 {
             if (s.started == 0) {
                 s.started = 1;
                 if (s.sboal) |obj| {
-                    tick.play(g, obj, g.scene.?.backdrop.?);
+                    // Cast to Animation (slot 0x124), then Animation slot
+                    // 0x1c: play once.
+                    animation.playOnce(g, obj.as(.animation).?, g.scene.?.backdrop.?);
                     _ = sound.play(g, msg.main_window, obj.wave);
                 } else {
                     _ = sound.play(g, msg.main_window, null);

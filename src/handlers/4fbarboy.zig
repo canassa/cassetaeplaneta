@@ -153,9 +153,17 @@ fn flush(g: *Game) void {
     update_list.discard(&g.updateList);
 }
 
+/// Cast to Animation (slot 0x124), then SceneObject slot 0xc0 on its base:
+/// looping play.
 fn playAnim(g: *Game, o: ?*Object) void {
     const obj = must(Object, o);
     tick.play(g, must(Object, obj.as(.animation)), bdOf(g));
+}
+
+/// Cast to Animation (slot 0x124), then Animation slot 0x1c: play once.
+fn playAnimOnce(g: *Game, o: ?*Object) void {
+    const obj = must(Object, o);
+    animation.playOnce(g, must(Object, obj.as(.animation)), bdOf(g));
 }
 
 fn waveOf(g: *Game, o: ?*Object) void {
@@ -247,7 +255,7 @@ pub fn handle(g: *Game, m: Msg) i16 {
                 render.draw(g, must(Object, g.controlPanel), bdOf(g));
                 flush(g);
                 s.served = 1;
-                playAnim(g, s.boys);
+                playAnimOnce(g, s.boys);
                 waveOf(g, s.boys);
                 return 0;
             }
@@ -318,7 +326,7 @@ fn rbuttonDown(g: *Game, s: *State, m: Msg) i16 {
                 resetDraw(g, s.esoteric);
                 render.draw(g, must(Object, g.controlPanel), bd);
                 flush(g);
-                playAnim(g, s.barman);
+                playAnimOnce(g, s.barman);
                 waveOf(g, s.barman);
                 return 1;
             }
@@ -392,8 +400,8 @@ fn rbuttonUp(g: *Game, s: *State, m: Msg) i16 {
         resetDraw(g, s.esoteric);
         render.draw(g, must(Object, g.controlPanel), bd);
         flush(g);
-        playAnim(g, s.drunk);
-        playAnim(g, s.smarr);
+        playAnimOnce(g, s.drunk);
+        playAnimOnce(g, s.smarr);
         playPath(g, cstr.slice(&buf));
         return 0;
     }

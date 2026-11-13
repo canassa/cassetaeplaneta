@@ -252,26 +252,35 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   minigame, and the next stale tick with the exit's timer id runs `exit_tick` on the video exit, which posts
   0x402 and takes the INI exit:
   - 3fsegura's guard (timer 5, 150 ms, never stopped) → 3fstreet's video exit (timer 5) goes to `3fhall`.
-  - 3fsauna's attendant `3sboal` (timer 6, 200 ms, started by the right click that leads to the SAUNA game,
-    never stopped) → 3ffarao's video exit (timer 6) goes to `JTETRIS`, which is not an INI section:
-    `ini_seek_section` 1018:9caa shows "Não consegui encontrar a sessão procurada" and returns 0 without
-    seeking, so `ini_scene_create` 1018:6bee reads on from where the file was left (the `[3fhall]` header
-    after `[3ffarao]`) and stops with "Linha [3fhall]] inválida" and `exit(1)`.
+  - 3fsauna's attendant `3sboal` (timer 6, 200 ms) → 3ffarao's video exit (timer 6) goes to `JTETRIS`,
+    which is not an INI section: `ini_seek_section` 1018:9caa shows "Não consegui encontrar a sessão
+    procurada" and returns 0 without seeking, so `ini_scene_create` 1018:6bee reads on from where the file
+    was left (the `[3fhall]` header after `[3ffarao]`) and stops with "Linha [3fhall]] inválida" and
+    `exit(1)`. The right click plays the attendant *once* (1020:802a–8057: Animation slot 0x1c,
+    `animation_play_once`): 8 ticks, the last 1.6 s after the click, which stops it and kills its timer.
+    Its wave GLOBO2.WAV ends at 1.415 s and launches SAUNA.EXE (timer 0x14 polls for its window every
+    100 ms); once the minigame's 0x40c arrives, the sauna handler swallows every WM_SYSTIMER
+    (1020:7fe6–8012, returns 1). If that happens before the last tick, the attendant is frozen mid-play
+    with its timer running, and the timer outlives the scene. In 3ffarao the same race decides again: the
+    stale tick must come after the video ends and before ENCAIXE.EXE's 0x40c, from which 3ffarao's handler
+    swallows the ticks in turn.
 - **Effect:** 3fstreet: depending on which comes first, the street escape minigame result arrives in 3fhall
   (whose handler takes it for the shooting gallery's: a win sends the player to 3fprisao), or the hall's own
   FindWindow poll reports a lost game (a life) first. The player can end up in the hall without having played
-  the escape, or lose a life for it. 3ffarao: once the sauna has been visited, taking the pharaoh door ends the
-  program with a fatal INI error when the pharaoh video ends (any door order that puts the sauna first; the
-  playthrough with `hall_shuffle_each_visit` hits it). Repro (faithful build):
-  `--scene 3fhall` and right clicks on the sauna door, in the sauna, then on the pharaoh door (which doors
-  depends on the shuffle).
-- **Evidence:** port traces (`noite --trace`): timer 5 runs from 3fsegura on, timer 6 from 3fsauna on; the
-  code paths above.
+  the escape, or lose a life for it. 3ffarao: once the sauna has been visited, taking the pharaoh door can
+  end the program with a fatal INI error when the pharaoh video ends, if SAUNA.EXE showed its window by the first 100 ms poll and answered within the next ~85 ms (and ENCAIXE.EXE
+  was not faster than the stale tick). With the port's stub minigames (window after 1.5 s) it does not
+  happen; `--minigame-startup 0 --minigame-reply 0` reproduces it (faithful build, `--scene 3fhall`: right
+  clicks on the sauna door (x 560 in that run's shuffle), in the sauna, then on the pharaoh door (x 210)).
+- **Evidence:** port traces (`noite --trace`): timer 5 runs from 3fsegura on, timer 6 from 3fsauna on when
+  the minigame answers before the attendant's last tick; the code paths above. The port used to start the
+  attendant looping (SceneObject `play`), which kept timer 6 alive in every run and made the 3ffarao fatal
+  error deterministic; it now plays once, as the original.
 - **Port:** reproduced; `Fixes.avi_exit_ignores_timer` does not tick a video (`isAvi`) exit from the timer path.
   The playthrough script relies on the 3fstreet shortcut, so its `--fix` run leaves this fix (and the door
   reshuffle) out.
-- **Confidence:** 8 (code, port traces); 5 (how often the 3fstreet timing lines up in the original; the 3ffarao
-  case does not depend on timing).
+- **Confidence:** 8 (code, port traces); 5 (how often the 3fstreet timing lines up in the original, and how
+  fast SAUNA.EXE and ENCAIXE.EXE start and answer on a period machine for the 3ffarao case).
 
 ### B22. 2ftaxi keeps handling a click on the scene it has just deleted (use after free)
 - **Where:** `handler_2ftaxi` 1020:9a3a: a right click on the exit to 3fentseg switches scenes and returns 0.
@@ -333,7 +342,7 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
 ### B26. A walk that is still going on when the scene changes resumes in the new scene (and leaves a frame behind)
 - **Where:** `game_take_exit` 1018:12c6, `ini_game_switch_scene` 1018:15ea and `ini_game_load_game` 1018:5274
   put the player with `moveToAndDrop` + `show` + `playIdle` and never stop its movement; WM_SYSTIMER
-  (1018:01e2) runs `moveTick` on the player's timer (shared with its animation) while `moving` is set.
+  (1018:04ee→050a) runs `moveTick` on the player's timer (shared with its animation) while `moving` is set.
 - **What the code does:** a walk started before the exit animation ends (a click while the door opens, or
   an exit clicked mid-walk) keeps `moving`, the Bresenham state and `nextX/nextY` from the old scene. The
   first tick in the new scene steps from that stale next position: the player jumps there (`prevX/prevY`
@@ -398,7 +407,7 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
 - **Where:** `game_handle_message` 1018:0000, WM_RBUTTONUP: `moveToAndDrop` (1018:0e1b) and `setElevation`
   (0e37) at the release point, then Object3D slot 01 (0e64, `object3d_find_support` 1010:5b3c): the *first*
   visible object of the scene list, then the global list, for which `object3d_is_above_on_screen` 1010:5a2a
-  (the item's hit box spans the other's horizontally and its top is higher) or `scene_object_hitbox_overlaps`
+  (the item's hit box overlaps the other's horizontally and its top is strictly higher) or `scene_object_hitbox_overlaps`
   1010:bc1e (5bd8) holds. Overlapping hit boxes (1018:0f22, `JNZ 10d3`): no move. Otherwise the item walks to
   `y = height/2 + (front + back)/2` of the support's projected top face (two `perspective_project_point`
   1010:4964 calls, 0f80/0fed), capped at `viewHeight − 100` (1031–103f); with no support, to
@@ -631,6 +640,10 @@ Usability changes the "Corrigida" version (`Fixes.all()`) turns on; the original
   URSOR01.WAV plays to its end. (The port's WaveMix simulation used to keep the freed wave's
   notification, which cut the bear after 2 s.) Only a completion already posted before the switch can
   still reach the new scene, as in Windows.
+- **4fbarboy's barman, drunk, Smarr and boys play once; the front barman loops:** the four are cast to
+  Animation and started with its slot 0x1c, `animation_play_once` (1020:a3af→a3d3, aa37→aa5d, aa6a→aa90,
+  b658→b67e); only BarmanFront goes through SceneObject slot 0xc0 (looping play). (The port used to loop
+  all of them, and the 3fsauna attendant too: B21.)
 - **4fbar's PtInRect** compares window coordinates with scene coordinates, but `[4fbar]` is 640×480 and
   never scrolls. Its `DEC; JNS` lives test is in B1; `okvamp.wav` is rescued by `PAN\WAV`.
 - **The `exit_has_key_object` call in `ini_scene_handle_message`** (1018:9548) pushes a dword NULL (66-prefixed),
