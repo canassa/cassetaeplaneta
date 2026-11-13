@@ -61,9 +61,10 @@ const InputRing = struct {
     }
 };
 
-/// The page's key codes for `key` (KeyboardEvent.keyCode of the arrows,
-/// which are the Win16 virtual keys).
-pub const Key = enum(u16) { left = 0x25, up = 0x26, right = 0x27, down = 0x28 };
+/// The page's key codes for `key` (KeyboardEvent.keyCode, which are the
+/// Win16 virtual keys): the arrows, and the keys that skip a video
+/// (`Sim.filterInput`; the page sends them only when that is on).
+pub const Key = enum(u16) { enter = 0x0d, escape = 0x1b, space = 0x20, left = 0x25, up = 0x26, right = 0x27, down = 0x28 };
 
 pub const Web = struct {
     sim: Sim,
@@ -78,12 +79,13 @@ pub const Web = struct {
     /// GetTickCount after boot).
     epoch_ms: f64,
 
-    pub fn init(w: *Web, gpa: std.mem.Allocator) void {
+    pub fn init(w: *Web, gpa: std.mem.Allocator, skip_videos: bool) void {
         w.* = .{
             .sim = .init(gpa, std.Io.failing, .{
                 .decode_video = true,
                 .keep_audio = true,
                 .host_files = .{ .ctx = w, .read = hostRead, .save = hostSave },
+                .skip_videos = skip_videos,
             }),
             .epoch_ms = js.js_now(),
         };
@@ -144,7 +146,7 @@ pub const Web = struct {
         w.input.push(.{ .input = msg.Msg.make(id, w.buttons, cx, cy) });
     }
 
-    /// An arrow key from the page (other keys are not passed on).
+    /// A key from the page (only `Key`s are passed on).
     pub fn key(w: *Web, down: bool, k: Key) void {
         w.input.push(.{ .input = .{ .id = if (down) wm.keydown else wm.keyup, .wparam = @backingInt(k) } });
     }
@@ -287,6 +289,10 @@ pub const Web = struct {
         return p.defaultButton(style);
     }
 
+    fn filterInput(ptr: *anyopaque, m: p.Msg) ?p.Msg {
+        return self(ptr).sim.filterInput(ticks(ptr), m);
+    }
+
     const vtable: p.Platform.VTable = .{
         .ticks = ticks,
         .unixTime = unixTime,
@@ -321,5 +327,6 @@ pub const Web = struct {
         .postTo = postTo,
         .showMain = showMain,
         .messageBox = messageBox,
+        .filterInput = filterInput,
     };
 };

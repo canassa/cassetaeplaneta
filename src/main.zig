@@ -3,7 +3,7 @@
 //!     noite [--headless] [--ms N] [--assets DIR] [--save DIR] [--trace FILE]
 //!           [--input FILE] [--dump DIR] [--dump-every MS] [--bmp]
 //!           [--scene NAME [--take ID,ID…]] [--minigame win|lose] [--quiet]
-//!           [--fix NAME,…|all]
+//!           [--fix NAME,…|all] [--skip-videos]
 //!
 //! The test harness (`platform/harness.zig`): `--input` plays a script of
 //! timed mouse/keyboard input (`platform/script.zig`), `--dump` writes
@@ -117,20 +117,13 @@ pub fn main(init: std.process.Init) !void {
             const list = it.next() orelse return error.MissingValue;
             var names = std.mem.tokenizeScalar(u8, list, ',');
             while (names.next()) |name| {
-                var found = false;
-                inline for (@typeInfo(core.fixes.Fixes).@"struct".field_names) |field| {
-                    // `all` is every bug fix; quitting on INI errors is a choice.
-                    const in_all = std.mem.eql(u8, name, "all") and !std.mem.eql(u8, field, "quit_on_ini_error");
-                    if (in_all or std.mem.eql(u8, name, field)) {
-                        @field(args.fixes, field) = true;
-                        found = true;
-                    }
-                }
-                if (!found) {
+                if (!args.fixes.set(name)) {
                     std.log.err("unknown fix {s} (see src/core/fixes.zig)", .{name});
                     return error.BadArgument;
                 }
             }
+        } else if (std.mem.eql(u8, a, "--skip-videos")) {
+            args.opts.skip_videos = true;
         } else if (std.mem.eql(u8, a, "--take")) {
             args.harness.take = it.next() orelse return error.MissingValue;
         } else if (std.mem.eql(u8, a, "--quiet")) {
@@ -237,7 +230,7 @@ fn deliver(g: *Game, ev: platform.api.Event) void {
         .quit => _ = g.send(.{ .id = wm.close }),
         // WM_ACTIVATE is sent, not posted.
         .activate => |on| _ = g.send(.{ .id = wm.activate, .wparam = @intFromBool(on) }),
-        .input => |m| g.queue.postInput(m),
+        .input => |m| if (g.plat.filterInput(m)) |in| g.queue.postInput(in),
         .message => |m| _ = g.post(m),
     }
 }

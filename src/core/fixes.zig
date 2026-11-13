@@ -11,6 +11,8 @@
 //! panics naming the bug: L5–L7).
 //! Add a flag here (with its BUGS.md id) when you port a bug's site.
 
+const std = @import("std");
+
 pub const Fixes = struct {
     /// B1: 2fsuabig, 2fasspap and 4fboydj take a life without the game-over
     /// test; with the fix they switch to `6fsaida` when lives reach 0.
@@ -57,4 +59,35 @@ pub const Fixes = struct {
     /// `ini_fatal_error` ("Erro Fatal!") quits (`error.Fatal`) instead of
     /// returning 0 and letting the caller carry on as the original does.
     quit_on_ini_error: bool = false,
+
+    /// Every bug fix (`--fix all`, the web build's "Corrigida" version):
+    /// all flags but `quit_on_ini_error`, which is a choice.
+    pub fn all() Fixes {
+        var f: Fixes = .{};
+        _ = f.set("all");
+        return f;
+    }
+
+    /// Turns on the fix `name` (a field name) or, for `all`, every bug
+    /// fix. False if `name` is neither.
+    pub fn set(f: *Fixes, name: []const u8) bool {
+        var found = false;
+        inline for (@typeInfo(Fixes).@"struct".field_names) |field| {
+            const in_all = std.mem.eql(u8, name, "all") and !std.mem.eql(u8, field, "quit_on_ini_error");
+            if (in_all or std.mem.eql(u8, name, field)) {
+                @field(f, field) = true;
+                found = true;
+            }
+        }
+        return found;
+    }
 };
+
+test "all is every bug fix, not the INI-error choice" {
+    const f = Fixes.all();
+    try std.testing.expect(f.lives_game_over and f.status_bar_text and f.score_32bit);
+    try std.testing.expect(!f.quit_on_ini_error);
+    var g: Fixes = .{};
+    try std.testing.expect(g.set("dance_music_path") and g.dance_music_path and !g.lives_game_over);
+    try std.testing.expect(!g.set("nonsense"));
+}

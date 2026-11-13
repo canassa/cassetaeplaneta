@@ -166,6 +166,11 @@ pub const Headless = struct {
         return p.defaultButton(style);
     }
 
+    fn filterInput(ptr: *anyopaque, m: p.Msg) ?p.Msg {
+        const h = self(ptr);
+        return h.sim.filterInput(h.now, m);
+    }
+
     const vtable: p.Platform.VTable = .{
         .ticks = ticks,
         .unixTime = unixTime,
@@ -200,6 +205,7 @@ pub const Headless = struct {
         .postTo = postTo,
         .showMain = showMain,
         .messageBox = messageBox,
+        .filterInput = filterInput,
     };
 };
 

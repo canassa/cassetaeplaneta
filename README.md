@@ -21,7 +21,9 @@ nix develop -c ./zig-out/bin/noite             # the game in an SDL3 window
 ```
 
 Original bugs are reproduced; `--fix all` (or `--fix name,…`, see
-`src/core/fixes.zig` and `BUGS.md`) turns their fixes on. The minigames
+`src/core/fixes.zig` and `BUGS.md`) turns their fixes on. Videos play to
+the end as in the original; `--skip-videos` lets a click, a right click or
+Esc/Enter/Space end one (a convenience, not a fix). The minigames
 (separate EXEs) are stubbed: they report a win, or a loss with
 `--minigame lose`. Saves go to `save/` (`--save DIR`).
 

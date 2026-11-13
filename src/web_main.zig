@@ -48,11 +48,15 @@ export fn __main_argc_argv(argc: c_int, argv: ?*anyopaque) c_int {
     return 0;
 }
 
-/// WinMain up to the message loop. 0 on success.
-export fn noite_start() i32 {
-    backend.init(gpa);
+/// WinMain up to the message loop. 0 on success. The page's options:
+/// `fixes` turns every BUGS.md fix on (`--fix all`, the "Corrigida"
+/// version), `skip_videos` lets a click or Esc/Enter/Space end a video
+/// (`--skip-videos`).
+export fn noite_start(fixes: bool, skip_videos: bool) i32 {
+    backend.init(gpa, skip_videos);
     const g = Game.create(gpa, backend.platform()) catch return 1;
     game = g;
+    if (fixes) g.fixes = .all();
     g.wndProc = units.app.wndProc;
     units.app.start(g) catch |e| {
         std.log.err("app start: {t}", .{e});
@@ -91,7 +95,7 @@ fn deliver(g: *Game, ev: api.Event) void {
     switch (ev) {
         .quit => _ = g.send(.{ .id = wm.close }),
         .activate => |on| _ = g.send(.{ .id = wm.activate, .wparam = @intFromBool(on) }),
-        .input => |m| g.queue.postInput(m),
+        .input => |m| if (g.plat.filterInput(m)) |in| g.queue.postInput(in),
         .message => |m| _ = g.post(m),
     }
 }
@@ -100,7 +104,7 @@ export fn noite_mouse(kind: u32, button: u32, x: u32, y: u32) void {
     backend.mouse(@truncate(kind), @truncate(button), @truncate(@min(x, 0xffff)), @truncate(@min(y, 0xffff)));
 }
 
-/// `code`: KeyboardEvent.keyCode; only the arrows are passed on.
+/// `code`: KeyboardEvent.keyCode; only `web.Key`s are passed on.
 export fn noite_key(down: bool, code: u32) void {
     const k = std.enums.fromInt(web.Key, code) orelse return;
     backend.key(down, k);
@@ -124,6 +128,14 @@ export fn noite_audio(frames: u32) [*]const i16 {
 
 export fn noite_audio_rate() u32 {
     return mixer.out_rate;
+}
+
+/// Test hook (tools/web/test.py): the options `noite_start` got, as bits
+/// (1: every fix on, 2: skip videos); -1 before the start.
+export fn noite_options() i32 {
+    const g = game orelse return -1;
+    const all = std.meta.eql(g.fixes, .all());
+    return @as(i32, @intFromBool(all)) | @as(i32, @intFromBool(backend.sim.opts.skip_videos)) << 1;
 }
 
 /// Test hook (tools/web/test.py): the current INI scene's name, NUL

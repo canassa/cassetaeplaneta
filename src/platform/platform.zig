@@ -292,6 +292,9 @@ pub const Platform = struct {
         // UI
         /// MessageBox(main window, text, caption, style): the button pressed.
         messageBox: *const fn (*anyopaque, caption: []const u8, text: []const u8, style: u16) i16,
+        /// Not Windows: the backend's look at input before the game queues
+        /// it (`Sim.filterInput`: skipping videos). Null = swallowed.
+        filterInput: *const fn (*anyopaque, m: Msg) ?Msg,
     };
 
     pub fn ticks(p: Platform) u32 {
@@ -430,5 +433,8 @@ pub const Platform = struct {
     }
     pub fn messageBox(p: Platform, caption: []const u8, text: []const u8, style: u16) i16 {
         return p.vtable.messageBox(p.ptr, caption, text, style);
+    }
+    pub fn filterInput(p: Platform, m: Msg) ?Msg {
+        return p.vtable.filterInput(p.ptr, m);
     }
 };

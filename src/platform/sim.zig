@@ -8,7 +8,8 @@
 
 const std = @import("std");
 const p = @import("platform.zig");
-const wm = @import("../core/msg.zig").wm;
+const msg = @import("../core/msg.zig");
+const wm = msg.wm;
 const noite = @import("../core/msg.zig").noite;
 const Font = @import("font.zig").Font;
 const flic = @import("flic.zig");
@@ -45,6 +46,9 @@ pub const Options = struct {
     /// A file store that replaces `assets_dir` and `save_dir` (the web
     /// backend, which has no file system).
     host_files: ?HostFiles = null,
+    /// Quality of life, not in the original (`Sim.filterInput`): a click,
+    /// a right click or Esc/Enter/Space while an AVI clip plays ends it.
+    skip_videos: bool = false,
 };
 
 /// Files from somewhere other than the host file system. Paths are
@@ -143,6 +147,18 @@ const Video = struct {
     saved_palette: ?[256]p.Rgb = null,
 };
 
+/// The presses `Sim.filterInput` swallowed whose release it still owes
+/// nothing to the game.
+const Swallowed = struct {
+    lbutton: bool = false,
+    rbutton: bool = false,
+    /// By `skip_keys` index.
+    keys: [skip_keys.len]bool = @splat(false),
+};
+
+/// The keys that skip a video: VK_RETURN, VK_ESCAPE, VK_SPACE.
+pub const skip_keys = [_]u16{ 0x0d, 0x1b, 0x20 };
+
 pub const Sim = struct {
     gpa: std.mem.Allocator,
     io: std.Io,
@@ -162,6 +178,9 @@ pub const Sim = struct {
     next_device: p.Device = 1,
     videos: std.ArrayList(Video) = .empty,
     mix: mixer.Mixer = .{},
+    /// Input that skipped a video: its release (and the button's bit in
+    /// the moves until then) is kept from the game too.
+    swallowed: Swallowed = .{},
 
     pub fn init(gpa: std.mem.Allocator, io: std.Io, opts: Options) Sim {
         return .{ .gpa = gpa, .io = io, .opts = opts };
@@ -881,6 +900,72 @@ pub const Sim = struct {
         s.freeVideo(i);
     }
 
+    /// Ends every playing AVI clip as if it had played to the end: its
+    /// pending MM_MCINOTIFY (successful) falls due `now`; frames and sound
+    /// stop where they are. The notification is moved, not added, so the
+    /// game gets exactly one. False when no clip has one pending (none
+    /// plays, or its end was already delivered).
+    pub fn skipVideos(s: *Sim, now: u32) bool {
+        var any = false;
+        for (s.pending.items) |*pe| {
+            if (pe.ev != .message) continue;
+            const m = pe.ev.message;
+            if (m.id != wm.mm_mcinotify or m.wparam != mci_notify_successful) continue;
+            const i = s.video(m.lo()) orelse continue;
+            const v = &s.videos.items[i];
+            pe.due = now;
+            if (v.playing and v.pcm_bytes != null) s.mix.video.stop();
+            v.playing = false;
+            any = true;
+        }
+        return any;
+    }
+
+    /// Input on its way to the game. With `Options.skip_videos` (quality
+    /// of life, not in the original, whose MCIAVI window ignored input) a
+    /// left or right button press, or Esc/Enter/Space, while a clip plays
+    /// ends the clip (`skipVideos`) and is swallowed, and so is its release
+    /// (and the button's MK_* bit in the mouse messages before it). Null =
+    /// swallowed; without the option every message passes unchanged.
+    pub fn filterInput(s: *Sim, now: u32, m: p.Msg) ?p.Msg {
+        switch (m.id) {
+            wm.lbuttonup => if (s.swallowed.lbutton) {
+                s.swallowed.lbutton = false;
+                return null;
+            },
+            wm.rbuttonup => if (s.swallowed.rbutton) {
+                s.swallowed.rbutton = false;
+                return null;
+            },
+            wm.keyup => for (skip_keys, &s.swallowed.keys) |k, *held| {
+                if (k == m.wparam and held.*) {
+                    held.* = false;
+                    return null;
+                }
+            },
+            else => {},
+        }
+        var out = m;
+        if (m.id >= wm.mousemove and m.id <= wm.mousemove + 9) {
+            if (s.swallowed.lbutton) out.wparam &= ~msg.mk.lbutton;
+            if (s.swallowed.rbutton) out.wparam &= ~msg.mk.rbutton;
+        }
+        if (!s.opts.skip_videos) return out;
+        const key = std.mem.indexOfScalar(u16, &skip_keys, m.wparam);
+        switch (m.id) {
+            wm.lbuttondown, wm.rbuttondown => {},
+            wm.keydown => if (key == null) return out,
+            else => return out,
+        }
+        if (!s.skipVideos(now)) return out;
+        switch (m.id) {
+            wm.lbuttondown => s.swallowed.lbutton = true,
+            wm.rbuttondown => s.swallowed.rbutton = true,
+            else => s.swallowed.keys[key.?] = true,
+        }
+        return null;
+    }
+
     // ---- minigames ------------------------------------------------------------
 
     /// Minigame EXE base name → window title (ledger, Unit 13).
@@ -1048,6 +1133,52 @@ test "AVI frames are drawn onto the screen as they fall due" {
     try std.testing.expect(std.mem.indexOfNone(u8, &screen.pixels, &.{0}) != null);
     s.aviClose(dev, &screen);
     try std.testing.expectEqual(@as(u8, 0), screen.palette[1].r); // restored
+}
+
+test "a click skips the playing AVI: one notification, now, and no click" {
+    var s = Sim.init(std.testing.allocator, std.testing.io, .{ .skip_videos = true });
+    defer s.deinit();
+    var screen: p.Screen = .{};
+    var dev: p.Device = 0;
+    const down = msg.Msg.make(wm.lbuttondown, msg.mk.lbutton, 10, 10);
+    const up = msg.Msg.make(wm.lbuttonup, 0, 10, 10);
+    // No clip: input passes.
+    try std.testing.expectEqual(@as(?p.Msg, down), s.filterInput(0, down));
+    try std.testing.expectEqual(@as(?p.Msg, up), s.filterInput(0, up));
+    try std.testing.expectEqual(@as(u32, 0), s.aviOpen("\\1AMAO.AVI", &dev));
+    try std.testing.expectEqual(@as(u32, 0), s.aviPlay(100, dev, &screen));
+    // An unrelated key passes; the click is swallowed, with its move and release.
+    const left: msg.Msg = .{ .id = wm.keydown, .wparam = msg.vk.left };
+    try std.testing.expectEqual(@as(?p.Msg, left), s.filterInput(200, left));
+    try std.testing.expectEqual(@as(?p.Msg, null), s.filterInput(200, down));
+    try std.testing.expectEqual(@as(?u32, 200), s.nextDue());
+    try std.testing.expectEqual(@as(u16, 0), s.filterInput(210, msg.Msg.make(wm.mousemove, msg.mk.lbutton, 1, 1)).?.wparam);
+    // A second press before the end is delivered is swallowed too.
+    const esc: msg.Msg = .{ .id = wm.keydown, .wparam = 0x1b };
+    try std.testing.expectEqual(@as(?p.Msg, null), s.filterInput(220, esc));
+    try std.testing.expectEqual(@as(?p.Msg, null), s.filterInput(230, up));
+    try std.testing.expectEqual(@as(?p.Msg, null), s.filterInput(230, .{ .id = wm.keyup, .wparam = 0x1b }));
+    const ev = s.poll(230).?.message;
+    try std.testing.expectEqual(wm.mm_mcinotify, ev.id);
+    try std.testing.expectEqual(@as(u16, 1), ev.wparam);
+    try std.testing.expectEqual(dev, ev.lo());
+    try std.testing.expectEqual(@as(?p.Event, null), s.poll(100_000));
+    // The end is out: input reaches the game again.
+    try std.testing.expectEqual(@as(?p.Msg, down), s.filterInput(240, down));
+    s.aviClose(dev, &screen);
+}
+
+test "without skip_videos a click during a clip passes" {
+    var s = Sim.init(std.testing.allocator, std.testing.io, .{});
+    defer s.deinit();
+    var screen: p.Screen = .{};
+    var dev: p.Device = 0;
+    try std.testing.expectEqual(@as(u32, 0), s.aviOpen("\\1AMAO.AVI", &dev));
+    try std.testing.expectEqual(@as(u32, 0), s.aviPlay(0, dev, &screen));
+    const down = msg.Msg.make(wm.lbuttondown, msg.mk.lbutton, 10, 10);
+    try std.testing.expectEqual(@as(?p.Msg, down), s.filterInput(5, down));
+    try std.testing.expectEqual(@as(?u32, 29 * 357), s.nextDue());
+    s.aviClose(dev, &screen);
 }
 
 test "hostKey turns DOS paths into lower-case store keys" {

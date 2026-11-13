@@ -209,6 +209,9 @@ pub const Sdl = struct {
                     c.key_right => msg.vk.right,
                     c.key_up => msg.vk.up,
                     c.key_down => msg.vk.down,
+                    // SDLK_RETURN/ESCAPE/SPACE are the virtual keys; only
+                    // passed on to skip videos.
+                    0x0d, 0x1b, 0x20 => if (s.sim.opts.skip_videos) @intCast(key) else return null,
                     else => return null,
                 };
                 return .{ .input = .{ .id = if (ty == c.event_key_down) wm.keydown else wm.keyup, .wparam = v } };
@@ -364,6 +367,10 @@ pub const Sdl = struct {
         return p.defaultButton(style);
     }
 
+    fn filterInput(ptr: *anyopaque, m: p.Msg) ?p.Msg {
+        return self(ptr).sim.filterInput(ticks(ptr), m);
+    }
+
     const vtable: p.Platform.VTable = .{
         .ticks = ticks,
         .unixTime = unixTime,
@@ -398,5 +405,6 @@ pub const Sdl = struct {
         .postTo = postTo,
         .showMain = showMain,
         .messageBox = messageBox,
+        .filterInput = filterInput,
     };
 };

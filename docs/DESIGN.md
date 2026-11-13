@@ -393,7 +393,12 @@ Play/Flush` with `PlayParams`: notify, loops, CLEARQUEUE, USELRUCHANNEL —
 results are the DLL's: 0 ok, MMSYSERR codes, 0/null handles), MCI
 (`mciString` for the sequencer/waveaudio commands, `aviOpen/Play/Stop/
 Close`), other programs (`winExec`, `findWindow`, `postTo`, `showMain`)
-and `messageBox(caption, text, style) → button`.
+and `messageBox(caption, text, style) → button`. One hook is not Windows:
+`filterInput`, which every input message passes before the game queues it
+(`main.zig`, `web_main.zig`, the harness's scripted input); with
+`Options.skip_videos` (`--skip-videos`, the web page's default) a click or
+Esc/Enter/Space during an AVI clip ends it — its pending MM_MCINOTIFY
+(successful) falls due at once — and is swallowed with its release.
 
 Backends: **headless** (virtual clock, scripted input; tests, traces;
 message boxes answer their first button), **SDL3** (window, palette →

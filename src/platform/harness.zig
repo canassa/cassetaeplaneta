@@ -102,7 +102,7 @@ pub const Harness = struct {
         while (h.script.due(now, scene_name)) |a| {
             did = true;
             switch (a) {
-                .input => |m| g.queue.postInput(m),
+                .input => |m| if (g.plat.filterInput(m)) |in| g.queue.postInput(in),
                 .dump => |name| h.dump(g, name),
                 .scene => |j| h.jump(g, j),
                 .log => |text| std.debug.print("[{d}] log: {s}\n", .{ now, text }),
