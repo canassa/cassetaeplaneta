@@ -1,4 +1,4 @@
-//! SDL3 backend: a 640×480 window showing the palettized screen, mouse and
+//! SDL3 backend: a window of the original's client size (platform.client_*) showing the palettized screen, mouse and
 //! arrow keys as Win16 input messages, the real clock, and an audio stream
 //! fed from `Sim`'s mixer (waves, AVI soundtracks, MIDI through
 //! TinySoundFont with the SoundFont in `$NOITE_SOUNDFONT`). Files, media
@@ -18,6 +18,7 @@ const c = struct {
     const Window = opaque {};
     const Renderer = opaque {};
     const Texture = opaque {};
+    const FRect = extern struct { x: f32, y: f32, w: f32, h: f32 };
     const init_video: u32 = 0x20;
     const init_audio: u32 = 0x10;
     const AudioStream = opaque {};
@@ -91,7 +92,7 @@ pub const Sdl = struct {
 
     pub fn init(s: *Sdl, gpa: std.mem.Allocator, io: std.Io, opts: Options) !void {
         if (!c.SDL_Init(c.init_video | c.init_audio)) return fail("SDL_Init");
-        const win = c.SDL_CreateWindow("Casseta & Planeta - Noite Animal", p.screen_width, p.screen_height, 0) orelse return fail("SDL_CreateWindow");
+        const win = c.SDL_CreateWindow("Casseta & Planeta - Noite Animal", p.client_width, p.client_height, 0) orelse return fail("SDL_CreateWindow");
         const ren = c.SDL_CreateRenderer(win, null) orelse return fail("SDL_CreateRenderer");
         const tex = c.SDL_CreateTexture(ren, c.pixelformat_xrgb8888, c.textureaccess_streaming, p.screen_width, p.screen_height) orelse return fail("SDL_CreateTexture");
         var o = opts;
@@ -255,22 +256,23 @@ pub const Sdl = struct {
         for (&s.rgb, s.screen_buf.pixels) |*o, i| o.* = lut[i];
         _ = c.SDL_UpdateTexture(s.texture, null, &s.rgb, p.screen_width * 4);
         _ = c.SDL_RenderClear(s.renderer);
-        _ = c.SDL_RenderTexture(s.renderer, s.texture, null, null);
+        const client: c.FRect = .{ .x = 0, .y = 0, .w = p.client_width, .h = p.client_height };
+        _ = c.SDL_RenderTexture(s.renderer, s.texture, &client, null);
         _ = c.SDL_RenderPresent(s.renderer);
     }
 
     /// Test hook: what the renderer shows, read back from SDL (not the
     /// game's 8-bit screen), as XRGB8888 into `out`. False on failure.
-    pub fn readBack(s: *Sdl, out: *[p.screen_width * p.screen_height]u32) bool {
+    pub fn readBack(s: *Sdl, out: *[p.client_width * p.client_height]u32) bool {
         const raw = c.SDL_RenderReadPixels(s.renderer, null) orelse return false;
         defer c.SDL_DestroySurface(raw);
         const conv = c.SDL_ConvertSurface(raw, c.pixelformat_xrgb8888) orelse return false;
         defer c.SDL_DestroySurface(conv);
-        if (conv.w < p.screen_width or conv.h < p.screen_height) return false;
+        if (conv.w < p.client_width or conv.h < p.client_height) return false;
         const base: [*]const u8 = @ptrCast(conv.pixels orelse return false);
-        for (0..p.screen_height) |y| {
+        for (0..p.client_height) |y| {
             const src: [*]align(1) const u32 = @ptrCast(base + y * @as(usize, @intCast(conv.pitch)));
-            @memcpy(out[y * p.screen_width ..][0..p.screen_width], src[0..p.screen_width]);
+            @memcpy(out[y * p.client_width ..][0..p.client_width], src[0..p.client_width]);
         }
         return true;
     }

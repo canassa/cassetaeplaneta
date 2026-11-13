@@ -88,7 +88,7 @@ def main():
 
         def at(x, y):
             box = page.locator("#screen").bounding_box()
-            return box["x"] + (x + 0.5) * box["width"] / 640, box["y"] + (y + 0.5) * box["height"] / 480
+            return box["x"] + (x + 0.5) * box["width"] / 638, box["y"] + (y + 0.5) * box["height"] / 459
 
         def click(x, y, button="left"):
             page.mouse.move(*at(x, y))

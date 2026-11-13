@@ -6,7 +6,8 @@
 "use strict";
 
 (() => {
-  const W = 640, H = 480;
+  const W = 640, H = 480; // framebuffer
+  const CW = 638, CH = 459; // client area (platform.client_*): what is shown
   const CONCURRENCY = 6;
   const RETRIES = 4;
   const SAVE_PREFIX = "noite:save:";
@@ -173,7 +174,7 @@
     },
     js_present: (ptr) => {
       const img = new ImageData(new Uint8ClampedArray(wasm.memory.buffer, ptr, W * H * 4), W, H);
-      ctx2d.putImageData(img, 0, 0);
+      ctx2d.putImageData(img, 0, 0, 0, 0, CW, CH);
     },
     js_show_main: (show) => {
       canvas.hidden = !show;
@@ -286,9 +287,9 @@
 
   function screenPos(e) {
     const r = canvas.getBoundingClientRect();
-    const x = Math.floor(((e.clientX - r.left) * W) / r.width);
-    const y = Math.floor(((e.clientY - r.top) * H) / r.height);
-    return [Math.max(0, Math.min(W - 1, x)), Math.max(0, Math.min(H - 1, y))];
+    const x = Math.floor(((e.clientX - r.left) * CW) / r.width);
+    const y = Math.floor(((e.clientY - r.top) * CH) / r.height);
+    return [Math.max(0, Math.min(CW - 1, x)), Math.max(0, Math.min(CH - 1, y))];
   }
 
   function attachInput() {
@@ -324,10 +325,10 @@
   }
 
   function fit() {
-    const s = Math.min(innerWidth / W, innerHeight / H);
+    const s = Math.min(innerWidth / CW, innerHeight / CH);
     const scale = s >= 1 ? Math.floor(s) : s; // whole pixels when it fits
-    canvas.style.width = W * scale + "px";
-    canvas.style.height = H * scale + "px";
+    canvas.style.width = CW * scale + "px";
+    canvas.style.height = CH * scale + "px";
   }
 
   // ---- main ---------------------------------------------------------------------

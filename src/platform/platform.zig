@@ -16,6 +16,17 @@ pub const Hwnd = msg.Hwnd;
 pub const screen_width = 640;
 pub const screen_height = 480;
 
+/// What the player sees: the original's client area. app_init (1018:3014)
+/// creates the window 640x480 with CreateWindow style 0x80C00000
+/// (WS_POPUP|WS_CAPTION), so on Windows 3.1 (VGA metrics: SM_CYCAPTION 20
+/// including the caption's bottom border line, SM_CXBORDER = SM_CYBORDER = 1)
+/// AdjustWindowRect leaves a client of 640-2 x 480-(20-1)-1 = 638x459. The
+/// game draws into the framebuffer from the client's top-left, so the
+/// framebuffer stays 640x480 and only its top-left client_width x
+/// client_height part is presented (the rest was never visible).
+pub const client_width = 638;
+pub const client_height = 459;
+
 /// An open file (the original's DOS handle).
 pub const File = u16;
 /// A wave opened through WaveMix.

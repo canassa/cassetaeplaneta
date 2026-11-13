@@ -124,7 +124,8 @@ server {
   `performance.now()`.
 - **Screen.** The 8-bit screen goes through the palette to RGBA once per
   frame when it changed (`js_present` → `putImageData`); the canvas is
-  scaled by CSS with `image-rendering: pixelated`, by whole pixels when
+  638×459, the original's client area (only that top-left part of the 640×480
+  framebuffer is drawn; clicks map 1:1 to game coordinates), scaled by CSS with `image-rendering: pixelated`, by whole pixels when
   the window allows.
 - **Input.** Pointer events → WM_MOUSEMOVE/L/RBUTTONDOWN/UP in screen
   pixels; the arrow keys → WM_KEYDOWN/UP; window focus → WM_ACTIVATE.

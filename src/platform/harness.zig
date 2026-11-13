@@ -154,7 +154,7 @@ pub const Harness = struct {
             std.log.err("dump {s}: {t}", .{ path, e });
         };
         if (h.sdl) |s| {
-            const px = h.gpa.create([p.screen_width * p.screen_height]u32) catch return;
+            const px = h.gpa.create([p.client_width * p.client_height]u32) catch return;
             defer h.gpa.destroy(px);
             if (!s.readBack(px)) {
                 std.log.err("dump: SDL read-back failed", .{});

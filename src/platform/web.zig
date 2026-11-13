@@ -32,7 +32,7 @@ pub const js = struct {
     pub extern "env" fn js_file_read(key: [*]const u8, len: usize, dst: [*]u8) void;
     /// Stores a save file.
     pub extern "env" fn js_file_save(key: [*]const u8, len: usize, data: [*]const u8, data_len: usize) void;
-    /// Shows `pixels` (640×480 RGBA) on the canvas.
+    /// Shows the client part (platform.client_*, top-left) of `pixels` (640×480 RGBA) on the canvas.
     pub extern "env" fn js_present(pixels: [*]const u8) void;
     /// ShowWindow: hides the canvas while a (stubbed) minigame runs.
     pub extern "env" fn js_show_main(show: bool) void;
@@ -125,10 +125,10 @@ pub const Web = struct {
     // ---- the page's side --------------------------------------------------
 
     /// A mouse event from the page: `kind` 0 move, 1 down, 2 up; `button`
-    /// 0 left, 2 right (MouseEvent.button); (x, y) in screen pixels.
+    /// 0 left, 2 right (MouseEvent.button); (x, y) in client pixels.
     pub fn mouse(w: *Web, kind: u8, button: u8, x: u16, y: u16) void {
-        const cx = @min(x, p.screen_width - 1);
-        const cy = @min(y, p.screen_height - 1);
+        const cx = @min(x, p.client_width - 1);
+        const cy = @min(y, p.client_height - 1);
         if (kind == 0) return w.input.push(.{ .input = msg.Msg.make(wm.mousemove, w.buttons, cx, cy) });
         const bit: u16 = switch (button) {
             0 => msg.mk.lbutton,

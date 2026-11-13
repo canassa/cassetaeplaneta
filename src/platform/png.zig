@@ -1,4 +1,5 @@
-//! Frame dumps for the test harness: the 640×480 8-bit screen and its
+//! Frame dumps for the test harness: the 8-bit screen's client area
+//! (638×459, what the player sees) and its
 //! palette as an indexed-colour PNG (or a BMP when the name ends in `.bmp`).
 //! Platform/debug code, not a port unit.
 
@@ -8,8 +9,8 @@ const flate = std.compress.flate;
 
 /// Encodes `scr` as an 8-bit palette PNG into `out`.
 pub fn encodePng(gpa: std.mem.Allocator, scr: *const p.Screen, out: *std.ArrayList(u8)) !void {
-    const w = p.screen_width;
-    const h = p.screen_height;
+    const w = p.client_width;
+    const h = p.client_height;
     try out.appendSlice(gpa, "\x89PNG\r\n\x1a\n");
 
     var ihdr: [13]u8 = undefined;
@@ -35,7 +36,7 @@ pub fn encodePng(gpa: std.mem.Allocator, scr: *const p.Screen, out: *std.ArrayLi
     defer gpa.free(raw);
     for (0..h) |y| {
         raw[y * (w + 1)] = 0;
-        @memcpy(raw[y * (w + 1) + 1 ..][0..w], scr.pixels[y * w ..][0..w]);
+        @memcpy(raw[y * (w + 1) + 1 ..][0..w], scr.pixels[y * p.screen_width ..][0..w]);
     }
     var z: std.Io.Writer.Allocating = try .initCapacity(gpa, 64 * 1024);
     defer z.deinit();
@@ -48,10 +49,10 @@ pub fn encodePng(gpa: std.mem.Allocator, scr: *const p.Screen, out: *std.ArrayLi
     try chunk(gpa, out, "IEND", "");
 }
 
-/// Encodes 640×480 XRGB8888 pixels (as SDL reads them back) as an RGB PNG.
+/// Encodes client-sized XRGB8888 pixels (as SDL reads them back) as an RGB PNG.
 pub fn encodeRgbPng(gpa: std.mem.Allocator, xrgb: []const u32, out: *std.ArrayList(u8)) !void {
-    const w = p.screen_width;
-    const h = p.screen_height;
+    const w = p.client_width;
+    const h = p.client_height;
     try out.appendSlice(gpa, "\x89PNG\r\n\x1a\n");
     var ihdr: [13]u8 = .{ 0, 0, 0, 0, 0, 0, 0, 0, 8, 2, 0, 0, 0 };
     std.mem.writeInt(u32, ihdr[0..4], w, .big);
@@ -94,13 +95,13 @@ fn chunk(gpa: std.mem.Allocator, out: *std.ArrayList(u8), kind: *const [4]u8, da
 
 /// Encodes `scr` as an 8-bit bottom-up BMP into `out`.
 pub fn encodeBmp(gpa: std.mem.Allocator, scr: *const p.Screen, out: *std.ArrayList(u8)) !void {
-    const w = p.screen_width;
-    const h = p.screen_height;
+    const w = p.client_width;
+    const h = p.client_height;
     const offset: u32 = 14 + 40 + 1024;
     var hdr: [offset]u8 = @splat(0);
     hdr[0] = 'B';
     hdr[1] = 'M';
-    std.mem.writeInt(u32, hdr[2..6], offset + w * h, .little);
+    std.mem.writeInt(u32, hdr[2..6], offset + ((w + 3) & ~@as(u32, 3)) * h, .little);
     std.mem.writeInt(u32, hdr[10..14], offset, .little);
     std.mem.writeInt(u32, hdr[14..18], 40, .little);
     std.mem.writeInt(i32, hdr[18..22], w, .little);
@@ -117,7 +118,8 @@ pub fn encodeBmp(gpa: std.mem.Allocator, scr: *const p.Screen, out: *std.ArrayLi
     var y: usize = h;
     while (y > 0) {
         y -= 1;
-        try out.appendSlice(gpa, scr.pixels[y * w ..][0..w]);
+        try out.appendSlice(gpa, scr.pixels[y * p.screen_width ..][0..w]);
+        try out.appendNTimes(gpa, 0, (4 - w % 4) % 4); // rows pad to 4 bytes
     }
 }
 
