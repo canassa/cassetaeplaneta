@@ -2,7 +2,7 @@
 """Browser test of the web build: headless Chromium through Playwright.
 
     nix develop -c tools/web/build-site.sh
-    nix develop .#web -c python3 tools/web/test.py [--site zig-out/site] [--out zig-out/web-test]
+    nix develop .#web -c python3 tools/web/test.py [--site zig-out/site | --url https://…] [--out zig-out/web-test]
 
 Serves the site on a local port and checks, with screenshots of the canvas
 in --out: the loader downloads every file and the title screen renders
@@ -46,11 +46,15 @@ def main():
     ap.add_argument("--site", default=str(ROOT / "zig-out" / "site"))
     ap.add_argument("--out", default=str(ROOT / "zig-out" / "web-test"))
     ap.add_argument("--headed", action="store_true")
+    ap.add_argument("--url", help="test a deployed site instead of serving --site")
     args = ap.parse_args()
     out = pathlib.Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    httpd = serve(pathlib.Path(args.site))
-    url = f"http://127.0.0.1:{httpd.server_address[1]}/"
+    if args.url:
+        url = args.url.rstrip("/") + "/"
+    else:
+        httpd = serve(pathlib.Path(args.site))
+        url = f"http://127.0.0.1:{httpd.server_address[1]}/"
     errors = []
 
     def check(ok, what):
@@ -135,7 +139,8 @@ def main():
         check(stats["fromCache"] == stats["files"], f"the second load comes from the cache ({stats})")
         check(not errors, "no page errors")
         browser.close()
-    httpd.shutdown()
+    if not args.url:
+        httpd.shutdown()
     print(f"screenshots in {out}")
 
 
