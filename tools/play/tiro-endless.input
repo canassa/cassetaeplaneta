@@ -1,0 +1,12 @@
+# TIRO alone, SPACE held for 3 s with Windows' key repeat (BUGS.md T1, T3).
+#
+#   zig-out/bin/noite --minigame tiro --headless --ms 30000 --key-repeat 500,33 --input tools/play/tiro-endless.input
+#
+# Original: the press and its repeats (from 500 ms, every 33 ms) each take
+# an arrow (T1, T2): `lives` drops about 3 per 100-ms target tick, so no
+# tick sees it at exactly 1 (T3), it goes negative and TIRO never ends: no
+# result at 30 s. With `--fix all` the latch holds (T1): one shot, 15 arrows
+# left, the game goes on: no result either.
+1000 hold space 3000
+2000 dump held
+29500 result none

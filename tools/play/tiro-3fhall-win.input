@@ -1,0 +1,58 @@
+# NOITE's hall (3fhall): the door this run's shuffle gives the shooting
+# gallery starts the real TIRO, which wins: NOITE gets 0x40c (hides), then
+# 0x40a won with +2100, shows itself, adds the score and goes to the
+# prison.
+#
+#   zig-out/bin/noite --headless --scene 3fhall --ms 40000 --input tools/play/tiro-3fhall-win.input
+#
+# The right click at 2000 is the WinExec; TIRO starts 1500 ms later (its
+# WM_CREATE at 3500 seeds the targets). The shots are `tools/tiro_plan.py
+# --start 3500 --win`. Same game with `--fix all`.
+2000 rclick 80 200
+3000 expect 3fhall
+4000 dump tiro
+# shot 1: right, girl
+5660 key left
+5780 key space
+# shot 2: straight, girl
+8090 key left
+8210 key space
+# shot 3: left, girl
+12680 key left
+12800 key space
+# shot 4: straight, girl
+13880 key right
+14000 key space
+# shot 5: left, girl
+15870 key left
+15990 key space
+# shot 6: left, girl
+17910 key space
+# shot 7: straight, girl
+19920 key right
+20040 key space
+# shot 8: left, girl
+21140 key left
+21260 key space
+# shot 9: right, girl
+25660 key left
+25780 key space
+# shot 10: straight, girl
+27110 key left
+27230 key space
+# shot 11: left, girl
+28910 key left
+29030 key space
+# shot 12: left, girl
+30790 key space
+# shot 13: left, girl
+33590 key space
+# shot 14: straight, girl
+34960 key right
+35080 key space
+# shot 15: straight, TIRO ends at the next target tick
+36130 key space
+36300 result won 2100
+36300 expect 3fprisao
+37000 state
+37000 dump prison

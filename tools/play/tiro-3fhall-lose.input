@@ -1,0 +1,49 @@
+# NOITE's hall (3fhall) starts the real TIRO, which loses: 0x40a lost with
+# -1050 (a negative score lowers NOITE's), a life less, back to the hall.
+#
+#   zig-out/bin/noite --headless --scene 3fhall --ms 30000 --input tools/play/tiro-3fhall-lose.input
+#
+# As tiro-3fhall-win: WinExec at 2000, TIRO starts at 3500; the shots are
+# `tools/tiro_plan.py --start 3500 --lose`. Same game with `--fix all`.
+2000 rclick 80 200
+3000 expect 3fhall
+# shot 1: straight, traveco
+3680 key right
+3800 key space
+4000 dump tiro
+# shot 2: straight, traveco
+5070 key space
+# shot 3: straight, hits nothing
+6340 key space
+# shot 4: straight, traveco
+8330 key space
+# shot 5: right, hits nothing
+9480 key right
+9600 key space
+# shot 6: straight, traveco
+10530 key left
+10650 key space
+# shot 7: straight, hits nothing
+11870 key space
+# shot 8: straight, hits nothing
+13360 key space
+# shot 9: straight, hits nothing
+15350 key space
+# shot 10: straight, traveco
+17340 key space
+# shot 11: straight, traveco
+18560 key space
+# shot 12: straight, hits nothing
+19560 key space
+# shot 13: right, hits nothing
+21430 key right
+21550 key space
+# shot 14: right, traveco
+23590 key space
+# shot 15: straight, TIRO ends at the next target tick
+24800 key left
+24920 key space
+25100 result lost -1050
+25100 expect 3fhall
+26000 state
+26000 dump hall
