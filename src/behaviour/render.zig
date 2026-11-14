@@ -264,6 +264,8 @@ fn controlPanelDraw(g: *Game, obj: *Object, bd: *Backdrop) void {
     if (g.fixes.panel_slots_show_background) fillSlots(g, obj, bd);
     if (obj.panel.isOpen != 0 and obj.anim.running == 0) {
         _ = panels.drawInventory(g, obj, bd);
+    } else if (g.fixes.panel_icons_while_sliding and obj.anim.running != 0) {
+        panels.drawInventorySliding(g, obj, bd);
     }
     panels.drawTexts(g, obj, bd);
 }

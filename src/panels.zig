@@ -146,6 +146,22 @@ pub fn drawInventory(g: *Game, obj: *Object, bd: *Backdrop) ?*ObjectList {
     return inv;
 }
 
+/// Not in the original (`Fixes.panel_icons_while_sliding`): the icons
+/// drawn while the panel slides, lowered with its art. A frame shows the
+/// art `getVisibleHeight` rows high, so the icons sit that much below
+/// where the open frame puts them (clipped at the screen's bottom).
+pub fn drawInventorySliding(g: *Game, obj: *Object, bd: *Backdrop) void {
+    const open_h: i16 = (frames.frameCount(obj) -% 1 +% 2) *% 0x14;
+    const dy = open_h -% getVisibleHeight(g, obj);
+    const inv = &g.player.?.actor.inventory;
+    var item = inv.head;
+    var index: i16 = 0;
+    while (item) |it| : (index +%= 1) {
+        portable.drawIcon(g, it, bd, index *% slot_w +% slot_x, obj.y +% 0x46 +% dy) catch {};
+        item = it.next;
+    }
+}
+
 // @orig 1018:24a6 control_panel_is_outside
 /// ControlPanel slot 0D: false when the point lies inside the panel's
 /// rectangle (position + frame size).
