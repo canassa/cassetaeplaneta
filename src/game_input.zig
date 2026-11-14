@@ -97,6 +97,16 @@ fn flushUpdates(g: *Game) void {
 /// Game slot 00: offers the message to the scene, then to the hook, and
 /// otherwise does the engine's default handling. Non-zero = handled.
 pub fn handleMessage(g: *Game, m: Msg) i32 {
+    // B23's fix: the reply to the last offer is over once its handler has
+    // seen the wave end.
+    defer if (m.id == wm.mm_wom_done) {
+        g.offered = null;
+    };
+    // Until then the right button does nothing: its press would select
+    // another item (the reply's end takes that one back or consumes it)
+    // and set the handler's hit object (no object: the offered item is
+    // never taken back).
+    if (g.fixes.reply_keeps_offer and (m.id == wm.rbuttondown or m.id == wm.rbuttonup) and replyPending(g)) return 1;
     if (scene_mod.handleMessage(g, sceneOf(g), m) != 0) return 1;
     if (game_hook.handleMessageHook(g, m) != 0) return 1;
     return switch (m.id) {
@@ -362,9 +372,11 @@ fn rightUp(g: *Game, m: Msg) i32 {
     const panel = must(Object, g.controlPanel);
     if (!panels.isOutside(g, panel, sx0, sy)) return 1;
     const sel = g.selectedItem orelse return 1;
-    // B30's fix: an offer (the scene's handler has started the reply and
-    // returned 0) is not a drop; the item stays in the character's hands.
-    const offered = g.fixes.drop_falls_onto_support and isOffer(g);
+    // An offer (the scene's handler has started the reply and returned 0):
+    // B30's fix leaves the item in the character's hands, B23's keeps it
+    // the selected item until the reply ends.
+    const offered = isOffer(g);
+    if (offered) g.offered = sel;
 
     render.erase(g, panel, bdOf(g));
     visibility.redrawOverlapping(g, panel, bdOf(g), 1);
@@ -436,6 +448,15 @@ fn isOffer(g: *Game) bool {
     if (scene.handlerEnabled == 0 or scene.sceneNumber < 0) return false;
     if (g.handlers[@intCast(scene.sceneNumber)] == null) return false;
     return game_mod.handlerAnswersOffers(scene.sceneNumber);
+}
+
+/// B23's fix (not in the original): the last offered item is still lying
+/// where it was offered, as the selected item, and its reply has not ended.
+fn replyPending(g: *Game) bool {
+    const o = g.offered orelse return false;
+    if (g.selectedItem != o) return false;
+    if (o.portable.owner != null or o.ownerList != &g.globalObjects) return false;
+    return cstr.eqlIgnoreCase(&o.sceneName, &sceneOf(g).name);
 }
 
 test "the give-item handlers answer offers" {

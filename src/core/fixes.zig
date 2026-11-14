@@ -94,6 +94,10 @@ pub const Fixes = struct {
     /// ketchup, the parents' room's father) is drawn whole on re-entry, not
     /// only the part the last overlap of the previous visit left dirty.
     static_redraw_whole_frame: bool = false,
+    /// B23: until the reply to an offer ends, the right button does nothing
+    /// (it would select another item, or clear the handler's hit object),
+    /// so the reply's end takes back, or consumes, the offered item.
+    reply_keeps_offer: bool = false,
     /// B34: the open control panel is redrawn on the screen when the
     /// inventory changes under it (an offered item handed back to the
     /// first slot), so its icons are the items a drag takes.

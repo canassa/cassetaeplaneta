@@ -305,9 +305,23 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   ends at it (the items after it are cut off and lost), and the offered item stays on the scene. The
   wrong-item path charges `scoreMisuse` and "returns" the new item. A reply that ends while an item is
   merely selected (any wave end, e.g. 4fbarboy's intro) is taken as a wrong offer of it.
-- **Effect:** quick players lose items and score; the inventory shows fewer items than its count.
+  Any right press during the reply also overwrites the handlers' hit object (2fportdi 1020:4306 WM_RBUTTONDOWN
+  stores the query's object, NULL on the panel): at the reply's end the wrong-offer path then skips the take
+  back and only clears the selection, so the offered item stays on the scene for good (2fsuabig 1020:0000 too:
+  the gift, the right item, stays on the floor and the hold-up goes on). A slot pressed during the reply and released on a
+  character after its end reaches the WM_RBUTTONUP offer with `itemSelected` set and `selectedItem` NULL: a
+  NULL far-pointer read (2fportdi `takeItemBack`).
+- **Effect:** quick players lose items and score; the inventory shows fewer items than its count, or, with
+  items in the used list, more than its 8 slots (the chain runs on into the used list: the extra icons are
+  drawn past the last slot, under the score box). The one-button mode makes it easy: a tap on a slot selects
+  the item and it stays selected (2fportdi: offer the bible, tap the next slot while the driver answers: the
+  bible stays in the car). Port repro, 2fsuabig: the gift offered, the wallet's slot held through the reply:
+  the wallet is consumed, the Oscar after it is cut off, the gift stays on the floor.
 - **Port:** reproduced (the lists are shared the same way); at exit only the items the inventory still owns
   are parked (`object_init.sceneObjectDtor`), the cut-off ones stay unfreed as in the original.
+  `Fixes.reply_keeps_offer`: after an offer (a drop in one of these scenes, `game_input.rightUp`) the right
+  button does nothing until the next MM_WOM_DONE, while the offered item is still the selected one lying in
+  the scene.
 - **Confidence:** 8.
 
 ### B24. A wave that ends with no item offered crashes the bar and the hold-up (4fbarboy, 2fsuabig)

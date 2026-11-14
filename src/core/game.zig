@@ -49,6 +49,9 @@ pub const Game = struct {
     /// Not in the original: which pixels of the control panel's current
     /// frame are slot holes, for `Fixes.panel_slots_show_background`.
     panelHoles: PanelHoles = .{},
+    /// Not in the original: the item last offered to a character, until the
+    /// next MM_WOM_DONE (the reply's end), for `Fixes.reply_keeps_offer`.
+    offered: ?*Object = null,
     /// Not in the original: the one-button control mode (`src/one_button.zig`),
     /// a front-end option. Its `filter` sees every queued message before the
     /// window procedure; null = off (input is dispatched unchanged).
