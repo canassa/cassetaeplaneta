@@ -9,8 +9,8 @@
 # dragging, and offered both ways. Deterministic like full.input: the
 # random choices (cop, hall doors, TIRO's targets, quiz) depend on the virtual time, so
 # editing an earlier line can change them; this timing gives the good
-# cop, the hall shuffle below and the football quiz. Original version (no
-# --fix).
+# cop, the hall shuffle below and the Olympics quiz. It plays the same with
+# and without the fixes (`--fix all,-avi_exit_ignores_timer`, as full.input).
 
 # Title menu: JOGAR, then NOVO JOGO; the opening video ends in the bedroom.
 22000 click 290 345
@@ -102,7 +102,10 @@
 # played with its keys (on a touch screen the web page's pad: LEFT, fire,
 # RIGHT). It starts 1500 ms after the click; the shots are
 # `tools/tiro_plan.py --start 286262 --win --relative-to 284762` (284762:
-# the click). A win, +2100, then the prison.
+# the click). A win, +2100, then the prison. 16 presses so that the
+# Corrigida's game ends too (BUGS.md T2, T4: its 15th and 16th arrows
+# miss); the Original quits after the 15th and the 16th press finds it
+# gone. The result is checked 2200 ms after the 16th, after both end.
 +100 click 200 200
 # shot 1: straight, girl
 +1680 key right
@@ -141,10 +144,12 @@
 +120 key space
 # shot 14: right, girl
 +1270 key space
-# shot 15: straight, TIRO ends at the next target tick
+# shot 15: straight, Original: TIRO ends at the next target tick; Corrigida: hits nothing
 +930 key left
 +120 key space
-+100 result won 2100
+# shot 16: straight, Corrigida only (the Original has quit): hits nothing, the game ends at its landing
++2480 key space
++2200 result won 2100
 +0 wait 3fprisao 5000
 # The player arrives in front of the hammer (273): step aside, tap it.
 +500 click 450 420
@@ -175,10 +180,11 @@
 +0 wait 4FPISTAV 40000
 +1000 click 500 100
 +0 wait 4fbar 33000
-# The sportsman's quiz: this run asks how long a football match lasts (D, 90 minutes).
+# The sportsman's quiz: this run asks in which Olympics photography was introduced to
+# decide the winners (A, Estocolmo).
 +2000 click 396 290
 +1500 dump quiz
-+200 click 440 253
++200 click 440 183
 +0 wait espquete 41000
 +1000 wait 6fsai1 51000
 +0 wait fundinic 48000

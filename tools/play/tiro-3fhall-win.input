@@ -3,11 +3,15 @@
 # 0x40a won with +2100, shows itself, adds the score and goes to the
 # prison.
 #
-#   zig-out/bin/noite --headless --scene 3fhall --ms 40000 --input tools/play/tiro-3fhall-win.input
+#   zig-out/bin/noite --headless --scene 3fhall --ms 42000 --input tools/play/tiro-3fhall-win.input
+#   zig-out/bin/noite --headless --scene 3fhall --ms 42000 --fix all --input tools/play/tiro-3fhall-win.input
 #
 # The right click at 2000 is the WinExec; TIRO starts 1500 ms later (its
 # WM_CREATE at 3500 seeds the targets). The shots are `tools/tiro_plan.py
-# --start 3500 --win`. Same game with `--fix all`.
+# --start 3500 --win`: one script for both versions, 16 presses (as
+# tiro-alone-win), the result 2100 at 36185 ms in the Original and at
+# 39365 ms with `--fix all`; checked at 39500, after both. In the Original
+# the 16th press goes to NOITE, in the prison.
 2000 rclick 80 200
 3000 expect 3fhall
 4000 dump tiro
@@ -50,9 +54,12 @@
 # shot 14: straight, girl
 34960 key right
 35080 key space
-# shot 15: straight, TIRO ends at the next target tick
+# shot 15: left, Original: TIRO ends at the next target tick; Corrigida: hits nothing
+36010 key left
 36130 key space
-36300 result won 2100
-36300 expect 3fprisao
-37000 state
-37000 dump prison
+# shot 16: left, Corrigida only (the Original has quit): hits nothing, the game ends at its landing
+38330 key space
+39500 result won 2100
+39500 expect 3fprisao
+40500 state
+40500 dump prison

@@ -19,7 +19,8 @@ in --keep (default zig-out/smoke/).
 --minigame NAME`) for 60 s (seeds 1-5, or `--monkey SEED`): ENCAIXE gets
 random arrow presses and holds, TIRO random LEFT/RIGHT presses and SPACE
 presses at least 110 ms apart (no held SPACE, so BUGS.md T3 cannot make a
-run endless: 15 presses end it); a run fails on a non-zero exit, a leak or
+run endless: 15 presses end the Original, 16 shots the Corrigida, `--fix
+all`, in 29 to 51 s of the 60); a run fails on a non-zero exit, a leak or
 no result.
 """
 

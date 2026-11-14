@@ -4,6 +4,7 @@
     nix develop -c python3 tools/tiro_plan.py [--start MS] (--win|--lose)
         [--relative-to MS] [-o FILE]
     nix develop -c python3 tools/tiro_plan.py --start MS --check FILE [--fix all]
+        [--key-repeat DELAY,PERIOD|off]
     nix develop -c python3 tools/tiro_plan.py --start MS --trace FILE
 
 The targets' pictures come from `rand() % 10` after `srand(GetTickCount())`
@@ -14,7 +15,8 @@ what decides a hit:
 
 - the system timers in USER's table order (a killed timer set again goes
   to the end; several due at once fire in table order; a key pressed at
-  a time is handled after the timers due then);
+  a time is handled after the timers due then, a repeat of a held key
+  before them);
 - the targets (100 ms steps of 20 px, the wraps and re-arms, the pair
   guards, the 8-tick hit animation at 55 ms and the respawn), every
   `rand()` in the game's order;
@@ -24,15 +26,25 @@ what decides a hit:
   the first hit stage (`projectile_try_step`) is the game's; then the
   second stage (BUGS.md T5) in both versions.
 
-It plays 15 SPACE presses (TIRO ends at the first target tick after the
-15th, BUGS.md T3/T4), each fired with the arrow free and at least 110 ms
-after the last, so the Original and the Corrigida (`--fix all`; T2 and T4
-are not in it) play the same game: a win hits girls and never a
-traveco; a loss hits nothing but travecos. The aim keys come before a
-shot. It checks its own plan in both versions; the scripts are then
-checked by running them (`result won N`). `--check FILE` simulates a
-script (`key`/`hold` lines, absolute or `+N` times relative to
-`--relative-to`), `--trace FILE` too and prints every tick.
+It plays 16 SPACE presses (one per arrow), each fired with the arrow free
+and at least 110 ms after the last, so that the Original and the
+Corrigida (`--fix all`: T1-T6) play the same game and end with the same
+score: a win hits girls and never a traveco; a loss hits nothing but
+travecos. The Original ends at the first target tick after the 15th
+press, before that arrow lands (BUGS.md T3, T4); the 16th press finds
+TIRO gone. The Corrigida plays both: the 15th arrow flies, the 16th is
+fired once it has stopped (T2, T4) and the game ends when that one has
+stopped. So the 15th and 16th arrows are planned to hit nothing in the
+Corrigida, and the 16th press needs no aim keys (NOITE would get them in
+the Original). The aim keys come before a shot. It checks its own plan
+in both versions and prints both end times; the scripts are then checked
+by running them (`result won N`, after the later end). `--check FILE`
+simulates a script (`key`/`hold` lines, absolute or `+N` times relative
+to `--relative-to`; a `hold` repeats its key as a run does,
+`--key-repeat DELAY,PERIOD|off`), `--trace FILE` too and prints every
+tick. The simulation is checked against the port tick for tick on random
+scripts (held keys, presses while the arrow flies, games that end), in
+both versions.
 """
 
 import argparse
@@ -53,6 +65,7 @@ HIT_FRAMES = 8
 ROW_Y = (0x55, 0x55, 0x82, 0x82)
 GIRLS = 3  # identities 0-2 are girls, 3-9 travecos
 LIVES = 16
+SHOTS = LIVES  # SPACE presses a game plays: every arrow
 VK_SPACE, VK_LEFT, VK_RIGHT = "space", "left", "right"
 
 
@@ -93,7 +106,7 @@ class Obj:
 class Sim:
     def __init__(self, start, fixes=False):
         self.now = start
-        self.fixes = fixes  # Fixes.all(): T1, T3, T5, T6 (T2, T4 are choices)
+        self.fixes = fixes  # Fixes.all(): T1-T6
         self.rand = Rand(start)
         self.timers = []  # [id, period, due], USER's table order
         self.grid = {}  # index -> [count, occupant]
@@ -419,8 +432,8 @@ class Sim:
         return True
 
     def game_over(self):
-        if self.fixes:
-            return self.lives <= 1
+        if self.fixes:  # T4 (implies T3): the last arrow has stopped
+            return self.lives <= 0 and not self.arrow.moving
         return self.lives == 1
 
     def end_test(self):
@@ -502,11 +515,17 @@ class Sim:
             return
         if self.fixes:  # T1
             self.held[VK_SPACE] = 1
-        self.lives -= 1  # T2: before the arrow is looked at
+            if self.lives <= 0:  # T4: with every arrow gone SPACE does nothing
+                self.log(f"SPACE (no arrows) lives={self.lives}")
+                return
+        else:
+            self.lives -= 1  # T2: before the arrow is looked at
         a = self.arrow
         if a.moving:
             self.log(f"SPACE (arrow flying) lives={self.lives}")
             return
+        if self.fixes:  # T2: only a shot costs an arrow
+            self.lives -= 1
         self.shots.append((self.now, self.aim))
         self.log(f"FIRE aim={self.aim} lives={self.lives}")
         if self.aim == 2:
@@ -551,7 +570,8 @@ class Sim:
         while self.result is None:
             due = self.next_due()
             et = ev[k][0] if k < len(ev) else None
-            if due is not None and (et is None or due <= et):
+            early = k < len(ev) and len(ev[k]) > 3
+            if due is not None and (et is None or due < et or (due == et and not early)):
                 if due > until:
                     break
                 self.now = max(self.now, due)
@@ -572,8 +592,17 @@ class Sim:
 # ---- scripts -------------------------------------------------------------------
 
 
-def parse_script(path, relative_to):
-    """(time, key, down) from a script's `key`/`hold` lines."""
+REPEAT = (500, 33)  # Windows' key repeat (sim.KeyRepeat), what a run has by default
+
+
+def parse_script(path, relative_to, repeat=REPEAT):
+    """(time, key, down) from a script's `key`/`hold` lines. A `hold`
+    repeats its key (a WM_KEYDOWN each) as the harness does: after
+    `repeat[0]` ms, then every `repeat[1]` ms, while it is held (4th item
+    True: the repeat goes before the timers due at that time, a script's
+    own key goes after them); `key`
+    (50 ms) never lasts that long. `repeat` None: held keys do not repeat.
+    One held key at a time."""
     out = []
     prev = relative_to
     for line in open(path):
@@ -592,7 +621,11 @@ def parse_script(path, relative_to):
         if parts[1] == "key":
             out += [(t, parts[2], True), (t + 50, parts[2], False)]
         elif parts[1] == "hold":
-            out += [(t, parts[2], True), (t + int(parts[3]), parts[2], False)]
+            ms = int(parts[3])
+            out += [(t, parts[2], True), (t + ms, parts[2], False)]
+            if repeat:
+                # A repeat is handled before the timers due at its time.
+                out += [(r, parts[2], True, True) for r in range(t + repeat[0], t + ms, repeat[1])]
     return sorted(out, key=lambda e: e[0])
 
 
@@ -604,22 +637,28 @@ def outcome(sim, t0):
 def plan(start, win, horizon=120_000):
     """Greedy: each shot is the earliest (aim, time) whose arrow, in both
     versions, hits a girl (win) / a traveco or nothing (lose), and
-    nothing else. Returns the events and the comments."""
+    nothing else. Shots 15 and 16 hit nothing in the Corrigida (the
+    Original has quit after the 15th press, before its arrow lands), so
+    the result is the same score in both. Returns the events and the
+    comments."""
     sims = [Sim(start, False), Sim(start, True)]
     events, notes = [], []
     t = start + 300
     last_fire = None
-    for n in range(15):
+    for n in range(SHOTS):
         found = None
         tries = 0
         while found is None:
             tries += 1
             if t > start + horizon or tries > 4000:
                 raise SystemExit(f"shot {n + 1}: nothing found by {t} ms")
-            for aim in ((1, 0, 2) if win else (1, 2, 0)):
+            aims = (1, 0, 2) if win else (1, 2, 0)
+            if n == SHOTS - 1:  # the Original has quit: no aim keys for NOITE to get
+                aims = (sims[1].aim,)
+            for aim in aims:
                 trial = []
                 pre = []
-                cur = sims[0].aim
+                cur = sims[1].aim
                 # The aim keys, 120 ms apart, before the shot (at least 110
                 # ms after the last press).
                 k = aim_keys(cur, aim)
@@ -630,7 +669,9 @@ def plan(start, win, horizon=120_000):
                     pre += [(at + 120 * j, name, True), (at + 120 * j + 50, name, False)]
                 pre += [(t, VK_SPACE, True), (t + 50, VK_SPACE, False)]
                 ok = True
-                for s in sims:
+                for si, s in enumerate(sims):
+                    if n == SHOTS - 1 and si == 0:
+                        continue  # the Original has quit
                     c = copy.deepcopy(s)
                     c.run(pre[:-2], t - 1)
                     if c.arrow.moving or c.result is not None:
@@ -639,28 +680,38 @@ def plan(start, win, horizon=120_000):
                     shot = len(c.shots)
                     c.run(pre[-2:], t + 50)
                     c.run([], t + 3000)
-                    if len(c.shots) != shot + 1 or (n < 14 and (c.arrow.moving or c.result is not None)):
+                    if len(c.shots) != shot + 1:
                         ok = False
+                        break
+                    if n < SHOTS - 2:
+                        # Both versions play on: the arrow has landed.
+                        if c.arrow.moving or c.result is not None:
+                            ok = False
+                            break
+                    elif n == SHOTS - 2:
+                        # The 15th: the Original is over before it lands
+                        # (lives == 1 at the next target tick); the
+                        # Corrigida plays on (one arrow left).
+                        if (c.result is None) if si == 0 else (c.result is not None or c.arrow.moving):
+                            ok = False
+                            break
+                    elif c.arrow.moving or c.result is None:
+                        ok = False  # the 16th ends the Corrigida at its landing
                         break
                     got = [cls(x) for x in outcome(c, t)]
-                    if trial and trial[0] != got:
-                        ok = False
+                    if n < SHOTS - 2:
+                        if trial and trial[0] != got:
+                            ok = False
+                            break
+                        if not (got == ["girl"] if win else got in ([], ["traveco"])):
+                            ok = False
+                            break
+                    elif si == 1 and got:
+                        ok = False  # the Corrigida's last two arrows hit nothing
                         break
                     trial.append(got)
-                    if n < 14 and not (got == ["girl"] if win else got in ([], ["traveco"])):
-                        ok = False
-                        break
-                if not ok:
-                    continue
-                got = trial[0]
-                if n == 14:
-                    good = True  # the 15th press ends the game before it lands
-                elif win:
-                    good = got == ["girl"]
-                else:
-                    good = got in ([], ["traveco"])
-                if good:
-                    found = (aim, pre, got)
+                if ok:
+                    found = (aim, pre, trial[-1])
                     break
             if found is None:
                 t += 10
@@ -670,9 +721,10 @@ def plan(start, win, horizon=120_000):
         events += pre
         notes.append((t, aim, got))
         last_fire = t
-        t += 110 if n == 13 else 200
+        t += 200
     for s in sims:
         s.run([], start + horizon)
+    assert sims[0].result[0] < notes[-1][0], "the Original must have quit before the 16th press"
     return events, notes, sims
 
 
@@ -699,15 +751,17 @@ def script_lines(events, notes):
     k = 0
     for i, (t, aim, got) in enumerate(notes):
         what = ", ".join(got) if got else "hits nothing"
-        if i == len(notes) - 1:
-            what = "TIRO ends at the next target tick"
+        if i == len(notes) - 2:
+            what = "Original: TIRO ends at the next target tick; Corrigida: hits nothing"
+        elif i == len(notes) - 1:
+            what = "Corrigida only (the Original has quit): hits nothing, the game ends at its landing"
         lines.append(f"# shot {i + 1}: {AIMS[aim]}, {what}")
         while k < len(events) and events[k][0] <= t:
             et, name, down = events[k]
             if down:
                 lines.append(f"{et} key {name}")
             k += 1
-    assert len(shots) == 15
+    assert len(shots) == SHOTS
     return lines
 
 
@@ -724,13 +778,16 @@ def main():
     ap.add_argument("--relative-to", type=int, metavar="MS",
                     help="write `+N` times, the first from MS (a `wait` line's entry); "
                          "with --check, read them so")
+    ap.add_argument("--key-repeat", default="500,33", metavar="DELAY,PERIOD|off",
+                    help="with --check/--trace: the repeat of a held key (the run's --key-repeat)")
     ap.add_argument("-o", "--output")
     a = ap.parse_args()
     if a.check or a.trace:
         s = Sim(a.start, a.fix == "all")
         if a.trace:
             s.trace = []
-        s.run(parse_script(a.check or a.trace, a.relative_to), a.ms)
+        rep = None if a.key_repeat == "off" else tuple(int(v) for v in a.key_repeat.split(","))
+        s.run(parse_script(a.check or a.trace, a.relative_to, rep), a.ms)
         if a.trace:
             print("\n".join(s.trace))
         for t, i, strip in s.hits:
@@ -742,7 +799,7 @@ def main():
         return
     events, notes, sims = plan(a.start, a.win)
     (r0, r1) = (sims[0].result, sims[1].result)
-    if r0 != r1 or r0 is None:
+    if r0 is None or r1 is None or r0[1] != r1[1]:
         raise SystemExit(f"the two versions differ: {r0} / {r1}")
     lines = script_lines(events, notes)
     if a.relative_to is not None:
@@ -762,8 +819,9 @@ def main():
     else:
         sys.stdout.write(text)
     girls = sum(1 for _, _, got in notes if got == ["girl"])
-    print(f"# {len(notes)} shots, {girls} girl(s); TIRO ends at {r0[0]} ms, "
-          f"result {'won' if r0[1] > 0 else 'lost'} {r0[1]}", file=sys.stderr)
+    print(f"# {len(notes)} presses, {girls} girl(s); TIRO ends at {r0[0]} ms (Original), "
+          f"{r1[0]} ms (Corrigida); result {'won' if r0[1] > 0 else 'lost'} {r0[1]} in both",
+          file=sys.stderr)
 
 
 if __name__ == "__main__":

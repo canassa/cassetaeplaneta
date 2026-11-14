@@ -71,10 +71,11 @@ Saves go to `save/` (`--save DIR`).
   plays from the title screen to the sportsman ending, checking every scene
   (the hall's TIRO and the pharaoh's ENCAIXE with scripted wins).
   With the fixes: add `--fix all,-avi_exit_ignores_timer`
-  (the script follows this run's hall doors and the 3fstreet shortcut of BUGS.md B21).
+  (the script follows this run's hall doors and the 3fstreet shortcut of BUGS.md B21;
+  both versions play the same timeline, TIRO's 16 presses included).
   One-button: `--one-button --ms 480000 --input tools/play/onebutton.input` (the
   whole game with left clicks only and TIRO's keys, doors clicked from afar, items dropped and
-  offered by tap-tap and by dragging) and
+  offered by tap-tap and by dragging; the same with `--fix all,-avi_exit_ignores_timer`) and
   `--one-button --scene 1fquarbo --ms 30000 --input tools/play/onebutton-corridor.input`;
   `tools/smoke.py --one-button` runs the smoke test in that mode.
 - **ENCAIXE**: `--minigame encaixe --ms 90000 --input tools/play/encaixe-win.input`
@@ -87,13 +88,16 @@ Saves go to `save/` (`--save DIR`).
   [--monkey SEED]` presses random arrows for 60 s.
 - **TIRO**: `--minigame tiro --ms 60000 --input tools/play/tiro-alone-win.input` (14 girls,
   `result won 2100`) and `tools/play/tiro-alone-lose.input` (-750); from NOITE, `--scene 3fhall
-  --ms 40000 --input tools/play/tiro-3fhall-win.input` (NOITE hides, +2100, the prison) and
-  `tools/play/tiro-3fhall-lose.input` (-1050, a life less, the hall); `--minigame tiro --ms 30000
-  --key-repeat 500,33 --input tools/play/tiro-endless.input` holds SPACE (BUGS.md T1, T3: no
-  result). Each the same with `--fix all`. The shots come from `tools/tiro_plan.py --start MS
-  --win|--lose` (it simulates the game; the targets follow from TIRO's start time: rerun it when
-  that moves; `--check FILE` simulates a script). `tools/smoke.py --minigame tiro [--monkey SEED]`
-  presses random aim keys and SPACE for 60 s.
+  --ms 42000 --input tools/play/tiro-3fhall-win.input` (NOITE hides, +2100, the prison) and
+  `--ms 32000 --input tools/play/tiro-3fhall-lose.input` (-1050, a life less, the hall);
+  `--minigame tiro --ms 30000 --input tools/play/tiro-endless.input` holds SPACE (BUGS.md T1,
+  T3: no result in the Original, none either with the fixes: 15 arrows left). Each script is the
+  same with `--fix all` and gives the same result: 16 presses, the Original ending after the 15th
+  (the 16th finds TIRO gone), the Corrigida after the 16th arrow has stopped, 2 to 4 s later
+  (BUGS.md T2, T4), so the result is checked after both. The shots come from
+  `tools/tiro_plan.py --start MS --win|--lose` (it simulates the game; the targets follow from
+  TIRO's start time: rerun it when that moves; `--check FILE` simulates a script). `tools/smoke.py
+  --minigame tiro [--fix all] [--monkey SEED]` presses random aim keys and SPACE for 60 s.
 - **SDL without a display**: `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy`
   (or `disk` with `SDL_AUDIO_DISK_OUTPUT_FILE=out.raw` to capture the mix).
 

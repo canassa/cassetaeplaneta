@@ -402,31 +402,41 @@ hello) instead.
   (USER's timer table order, every `rand()`, the targets' steps, wraps,
   pair guards, hit animations and respawns, the arrow's Bresenham flight
   and the occupancy grid it queries, stale cells included, both hit
-  stages), and plans 15 SPACE presses with the arrow free, 110 ms or more
+  stages), and plans 16 SPACE presses with the arrow free, 110 ms or more
   apart, each with the same outcome in the Original and the Corrigida: a
-  win hits girls only, a loss travecos or nothing. `--check FILE` /
-  `--trace FILE` simulate a script; the trace is the port's, tick for
-  tick (checked on random games, Original and Corrigida). Rerun it when
-  the start time moves.
-- **Scripts** (`tools/play/`), each Original and `--fix all`:
+  win hits girls only, a loss travecos or nothing. The Original ends
+  after the 15th press, before that arrow lands (T3, T4), so the 15th and
+  16th arrows are planned to hit nothing in the Corrigida (T2, T4: the
+  16th is fired once the 15th has landed and ends the game when it
+  stops): one script, the same score, the end 2 to 4 s later. `--check
+  FILE` / `--trace FILE` simulate a script, a held key repeating as a run
+  does (`--key-repeat`); the trace is the port's, tick for tick (checked
+  on random games, Original and Corrigida, including held keys and games
+  that end). Rerun it when the start time moves.
+- **Scripts** (`tools/play/`), each Original and `--fix all`, the same
+  script, its result checked after the later of the two ends:
   - `tiro-alone-win.input` (`--minigame tiro --ms 60000`): 14 girls,
-    `result won 2100`;
+    `result won 2100` (ends at 34.9 s, with the fixes 38.9 s);
   - `tiro-alone-lose.input` (`--ms 60000`): `result lost -750`;
   - `tiro-endless.input` (`--ms 30000 --key-repeat 500,33`): SPACE held
     3 s. Original: the repeats take `lives` past 1 between target ticks
-    (T1, T3), no result; `--fix all`: one shot, the game goes on, no
-    result either;
+    (T1, T3), no result; `--fix all`: one shot, 15 arrows left (T4), the
+    game goes on, no result either;
   - `tiro-3fhall-win.input` / `tiro-3fhall-lose.input` (`--scene 3fhall`):
     the door this run's shuffle gives TIRO, NOITE hidden (`dump`), the
     planner's shots (`--start 3500`), `result won 2100` and `3fprisao`
     with the score added / `result lost -1050`, `3fhall` with a life
-    less and the score lowered;
+    less and the score lowered (the 16th press goes to NOITE in the
+    Original);
   - `full.input` and `onebutton.input`: hall door 2 is the real TIRO with
     the planner's winning shots (in the one-button run too: TIRO is played
-    with its keys).
-- **Smoke**: `tools/smoke.py --minigame tiro [--monkey SEED]`: random
-  LEFT/RIGHT and SPACE presses 110 ms or more apart for 60 s, seeds 1–5;
-  no panic or leak, and a result.
+    with its keys); the run's timeline is the same in both versions (the
+    result is checked 2200 ms after the 16th press, and what follows is
+    planned from there).
+- **Smoke**: `tools/smoke.py --minigame tiro [--fix all] [--monkey SEED]`:
+  random LEFT/RIGHT and SPACE presses 110 ms or more apart for 60 s, seeds
+  1–5; no panic or leak, and a result (the Original ends in 16 to 25 s,
+  with the fixes in 29 to 51 s).
 - **Web**: `tools/web/test.py` plays "Jogo" = Tiro ao Álvaro: TIRO
   starts and SPACE unloads the crossbow (`bestse`).
 - **Unit tests** (optional, tagged): `oracle=emulated` from tools/oracle
