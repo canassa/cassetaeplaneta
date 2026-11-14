@@ -19,6 +19,8 @@ const Object = @import("../core/object.zig").Object;
 const frames = @import("../frames.zig");
 const dib = @import("../dib.zig");
 const occupancy = @import("../behaviour/occupancy.zig");
+const movement = @import("../behaviour/movement.zig");
+const object = @import("../core/object.zig");
 
 pub const Options = struct {
     input: ?[]const u8 = null,
@@ -130,6 +132,7 @@ pub const Harness = struct {
                 .wait => {},
                 .take => |id| take(g, id),
                 .drawn => |d| h.checkDrawn(g, d),
+                .where => |id| printWhere(g, id),
                 .focus => |on| _ = g.send(.{ .id = msg.wm.activate, .wparam = @intFromBool(on) }),
                 .freeze => |ms| {
                     std.debug.print("[{d}] freeze {d} ms\n", .{ now, ms });
@@ -485,6 +488,29 @@ fn take(g: *Game, id: i16) void {
 }
 
 /// One line: scene, player position, inventory ids, held item, lives, score.
+/// `where ID`: which list holds portable `id`, its scene names, position,
+/// visibility and whether it is moving.
+fn printWhere(g: *Game, id: i16) void {
+    const now = g.plat.ticks();
+    const lists = [_]struct { []const u8, ?*const object.ObjectList }{
+        .{ "scene", &g.globalObjects },
+        .{ "carried", if (g.player) |pl| &pl.actor.inventory else null },
+        .{ "used", &g.usedObjects },
+    };
+    for (lists) |entry| {
+        const list = entry[1] orelse continue;
+        var it = list.head;
+        while (it) |o| : (it = o.next) {
+            if (o.id != id or !o.is(.portable)) continue;
+            std.debug.print("[{d}] where {d}: {s} scene '{s}' prev '{s}' at ({d},{d}) visible {d} moving {}\n", .{
+                now, id, entry[0], cstr.slice(&o.sceneName), cstr.slice(&o.portable.prevSceneName), o.x, o.y, o.visible, movement.isMoving(g, o),
+            });
+            return;
+        }
+    }
+    std.debug.print("[{d}] where {d}: in no list\n", .{ now, id });
+}
+
 pub fn printState(g: *const Game) void {
     var buf: [256]u8 = undefined;
     var w: std.Io.Writer = .fixed(&buf);

@@ -27,6 +27,8 @@
 //!     drawn ID 0|1      fail the run unless portable ID is (1) or is not
 //!                       (0) on the screen: visible and most of its frame
 //!                       showing where it stands
+//!     where ID          print where portable ID is: on a scene (its scene
+//!                       names, position, visible, moving), carried, used
 //!     offer SLOT X Y    open the panel, drag inventory slot SLOT (0-7) to
 //!                       X Y and release it there (takes 2 s)
 //!     focus 0|1         the window loses or regains focus (WM_ACTIVATE)
@@ -52,6 +54,7 @@ pub const Action = union(enum) {
     wait: Wait,
     take: i16,
     drawn: Drawn,
+    where: i16,
     focus: bool,
     freeze: u32,
     quit,
@@ -218,6 +221,8 @@ pub fn parse(gpa: std.mem.Allocator, text: []u8) ParseError!Script {
             const id = try num(i16, words.next(), line_no);
             const on = try num(u16, words.next(), line_no) != 0;
             try s.steps.append(gpa, .{ .at = t, .action = .{ .drawn = .{ .id = id, .on = on } } });
+        } else if (eq(u8, cmd, "where")) {
+            try s.steps.append(gpa, .{ .at = t, .action = .{ .where = try num(i16, words.next(), line_no) } });
         } else if (eq(u8, cmd, "offer")) {
             const slot = try num(u16, words.next(), line_no);
             const x = try num(u16, words.next(), line_no);

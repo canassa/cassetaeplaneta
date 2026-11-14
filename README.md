@@ -26,7 +26,8 @@ the end as in the original; `--skip-videos` lets a click, a right click or
 Esc/Enter/Space end one (a convenience, not a fix). `--one-button` plays
 with the left button alone (`src/one_button.zig`, for touch screens): a
 click on a door, an item or a character does what a right click did (the
-player walks over to a door first), anything else walks; an inventory
+player walks over to a door first; a tap on the player walks, even over an
+item he hides), anything else walks; an inventory
 item is tapped then placed with the next click, or dragged. The minigames
 (separate EXEs) are stubbed: they report a win, or a loss with
 `--minigame lose`; their window shows 1.5 s after `WinExec` and answers the
@@ -38,7 +39,7 @@ Saves go to `save/` (`--save DIR`).
 - `zig build test` — unit tests; `uv run noite check|initdata` — the tracker.
 - **Harness** (`src/platform/harness.zig`), for either backend:
   `--input FILE` plays timed input (`src/platform/script.zig`: `click`,
-  `rclick`, `hold`, `offer`, `wait SCENE`, `expect SCENE`, `drawn ID 0|1`, `dump`, `state`,
+  `rclick`, `hold`, `offer`, `wait SCENE`, `expect SCENE`, `drawn ID 0|1`, `where ID`, `dump`, `state`,
   `focus 0|1`, `freeze MS` (a time jump: the clock runs on while nothing is
   dispatched, as in a hidden web page), `quit`…), `--dump DIR [--dump-every MS]` writes PNG frames of the screen
   (and of the SDL window), `--scene NAME [--take ID,…]` starts in any INI
