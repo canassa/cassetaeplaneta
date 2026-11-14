@@ -1,0 +1,11 @@
+# NOITE's pharaoh (3ffarao) runs the real ENCAIXE, which loses (no input,
+# the stack reaches the top rows at 41755): 0x40a lost with -500, a life
+# less, then 3fcasame.
+#
+#   zig-out/bin/noite --headless --scene 3ffarao --ms 50000 --input tools/play/encaixe-3ffarao-lose.input
+36000 expect 3ffarao
+37000 dump encaixe
+41900 result lost -500
+41900 expect 3fcasame
+42000 state
+42000 dump casame

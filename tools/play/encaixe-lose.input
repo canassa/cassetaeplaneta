@@ -1,0 +1,7 @@
+# ENCAIXE alone, a loss: no input, the pieces stack in columns 4-6 and the
+# fifth lands in the top three rows at 6400 ms (-500).
+#
+#   zig-out/bin/noite --minigame encaixe --headless --ms 20000 --input tools/play/encaixe-lose.input
+3000 dump
+6300 dump
+6500 result lost -500

@@ -1,0 +1,149 @@
+# NOITE's pharaoh (3ffarao) runs the real ENCAIXE, which wins: NOITE gets
+# 0x40c (hides), then 0x40a won with +1500, shows itself, adds the score
+# and goes to the hall.
+#
+#   zig-out/bin/noite --headless --scene 3ffarao --ms 120000 --input tools/play/encaixe-3ffarao-win.input
+#
+# The pharaoh video ends at 35055, WinExec; ENCAIXE starts 1500 ms later
+# (36555, seed 800000036). The moves are `tools/encaixe_plan.py --start
+# 36555`. Same game with `--fix all`.
+36000 expect 3ffarao
+37000 dump encaixe
+# piece kind 4: rotation 1, column 0, lands at row 13
+36655 key up
+36905 key left
+37005 key left
+37105 key left
+37205 key left
+# piece kind 4: rotation 1, column 7, lands at row 13
+40155 key up
+40405 key right
+40505 key right
+40605 key right
+# piece kind 1: rotation 2, column 4, lands at row 12, 1 line(s), 1 in all
+43555 key up
+43805 key up
+# piece kind 0: rotation 2, column 2, lands at row 10
+46705 key up
+46955 key up
+47205 key left
+47305 key left
+# piece kind 4: rotation 1, column 6, lands at row 13
+49655 key up
+49905 key right
+50005 key right
+# piece kind 0: rotation 1, column 7, lands at row 11
+52955 key up
+53205 key right
+53305 key right
+53405 key right
+# piece kind 1: rotation 2, column 4, lands at row 11
+55955 key up
+56205 key up
+# piece kind 4: rotation 1, column 6, lands at row 11
+58905 key up
+59155 key right
+59255 key right
+# piece kind 2: rotation 3, column 4, lands at row 10
+61805 key up
+62055 key up
+62305 key up
+# piece kind 3: rotation 1, column 0, lands at row 11, 1 line(s), 2 in all
+64805 key up
+65055 key left
+65155 key left
+65255 key left
+65355 key left
+# piece kind 1: rotation 3, column 0, lands at row 11, 1 line(s), 3 in all
+67905 key up
+68155 key up
+68405 key up
+68655 key left
+68755 key left
+68855 key left
+68955 key left
+# piece kind 2: rotation 0, column 0, lands at row 11, 1 line(s), 4 in all
+71505 key left
+71605 key left
+71705 key left
+71805 key left
+# piece kind 3: rotation 2, column 9, lands at row 11
+74355 key up
+74605 key up
+74855 key right
+74955 key right
+75055 key right
+75155 key right
+75255 key right
+# piece kind 4: rotation 0, column 0, lands at row 8
+77805 key left
+77905 key left
+78005 key left
+78105 key left
+# piece kind 0: rotation 3, column 2, lands at row 11
+80055 key up
+80305 key up
+80555 key up
+80805 key left
+80905 key left
+# piece kind 4: rotation 1, column 6, lands at row 12, 1 line(s), 5 in all
+83455 key up
+83705 key right
+83805 key right
+# piece kind 2: rotation 2, column 7, lands at row 11, 1 line(s), 6 in all
+86555 key up
+86805 key up
+87055 key right
+87155 key right
+87255 key right
+# piece kind 3: rotation 0, column 6, lands at row 11
+89205 key right
+89305 key right
+# piece kind 4: rotation 0, column 1, lands at row 10
+91255 key left
+91355 key left
+91455 key left
+# piece kind 0: rotation 1, column 2, lands at row 11
+93255 key up
+93505 key left
+93605 key left
+# piece kind 2: rotation 1, column 8, lands at row 11, 1 line(s), 7 in all
+95555 key up
+95805 key right
+95905 key right
+96005 key right
+96105 key right
+# piece kind 3: rotation 2, column 3, lands at row 11
+98055 key up
+98305 key up
+98555 key left
+# piece kind 5: rotation 0, column 8, lands at row 12, 1 line(s), 8 in all
+100505 key right
+100605 key right
+100705 key right
+100805 key right
+# piece kind 3: rotation 2, column 2, lands at row 11, 1 line(s), 9 in all
+102905 key up
+103155 key up
+103405 key left
+103505 key left
+# piece kind 1: rotation 1, column 1, lands at row 11
+105455 key up
+105705 key left
+105805 key left
+105905 key left
+# piece kind 2: rotation 1, column 8, lands at row 12
+107855 key up
+108105 key right
+108205 key right
+108305 key right
+108405 key right
+# piece kind 3: rotation 3, column 5, lands at row 12, 1 line(s), 10 in all
+110505 key up
+110755 key up
+111005 key up
+111255 key right
+113400 result won 1500
+113400 expect 3fhall
+115000 state
+115000 dump hall
