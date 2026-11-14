@@ -16,7 +16,7 @@ INFERNO's own code.
 | Vtables / vbtables defined, typed and labelled | 42 / 19 (`g_<class>[<Base>]Vtbl`, `g_<class>[<Base>]Vbtbl`) |
 | Vtable structs (far slots, `<Vtbl>_<field>Fn` definitions) / vbtable structs | 12 / 2 (`Vbtable`, `Vbtable3d`) |
 | Class and record structs | 20 |
-| Globals typed and named (non-string, non-table) | 81, among them the 24 strip tables and the occupancy matrix |
+| Globals typed and named (non-string, non-table) | 89, among them the 24 strip tables and the occupancy matrix |
 
 Scripts (`ghidra/scripts/`): `DefineStrings.java` (strings), `FarVtables.java /inferno 1080 …`
 (vtable structs, apply, labels; it takes the table segment, so the code-segment tables needed no
@@ -37,15 +37,15 @@ access-offset matcher `offs.py` and the listing dump (`DumpListing.java`).
 | `008c` | `g_noiteWnd`: set from 0x40b's lParam by APPWNDPROC; the 0x40a/0x40c target |
 | `008e–00c1` | `s_appIcon`, `s_alreadyRunning`, `s_userModule` ×2 |
 | `00c0` | `g_started`: set by WM_CREATE; while set, APPWNDPROC posts 0x40c (§7) |
-| `00c2`, `00c4` | two latches of `game_handle_message` (TIRO `g_keyLeft…`) |
+| `00c2–00d3` | `game_handle_message`'s state (TIRO's names): the arrow latches `g_keyLeft`, `g_keyRight`, `g_keyUp`, `g_keyDown`; `g_itemSelected`, `g_exitPending`, `g_selectedItem` (far, `00ce`), `g_dropElevation` (`00d2`) |
 | `00d4–014f` | the 12 hero bitmap names |
 | `015a–01d1` | `g_heroStrip{Files,Frames,Widths,Heights}[12]` |
 | `01d2–028d` | `Plataf`, `rocha01–03`, `cerva`, `chopp`, `copo`, `3spres`, `cruz` names and the strip tables `g_platformStrip*[1]` (`01de`), `g_rockStrip*[3]` (`020c`), `g_drinkStrip*[4]` (`0252`), `g_crossStrip*[1]` (`0284`) |
 | `028e–02c9` | `carvao`, `diabo`, `fogo` names, `g_hazardStrip*[3]` (`02ac`) |
 | `02ca` | `s_gameName` "Mario" (passed to `game_init`) |
-| `02d0–02e1` | game state: `g_unk02D0` (= 1), `g_rockIndex` (= 3, cycles 0–5), `g_hazardIndex` (= 1, cycles 0–5), `g_floorY` (= 308), `g_unk02D8`, `g_unk02DA`, **`g_lives` (= 5)**, `g_startTick` (`GetTickCount` at scene create) |
+| `02d0–02e1` | game state: `g_heroTimerPending` (= 1 until the first walk starts the hero's move timer), `g_rockIndex` (= 3, cycles 0–5), `g_hazardIndex` (= 1, cycles 0–5), `g_floorY` (= 308), `g_scrolling` (the world scrolls this tick), `g_stompScored` (the stomp latch), **`g_lives` (= 5)**, `g_startTick` (`GetTickCount` at scene create; the grace start after the time-out) |
 | `02e6–035f` | MCI strings (`mario.mid`, alias `musica`), the 5 wave names |
-| `0364–0377` | `g_keyRightHeld`, `g_keyLeftHeld`, `g_keyDownHeld`, `g_keyUpHeld`, `g_timeUp`, `g_lastReportTick` |
+| `0364–0377` | the handler's key latches `g_keyRightHeld`, `g_keyLeftHeld`, `g_keyDownHeld`, `g_keyUpHeld`; `g_timeUp`, `g_lastReportTick` (the grace-second reposts) |
 | `0378–0411` | MCI and WaveMix strings, `s_negScoreFormat` "-%04d", `s_scoreFormat` " %04d" |
 | `0412–0469` | WaveMix: `g_unk0412`, `g_unk0414`, `g_waveMixSession`, `g_waves[20]` (far), `g_waveCount` |
 | `046a–0509` | WaveMix error strings |
@@ -54,7 +54,7 @@ access-offset matcher `offs.py` and the listing dump (`DumpListing.java`).
 | `1e5c–709f` | **`g_occupancyObject`** `SceneObject far *[65][81]` (4-byte entries, twice TIRO's matrix) |
 | `70a0–70b9` | `g_setSystemTimer`, `g_killSystemTimer` (far, USER.11/182), `g_instance`, `g_mainWindow`, `g_appActive`, **`g_score`** (`70b0`), `g_windowWidth` (640), `g_windowHeight` (480), `g_modulePath` (far → `70ba`) |
 | `70ba–7221` | `g_modulePathBuf[260]`, `g_messageText[100]` |
-| `7222–72b3` | the objects: `g_game`, `g_infernoGame`, **`g_hero`**, `g_rocks[6]`, `g_platforms[4]`, `7256–7269` (unreferenced), `g_cross`, `g_hazards[6]`, four words used by the Prop tick (`7286–7290`), `g_hazardOrder[6]`, the wave handles `g_deathWave` (sonicmor), `g_pickupWave` (sonicpul), `g_magWave` (sonicmag), `g_pickupWave2` (sonicpul, opened twice), `g_moduleHandle` |
+| `7222–72b3` | the objects: `g_game`, `g_infernoGame`, **`g_hero`**, `g_rocks[6]`, `g_platforms[4]`, `7256–7269` (unreferenced), `g_cross`, `g_hazards[6]`, `g_rockOrder[6]` (`7286`), `g_hazardOrder[6]`, the wave handles `g_deathWave` (sonicmor), `g_pickupWave` (sonicpul), `g_magWave` (sonicmag), `g_pickupWave2` (sonicpul, opened twice), `g_moduleHandle` |
 | `72b4–72bf` | the CRT `sprintf` FILE |
 | `1088:0000`, `0006` | `g_conditionTrue`, `g_conditionFalse` (`FlagCondition`, built by `init_static_conditions`) |
 
@@ -97,9 +97,10 @@ the coal, devil and fire. The vptr stores are `MOV ES:[BX+k],off; MOV ES:[BX+k+2
 has a DATA reference to its table.
 
 **Vtable structs.** Field names are TIRO's (`docs/tiro/DATA.md`), with INFERNO's changes:
-- **SceneObjectVtbl** (91) = TIRO's. Slots 0x56–0x5a, TIRO's game type tests, are INFERNO's own:
-  `slot56` (Hero returns a field), `isPlatform`, `isProp`, `isHazard` (return 1; the base
-  returns 0), `slot5A` (Prop returns a field).
+- **SceneObjectVtbl** (91) = TIRO's, with slot 0x4c (+0x130) named `getSceneName` (Portable
+  returns its scene's name, the default ""). Slots 0x56–0x5a, TIRO's game type tests, are
+  INFERNO's own: `isBig` (Hero: `altStrips`; nothing calls it), `isPlatform`, `isProp`, `isHazard`
+  (return 1; the base returns 0), `isPowerUp` (Prop: `powerUp`, 1 for the cross).
 - **Object3DVtbl** (7): TIRO's without `isInFrontOf`.
 - **BackdropVtbl** (20): TIRO's without `queryRectFirst`, plus `isGridBackdrop` (18) and
   `asGridBackdrop` (19). **GridBackdropVtbl** (21) adds `createWithGrid` (20).
@@ -109,10 +110,11 @@ has a DATA reference to its table.
 - **PropVtbl** (4): `placeAt`, `moveTick` (Prop `1068:381d`, Hazard `1068:46f7`), `stepMove`
   (`392b`), `tryStep` (`398d`): TIRO's ProjectileVtbl shape.
 
-Each slot is a 4-byte pointer to a `FunctionDefinition` copied from the slot's first
-non-`_purecall` target. The decompiler still reads a far slot as two words, so virtual calls keep
-the `(*(code *)*puVar)(0x10a8, …)` shape with a leaked segment argument; a large-model variant of
-`FarSlotSignatures.java` (call-site overrides) is phase-4 work.
+Each slot is a 4-byte pointer to a `FunctionDefinition` with the current prototype of the slot's
+first non-`_purecall` target and `this` a far pointer to the vtable's class
+(`FarSlotSignatures.java 1080 defs large`). The decompiler reads a far slot as two words and would
+take the pushed CS for an extra argument; the 376 call-site overrides (`calls large`, `site large`;
+`FUNCTIONS.md`) give every live virtual call its slot's signature.
 
 ## 4. Classes (`/inferno`)
 
@@ -125,18 +127,20 @@ with its `vtordisp` word; the SceneObject virtual base follows at the vbtable's 
 |---|---|---|
 | `SceneObject` | 0x480 | high for `vtbl`, `next`, `prev`, `ownerList` (far), `x`/`y`/`id`, `frames` (far, +0x1c), `stripCount`/`curStrip`/`curFrame` (+0x20–24), `bmiHeader` +0x26, `bmiColors` +0x4e, `hpalette` +0x44e, the two rects +0x470/+0x478 (`scene_object_reset_rects`). `450–46f` (TIRO's `dibFormatOk` … `nextY`, shifted and with 8 more bytes) left undefined. Size from every subclass's `new` minus its class part |
 | `Frame` | 0x12 | high: `frame_init` and the vector deleting dtor's element size. No hitbox fields (TIRO has 4) |
-| `ObjectList`, `UpdateList` | 8, 0x7a | high: `Game.globalObjects` +0x1c, `updateList` +0x24, count at +0x78 |
+| `ObjectList`, `UpdateList` | 4, 0x7a | high: `ObjectList` is the far `head` only (`object_list_ctor(this, head)`; NOITE's is 8 bytes); `Game.globalObjects` +0x1c, `updateList` +0x20, `UpdateList.count` at +0x78 |
 | `OccupancyGrid` | 0x10 | high: `new 0x10` in `grid_backdrop_create_with_grid`; shifts are bytes at +0xc/+0xe |
-| `Game` | 0xac | medium: `vtbl`, `scene`, `oldScene`, `statusBar`, `controlPanel` (far, 0–0x13), `player` +0x18, `globalObjects`, `updateList`, `unk9E`; **no draw list** (TIRO's 0x25c `DrawList` is gone with its module). `a0–ab` not seen |
-| `Scene` | 0x50 | medium: `vtbl`, `backdrop`, `exits[10]` (far), `exitCount` +0x30, `name[20]` +0x32, `objects` +0x46, `unk4E`. TIRO's `hasPlayer…sceneNumber` flags do not exist here |
+| `Game` | 0xac | high: `vtbl`, `scene`, `oldScene`, `statusBar`, `controlPanel` (far, 0–0x13), `player` +0x18, `globalObjects` +0x1c, `updateList` +0x20, `unk9A` (= 2 by `game_ctor`, never read: TIRO `unk2AE`, NOITE `unk674`), `clearWidth` +0x9c, `clearHeight` +0x9e (never written; passed to the scene ctor); **no draw list** (TIRO's 0x25c `DrawList` is gone with its module). `14–17` and `a0–ab` not seen |
+| `Scene` | 0x50 | high: `vtbl`, `backdrop`, `exits[10]` (far), `exitCount` +0x30, `name[20]` +0x32, `objects` +0x46, `hasPlayer` +0x4a, `hasStatusBar` +0x4c, `hasControlPanel` +0x4e (the `scene_get_has_*` getters; INFERNO's scene ctor passes 1, 0, 0) |
 | `Backdrop`, `GridBackdrop` | 0x452, 0x456 | high: TIRO's fields with far `bits`/`background`/`sceneList`; `grid` at +0x452 |
 | `Mover`, `Animation`, `Actor2D`, `Player2D` | 0x36, 0x12, 0x48, 0x4e | high: TIRO's fields shifted by the far vtbl/vbptr; each size checked against the vbtables |
 | `Condition`, `FlagCondition`, `CompoundCondition` | 4, 6, 0xe | high (`1088` holds two 6-byte FlagConditions) |
-| **`Hero`** | 0x62 | `Player2D` + `jumpKind` +0x54 (UP/DOWN set 0–3), `facing` +0x56 (1 left, 2 right), `busy` +0x5a (input ignored), `walking` +0x5c, `altStrips` +0x5e (selects the `marg*` strips 4–7 instead of `marp*` 0–3), `unk4E/50/52/58`; `vtordisp` +0x60 |
-| **`Platform`** | 0x52 | `Actor2D` + `unk48`, `unk4A`, `item` +0x4c (far pointer to the Prop it carries), `vtordisp` +0x50 |
-| **`Prop`**, **`Hazard`** | 0x52 | `Actor2D` + four words (`Prop.state` +0x4a drives the cross's fall), `vtordisp` +0x50 |
+| **`Hero`** | 0x62 | `Player2D` + `unk4E`, `powerTimer` +0x50 (the big hero's countdown, 180 move ticks), `jumpTicks` +0x52 (rise ticks left: 18 or 12), `jumpKind` +0x54 (0 UP standing, 1 UP walking, 2 DOWN standing, 3 DOWN walking), `facing` +0x56 (1 left, 2 right), `jumpPhase` +0x58 (4 rising, 8 falling), `busy` +0x5a (in a jump: arrows ignored), `walking` +0x5c, `altStrips` +0x5e (the big `marg*` strips 4–7 instead of `marp*` 0–3); `vtordisp` +0x60 |
+| **`Platform`** | 0x52 | `Actor2D` + `slot` +0x48 (the next respawn slot 0–3), `presentReady` +0x4a (it carries the present and a small hero's hit opens it), `item` +0x4c (far pointer to its drink), `vtordisp` +0x50 |
+| **`Prop`** | 0x52 | `Actor2D` + `index` +0x48 (for the cross: the ticks before it drops), `state` +0x4a (the cross: 2 launched right, 8 falling, 1 sliding left), `active` +0x4c (on screen), `powerUp` +0x4e (1 for the cross), `vtordisp` +0x50 |
+| **`Hazard`** | 0x52 | `Actor2D` + `index` +0x48, `unk4A`, `active` +0x4c, `unk4E`, `vtordisp` +0x50 |
 
-`this` is not typed yet on the functions (phase 4, with the signatures).
+`this` is typed on every method: the class part (`Hero *`, …) or the SceneObject subobject
+(`HeroSO`, `PlatformSO`, `PropSO`, `HazardSO`: SceneObject typedefs for the slot overrides).
 
 ## 5. Assets
 
@@ -164,71 +168,41 @@ On the disc but never named by the code: `FUNDON.BMP`, `FUNDOO.BMP`, `FOGOG.BMP`
 `STATUS.BMP`, `STATINV.BMP`, `STATNEW.BMP`, `COCO.WAV`, `OSTRA.WAV`, `SONIC.WAV`,
 `SONICDIA.WAV`, `SONICPON.WAV` (leftovers of other versions or of the shared asset folder).
 
-## 6. The game, as far as the data shows
+## 6. The game
 
-*Inferno* is a keyboard platformer in hell (`QUALITY.md` §8; `GAME.md` in phase 4).
-
-- **Start** (`inferno_scene_create`): `g_startTick = GetTickCount()`, the music, the five waves,
-  the score box. `inferno_game_on_create` builds the hero (`inferno_game_create_player`:
-  `new 0x4e2`, position arguments 0x132 and 0x99), then the platforms with their drinks
-  (`1068:1a1e`), the rocks and the cross (`1068:272a`) and the hazards (`1068:3bf8`). `inferno_backdrop_create` walls the
-  occupancy row 23 (columns 0–89).
-- **Keys** (`inferno_scene_handle_message`, WM_KEYDOWN/UP latched by `g_key*Held`): RIGHT/LEFT
-  walk (walking strip, `facing`, slot `moveToEdgeH`-style call through SceneObject slot 0x30);
-  UP or numpad `+` jumps (`1068:016c`; `jumpKind` 0 standing, 1 walking); DOWN or numpad `−`
-  (`jumpKind` 2/3). Nothing happens while the hero is `busy` or its animation runs. The mouse is
-  ignored.
-- **Timers** (WM_SYSTIMER 0x118, one per object): the hero's (its `unk50` counts down, then
-  `1068:09be`; its animation ends the game on the death/victory strips via `1068:1936`), timer
-  0xc for the platforms' drinks, timer 0xe for the six hazards in `g_hazardOrder` order, and the
-  cross's (in `state` 2 it counts `unk48` down, then stops, switches to `state` 8 and drops with
-  `moveToEdgeV`).
-- **Score** (`g_score`, starts at 0, drawn as `" %04d"`/`"-%04d"`): +150 (`sonicpul`), +300
-  (`sonicmag`), +100 (second `sonicpul`, from a Platform slot), **−500 and one life** on a hazard
-  (`inferno_lose_life`, `sonicmor`). `g_lives` starts at **5**.
-- **End:**
-  - **time:** 180,000 ms after the start the handler sets `g_timeUp` and posts
-    `PostMessage(noite, 0x40a, g_lives, g_lives ? 500 : g_score − 1000)` every 100 ms; a second
-    later it posts itself WM_DESTROY;
-  - **no lives left:** `inferno_lose_life` posts WM_DESTROY at once, and nothing posts 0x40a;
-  - WM_CLOSE and WM_QUERYENDSESSION post the same 0x40a as the time-out.
-
-  So **a win is surviving the 3 minutes with a life left, worth a flat +500** (the score itself
-  is never sent then). WM_DESTROY stops the waves and closes WaveMix and MCI.
+*Inferno* is a keyboard platformer in hell; `GAME.md` describes it. In short: the hero walks and
+jumps (UP 90 px, DOWN 60 px) along the floor line y 308; from x 340 facing right the world scrolls
+under it; platforms hit from below give +100 (a drink, or the present that drops the cross); the
+cross gives +300 and makes the hero big for about 9.8 s; hazards are stomped for +150 or cost
+500 points and a life; after 3 minutes a hero with a life left wins a flat 500.
 
 ## 7. How it talks to NOITE
 
 - NOITE (`handler_3fpapmal`) runs `inferno\inferno.exe`, polls `FindWindow("Inferno")` on timer
   0x14 and posts 0x40b with its window in lParam; APPWNDPROC stores it in `g_noiteWnd`.
-- WM_CREATE calls GameVtbl `onCreate`, sets `g_started` and starts the 55 ms system timer.
+- WM_CREATE calls GameVtbl `onCreate`, sets `g_started` and starts the 55-ms system timer 1 (a
+  keep-alive for the clock: no branch handles it).
 - **0x40c** ("ready"): APPWNDPROC posts `PostMessage(g_noiteWnd, 0x40c, hwnd, 0)` before
-  forwarding **every** message once `g_started` is set (§8).
+  forwarding **every** message once `g_started` is set (the `if (g_noiteWnd)` before it has an
+  empty body; no one-shot flag).
 - **0x40a** (result): `wParam = g_lives` (NOITE: non-zero = won), `lParam = g_lives ? 500 :
-  g_score − 1000` (NOITE adds it to its score). A 0x40a received by INFERNO makes it post itself
-  WM_DESTROY.
+  g_score − 1000` (NOITE adds it to its score), on the time-out (then again every 100 ms for a
+  grace second), on WM_CLOSE and on 0x12 (`WM_QUIT`, never dispatched). A 0x40a received by
+  INFERNO makes it post itself WM_DESTROY.
 - If the game dies without 0x40a (all lives lost), NOITE's system timer notices the vanished
   window and posts itself `(0x40a, 0, 0)`: a loss with no score change.
 
-## 8. Candidate original bugs (for BUGS.md, to confirm in phase 4)
+## 8. Original bugs
 
-1. **0x40c flood.** `g_started` is never cleared, and the `if (g_noiteWnd)` before the
-   `PostMessage` has an empty body (`/Od` `JZ` to the next instruction), so INFERNO posts 0x40c to
-   NOITE (or to NULL before 0x40b) on every window message, not once as TIRO does.
-2. **Losing all lives sends no result.** `inferno_lose_life` posts WM_DESTROY directly; only
-   NOITE's vanished-window fallback reports the loss, with score 0 instead of `g_score − 1000`.
-3. **Closing the window counts as a win.** WM_CLOSE and WM_QUERYENDSESSION report `wParam =
-   g_lives`, so closing early with lives left gives NOITE a win and +500.
-4. **The score is only sent on a loss** (`g_lives ? 500 : g_score − 1000`), and a loss is
-   unreachable through that path (2), so the points collected in play never reach NOITE.
-5. `sonicpul.wav` is opened twice (`g_pickupWave`, `g_pickupWave2`); `sonicf.WAV`'s handle is not
-   kept in a global (`wave_play_loop` takes no argument). Harmless, to check against the
-   WaveMix unit.
-6. Carried over from the engine: the occupancy overflow messages, `MAX_OBJECT_QTY`, the dead
-   StatusBar/ControlPanel/PerspectiveBackdrop code (`FUNCTIONS.md`, Dead code).
+In `BUGS.md`, section INFERNO (H1–H7, and a Harmless list): the trailing `0x40c` and the time-out's
+repeated reports reach NOITE's hall, a loss on lives reports nothing, closing the window with a life
+left is a win, a hazard the hero runs into costs nothing, a life lost wipes the occupancy grid, and a
+stomp in the scroll zone keeps the stomp latch set. `sonicpul.wav` opened twice and `sonicf.WAV`'s
+handle kept only in `g_waves` (freed by `wave_free_all`) are not bugs.
 
 ## 9. Unknown
 
-- `g_unk0082`, `g_unk02D0/02D8/02DA`, `g_unk0412/0414`, `g_unk7286–7290`, `7256–7269`.
-- `SceneObject` `450–46f`, `Game` `14–17` and `a0–ab`, the Hero/Platform/Prop/Hazard `unk*`
-  fields, the meaning of SceneObject slots 0x56 and 0x5a for Hero and Prop.
+- `g_unk0082`, `g_unk0412/0414`, `7256–7269`.
+- `SceneObject` `450–46f`, `Game` `14–17`, `unk9A` and `a0–ab`, `Hero.unk4E`,
+  `Hazard.unk4A/unk4E`.
 - The original names of the four game classes and of their slots.

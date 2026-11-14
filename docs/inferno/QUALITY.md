@@ -168,7 +168,7 @@ Sampled: the scene handler `1068:4bdc`, `object3d_*` slots in `1018`, the `1080`
 | chkstk | Every body started with `FUN_1078_00f8();` and its frame was not allocated. **Fixed:** the `aFchkstk` call-fixup (`ghidra/cspec/aFchkstk_fixup.xml`) is installed as a spec extension and set on `_aFchkstk` (`1078:00f8`); the stub is identical to TIRO's |
 | Signatures | Parameter counts from `[BP+n]` are right; `this` shows as `undefined4 param_1` and is split into `(int)param_1` / `param_1._2_2_` |
 | API call sites | Junk like `MESSAGEBOX(0x30,…)` with a leaked segment before typing; **fixed** by the import types |
-| Virtual calls | `puVar1 = *(vbptr+2 + this + 4) + 0xd4; (*(code *)*puVar1)(0x10a8, this…)`: the first argument is the leaked CS (the near default model), as in TIRO. Needs the vtable structs and `FarSlotSignatures`-style overrides (phase 3/4) |
+| Virtual calls | `puVar1 = *(vbptr+2 + this + 4) + 0xd4; (*(code *)*puVar1)(0x10a8, this…)`: the first argument is the leaked CS (the near default model), as in TIRO. **Fixed** after phase 4: `FarSlotSignatures.java … large` types the slot definitions and puts call-site overrides on 376 of the 386 `CALLF [BX+k]` sites (the 10 left are dead ControlPanel code); the target expression still reads the slot as two words |
 | Globals | Far object pointers in the BSS (`DAT_1090_722a`, the player); arrays of far pointers print as `((undefined4 *)&DAT_1090_7246)[i]` |
 | Strings | DGROUP strings print as `s_…_1090_…`; the engine strings are in `1080` and pushed as `PUSH 0x1080; PUSH off` |
 | Overall | Control flow good; `/Od` long but literal. Readable once `this` and the far globals are typed |
@@ -202,15 +202,16 @@ are cut at an accent (`ú`, `ã`, `ç`, `í`) and 14 are missing.
 **platformer in hell** — `mario.mid` as music, "Sonic" waves (`sonicmor`, `sonicpul`, `sonicmag`,
 `sonicf`), the hero `mar*.bmp` (walk/jump/fall strips, left and right), platforms (`Plataf.bmp`,
 `rocha01–03.bmp`), fire (`fogo.bmp`), a devil (`diabo.bmp`), a cross, coal, and drinks (`cerva`,
-`chopp`, `copo`). `GAME.md` (phase 4) will describe it; `DATA.md` §6 has what the data shows.
+`chopp`, `copo`). `GAME.md` describes it.
 
 From the scene handler `1068:4bdc`:
 - LEFT/RIGHT (0x25/0x27) walk, UP (0x26) or numpad `+` (0x6b) jump, DOWN (0x28) or numpad `−`
-  (0x6d) another action; each latched by a flag cleared on WM_KEYUP. The mouse is ignored.
+  (0x6d) the low jump; each latched by a flag cleared on WM_KEYUP. The mouse is ignored.
 - **A 3-minute limit** (180,000 ms of `GetTickCount` from the start): then the game reports and,
   a second later, posts itself WM_DESTROY.
-- **Result:** `PostMessage(noite, 0x40a, won, won ? 500 : g_score − 1000)`, sent every 100 ms
-  after the time is up, and also on WM_CLOSE / WM_QUERYENDSESSION.
+- **Result:** `PostMessage(noite, 0x40a, g_lives, g_lives ? 500 : g_score − 1000)`, sent at the
+  time-out and again every 100 ms for the grace second, and also on WM_CLOSE and 0x12 (`WM_QUIT`,
+  never dispatched).
 
 ## 9. Plan (as carried out in phases 2 and 3)
 
@@ -233,5 +234,10 @@ Scripts that apply as they are: `CopyTypesFromProgram`, `FarVtSlots`, `CodeGapSw
 `DeadJumps`, `RenameFunctions`, `DefineStrings`, `NoiteStructs`, `NoiteFieldSet`, `FarVtables`.
 Changed: `NearAdjustorThunks` (large-model vtordisp form). Not applicable as they are:
 `NearSignatures`/`NearThisTypes`/`NearStructs` (near `this` and 2-byte pointers),
-`FarSlotSignatures` (reads a near vptr), `NearNullTests` (the far NULL test is
+`FarSlotSignatures` (read a near vptr until its `large` mode, phase 4), `NearNullTests` (the far NULL test is
 `SUB AX,k; OR DX,AX; JNZ`, not `CMP SI,k`).
+
+Final state (after phase 4 and the cleanup): 1,160 functions (86 imports, 464 adjustor thunks, 610
+code functions, 602 named, 8 dead `FUN_`), 10 `review` and 7 `sig?` tags left with notes, 376
+call-site overrides (every live virtual call), the classes typed with far `this` (`FUNCTIONS.md`,
+`DATA.md`). The game is in `GAME.md`, its bugs in `BUGS.md` (section INFERNO).

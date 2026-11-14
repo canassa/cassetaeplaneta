@@ -1739,3 +1739,128 @@ and `WM_QUIT` comes first.
 - **The `MM_WOM_DONE` case is dead:** 1068:1d29 calls `wave_stop_all`, but every wave is played with
   `hWndNotify` 0. Confidence 9.
 - **`WinMain` 1038:0202 returns an uninitialised word,** as TIRO's. Confidence 9.
+
+---
+
+## INFERNO.EXE (the "Inferno" platformer minigame)
+
+Addresses are Ghidra `seg:off` in `/INFERNO.EXE`; the game is described in `docs/inferno/GAME.md`.
+`inferno_scene_handle_message` is 1068:4bdc. The letter is H (for hell): I is INV's. Left out as
+design: a survived game is worth a flat 500 whatever `g_score` is (as SERIAL), so the points
+collected in play never reach NOITE; the game, its timers and its 3-minute clock keep running while
+the window is inactive (`WM_ACTIVATE` pauses only the music and the sound); a second cross picked up
+while big makes the hero small again (`hero_toggle_size` toggles); the score can go negative. Each is
+consistent code with a plausible intent.
+
+### H1. The "ready" message follows the result, and the hall takes it for its own minigame
+- **Where:** `APPWNDPROC` 1038:0353, the post at 1038:0365–0385 (the empty `if (g_noiteWnd)` at 036e);
+  NOITE `handler_3fhall` 1020:7b06 (cases `0x40c` and `WM_SYSTIMER`).
+- **What the code does:** once `g_started` is set (WM_CREATE; never cleared) every message to
+  INFERNO's window first posts `0x40c` to `g_noiteWnd`; there is no one-shot flag (TIRO, SALGIN,
+  XILINDRO and SERIAL clear `g_handshakePending` after the first post). The posts go on after the
+  `0x40a` result while the window lives: during the time-out's grace second (H2) and the
+  `DestroyWindow` that follows `WM_CLOSE` (H4). NOITE's `3fpapmal` switches to `3fhall` on the
+  first `0x40a`, so the later `0x40c` reach the hall's handler, which sets its TIRO
+  `minigameRunning` and hides the main window; its `WM_SYSTIMER` test then finds no
+  "Tiro ao Alvaro" window and posts itself `(0x40a, 0, 0)`.
+- **Effect:** after INFERNO reports, the hall counts a lost TIRO game: a life (`6fsaida` at 0
+  lives), and `3fhall` again; while `0x40c` keep coming this can repeat.
+- **Confidence:** 9 (code, both sides); 6 (how many losses: the order of the posts is not traced).
+- **Port:** not ported yet (NOITE's `3fpapmal` and `3fhall` are ported as is; the headless
+  minigame stub posts one `0x40c` and one `0x40a`).
+
+### H2. The time-out result is posted again for a second, and the hall takes it for TIRO's
+- **Where:** `inferno_scene_handle_message`, the clock block 1068:4bf2–4d14 (time-out 4c26, reposts
+  4c80, `WM_DESTROY` 4cea); NOITE `handler_3fhall` 1020:7b06 (case `0x40a`).
+- **What the code does:** 180,000 ms after the start the handler posts
+  `0x40a (g_lives, g_lives ? 500 : g_score − 1000)` and restarts the clock as a grace period; then
+  every message at least 100 ms after the last report posts it again, with the current values, and
+  only 1 s later does it post itself `WM_DESTROY`. NOITE's `3fpapmal` takes the first report and
+  switches to `3fhall`; the hall's `0x40a` case has no guard, so the next report is the TIRO door's
+  result there: `minigameWon[1]` = 1, `g_score` += 500, and the switch to `3fprisao`, where nothing
+  handles the rest.
+- **Effect:** surviving the 3 minutes adds 1000 instead of 500, marks the TIRO minigame won and puts
+  the player in the prison instead of the hall, after the losses of H1 that fit in between.
+- **Confidence:** 9 (code, both sides); 7 (effect: the second report comes 100 ms after the first).
+- **Port:** not ported yet (as H1).
+
+### H3. Losing the last life reports nothing
+- **Where:** `inferno_lose_life` 1068:58b2 (`PostMessage(hwnd, WM_DESTROY)` at 1068:5919); the
+  handler's `WM_DESTROY` case 1068:4dbe.
+- **What the code does:** at 0 lives the game posts itself `WM_DESTROY`, whose case only stops the
+  waves and closes WaveMix and MCI; no `0x40a` is posted. NOITE's `3fpapmal` notices the vanished
+  window on its system timer and posts itself `(0x40a, 0, 0)`.
+- **Effect:** the loss is counted (a life in NOITE) with a score change of 0: the report's
+  `g_score − 1000` branch, the only path that sends INFERNO's points, is never taken (only in the
+  sub-tick race of a `0x40a` trigger handled between the post and the `WM_DESTROY`).
+- **Confidence:** 9 (code); 7 (that a loss report was meant: the time-out report computes one).
+- **Port:** not ported yet.
+
+### H4. Closing the window with a life left reports a win
+- **Where:** `inferno_scene_handle_message`, `WM_CLOSE` 1068:4d50.
+- **What the code does:** `WM_CLOSE` posts the time-out's report, `(g_lives, g_lives ? 500 :
+  g_score − 1000)`, and returns 0, so `DefWindowProc` destroys the window. The window is
+  `WS_POPUP | WS_CAPTION` with no system menu: only an external close (End Task) sends it.
+- **Effect:** ending INFERNO from the task list at any time with a life left is a win worth 500
+  (then H1 takes a life in the hall).
+- **Confidence:** 9 (code); 7 (that a player finds it).
+- **Port:** not ported yet.
+
+### H5. A hazard the hero runs into kills it without costing a life
+- **Where:** `hero_collide` 1068:0260, the hazard branch of a small hero (side hit); its callers
+  `hero_jump_step` 1068:0edc and `hero_play` 1068:0bc8; `hazard_hit_player` 1068:3f86.
+- **What the code does:** when the hero's own step is blocked by a hazard and the hero is not 30 px
+  above it, `hero_collide` stops the hero, parks the hazard and plays the death strip (8 or 9); the
+  handler's animation timer then calls `hero_anim_done`, which only resets the pose. The same
+  contact found by the hazard's step (`hazard_move_tick` → `hazard_hit_player`) calls
+  `inferno_lose_life` (−500, a life, `sonicmor`).
+- **Effect:** jumping into a coal, devil or fire low enough to miss the stomp plays the death and
+  removes the hazard for free; only a hazard that walks into the hero costs a life.
+- **Confidence:** 9 (code); 7 (effect).
+- **Port:** not ported yet.
+
+### H6. A life lost wipes the whole occupancy grid
+- **Where:** `hazard_hit_player` 1068:3f86 (`occupancy_grid_clear(grid, NULL)` after
+  `inferno_lose_life`); `occupancy_grid_clear` 1030:01d2; `inferno_backdrop_create` 1068:0102 (the
+  floor wall); `occupancy_grid_vacate_cell` 1080:591c.
+- **What the code does:** with a NULL object `occupancy_grid_clear` sets every cell to (0, NULL),
+  not just the hazard's: the floor wall of row 23, built once at start, is gone for the rest of the
+  game, and so are the cells of every object. The next move of each object vacates cells that are now
+  0, and `occupancy_grid_vacate_cell` turns a 0 into 1 (as NOITE, `L11`): each object leaves a
+  phantom occupant (count 1, no object) the size of its box where it stood at the hit.
+- **Effect:** the landing keeps working on the `g_floorY` clamp, and the cross on its y 327 clamp.
+  The phantom cells block like walls with no object: the hero's step into one stops it as on the
+  floor (a jump ends and the hero is put back on the floor line).
+- **Confidence:** 9 (the wipe); 6 (the phantom cells: from the vacate arithmetic, not traced).
+- **Port:** not ported yet.
+
+### H7. A stomp in the scroll zone blocks the stomp points until a landing outside it
+- **Where:** `hero_move_tick` 1068:0bf7, the two landing resets; `g_stompScored` 1090:02da, set by
+  the stomps in `hero_collide` and `hazard_hit_player`.
+- **What the code does:** a stomp gives +150 only while `g_stompScored` is 0 and sets it; only the
+  landing outside the scroll zone (x < 340 or facing left) clears it. The scroll-zone branch
+  (x ≥ 340 facing right, where the world scrolls under the hero) lands without clearing it.
+- **Effect:** after a stomp landed in the scroll zone, later stomps still remove the hazard but give
+  no points until the hero lands once outside the zone.
+- **Confidence:** 9 (code); 7 (effect).
+- **Port:** not ported yet.
+
+### Harmless (INFERNO)
+
+- **`hazard_ctor` gets 4 strips for 3-entry tables:** `inferno_create_hazards` 1068:3bf8 passes
+  count 4 with `g_hazardStrip*` (1090:02ac, 3 entries each), so the fourth strip reads the next
+  tables: its path is the far pointer 0002:0002 (the first two frame counts), which `OpenFile` and
+  `FindResource` reject, so its Frame gets no DIB. No hazard selects strip 3. Confidence 7.
+- **The rocks' hit boxes do not match their pictures:** `inferno_create_rocks_and_cross` 1068:272a
+  gives `rocha02` (94×99) a 171×35 box, `rocha01` (171×35) 94×99, and rock 5 (`rocha03`) 94×99. The
+  rocks run along the top (y 24–45), out of the hero's reach, and props ignore blockers.
+  Confidence 8.
+- **The hero starts 2 px above the floor line:** `inferno_game_create_player` 1048:0042 places it
+  at y 306; every landing puts it at `g_floorY` 308. Confidence 9.
+- **The floor wall runs past its row:** `inferno_backdrop_create` fills columns 0–89 of row 23 in
+  81-column rows, so columns 81–89 land on row 24, columns 0–8, below the floor. Confidence 8.
+- **`hazard_hit_player`'s branch for a non-player blocker is dead:** its only caller tests
+  `isPlayer` first. Confidence 9.
+- **The `0x12` (`WM_QUIT`) case is dead:** 1068:4d87 posts the report, but `WM_QUIT` is never
+  dispatched to a window procedure. Confidence 9.
+- **`WinMain` 1038:021a returns an uninitialised word,** as TIRO's. Confidence 9.

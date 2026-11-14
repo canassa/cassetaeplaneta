@@ -1,17 +1,17 @@
 # INFERNO.EXE: function inventory
 
-The Ghidra program `/INFERNO.EXE` after phase 2: every function mapped, the twins named, every
-named function carrying a plate that says where its name comes from. Addresses are Ghidra
+The Ghidra program `/INFERNO.EXE` after phase 4 and the cleanup: every function mapped, named or
+noted, and plated; the plate says where the name comes from. Addresses are Ghidra
 `seg:off`. INFERNO is a large-model `/Od` build (far code and far data, `this` a far pointer at
 `[BP+6]`, the vtables in the code segment `1080`); see `QUALITY.md` §0. TIRO (`docs/tiro/`) is the
 reference for the engine names, NOITE for the CRT. The data is in `DATA.md`.
 
 ## Counts
 
-**1,160 functions:** 86 import thunks, 464 adjustor thunks and **610 code functions**. 557 of the
-610 are named and carry a plate; **53 stay `FUN_`** (38 of them the INFERNO game in `1068`).
-Phase 2 named 544; phase 3 added the 13 that the class and data map made obvious (the game
-classes' ctors and type tests, the score helpers, the two new Backdrop type-test slots renamed).
+**1,160 functions:** 86 import thunks, 464 adjustor thunks and **610 code functions**, all plated.
+**602 are named, 8 stay `FUN_`** (dead engine code, "Remaining `FUN_` functions"). Phase 2 named
+544, phase 3 13 (the game classes' ctors and type tests, the score helpers), phase 4 and the
+cleanup the other 45 (the 38 `1068` game functions, 7 in `1080`).
 
 | Kind | Fns | Where / names |
 |---|---|---|
@@ -22,7 +22,7 @@ classes' ctors and type tests, the score helpers, the two new Backdrop type-test
 | DIB | 15 | `1008`, `1010` |
 | App shell | 10 | `1038` |
 | WaveMix | 11 | `1070` (TIRO's `1078` module) |
-| Engine | 417 | `1018–1060`, `1080` (15 still `FUN_`) |
+| Engine | 417 | `1018–1060`, `1080` (8 still `FUN_`) |
 | INFERNO game | 63 | `1048` (4), `1068` (47), and 12 in `1080` (the game classes' ctors, type tests, scene/backdrop ctors) |
 
 By segment (code functions, without the adjustor thunks):
@@ -33,10 +33,10 @@ By segment (code functions, without the adjustor thunks):
 | `1008` | 4 | 4 | 2 | `1050` | 4 | 4 | 3 |
 | `1010` | 11 | 11 | 3 | `1058` | 6 | 6 | 6 |
 | `1018` | 47 | 46 | 4 | `1060` | 2 | 2 | 0 |
-| `1020` | 7 | 7 | 7 | `1068` | 47 | 9 | 1 |
+| `1020` | 7 | 7 | 7 | `1068` | 47 | 47 | 1 |
 | `1028` | 46 | 44 | 5 | `1070` | 11 | 11 | 2 |
 | `1030` | 10 | 10 | 1 | `1078` | 92 | 92 | 8 |
-| `1038` | 10 | 10 | 2 | `1080` | 305 | 293 | 39 |
+| `1038` | 10 | 10 | 2 | `1080` | 305 | 300 | 39 |
 | `1040` | 2 | 2 | 0 | | | | |
 
 "No reference" (83) counts functions that nothing calls and no live slot or thunk reaches. Some
@@ -44,8 +44,8 @@ are reached by an immediate (APPWNDPROC and APPABOUT through RegisterClass/Dialo
 `frame_cell_ctor` through `crt_array_construct`, `init_static_conditions_entry` and
 `crt_endstdio` through the CRT tables); the rest is linked-in dead code (§Dead code).
 
-Conventions (code functions): 473 `__stdcall16far`, 94 far cdecl (`__cdecl16far`, 9
-`__cdecl16far_dxax_ptr`, 1 `__cdecl16far_dx_ax`), 22 near (CRT), 21 left unknown (CRT entries
+Conventions (code functions): 473 `__stdcall16far`, 95 far cdecl (79 `__cdecl16far`, 13
+`__cdecl16far_dxax_ptr`, 3 `__cdecl16far_dx_ax`), 29 near (CRT), 13 left unknown (CRT entries
 without a frame). `NearSignatures.java` set the non-CRT ones mechanically (`RETF n` →
 `__stdcall16far`, n/2 word parameters; `RETF` → `__cdecl16far` from the callers' cleanup), so a far
 `this` shows as two words; 7 carry the tag `sig?` (no caller cleanup to count: the five unused DIB
@@ -131,19 +131,46 @@ arguments, the "Faltou redefinir" defaults call `MESSAGEBOX` directly.
 
 ## Remaining `FUN_` functions
 
-- **`1068` (38)**: the INFERNO game (groups 23–27 below).
-- **`1080` (12)**: `669a`, `66f8` (`game_handle_message` helper: returns `obj+0x78 == 0`), `671a`,
-  `6802`, `736e`, `74a8` (in the Player2D/Scene ctor range), `3c74`, `3daa` (reached only by
-  unreferenced thunks), `3e0a`, and `503a`, `5050`, `50ae` (empty members, TIRO's
-  `FUN_1088_35c6/35e0/3642`).
-- **`1018`/`1028` (3)**: `1018:216d` (690 bytes, no reference, between `exit_tick` and
-  `portable_ctor`), `1028:1408` (empty member, TIRO's `FUN_1028_0e71`), `1028:28f7` (TIRO's
-  `FUN_1028_1cb7`, huge-pointer arithmetic).
+8, all dead engine code with no caller, slot or data reference that settles a role (tag `review`,
+with a one-line note in the plate):
+- `1018:216d` (690 bytes, between `exit_tick` and `portable_ctor`): an Exit/Portable-style tick,
+  TIRO `exit_tick`'s shape with explicit depth order;
+- `1028:1408` (empty member, TIRO's `FUN_1028_0e71`), `1028:28f7` (far cdecl huge-pointer
+  arithmetic, TIRO's `FUN_1028_1cb7`);
+- `1080:3c74`, `3daa` (an attach and a draw override of a class with Object3D and Animation parts,
+  probably Animated3D; reached only by thunks no table holds);
+- `1080:503a`, `5050`, `50ae` (empty members, TIRO's `FUN_1088_35c6/35e0/3642`).
 
-Named in phase 3 (`DATA.md` §4): `hero_ctor` `70fa`, `platform_ctor` `86c0`, `prop_ctor` `87c0`
-(11 calls), `hazard_ctor` `88ca`; the SceneObject slot overrides `hero_slot56` `7244`,
-`platform_is_platform` `7262`, `prop_is_prop` `727c`, `prop_slot5a` `7296`, `hazard_is_hazard`
-`72b4`; `inferno_lose_life`, `inferno_score_add_150/300/100` (`1068:58b2–59f2`).
+The other two `review` tags: `portable_ctor` (the 13 word parameters named by stack offset) and
+`backdrop_slot08_default` (an empty default; what the slot does is unknown). `sig?` stays on 7 (the
+five unused DIB functions, `FUN_1028_28f7`, `wave_stop`: no caller cleanup to count).
+
+## The INFERNO game
+
+`1048` (the Game subclass) and `1068`. `GAME.md` describes the game; each plate has the detail.
+
+| `1068:` | Function | Role |
+|---|---|---|
+| `0000`, `0102` | `inferno_scene_create`, `inferno_backdrop_create` | scene and backdrop create slots: clock, music, waves, score box; the floor wall |
+| `0158`, `589e` | `inferno_start_nop`, `inferno_nop` | empty stubs |
+| `016c`, `0edc` | `hero_start_jump`, `hero_jump_step` | the jump: rise 18 or 12 ticks, fall to `g_floorY` |
+| `0260` | `hero_collide` | the hero's collision response (hazard, platform, cross, other prop) |
+| `09be`, `0b01`, `1936` | `hero_toggle_size`, `hero_reset_pose`, `hero_anim_done` | big/small, the standing strip, the reset after a death or kill strip |
+| `0bc8`, `0bf7`, `15c3`, `1649`, `16dd`, `1720` | `hero_play`, `hero_move_tick`, `hero_tick`, `hero_stop_moving_dc`, `hero_stop_moving`, `hero_move_to_edge_v` | Hero SceneObject overrides; `hero_move_tick` also scrolls the world |
+| `1a1e`, `272a`, `3bf8` | `inferno_create_platforms`, `inferno_create_rocks_and_cross`, `inferno_create_hazards` | the world builders |
+| `1e5d`, `1fb9`, `21c3`, `240d`, `25e3` | `platform_drop_cross`, `platform_move_to_edge_h`, `platform_move_tick`, `platform_tick`, `platform_play` | Platform methods (`platform_play`: +100, the present) |
+| `2b5a`, `2c1e`, `2c4f`, `2e59`, `2f93`, `35c2` | `prop_hit_player`, `prop_move_to_right_edge` (dead), `prop_move_to_edge_h`, `prop_move_tick`, `prop_cross_tick`, `prop_restore_background` | Prop methods |
+| `381d`, `392b`, `398d`, `3ac3` | `prop_rock_tick`, `prop_drink_step`, `prop_drink_respawn`, `prop_rock_spawn` | PropVtbl slots and the rock spawn |
+| `3f86`, `46f7`, `47c2`, `4828`, `48bd`, `49fb` | `hazard_hit_player`, `hazard_tick`, `hazard_despawn`, `hazard_stop_moving`, `hazard_spawn`, `hazard_move_tick` | Hazard methods; `hazard_hit_player` costs the life |
+| `4bdc` | `inferno_scene_handle_message` | **the handler** (3,266 bytes): the clock, keys, 5 timer tests, the 0x40a reports |
+| `58b2`, `5930`, `5991`, `59f2` | `inferno_lose_life`, `inferno_score_add_150/300/100` | −500 and a life (`WM_DESTROY` at 0); the three bonuses |
+| `5a52`, `5a9f` | `inferno_blit_score_box`, `inferno_draw_score` | the score box (TIRO's) |
+
+`1048`: `inferno_game_ctor`, `inferno_game_create_player`, `inferno_game_create_init_scene`,
+`inferno_game_on_create`. In `1080`: `hero_ctor` `70fa`, `platform_ctor` `86c0`, `prop_ctor`
+`87c0`, `hazard_ctor` `88ca`, the type tests `hero_is_big` `7244`, `platform_is_platform` `7262`,
+`prop_is_prop` `727c`, `prop_is_power_up` `7296`, `hazard_is_hazard` `72b4`, `inferno_scene_ctor`
+`72ce`, `inferno_scene_create_screen` `731c`, `inferno_backdrop_ctor` `7556`.
 
 ## Dead code
 
@@ -151,10 +178,12 @@ Linked but unreachable (no call, no live slot): the second half of the DIB modul
 (`dib_copy_transparent_whole`, `dib_copy_rect`, `dib_set_usage`, `dib_create`,
 `dib_map_to_palette`), all of `1020` (the PerspectiveBackdrop setters and the layer functions: no
 PerspectiveBackdrop is built), the whole ControlPanel module `1058` and its getters in `1080`,
-Exit (`exit_play`, `exit_tick`, `exit_*` in `1080`), Player (`player_*`), Animated3D and Actor
+Exit (`exit_play`, `exit_tick`, `exit_*` in `1080`), the StatusBar text (`status_bar_set_text`,
+`status_bar_draw_text`: INFERNO builds no StatusBar), Player (`player_*`), Animated3D and Actor
 (`animated3d_*`, `actor_*`; their slot functions are reached only through thunks that no table
 holds), `portable_ctor` (nothing builds a Portable), `object_list_erase_all/draw_all`,
-`compound_condition_new_and/or`, `wave_stop`, `wave_pump`, and 178 adjustor thunks.
+`compound_condition_new_and/or`, `wave_stop`, `wave_pump`, `prop_move_to_right_edge`, and 178
+adjustor thunks.
 
 ## Phase 4: function groups
 
@@ -194,6 +223,48 @@ agents verify, fix the signatures (far `this` = 4 bytes), type `this` and write 
 Order of work: 1–4 and 10 first (anchors), then 5–9 and 11–12, then the `1080` groups 13–22
 (after phase 3's vtable structs), the game groups 23–27 last.
 
+## Phase 4 results
+
+All 27 groups are done. The game is described in `GAME.md`, its bugs in `BUGS.md` (section
+INFERNO, H1–H7). What phase 4 corrected in the earlier picture:
+- **`0x12` is `WM_QUIT`**, not `WM_QUERYENDSESSION` (0x11); its case is dead.
+- **Timers:** hero move 10 (55 ms, also counts the big hero's `powerTimer` down), hero animation 15
+  (180 ms), 0xc the drinks' animation (the present), cross 3 (120 ms), hazards 0xe (60 ms). The
+  rocks, platforms and drinks have no timer of their own: `hero_move_tick` moves them when the
+  world scrolls. **Timer 1** (55 ms, `APPWNDPROC`'s `WM_CREATE`, re-armed at the time-out) matches
+  no branch: it is a keep-alive for the clock, which is checked on every message.
+- **The end:** the time-out report is posted again every 100 ms for a grace second, then every
+  message posts `WM_DESTROY` (`BUGS.md` H2).
+- **`inferno_lose_life`** is `1068:58b2` (−500, a life, `WM_DESTROY` at 0 lives with no report).
+- **DOWN / numpad − is the low jump** (12 rise ticks, 60 px; UP 18, 90 px), not "another action".
+- **The platforms are hit from below:** a jump into one bounces the hero down and runs
+  `platform_play` (+100 for the drink, or the present that drops the cross).
+- **Class fields** named in place (`Hero.powerTimer`, `jumpTicks`, `jumpPhase`; `Platform.slot`,
+  `presentReady`; `Prop.index`, `state`, `active`, `powerUp`), and `g_unk02D0/02D8/02DA` are
+  `g_heroTimerPending`, `g_scrolling`, `g_stompScored`; `g_unk7286` is `g_rockOrder`.
+
+Cleanup:
+- **Virtual calls:** `FarSlotSignatures.java 1080 defs large` then `calls large` (the new large-model
+  mode) typed the 171 slot definitions and 355 of the 386 `CALLF [BX+k]` sites; `site large` added
+  21 read by hand (Object3D, Mover, Animation, Scene and Condition calls on untyped objects): 376
+  call-site overrides. The 10 left are dead: 8 ControlPanel calls in `game_handle_message`
+  (`Game.controlPanel`) and 1 in `control_panel_draw_inventory` (INFERNO has no ControlPanel class
+  or table), and 1 in `FUN_1080_3daa`. The 4 CRT function-pointer calls stay untyped.
+- **Structs:** `ObjectList` is 4 bytes (`head` only; `object_list_ctor(this, head)`), so
+  `Scene.objects` ends at +0x4a and the Scene flags `hasPlayer` +0x4a, `hasStatusBar` +0x4c,
+  `hasControlPanel` +0x4e are typed; `Game.updateList` is at +0x20, followed by `unk9A` (= 2, never
+  read), `clearWidth` +0x9c and `clearHeight` +0x9e (never written).
+- **Globals:** `g_keyLeft` `00c2`, `g_keyRight` `00c4`, `g_keyUp` `00c6`, `g_keyDown` `00c8`,
+  `g_itemSelected` `00ca`, `g_exitPending` `00cc`, `g_selectedItem` `00ce` (far), `g_dropElevation`
+  `00d2` (TIRO's names, `game_handle_message`).
+- **Names:** `status_bar_set_text` `3e0a`, `status_bar_draw_text` `6802` (TIRO's; dead),
+  `scene_object_get_scene_name_default` `2796` (SceneObjectVtbl slot 0x130, compared with the scene
+  name by `object_list_attach_to_scene`); the SceneObjectVtbl fields `unk4E`, `slot56`, `slot5A` are
+  `getSceneName`, `isBig`, `isPowerUp`. `occupancy_grid_clear` returns nothing.
+- **Tags:** 6 `review` tags resolved; 10 left with a note (above).
+- `NearAdjustorThunks.java 1080 0132 2030 far` and `1080 6800 7060 far` rerun: 464 thunks, every
+  name matching its target.
+
 ## Scripts
 
 `ghidra/scripts/`:
@@ -203,6 +274,7 @@ Order of work: 1–4 and 10 first (anchors), then 5–9 and 11–12, then the `1
 | `CopyTypesFromProgram.java` | `/NOITE.EXE`, then `/TIRO.EXE`: SDK structs, all 86 import signatures |
 | `FarVtSlots.java` | slots → functions on the five `1080` table ranges (data segment argument `1080`) |
 | `NearAdjustorThunks.java` (`far`, now also the `LES` vtordisp form) | `1080 0132 2030 far`, `1080 6800 7060 far`; rerun after renaming |
+| `FarSlotSignatures.java` (`large`) | `1080 defs large`, `1080 calls large`, `1080 site large <addr>=<Vtbl> …` |
 | `CodeGapSweep.java` | per code segment, `create` (run one segment per call: a script that runs it through `runScript` blocks on a "script not found" dialog when the script is not in `~/ghidra_scripts`) |
 | `DeadJumps.java` | all code segments |
 | `NearSignatures.java` | conventions of `1008–1070`, `1080` |
