@@ -148,7 +148,7 @@ pub fn moverStep(obj: *Object) void {
 // @orig 1028:0f2a mover_at_target
 /// True when the next position is within one step of the target along the
 /// major axis (y when errIncX is 0, else x).
-fn moverAtTarget(obj: *Object) bool {
+pub fn moverAtTarget(obj: *Object) bool {
     const m = &obj.mover;
     if (m.errIncX == 0) {
         return !(abs16(m.stepY) < abs16(obj.nextY -% m.targetY));

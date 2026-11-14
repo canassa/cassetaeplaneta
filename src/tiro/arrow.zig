@@ -74,14 +74,6 @@ fn abs16(v: i16) i16 {
     return if (v < 0) 0 -% v else v;
 }
 
-/// mover_at_target (1028:0f2a, movement's, private there): the next
-/// position is within one step of the destination along the major axis.
-fn atTarget(obj: *Object) bool {
-    const m = &obj.mover;
-    if (m.errIncX == 0) return !(abs16(m.stepY) < abs16(obj.nextY -% m.targetY));
-    return !(abs16(m.stepX) < abs16(obj.nextX -% m.targetX));
-}
-
 /// ProjectileVtbl slot 02 stepMove (hwnd and hdc dropped): while moving, one
 /// Bresenham step and `tryStep`; blocked -> stop (the arrow vanishes),
 /// `moving` = 0 and hideAndInvalidate; else place at the next position,
@@ -100,7 +92,7 @@ pub fn stepMove(g: *Game, obj: *Object, bd: *Backdrop, dir: *i16) void {
         movement.placeAt(g, obj, obj.nextX, obj.nextY, bd);
         visibility.redrawOverlapping(g, obj, bd, 1);
         visibility.blitToDc(g, obj, bd);
-        if (atTarget(obj)) {
+        if (movement.moverAtTarget(obj)) {
             movement.stopMovingDc(g, obj, bd);
             obj.mover.moving = 0;
         }
