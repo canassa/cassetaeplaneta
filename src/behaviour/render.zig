@@ -349,11 +349,55 @@ fn panelHoles(g: *Game, obj: *Object) ?*const PanelHoles {
             }
         }
     }
+    dropSpecks(px, wu, hu, stride);
     ph.width = wu;
     ph.height = hu;
     ph.stride = stride;
     ph.key = key;
     return ph;
+}
+
+/// Enclosed key-coloured specks of fewer than `max_speck` pixels (pockets
+/// in the torn edge, not slots) go back to `outside`, so the scene still
+/// shows through them. A bounded flood from each hole pixel: one that
+/// stops before the bound is a speck.
+fn dropSpecks(px: []u8, w: usize, h: usize, stride: usize) void {
+    const max_speck = 64;
+    const visiting: u8 = 3;
+    var queue: [max_speck]usize = undefined;
+    for (0..h) |y| for (0..w) |x| {
+        const start = y * stride + x;
+        if (px[start] != PanelHoles.hole) continue;
+        var n: usize = 1;
+        var head: usize = 0;
+        queue[0] = start;
+        px[start] = visiting;
+        var big = false;
+        while (head < n and !big) : (head += 1) {
+            const i = queue[head];
+            const ix = i % stride;
+            const iy = i / stride;
+            const next = [4]?usize{
+                if (ix > 0) i - 1 else null,
+                if (ix + 1 < w) i + 1 else null,
+                if (iy > 0) i - stride else null,
+                if (iy + 1 < h) i + stride else null,
+            };
+            for (next) |nb| {
+                const j = nb orelse continue;
+                if (px[j] != PanelHoles.hole) continue;
+                if (n == max_speck) {
+                    big = true;
+                    break;
+                }
+                px[j] = visiting;
+                queue[n] = j;
+                n += 1;
+            }
+        }
+        const class = if (big) PanelHoles.hole else PanelHoles.outside;
+        for (queue[0..n]) |i| px[i] = class;
+    };
 }
 
 /// SceneObject slot 1C: draws the clip part of the current frame into a DIB.

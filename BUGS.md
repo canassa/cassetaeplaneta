@@ -623,11 +623,16 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
 - **Effect:** with the player low in a scene (feet below row ~400: 1fgarage, 3fprisao, 3fhall, 1fquarbo…),
   the panel slides open over him and his shoes and legs stay in the slots in front of him, swaying with his
   idle frames and walking with him; an item dragged out of a slot leaves his legs in its place. It reads as the
-  player drawn over the menu.
-- **Port:** reproduced (`--scene 1fgarage`, click at (320, 425), then move to (320, 470));
+  player drawn over the menu, most of all while the panel slides closed: each step of the slide
+  (`control_panel_tick` 1018:22cc erases the panel's whole rectangle and draws the next frame; 1018:0354 timer
+  test, 038f tick, 03ca `scene_object_hitbox_overlaps` 1010:bc1e, then 0407 the player's tick or 0429/044d his
+  draw and slot 58 redraw while he walks, 047a → 0649 the panel, 065a the flush) redraws him whole and the panel
+  over him, and the slots slide down across his legs and shoes, showing pieces of them on the way. Nothing
+  else of him is lost or drawn over the paper during either slide.
+- **Port:** reproduced (`--scene 1fgarage`, click at (320, 425), move to (320, 470), then back to (320, 200));
   `Fixes.panel_slots_show_background` fills the slots of the panel's frame (key pixels no key-coloured path
-  joins to its top row, so the gaps of the torn top edge still show the scene) with the pristine background
-  picture each time the panel is drawn.
+  joins to its top row, so the gaps of the torn top edge still show the scene, nor key-coloured specks of fewer
+  than 64 pixels, pockets of that edge) with the pristine background picture each time the panel is drawn.
 - **Confidence:** 8 (code, port repro).
 
 ### B40. Green bushes show through the taxi driver's face
