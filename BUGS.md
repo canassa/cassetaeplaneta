@@ -695,6 +695,20 @@ Confidence 8–9.
   between the scene constructor and `ini_scene_create`, when no message is pumped. The port uses 0.
 Confidence 8–9.
 
+### B41. The bar after a wrong DJ answer never lets the control panel open (4fbarbo2)
+- **Where:** `handler_4fbarbo2` 1020:c632, WM_MOUSEMOVE: returns 1 (handled) for every move at y ≥ 0x169, so
+  the engine's move handler never sees the pointer reach the bottom strip that slides the panel open.
+  `[4fbarbo2]` has no `Exit=` lines, and the scene (entered from `4fdj` 1020:b7ac and `4fboydj` 1020:d4fc
+  with the panel on) has no player.
+- **What the code does:** the only way on is a right click on the drunk's pocket (0xdc) after the barman's
+  opening wave; until then nothing on screen responds, and the panel, the only route to Opções, is shut.
+- **Effect:** the player can neither leave, save, load nor quit until finding the pocket; it reads as a
+  soft lock. Deliberate or not, no other scene with the panel on blocks it for its whole length (4fdj
+  blocks it only until its intro ends, `panelAllowed`).
+- **Port:** reproduced; `Fixes.bar_panel_opens` lets the moves through. The scene's Screen line clears
+  `mayDropObject`, so the open panel offers Opções only (no item can be dropped there).
+- **Confidence:** 9 (code, INI, port repro).
+
 ---
 
 ## Unfinished features (never wired up)

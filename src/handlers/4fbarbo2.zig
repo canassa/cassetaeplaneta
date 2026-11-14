@@ -88,7 +88,8 @@ fn restartTimer(g: *Game, obj: *Object) void {
 pub fn handle(g: *Game, m: Msg) i16 {
     const s = g.sceneState(State);
     switch (m.id) {
-        wm.mousemove => return if (m.hi() < 0x169) 0 else 1,
+        // B41: the panel never opens here (the scene has no exits either).
+        wm.mousemove => return if (m.hi() < 0x169 or g.fixes.bar_panel_opens) 0 else 1,
         wm.rbuttondown => {
             const bd = g.scene.?.backdrop.?;
             const q = backdrop.queryRect(g, bd, @as(i16, @bitCast(m.lo())) +% bd.originX, @as(i16, @bitCast(m.hi())) +% bd.originY, 0x10, 0x10);

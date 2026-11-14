@@ -101,6 +101,9 @@ pub const Fixes = struct {
     /// B40: 2fportdi's driver is drawn in front of the passing bushes, not
     /// behind them (they showed through his face).
     driver_in_front_of_scenery: bool = false,
+    /// B41: 4fbarbo2 lets the control panel open (Opções: save, load,
+    /// quit) instead of swallowing every mouse move near the bottom.
+    bar_panel_opens: bool = false,
     /// B34: the open control panel is redrawn on the screen when the
     /// inventory changes under it (an offered item handed back to the
     /// first slot), so its icons are the items a drag takes.
