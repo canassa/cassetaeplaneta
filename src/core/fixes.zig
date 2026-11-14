@@ -177,6 +177,11 @@ pub const Fixes = struct {
     /// longer leaves a column of his pixels there.
     restore_copies_key_pixels: bool = false,
     /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"):
+    /// the living room's exit to the street (`Exit=114`) is clickable over
+    /// the whole door frame in the background (y 73-390), not only below
+    /// y 280.
+    sala_street_exit_covers_door: bool = false,
+    /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"):
     /// while an inventory item is dragged out of the control panel (right
     /// button held), its panel icon follows the pointer. The original shows
     /// nothing. Drawn over the presented frame (`Screen.overlay`), never

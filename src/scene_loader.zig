@@ -297,6 +297,15 @@ fn readExitLine(ld: *Loader) void {
     }) catch |e| die(e);
 }
 
+/// Corrigida: stretches the hit box of every strip of `obj` to the screen
+/// rows `top`..`bottom` (the box's x range is kept).
+fn extendHitUp(obj: *Object, top: i16, bottom: i16) void {
+    for (obj.frames) |*f| {
+        f.hitY = top -% obj.y;
+        f.hitH = bottom -% top;
+    }
+}
+
 /// `Exit=`: an Exit object in the scene's object list and exit table.
 fn loadExit(ld: *Loader) *Object {
     const g = ld.g;
@@ -309,6 +318,7 @@ fn loadExit(ld: *Loader) *Object {
     } else {
         aviSetup(g, obj);
     }
+    if (g.fixes.sala_street_exit_covers_door and r.number == 114 and cstr.eqlIgnoreCase(&scene.name, "1fsala")) extendHitUp(obj, 73, 390);
     place(ld, obj);
     exitTarget(g, obj);
     scene_mod.addObject(g, scene, obj);

@@ -913,6 +913,9 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
   on the presented frame, `Screen.overlay`); the original shows nothing (no `SetCursor` anywhere).
 - `Fixes.smooth_item_fall`: a falling item is drawn in 2-row frames between its 10-row steps (system timer
   0xfa11, `movement.smoothFallTick`); the steps, path, end and timing are the original's.
+- `Fixes.sala_street_exit_covers_door`: the living room's exit to the street (`1fsala` `Exit=114`, to `2FPONTOC`)
+  takes a right click over the whole door frame drawn in `1FSALA.BMP` (x 0-40, y 73-390). The original's hit box
+  is x 0-40, y 280-390 (the INI line's y 278 and 40x110 bound). The exit's range check is unchanged.
 
 ---
 

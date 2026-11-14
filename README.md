@@ -69,6 +69,8 @@ Saves go to `save/` (`--save DIR`).
   given to the taxi driver is not drawn over his drinking animation (B45).
   `--fix all --ms 20000 --input tools/play/b52-corridor-frame-speck.input` checks that the player's
   pixels do not stay on the corridor's Mona Lisa (B52; the Original fails it).
+  `--fix all --ms 4000 --input tools/play/sala-street-door.input` checks that a click at (20, 120) takes the
+  living room's street exit (a Corrigida addition); `sala-street-door-orig.input` is the Original's miss.
 - **Playthrough**: `./zig-out/bin/noite --headless --ms 600000 --input tools/play/full.input`
   plays from the title screen to the sportsman ending, checking every scene
   (the hall's TIRO and the pharaoh's ENCAIXE with scripted wins).
