@@ -1652,51 +1652,10 @@ Addresses are Ghidra `seg:off` in `/INV.EXE`; the game is described in `docs/inv
 left-edge turn does not descend; only a column's bottom live invader can be hit; a bomb drops only
 from a column within 88 px of the cannon; the saucer is worth a flat 500 and vanishes at x 518, short
 of the right edge. Each is consistent code with a plausible intent. Left out as unreachable: the
-column tick's second `WM_DESTROY` (wParam 0) after a win, since timer 0xf is then 65 s away (I2)
-and `WM_QUIT` comes first.
+column tick's second `WM_DESTROY` (wParam 0) after a win, since timer 0xf is then 65 s away (see
+Harmless, the last kill's speed-up) and `WM_QUIT` comes first.
 
-### I1. The bomb and shot creators write through null pointers into DGROUP
-- **Where:** `inv_create_bombs` 1068:0541 (`MOV BX,[BX+0x68e6]; MOV word ptr [BX+0x42],1` at
-  1068:0566–056a, before `operator new` at 0572); `inv_create_shot` 1068:03df (`MOV BX,[BX+0x68e4];
-  MOV word ptr [BX+0x42],0` at 1068:0404–0408, before `operator new` at 0410).
-- **What the code does:** each creator sets the object's `Missile.unk42` before it allocates the
-  object, through `g_bombs[i]` / `g_shots[0]`, which are still 0 (BSS). The three stores hit
-  DGROUP 0x42–0x43, inside `s_hdcOverflow` (1090:002e, "Estouro no número de HDCs"); the shot's 0
-  is the last. The real `unk42` fields are never written (and never read).
-- **Effect:** the HDC-overflow message box reads "Estouro no número de"; it is shown only when the
-  engine runs out of HDC slots, which this game never does. Nothing else is touched.
-- **Confidence:** 9 (code); 8 (effect).
-- **Port:** not ported yet.
-
-### I2. The last kill takes the speed-up, so the end-of-game branch is dead and the period goes negative
-- **Where:** `inv_scene_handle_message`, the speed-up after a kill (1068:2f61–2fad; the dead branch
-  1068:3065).
-- **What the code does:** after `--g_invadersLeft` the tests are `left % 5 == 0` (period −= 100),
-  else `left == 1` (period = 55), else `left < 1` (`WM_DESTROY`, wParam 0). The last kill leaves 0,
-  and 0 % 5 == 0, so the period becomes 55 − 100 = −45 and `SetSystemTimer` re-arms the columns'
-  timer 0xf with 65,491 ms (UINT); the `< 1` branch can never run.
-- **Effect:** the win is sent by the next `WM_SYSTIMER` of any timer (step 0 of the chain, within
-  50 ms), not by the kill; the formation timer is left 65 s away. The delay is not noticeable.
-- **Confidence:** 9 (code); 8 (effect).
-- **Port:** not ported yet.
-
-### I3. A landing sends `WM_DESTROY`, and so the loss result, several times
-- **Where:** `invader_column_stop_moving_dc` 1068:13a8 (`SendMessage` at 1068:13d4 when
-  `g_invadersLanded` is set, 1414 on the landing); `invader_column_step` 1068:181f (1068:194d);
-  `invader_column_turn` 1068:157b; `WM_DESTROY` 1068:1cea (the `PostMessage` at 1068:1d0b).
-- **What the code does:** at the right-edge turn that lands, the leading column sends
-  `WM_DESTROY` (wParam 0) from `invader_column_stop_moving_dc` when the bottom was already at y 390,
-  and again from `invader_column_step`'s own test after it; the handler then turns every other live
-  column, and each one's `invader_column_stop_moving_dc` finds `g_invadersLanded` and sends it again:
-  up to 5 in one tick. Each `WM_DESTROY` runs the teardown (`wave_stop_all`, `wave_free_all`,
-  `wave_mix_close`, the last ones with `g_waveMixSession` 0) and posts `0x40a` (0, score); it has no
-  guard.
-- **Effect:** NOITE gets several loss results. `handler_4fsacaet` takes the first and switches to
-  `4fmarte`, which ignores `0x40a`, so the score is added once and one life is taken.
-- **Confidence:** 9 (code); 8 (effect).
-- **Port:** not ported yet.
-
-### I4. The SPACE latch is never set, so a held SPACE fires on every key repeat
+### I1. The SPACE latch is never set, so a held SPACE fires on every key repeat
 - **Where:** `inv_scene_handle_message`, `WM_KEYDOWN` `VK_SPACE` (test 1068:1ed5), `WM_KEYUP`
   1068:209e.
 - **What the code does:** the fire code runs only when `g_keySpaceHeld` (1090:0282) is 0, and key-up
@@ -1707,7 +1666,7 @@ and `WM_QUIT` comes first.
 - **Confidence:** 9 (code); 8 (effect, depends on the keyboard repeat rate).
 - **Port:** not ported yet.
 
-### I5. A direction key during the cannon's explosion cuts it short and lets the cannon fire
+### I2. A direction key during the cannon's explosion cuts it short and lets the cannon fire
 - **Where:** `inv_scene_handle_message`, the cannon branch of `WM_SYSTIMER` (isRunning 1068:220b,
   isMoving 2239, `moveTick` and `hitFrame = -1` at 1068:2244–2275); `WM_KEYDOWN` LEFT/RIGHT
   1068:1df9/1e67; the fire gate 1068:1ee2.
@@ -1722,6 +1681,30 @@ and `WM_QUIT` comes first.
 
 ### Harmless (INV)
 
+- **The bomb and shot creators write through null pointers into DGROUP:** `inv_create_bombs` 1068:0541
+  (`MOV BX,[BX+0x68e6]; MOV word ptr [BX+0x42],1` at 1068:0566–056a, before `operator new` at 0572) and
+  `inv_create_shot` 1068:03df (`MOV BX,[BX+0x68e4]; MOV word ptr [BX+0x42],0` at 1068:0404–0408, before
+  `operator new` at 0410) set the object's `Missile.unk42` before allocating it, through `g_bombs[i]` /
+  `g_shots[0]`, which are still 0 (BSS). The three stores hit DGROUP 0x42–0x43, inside `s_hdcOverflow`
+  (1090:002e, "Estouro no número de HDCs"); the shot's 0 is the last, so that message box would read
+  "Estouro no número de", but it is shown only when the engine runs out of HDC slots, which this game never
+  does. The real `unk42` fields are never written (and never read). Confidence 9 (code); 8 (effect).
+- **The last kill takes the speed-up, so the end-of-game branch is dead and the period goes negative:** in
+  `inv_scene_handle_message` (1068:2f61–2fad; the dead branch 1068:3065), after `--g_invadersLeft` the tests are
+  `left % 5 == 0` (period −= 100), else `left == 1` (period = 55), else `left < 1` (`WM_DESTROY`, wParam 0). The
+  last kill leaves 0, and 0 % 5 == 0, so the period becomes 55 − 100 = −45 and `SetSystemTimer` re-arms the
+  columns' timer 0xf with 65,491 ms (UINT); the `< 1` branch can never run. The win is sent by the next
+  `WM_SYSTIMER` of any timer (step 0 of the chain, within 50 ms), not by the kill, and the formation timer is
+  left 65 s away: the delay is not noticeable. Confidence 9 (code); 8 (effect).
+- **A landing sends `WM_DESTROY`, and so the loss result, several times:** at the right-edge turn that lands,
+  the leading column sends `WM_DESTROY` (wParam 0) from `invader_column_stop_moving_dc` 1068:13a8 (1068:13d4
+  when `g_invadersLanded` is set, 1414 on the landing) when the bottom was already at y 390, and again from
+  `invader_column_step` 1068:181f's own test (1068:194d); the handler then turns every other live column
+  (`invader_column_turn` 1068:157b), and each one's `invader_column_stop_moving_dc` finds `g_invadersLanded` and
+  sends it again: up to 5 in one tick. Each `WM_DESTROY` (1068:1cea) runs the teardown (`wave_stop_all`,
+  `wave_free_all`, `wave_mix_close`, the last ones with `g_waveMixSession` 0) and posts `0x40a` (0, score) at
+  1068:1d0b; it has no guard. NOITE's `handler_4fsacaet` takes the first result and switches to `4fmarte`,
+  which ignores `0x40a`, so the score is added once and one life is taken. Confidence 9 (code); 8 (effect).
 - **`invader_column_init_cells` 1068:122f adds 44·i twice:** it passes y = 60 + 44·i to
   `invader_column_set_cell` 1088:69d6, which adds 44·i itself, so cell i starts at y 60 + 88·i. The
   hit test uses the column's y, not the cells'; only the explosion is placed from the cell. The first

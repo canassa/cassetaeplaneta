@@ -140,7 +140,7 @@ Every object runs on its own WM_SYSTIMER id (the ctor's `timerId`/`timerPeriod`)
 | 0xa | 60 ms | the cannon |
 | 0xc | 60 ms | the saucer; its launch timer 0xe at 10 s (`SaucerVtbl.armTimer`, `Saucer.timer2Id`) |
 | 0xd | 55 ms | the shot |
-| 0xf | `g_invaderPeriod`: 500, 400, 300, 200 ms (15, 10, 5 left), 55 ms (1 left), then 65,491 ms (BUGS I2) | the four invader columns (one timer) |
+| 0xf | `g_invaderPeriod`: 500, 400, 300, 200 ms (15, 10, 5 left), 55 ms (1 left), then 65,491 ms (BUGS.md, INV Harmless) | the four invader columns (one timer) |
 | 0x10 | 55 ms | the invader explosion |
 
 ## Vtables and classes
@@ -158,7 +158,7 @@ agree with each `operator new` (class + the 0x46c SceneObject):
 |---|---|---|---|---|---|
 | **Cannon** : Player2D | `1876` M, `187a` A, `187e` S | `19ea` {−2,0x4a}, `19ee` {−2,0x18} | `Cannon` 0x4c | 0x4b8 | TIRO's Crossbow layout. `Player2D.lives` (+0x40) = 4; `Player2D.score` (+0x42, dword) gets +10 per invader, +50 per saucer and is never read (NOITE gets `g_score`); `hitFrame` +0x46 (−1 idle, else the explosion frame count); `unk48` +0x48; `vtordisp` +0x4a |
 | **Saucer** : Actor2D | `1dba` SaucerVtbl (4), `1dca` A, `1dce` S | `1f3a` {−2,0x50}, `1f3e` {−2,0x1e} | `Saucer` 0x52 | 0x4be | TIRO's Target layout. `unk40` +0x40 (ctor 1, cleared when the saucer leaves; read only by `saucer_check_edge`'s dead left-edge branch); `timer2Id` +0x4c (0xe, the launch timer); `hitFrame` +0x4e (−1 idle, else the explosion frame count); `vtordisp` +0x50 |
-| **Missile** : Actor2D | `1f42` MissileVtbl (3), `1f4e` A, `1f52` S | `20be` {−2,0x4c}, `20c2` {−2,0x1a} | `Missile` 0x4c | – | Abstract base: `unk42` +0x42 (never read; the creators' writes miss it, BUGS I1); `timer2Id` +0x44 (bomb 0's drop timer 8); `timer2IdB` +0x46 (bomb 1's drop timer 9; `missile_arm_timer` kind 2 writes both, kind 5 only this one); `hitFrame` +0x48; `hitState` +0x4a (a char: the class of what blocked the last step, set by `missile_can_step`: '1' the shot, '2' an invader, '3' the saucer, '4' the cannon, '5' a bomb; the handler also sets '4' when a bomb is over the cannon, acts on '1'/'4' for a bomb and '2'/'3' for the shot, then resets it to '\0'; never initialised) |
+| **Missile** : Actor2D | `1f42` MissileVtbl (3), `1f4e` A, `1f52` S | `20be` {−2,0x4c}, `20c2` {−2,0x1a} | `Missile` 0x4c | – | Abstract base: `unk42` +0x42 (never read; the creators' writes miss it, BUGS.md, INV Harmless); `timer2Id` +0x44 (bomb 0's drop timer 8); `timer2IdB` +0x46 (bomb 1's drop timer 9; `missile_arm_timer` kind 2 writes both, kind 5 only this one); `hitFrame` +0x48; `hitState` +0x4a (a char: the class of what blocked the last step, set by `missile_can_step`: '1' the shot, '2' an invader, '3' the saucer, '4' the cannon, '5' a bomb; the handler also sets '4' when a bomb is over the cannon, acts on '1'/'4' for a bomb and '2'/'3' for the shot, then resets it to '\0'; never initialised) |
 | **Bomb** : Missile | `20c6`, `20d2`, `20d6` | `2242`, `2246` (same) | `Bomb` 0x4e | 0x4ba | `vtordisp` +0x4c |
 | **Shot** : Missile | `224a`, `2256`, `225a` | `23c6`, `23ca` (same) | `Shot` 0x4e | 0x4ba | `vtordisp` +0x4c |
 | **InvaderExplosion** : Actor2D | `23ce` InvaderVtbl (3), `23da` A, `23de` S | `254a` {−2,0x76}, `254e` {−2,0x44} | `InvaderExplosion` 0x78 | 0x4e4 | Shares every slot override with InvaderColumn but `restoreBackground` and `draw` (the engine's), so it carries the column's fields at +0x40–0x4d unused (`lowestAlive` −1: the shared column slots only stop and hide it); `frameCounter` +0x4e; `vtordisp` +0x76 |
@@ -186,8 +186,8 @@ call-site override gives it the slot's prototype.
 
 ## The game rules
 
-`GAME.md` has them in full; the bugs are `BUGS.md` I1–I5. In short: *Invasores* is NOITE's
-`handler_4fsacaet` minigame (`Inv\Inv.exe`, after the flying-saucer scene). 20 invaders in 4
+`GAME.md` has them in full; the bugs are `BUGS.md` I1–I2 and a Harmless list. In short:
+*Invasores* is NOITE's `handler_4fsacaet` minigame (`Inv\Inv.exe`, after the flying-saucer scene). 20 invaders in 4
 columns of 5 at x 40 + 108·i, y 60 step 20 px together on timer 0xf (500 ms, −100 ms at 15, 10
 and 5 left, 55 ms at 1 left), the leading column first by `g_formationDir`; a right-edge turn
 descends 22 px, a left-edge turn does not, and a landing at y ≥ 390 loses. The cannon (4 lives)

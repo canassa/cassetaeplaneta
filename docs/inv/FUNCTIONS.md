@@ -189,9 +189,9 @@ signatures matter to groups 6–9.
 | `028b` | `inv_create_invader_explosion` | the explosion, parked at (640, 480) |
 | `031b` | `invader_column_start_right_dup` | byte copy of `0146`, no caller |
 | `0343` | `inv_create_saucer` | the saucer; launch timer 0xe, 10 s |
-| `03df` | `inv_create_shot` | the shot (null-pointer write first, BUGS I1) |
+| `03df` | `inv_create_shot` | the shot (null-pointer write first, BUGS.md, INV Harmless) |
 | `04bc` | `shot_vanish` | blank frame, stop |
-| `0541` | `inv_create_bombs` | the 2 bombs; drop timers 8/9 (null-pointer writes, BUGS I1) |
+| `0541` | `inv_create_bombs` | the 2 bombs; drop timers 8/9 (null-pointer writes, BUGS.md, INV Harmless) |
 | `06d1` | `bomb_shot_down` | stop, one tick of `Bomtir.bmp` |
 | `07a6` | `cannon_lose_life` | −1 life; 0 → `WM_DESTROY` (0), else the `Brocha.bmp` explosion |
 | `0837` | `cannon_can_step` | Cannon SO canStep: always 1 |

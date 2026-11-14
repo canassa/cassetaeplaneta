@@ -36,7 +36,7 @@ impact, 3 frames of 25×28), `panel.bmp` (status bar and panel frames, never sho
 4. Still in `inv_game_on_create`, in this order: `inv_on_create_hook` (empty),
    `inv_create_invader_columns`, `inv_create_invader_explosion`, `inv_create_saucer`,
    `inv_create_bombs`, `inv_create_shot` (all `1068`). The bomb and shot creators write through
-   their still-null object pointers first (BUGS I1).
+   their still-null object pointers first (BUGS.md, INV Harmless).
 
 ## Heartbeat
 
@@ -81,11 +81,12 @@ every live column not yet stepped this tick turns with it (`invader_column_turn`
   at y ≥ 390 ((lowestAlive + 1)·44 + y, tested before the descent in
   `invader_column_stop_moving_dc` and again after it in `invader_column_step`; the cannon's top is
   380), the column sets `landed` and `g_invadersLanded` and sends `WM_DESTROY` with wParam 0:
-  **the game is lost**. It is sent several times in that tick (BUGS I3).
+  **the game is lost**. It is sent several times in that tick (BUGS.md, INV Harmless).
 
 **The speed** is `g_invaderPeriod`, 500 ms at the start. After each kill: with 15, 10 or 5
 invaders left it drops by 100 ms (400, 300, 200); with 1 left it becomes 55 ms. The new period is
-set on timer 0xf and in each column. The last kill also takes the "multiple of 5" branch (BUGS I2).
+set on timer 0xf and in each column. The last kill also takes the "multiple of 5" branch
+(BUGS.md, INV Harmless).
 
 ## The cannon
 
@@ -97,7 +98,7 @@ Releasing a key with the other still held resumes the other direction, otherwise
 (620, 460), then moved on in the same step). `cannon_blit_to_dc` blits a rect one step wider on
 each side, so the 20-px trail is erased.
 
-**SPACE** fires when `g_keySpaceHeld` is 0 (always: nothing sets it, BUGS I4), the cannon is not
+**SPACE** fires when `g_keySpaceHeld` is 0 (always: nothing sets it, BUGS I1), the cannon is not
 exploding (`hitFrame` == −1) and the shot is not moving: the shot starts at (cannon x + 27,
 cannon y − 30) and flies up (`moveToEdgeV`, 20 px per 55 ms, timer 0xd) with `tiroes2.wav`. There
 is one shot, so at most one is in flight.
@@ -106,7 +107,7 @@ is one shot, so at most one is in flight.
 (the fourth hit) the game is lost (`WM_DESTROY`, wParam 0). Otherwise the cannon stops and plays
 `Brocha.bmp`: the cannon branch counts `hitFrame` up to 7 frames of 60 ms, then goes back to
 `Canhao.bmp`, sets `hitFrame` −1 and resumes a held arrow key. A direction key pressed during the
-explosion moves the cannon instead and resets `hitFrame` (BUGS I5).
+explosion moves the cannon instead and resets `hitFrame` (BUGS I2).
 
 ## The shot and the hit test
 
@@ -165,8 +166,8 @@ in the DC's default font. `inv_blit_score_box` (`1068:34d2`) copies the box to t
 
 ## End and result
 
-- **Win**: the kill that leaves `g_invadersLeft` at 0 re-arms timer 0xf at 65,491 ms (BUGS I2); the
-  next `WM_SYSTIMER` of any id (within 50 ms) sends `WM_DESTROY` with **wParam 0xffff** and sets
+- **Win**: the kill that leaves `g_invadersLeft` at 0 re-arms timer 0xf at 65,491 ms (BUGS.md,
+  INV Harmless); the next `WM_SYSTIMER` of any id (within 50 ms) sends `WM_DESTROY` with **wParam 0xffff** and sets
   `g_invadersLeft` to −1.
 - **Loss**, `WM_DESTROY` with **wParam 0**: the fourth bomb hit, or the landing.
 
@@ -203,13 +204,13 @@ NOITE reaches the minigame from the bar: the right answer to the esoteric's ques
     or to `6fsaida` (game over) when the lives reach exactly 0;
   - `4fmarte2` (1028:04e6; `src/handlers/4fmarte2.zig`), the winning scene: the Martian (0xf1)
     speaks; when its wave ends, the `ESOTEBOY` cutscene.
-  Neither handles `0x40a`, so the extra results of a landing (BUGS I3) are ignored.
+  Neither handles `0x40a`, so the extra results of a landing (BUGS.md, INV Harmless) are ignored.
 
 ## Keys and mouse
 
 | Input | Effect |
 |---|---|
-| SPACE | fire (The cannon); every key repeat fires again once the shot is free (BUGS I4) |
+| SPACE | fire (The cannon); every key repeat fires again once the shot is free (BUGS I1) |
 | LEFT / RIGHT | move the cannon (The cannon) |
 | key-up of LEFT / RIGHT | resume the other held key, or stop |
 | other keys | nothing (the handler returns 1) |
