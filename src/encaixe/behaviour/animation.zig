@@ -151,8 +151,7 @@ pub fn tick(g: *Game, obj: *Object, bd: *Backdrop) void {
     switch (obj.kind) {
         // @orig 1008:7ed8 player2d_tick
         .piece => animationTick(g, obj, bd),
-        // panels.tick (control_panel_tick) is not declared in the panels skeleton yet.
-        .control_panel => if (@hasDecl(panels, "tick")) panels.tick(g, obj, bd) else @panic("encaixe.panels.tick missing"),
+        .control_panel => panels.tick(g, obj, bd),
         // scene_object_tick_default (absorbed)
         .status_bar => {},
     }
