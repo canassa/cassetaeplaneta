@@ -1635,3 +1635,107 @@ consistent code with a plausible intent, and none is reached by a slip.
 - **The `0x3bd` case is dead:** 1068:15cc returns 1 for a wave-done message, but every wave is played
   with `hWndNotify` 0. Confidence 9.
 - **`WinMain` 1038:0202 returns an uninitialised word,** as TIRO's. Confidence 9.
+
+---
+
+## INV.EXE (the "Invasores" Space Invaders minigame)
+
+Addresses are Ghidra `seg:off` in `/INV.EXE`; the game is described in `docs/inv/GAME.md`.
+`inv_scene_handle_message` is 1068:1c9c. The letter is I (for Invasores). Left out as design: a
+left-edge turn does not descend; only a column's bottom live invader can be hit; a bomb drops only
+from a column within 88 px of the cannon; the saucer is worth a flat 500 and vanishes at x 518, short
+of the right edge. Each is consistent code with a plausible intent. Left out as unreachable: the
+column tick's second `WM_DESTROY` (wParam 0) after a win, since timer 0xf is then 65 s away (I2)
+and `WM_QUIT` comes first.
+
+### I1. The bomb and shot creators write through null pointers into DGROUP
+- **Where:** `inv_create_bombs` 1068:0541 (`MOV BX,[BX+0x68e6]; MOV word ptr [BX+0x42],1` at
+  1068:0566–056a, before `operator new` at 0572); `inv_create_shot` 1068:03df (`MOV BX,[BX+0x68e4];
+  MOV word ptr [BX+0x42],0` at 1068:0404–0408, before `operator new` at 0410).
+- **What the code does:** each creator sets the object's `Missile.unk42` before it allocates the
+  object, through `g_bombs[i]` / `g_shots[0]`, which are still 0 (BSS). The three stores hit
+  DGROUP 0x42–0x43, inside `s_hdcOverflow` (1090:002e, "Estouro no número de HDCs"); the shot's 0
+  is the last. The real `unk42` fields are never written (and never read).
+- **Effect:** the HDC-overflow message box reads "Estouro no número de"; it is shown only when the
+  engine runs out of HDC slots, which this game never does. Nothing else is touched.
+- **Confidence:** 9 (code); 8 (effect).
+- **Port:** not ported yet.
+
+### I2. The last kill takes the speed-up, so the end-of-game branch is dead and the period goes negative
+- **Where:** `inv_scene_handle_message`, the speed-up after a kill (1068:2f61–2fad; the dead branch
+  1068:3065).
+- **What the code does:** after `--g_invadersLeft` the tests are `left % 5 == 0` (period −= 100),
+  else `left == 1` (period = 55), else `left < 1` (`WM_DESTROY`, wParam 0). The last kill leaves 0,
+  and 0 % 5 == 0, so the period becomes 55 − 100 = −45 and `SetSystemTimer` re-arms the columns'
+  timer 0xf with 65,491 ms (UINT); the `< 1` branch can never run.
+- **Effect:** the win is sent by the next `WM_SYSTIMER` of any timer (step 0 of the chain, within
+  50 ms), not by the kill; the formation timer is left 65 s away. The delay is not noticeable.
+- **Confidence:** 9 (code); 8 (effect).
+- **Port:** not ported yet.
+
+### I3. A landing sends `WM_DESTROY`, and so the loss result, several times
+- **Where:** `invader_column_stop_moving_dc` 1068:13a8 (`SendMessage` at 1068:13d4 when
+  `g_invadersLanded` is set, 1414 on the landing); `invader_column_step` 1068:181f (1068:194d);
+  `invader_column_turn` 1068:157b; `WM_DESTROY` 1068:1cea (the `PostMessage` at 1068:1d0b).
+- **What the code does:** at the right-edge turn that lands, the leading column sends
+  `WM_DESTROY` (wParam 0) from `invader_column_stop_moving_dc` when the bottom was already at y 390,
+  and again from `invader_column_step`'s own test after it; the handler then turns every other live
+  column, and each one's `invader_column_stop_moving_dc` finds `g_invadersLanded` and sends it again:
+  up to 5 in one tick. Each `WM_DESTROY` runs the teardown (`wave_stop_all`, `wave_free_all`,
+  `wave_mix_close`, the last ones with `g_waveMixSession` 0) and posts `0x40a` (0, score); it has no
+  guard.
+- **Effect:** NOITE gets several loss results. `handler_4fsacaet` takes the first and switches to
+  `4fmarte`, which ignores `0x40a`, so the score is added once and one life is taken.
+- **Confidence:** 9 (code); 8 (effect).
+- **Port:** not ported yet.
+
+### I4. The SPACE latch is never set, so a held SPACE fires on every key repeat
+- **Where:** `inv_scene_handle_message`, `WM_KEYDOWN` `VK_SPACE` (test 1068:1ed5), `WM_KEYUP`
+  1068:209e.
+- **What the code does:** the fire code runs only when `g_keySpaceHeld` (1090:0282) is 0, and key-up
+  clears it, but nothing writes 1 to it (those are its two references). The LEFT/RIGHT latches are
+  set on key-down. (TIRO's T1.)
+- **Effect:** holding SPACE fires again as soon as the shot has landed, on every auto-repeat: a held
+  key is an automatic gun.
+- **Confidence:** 9 (code); 8 (effect, depends on the keyboard repeat rate).
+- **Port:** not ported yet.
+
+### I5. A direction key during the cannon's explosion cuts it short and lets the cannon fire
+- **Where:** `inv_scene_handle_message`, the cannon branch of `WM_SYSTIMER` (isRunning 1068:220b,
+  isMoving 2239, `moveTick` and `hitFrame = -1` at 1068:2244–2275); `WM_KEYDOWN` LEFT/RIGHT
+  1068:1df9/1e67; the fire gate 1068:1ee2.
+- **What the code does:** `cannon_lose_life` stops the cannon and plays `Brocha.bmp`; the branch
+  counts the frames in `hitFrame` only while the cannon is not moving. A fresh LEFT or RIGHT press
+  (or the release of one with the other held) starts it moving with no explosion test; the branch
+  then takes the walking path, which steps the cannon and sets `hitFrame` to −1 on every tick.
+- **Effect:** the cannon drives on showing the frozen explosion frame, and with `hitFrame` −1 the
+  fire gate lets it shoot; the explosion resumes from its start only when the cannon stops.
+- **Confidence:** 9 (code); 7 (that the explosion was meant to hold the cannon).
+- **Port:** not ported yet.
+
+### Harmless (INV)
+
+- **`invader_column_init_cells` 1068:122f adds 44·i twice:** it passes y = 60 + 44·i to
+  `invader_column_set_cell` 1088:69d6, which adds 44·i itself, so cell i starts at y 60 + 88·i. The
+  hit test uses the column's y, not the cells'; only the explosion is placed from the cell. The first
+  formation step (500 ms) rewrites the cells right, and a kill before it needs SPACE within the first
+  ~0.28 s. Confidence 9 (code); 7 (effect).
+- **A bomb can be dropped during its impact animation:** the drop test (1068:25c1, 2732) checks only
+  `moving`; `bomb_shot_down` stops the bomb and plays `Bomtir.bmp` for one 55-ms tick, so a drop in
+  that tick restarts the bomb with the animation still running. Confidence 8.
+- **`Missile.hitState` (+0x4a) is never initialised:** `_nmalloc` uses `LocalAlloc(LMEM_NODISCARD)`,
+  which does not clear the block, and nothing writes the field before the first step; the handler
+  resets it after its first switch. A stray '1'–'4' on a bomb's or the shot's first tick would act
+  once. Confidence 7.
+- **A shot flagged '2' that matches no column is not vanished:** it flies on (1068:2dcd), as it does
+  through the empty lower part of a column; it can still hit higher up. Confidence 9.
+- **`Player2D.score` (+0x42) is write-only:** the handler adds 10 per invader and 50 per saucer;
+  NOITE gets `g_score`. Confidence 9.
+- **Dead code:** `cannon_play` 1068:096a and `cannon_tick` 1068:0a19 (Cannon SceneObject slots 0xa4
+  and 0xb4: only `game_handle_message`'s mouse and timer code calls them, and the handler never lets
+  those messages through), `saucer_move_tick_or_stop` 1068:0ce6 and
+  `invader_column_move_tick_or_stop` 1068:178d (slot 2 of `SaucerVtbl` and `InvaderVtbl`: no call
+  site), `invader_column_start_right_dup` 1068:031b (no caller). Confidence 9.
+- **The `MM_WOM_DONE` case is dead:** 1068:1d29 calls `wave_stop_all`, but every wave is played with
+  `hWndNotify` 0. Confidence 9.
+- **`WinMain` 1038:0202 returns an uninitialised word,** as TIRO's. Confidence 9.

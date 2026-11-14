@@ -61,7 +61,7 @@ relocated words not masked, so DGROUP offsets that moved count as differences.
 | `1050` | 11 | 0xb5 | 0 | 0.934 | Conditions module |
 | `1058` | 12 | 0x742 | 0 | 0.980 | StatusBar, ControlPanel |
 | `1060` | 13 | 0x138 | 0 | 0.958 | Scene |
-| `1068` | 14 | 0x3617 | +0x64b | 0.244 | **The Invaders game**: scene handler `1c9c` (5,685 bytes), the game classes, music, waves, score |
+| `1068` | 14 | 0x3617 | +0x64b | 0.244 | **The Invaders game**: scene handler `1c9c` (5,736 bytes), the game classes, music, waves, score |
 | `1070` | 15 | 0x679 | 0 | 0.994 | The two draw lists |
 | `1078` | 16 | 0x4a2 | +9 | 0.895 | WaveMix wrappers (+9 bytes, the same delta as TIRO's earlier build `LIXO.EXE`) |
 | `1080` | 17 | 0x1815 | −0x4c | 0.940 | CRT. `entry` at `001a`; `0000–0011` is the segment prefix |
@@ -120,7 +120,7 @@ Bad splits and merges: none seen. The gaps are undefined bytes, never instructio
 over code.
 
 Large functions:
-- `1068:1c9c` (5,685 bytes): the Invaders scene handler.
+- `1068:1c9c` (5,736 bytes): the Invaders scene handler.
 - `1040:0000` (3,691 bytes, missing): the engine handler.
 - `1010:0c90` (942), `1018:0290` (914, `object3d_draw_bounds`), `1010:02e0` (763).
 
@@ -198,8 +198,9 @@ Sampled: the handler `1068:1c9c`.
   and carries the call-fixup, so frames are allocated and pushes no longer alias the locals;
 - the imports are typed (§5).
 
-Still to do (phase 2): `FarSlotSignatures.java` for the virtual calls, once the vtable structs
-exist (phase 3), as for TIRO.
+Fixed later: `FarSlotSignatures.java` typed the virtual and timer-pointer calls once the vtable
+structs existed (phases 3–4); every indirect call but the 11 CRT function-pointer calls has an
+override.
 
 ## 7. The data segment (`1090`)
 
@@ -242,27 +243,28 @@ Files (`assets/INV/`):
 - 8 waves through WaveMix; `EXPLO2–4.WAV`, `EXPLOS`, `QUEDANAV.WAV` and `TIROESP.WAV` are on the
   disc but not all of them are named in DGROUP.
 
-From the handler `1068:1c9c` (to be confirmed in phase 3):
+From the handler `1068:1c9c` (`GAME.md` has the rules in full):
 - LEFT/RIGHT (WM_KEYDOWN 0x25/0x27, latched in `027c`/`027a`) move the cannon (`68e0`) through
   SceneObject slots 0xc0/0xd0; WM_KEYUP stops it (`0xcc`) or reverses to the other held key.
-- SPACE (0x20, latched in `0282`) fires the shot (`68e4`) from the cannon's x + 0x1b, y − 0x1e, if no
-  shot is in flight.
+- SPACE (0x20) fires the shot (`68e4`) from the cannon's x + 0x1b, y − 0x1e, if no shot is in
+  flight; its latch `0282` is never set.
 - WM_SYSTIMER (0x118) dispatches on the timer id of each object: the cannon, the saucer (`68e2`),
-  the two bombs (`68e6`/`68e8`), the shot, the four invader rows (`68ea[4]`), the explosion (`68f2`).
-- A shot that hits a row: the cannon's `+0x42` (a dword: the Player2D score) gains **10**; the
-  invader counter `0286` drops by one; **every 5 kills the rows' period drops by 100 ms** (`01de`),
-  and with one invader left it becomes 0x37 ms. At 0 the game ends (`SendMessage(hwnd, WM_DESTROY)`).
-  A shot that hits the saucer gives **50**.
-- A bomb that lands within the cannon's x..x+0x41 below y 0x19a hits the cannon.
-- On WM_DESTROY it stops the waves and MCI and posts **0x40a** with `g_score` (`6876`); the exact
-  arguments wait for the typed call.
+  the two bombs (`68e6`/`68e8`), the shot, the four invader columns (`68ea[4]`), the explosion
+  (`68f2`).
+- A shot that hits an invader: **`g_score` +100** (`6876`); the invader counter `0286` drops by
+  one; with 15, 10 and 5 left the columns' period (`01de`) drops by 100 ms, with one left it becomes
+  0x37 ms. A shot that hits the saucer: **+500**. The cannon's `+0x42` (the Player2D score, a dword)
+  also gets +10 / +50 and is never reported.
+- A bomb within the cannon's x..x+0x41 below y 0x19a hits the cannon: **−500** and a life.
+- On WM_DESTROY it stops the waves and MCI and posts **0x40a** with WM_DESTROY's own wParam
+  (0xffff win, 0 loss) and `(long)g_score`.
 
 ## 9. How it talks to NOITE
 
 As TIRO and ENCAIXE. NOITE (`handler_4fsacaet`) runs `WinExec("<cd>Inv\Inv.exe")`, polls
 `FindWindow("Invasores")` on timer 0x14 and posts **0x40b** with its window; INV answers **0x40c**
 once (NOITE hides itself) and reports **0x40a** on exit. NOITE adds lParam to its score and goes to
-`4fmarte2` on a win (wParam ≠ 0), `4fmarte` otherwise; it takes no life. While INV runs, NOITE's
+`4fmarte2` on a win (wParam ≠ 0), `4fmarte` otherwise, which takes a life. While INV runs, NOITE's
 system timer posts its own 0x40a if the "Invasores" window disappears.
 
 ## 10. Plan
@@ -299,3 +301,10 @@ Risks:
   taken in address order inside a module, not by best score alone.
 - `1028`, `1030` and `1038` changed; their pairs need a body check.
 - The new thunk adjustments (0xc, 0x30, 0x36) belong to new classes; their layouts are new.
+
+## 11. Final state
+
+After phase 4 and the cleanup: 1,193 functions (93 imports, 449 adjustor thunks, 651 code
+functions, 646 named, 5 dead `FUN_`), 0 `review`/`sig?` tags, 431 call-site overrides (every
+indirect call but the 11 CRT function-pointer calls), uncovered code only data and padding
+(`FUNCTIONS.md`). The game is in `GAME.md`, its bugs in `BUGS.md` (section INV).

@@ -13,9 +13,9 @@ far vtable slots. TIRO's `docs/tiro/DATA.md` is the reference for the shared eng
 | Vtables / vbtables applied, typed and labelled | 64 / 28 (92 tables) |
 | Vtable structs | 16: TIRO's 13 (far slots) + `SaucerVtbl`, `MissileVtbl`, `InvaderVtbl`; plus `Vbtable`, `Vbtable3d` |
 | Class and record structs | TIRO's engine set (copied with their slot `FunctionDefinition`s, 487 types in all) + 8 new: `Cannon`, `Saucer`, `Missile`, `Bomb`, `Shot`, `InvaderColumn`, `InvaderExplosion`, `InvaderCell`. TIRO's game types (`Crossbow`, `Target`, `Projectile`, `Arrow` and their vtables) were deleted |
-| Globals typed and named (non-string, non-table) | 157: 87 transferred from TIRO, 70 set by hand |
+| Globals typed and named (non-string, non-table) | 156: 87 transferred from TIRO, 69 set by hand |
 | NULL-test comments (`NearNullTests`) | 14 (TIRO's 14) |
-| Virtual-call overrides | 410 of 420 sites: 386 by `FarSlotSignatures calls`, 24 copied from TIRO's hand-checked sites |
+| Call-site overrides | 431, every indirect call but the 11 CRT function-pointer calls: 386 by `FarSlotSignatures calls`, 24 copied from TIRO's hand-checked sites, the rest (the 14 timer-pointer calls among them) by `site` |
 
 ## How the data was mapped
 
@@ -50,10 +50,10 @@ tables, INV's own app globals and game objects) was typed from INV's accesses wi
 | `01a8–01b3` | `g_bombTimerIds` {6, 7}, `g_bombDropTimerIds` {8, 9}, `g_bombDropPeriods` {2000, 5000} |
 | `01b4–01d9` | `panel.bmp` ×2, `s_fontFace` "Mech", `s_fontFile` "arialbd.fot" |
 | `01da` | `g_formationDir` (= 2): the invaders' direction, 1 or 2 |
-| `01dc` | `g_unk01DC` (= 0), read by the column code |
+| `01dc` | `g_invadersLanded` (= 0): set by the column that lands (the loss) |
 | `01de` | `g_invaderPeriod` (= 500 ms): the invaders' timer period |
-| `01e0–0275` | MCI strings (`doom1.mid`, alias `musica`), the 8 wave names |
-| `0276`, `0278` | `g_unk0276` (= 0x76), `g_unk0278` (= 0x3c, read by `1068:13a8`) |
+| `01e0–0277` | MCI strings (`doom1.mid`, alias `musica`), the 8 wave names |
+| `0278` | `g_formationMaxY` (= 60): the formation's lowest y so far; a descent below it plays `desceniv.wav` |
 | `027a–0285` | `g_keyRightHeld`, `g_keyLeftHeld`, 2 unreferenced words, `g_keySpaceHeld` (never set: the latch is dead, as in TIRO), `g_unk0284` (= 1) |
 | `0286` | **`g_invadersLeft`** (= 20) |
 | `0288` | `g_bombHitCannon[2]`: set when bomb *i* hits the cannon, cleared when it is dropped again |
@@ -100,6 +100,12 @@ class ctors take the four arrays and the strip count (TIRO's ctor shape):
 | `g_columnStrip*` (`018c`, 1) | `Movein.bmp` (2, 88×217) | InvaderColumn `g_invaderColumns[4]`: one picture is a column of invaders, 2 animation frames |
 | `g_explosionStrip*` (`01a0`, 1) | `Naboom1.bmp` (8, 88×44) | InvaderExplosion `g_invaderExplosion`: one invader (88×44) exploding |
 
+`SceneObject.curStrip` (+0x18) picks the strip: 1 is the cannon's `Brocha.bmp`
+(`cannon_lose_life`), the saucer's `Explod.bmp` (`saucer_explode`) and the bomb's `Bomtir.bmp`
+(`bomb_shot_down`); the handler and `invader_column_step` put it back to 0. `curFrame` (+0x1a)
+picks the frame: `shot_vanish` sets the shot's to 1, the blank frame; the shot's fire, the saucer's
+end of explosion, the bomb drops and `invader_explosion_start` reset it to 0.
+
 The background is `Espaco.bmp` (640×480, `inv_scene_create_screen`); `panel.bmp` is the control
 panel's and the status bar's. **On the disc but not named in DGROUP:** `NABOOM.BMP` (92×490),
 `EXPLO2/3/4.WAV`, `QUEDANAV.WAV` and `TIROESP.WAV`.
@@ -119,7 +125,7 @@ opened by `inv_scene_create`, each played by one helper:
 | `brocha3.wav` | `g_cannonHitWave` | `inv_score_cannon_hit` | a bomb hits the cannon (−500) |
 | `explo5.WAV` | `g_explo5Wave` | `inv_play_explo5_wave` | the shot meets a bomb |
 | `marcha.wav` | `g_marchWave` | `inv_play_march_wave` | the formation steps |
-| `desceniv.wav` | `g_descendWave` | `inv_play_descend_wave` | the formation goes down (to confirm) |
+| `desceniv.wav` | `g_descendWave` | `inv_play_descend_wave` | a column descends below `g_formationMaxY` (once per right-edge turn) |
 
 Unlike TIRO, APPWNDPROC plays nothing on WM_PAINT.
 
@@ -130,11 +136,11 @@ Every object runs on its own WM_SYSTIMER id (the ctor's `timerId`/`timerPeriod`)
 | Id | Period | Object |
 |---|---|---|
 | 1 | 50 ms | the app (APPWNDPROC, WM_CREATE) |
-| 6, 7 | 55 ms | the bombs; second timers 8, 9 at 2000 / 5000 ms (`MissileVtbl` slot 1) |
+| 6, 7 | 55 ms | the bombs; their drop timers 8, 9 at 2000 / 5000 ms (`MissileVtbl.armTimer`, ids in `Missile.timer2Id` / `timer2IdB`) |
 | 0xa | 60 ms | the cannon |
-| 0xc | 60 ms | the saucer; second timer 0xe at 10 s (`SaucerVtbl` slot 1) |
+| 0xc | 60 ms | the saucer; its launch timer 0xe at 10 s (`SaucerVtbl.armTimer`, `Saucer.timer2Id`) |
 | 0xd | 55 ms | the shot |
-| 0xf | `g_invaderPeriod` (500 ms, then faster) | the invader columns |
+| 0xf | `g_invaderPeriod`: 500, 400, 300, 200 ms (15, 10, 5 left), 55 ms (1 left), then 65,491 ms (BUGS I2) | the four invader columns (one timer) |
 | 0x10 | 55 ms | the invader explosion |
 
 ## Vtables and classes
@@ -150,84 +156,48 @@ agree with each `operator new` (class + the 0x46c SceneObject):
 
 | Class | Tables | vbtables | Struct | `new` | Notes |
 |---|---|---|---|---|---|
-| **Cannon** : Player2D | `1876` M, `187a` A, `187e` S | `19ea` {−2,0x4a}, `19ee` {−2,0x18} | `Cannon` 0x4c | 0x4b8 | TIRO's Crossbow layout. `lives` (+0x40) = 4; `score` (+0x42, dword) gets +10 per invader, +50 per saucer (not reported: NOITE gets `g_score`); `hitFrame` +0x46 (−1 idle) |
-| **Saucer** : Actor2D | `1dba` SaucerVtbl (4), `1dca` A, `1dce` S | `1f3a` {−2,0x50}, `1f3e` {−2,0x1e} | `Saucer` 0x52 | 0x4be | TIRO's Target layout. `timer2Id` +0x4c (0xe), `hitFrame` +0x4e |
-| **Missile** : Actor2D | `1f42` MissileVtbl (3), `1f4e` A, `1f52` S | `20be` {−2,0x4c}, `20c2` {−2,0x1a} | `Missile` 0x4c | – | Abstract base: `unk42` +0x42, `timer2Id` +0x44, `hitFrame` +0x48, `hitState` +0x4a (a char: '0' none, '1' hit the other missile, '2' hit an invader, '3' hit the saucer, '4' hit the cannon) |
+| **Cannon** : Player2D | `1876` M, `187a` A, `187e` S | `19ea` {−2,0x4a}, `19ee` {−2,0x18} | `Cannon` 0x4c | 0x4b8 | TIRO's Crossbow layout. `Player2D.lives` (+0x40) = 4; `Player2D.score` (+0x42, dword) gets +10 per invader, +50 per saucer and is never read (NOITE gets `g_score`); `hitFrame` +0x46 (−1 idle, else the explosion frame count); `unk48` +0x48; `vtordisp` +0x4a |
+| **Saucer** : Actor2D | `1dba` SaucerVtbl (4), `1dca` A, `1dce` S | `1f3a` {−2,0x50}, `1f3e` {−2,0x1e} | `Saucer` 0x52 | 0x4be | TIRO's Target layout. `unk40` +0x40 (ctor 1, cleared when the saucer leaves; read only by `saucer_check_edge`'s dead left-edge branch); `timer2Id` +0x4c (0xe, the launch timer); `hitFrame` +0x4e (−1 idle, else the explosion frame count); `vtordisp` +0x50 |
+| **Missile** : Actor2D | `1f42` MissileVtbl (3), `1f4e` A, `1f52` S | `20be` {−2,0x4c}, `20c2` {−2,0x1a} | `Missile` 0x4c | – | Abstract base: `unk42` +0x42 (never read; the creators' writes miss it, BUGS I1); `timer2Id` +0x44 (bomb 0's drop timer 8); `timer2IdB` +0x46 (bomb 1's drop timer 9; `missile_arm_timer` kind 2 writes both, kind 5 only this one); `hitFrame` +0x48; `hitState` +0x4a (a char: the class of what blocked the last step, set by `missile_can_step`: '1' the shot, '2' an invader, '3' the saucer, '4' the cannon, '5' a bomb; the handler also sets '4' when a bomb is over the cannon, acts on '1'/'4' for a bomb and '2'/'3' for the shot, then resets it to '\0'; never initialised) |
 | **Bomb** : Missile | `20c6`, `20d2`, `20d6` | `2242`, `2246` (same) | `Bomb` 0x4e | 0x4ba | `vtordisp` +0x4c |
 | **Shot** : Missile | `224a`, `2256`, `225a` | `23c6`, `23ca` (same) | `Shot` 0x4e | 0x4ba | `vtordisp` +0x4c |
-| **InvaderExplosion** : Actor2D | `23ce` InvaderVtbl (3), `23da` A, `23de` S | `254a` {−2,0x76}, `254e` {−2,0x44} | `InvaderExplosion` 0x78 | 0x4e4 | `frameCounter` +0x4e; `42–75` mostly unread. Shares every slot override with InvaderColumn and is 6 bytes bigger: it may derive from it (to check in phase 4) |
-| **InvaderColumn** : Actor2D | `2552` InvaderVtbl (3), `255e` A, `2562` S | `26ce` {−2,0x70}, `26d2` {−2,0x3e} | `InvaderColumn` 0x72 | 0x4de | `atEdge` +0x44, `lowestAlive` +0x46 (index of the bottom live invader, −1 when the column is empty), `unk4C` +0x4c, `cells` `InvaderCell[5]` +0x52 (`x`, `y` = column y + 44·i, `alive`; set by `invader_column_set_cell`) |
+| **InvaderExplosion** : Actor2D | `23ce` InvaderVtbl (3), `23da` A, `23de` S | `254a` {−2,0x76}, `254e` {−2,0x44} | `InvaderExplosion` 0x78 | 0x4e4 | Shares every slot override with InvaderColumn but `restoreBackground` and `draw` (the engine's), so it carries the column's fields at +0x40–0x4d unused (`lowestAlive` −1: the shared column slots only stop and hide it); `frameCounter` +0x4e; `vtordisp` +0x76 |
+| **InvaderColumn** : Actor2D | `2552` InvaderVtbl (3), `255e` A, `2562` S | `26ce` {−2,0x70}, `26d2` {−2,0x3e} | `InvaderColumn` 0x72 | 0x4de | `landed` +0x40 (1 once it reached the cannon row, with `g_invadersLanded`); `firstPass` +0x42 (1 from the ctor until the first reversal: the left-edge test is off); `atEdge` +0x44 (read and cleared by the handler's formation step); `lowestAlive` +0x46 (index of the bottom live invader, −1 when empty); `direction` +0x48 (2 right, 1 left); `hitState` +0x4c (char, `invader_column_can_step`'s blocker class, never read); `cells` `InvaderCell[5]` +0x52 (`x`, `y` = column y + 44·i, `alive`; `invader_column_set_cell`); `vtordisp` +0x70 |
 
 `SaucerVtbl`, `MissileVtbl` and `InvaderVtbl` extend MoverVtbl: `placeAt` (Mover's), then
-`slot1…` whose `FunctionDefinition`s are copied from INV's targets; phase 4 names them. Missile's
-`slot1` (`1068:0e26`) arms the second timer through `g_setSystemTimer`; `slot2` (`1068:0f2f`) is
-the step that sets `hitState`.
+- `SaucerVtbl`: `armTimer` (`saucer_arm_timer`), `moveTickOrStop` (`saucer_move_tick_or_stop`,
+  no call site), `checkEdge` (`saucer_check_edge`, the 0xc tick);
+- `MissileVtbl`: `armTimer` (`missile_arm_timer`, the bombs' drop timers), `moveTick`
+  (`missile_move_tick`);
+- `InvaderVtbl`: `step` (`invader_column_step`, the formation step), `moveTickOrStop`
+  (`invader_column_move_tick_or_stop`, no call site).
+
+Their `<Vtbl>_<field>Fn` definitions are the targets' prototypes.
 
 The type tests (SceneObject slots that answer 1 for their class): 0x56 `shot_is_shot`, 0x57
 `invader_is_invader` (column and explosion), 0x58 `saucer_is_saucer`, 0x59 `cannon_is_cannon`,
 0x5a `bomb_is_bomb`.
 
-Not done yet (phase 4): `this` typing of the 1068 overrides, which reach their own fields at
-negative offsets from the SceneObject (Cannon −0x4c, Saucer −0x52, Missile/Bomb/Shot −0x4e,
-column −0x72, explosion −0x78); flattening the class structs so that `vtbl` points to
-`SaucerVtbl`/`MissileVtbl`/`InvaderVtbl` (they now embed `Actor2D`, whose `vtbl` is a 1-slot
-`MoverVtbl*`, so `vtbl + 1` shows in the handler); the 7 virtual calls in `1068` that stay
-unresolved.
+The SceneObject overrides in `1068` take `this` as the SceneObject (`void *`) and reach their own
+fields at negative offsets (Cannon −0x4c, Saucer −0x52, Missile/Bomb/Shot −0x4e, column −0x72,
+explosion −0x78). The class structs embed `Actor2D`, whose `vtbl` is a 1-slot `MoverVtbl *`, so a
+call through `SaucerVtbl`/`MissileVtbl`/`InvaderVtbl` can read `vtbl + 1` in the decompilation; its
+call-site override gives it the slot's prototype.
 
-## The game, as far as the data shows
+## The game rules
 
-*Invasores* is Space Invaders on a 640×480 starfield (`Espaco.bmp`):
-
-- **The player** is the Cannon at the bottom (x 340, y 380). LEFT/RIGHT (latched by
-  `g_keyLeftHeld`/`g_keyRightHeld`) move it; releasing one key with the other still held turns it
-  round. SPACE fires the Shot from (cannon x + 27, cannon y − 30) when the cannon is not exploding
-  and no shot is in flight. The SPACE latch is never set, so auto-repeat fires again as soon as the
-  shot has landed.
-- **The invaders** are 4 columns of 5 (20 in all, `g_invadersLeft`), drawn as one 88×217 picture
-  per column at x 40 + 108·i, y 60, all moving together on timer 0xf (500 ms). `g_formationDir`
-  flips when a column reaches the edge (`atEdge`), and the formation then goes down
-  (`desceniv.wav`; to confirm). Each step plays `marcha.wav`.
-- **A shot that hits** the bottom live invader of a column clears that cell, moves
-  InvaderExplosion over it (`Naboom1.bmp`) and scores **+100** (`g_score`). **Every 5 kills the
-  period drops by 100 ms** (500 → 400 → 300 → 200); at 1 invader left it is 55 ms.
-- **The bombs**: 2 bombs. On its second timer (8 or 9: 2 s and 5 s), a bomb that is not falling is
-  dropped from just below the bottom live invader of a column that is over the cannon.
-  A bomb that lands within the cannon's x … x + 0x41 below y 0x19a hits it: **−500** and **one life
-  lost** (4 lives; `1068:07a6` plays `Brocha.bmp`). The shot and a bomb can destroy each other
-  (`explo5.WAV`).
-- **The saucer** (`Disco.bmp`) crosses the top on a 10 s timer (`nave.wav`); a hit scores **+500**
-  (`Explod.bmp`, `explo1.wav`).
-- **The end**:
-  - **Win:** after the last kill, `g_invadersLeft` is 0. The next WM_SYSTIMER sends
-    `WM_DESTROY` with **wParam 0xffff** and sets the counter to −1.
-  - **Loss:** at 0 lives, `1068:07a6` sends `WM_DESTROY` with **wParam 0**. Whether invaders that
-    reach the cannon also end the game is for phase 4 (the column code `1068:1272–1b03`).
-- **The result** (`inv_scene_handle_message`, WM_DESTROY): stop and free the waves, close WaveMix
-  and MCI, then **`PostMessage(g_noiteWnd, 0x40a, wParam, (long)g_score)`**. Unlike TIRO (won =
-  `g_score > 0`), **INV forwards WM_DESTROY's own wParam as the won flag**: 0xffff when every
-  invader is dead, 0 otherwise. A user close also arrives with wParam 0. NOITE adds lParam (the
-  score, which can be negative) and goes to `4fmarte2` on a win, `4fmarte` on a loss.
-
-## Candidate original bugs (for BUGS.md, after checking in phase 4)
-
-1. **Writes through null object pointers before they are allocated.** `inv_create_bombs`
-   (`1068:0541`) stores `g_bombs[i]->unk42 = 1` *before* `operator new` (asm confirmed: `MOV BX,
-   [BX+0x68e6]` then the store), and `inv_create_shot` (`1068:03df`) stores `g_shots[0]->unk42 = 0`
-   the same way. Both pointers are 0 (BSS), so the stores hit DGROUP `0x42`/`0x44`, inside
-   `s_hdcOverflow` "Estouro no número de HDCs" (`002e`). That string is shown only on an HDC
-   overflow. The real `+0x42` fields are never initialised by these writes.
-2. **A second 0x40a after a win.** The win path sets `g_invadersLeft = -1` after sending
-   WM_DESTROY (0xffff). The column tick then still finds `g_invadersLeft < 1` and sends
-   WM_DESTROY with wParam 0, and so a second `PostMessage(0x40a, 0, score)` (a loss) follows. It
-   happens if an object timer message is dispatched before WM_QUIT ends the loop. APPWNDPROC's
-   WM_DESTROY kills only system timer 1; the objects' timers 6–0x10 keep running. NOITE would add
-   the score twice and switch to `4fmarte` after `4fmarte2`. This depends on the Win16 queue order.
-3. **The last-kill branch is dead and the period goes negative.** After the last kill,
-   `g_invadersLeft == 0` and `0 % 5 == 0`, so the "speed up" branch runs (`g_invaderPeriod` =
-   55 − 100 = −45, so `SetSystemTimer(…, 0xffd3)`). The `else if (< 1)` branch that would send
-   WM_DESTROY at once is unreachable; the game ends on the next WM_SYSTIMER instead.
-4. **A user close is a loss.** Closing the window gives WM_DESTROY with wParam 0. This matches
-   ENCAIXE and TIRO (both lose on close), but there the flag is computed from the score.
+`GAME.md` has them in full; the bugs are `BUGS.md` I1–I5. In short: *Invasores* is NOITE's
+`handler_4fsacaet` minigame (`Inv\Inv.exe`, after the flying-saucer scene). 20 invaders in 4
+columns of 5 at x 40 + 108·i, y 60 step 20 px together on timer 0xf (500 ms, −100 ms at 15, 10
+and 5 left, 55 ms at 1 left), the leading column first by `g_formationDir`; a right-edge turn
+descends 22 px, a left-edge turn does not, and a landing at y ≥ 390 loses. The cannon (4 lives)
+moves 20 px per 60 ms; its one shot (20 px per 55 ms) fires when `hitFrame` is −1 and the shot is
+not moving, and kills a column's bottom live invader when col.x < shot.x < col.x + 88 and
+(shot.y − col.y) / 44 == `lowestAlive`. The saucer crosses at y 10 every 10 s (+500); two bombs
+(drop timers 2 s and 5 s) fall from the first live column within 88 px of the cannon, each hit
+−500 once and a life; the shot can meet a bomb. `g_score` (+100 per invader) goes to NOITE as
+`0x40a(wParam, (long)g_score)`: 0xffff after the last kill (sent on the next tick), 0 on a loss.
+NOITE adds the score and goes to `4fmarte2` on a win, `4fmarte` (a life) on a loss.
 
 ## Decompiler residue
 
@@ -243,9 +213,9 @@ unresolved.
 | `DefineStrings.java` | the 82 strings |
 | `SalginCopyFromTwin.java` | `types` (TIRO's `/tiro` → `/inv`); `fns` for the ctor prototypes |
 | `NearStructs.java` | the 8 INV structs |
-| `NearGlobals.java` | the 70 INV globals |
+| `NearGlobals.java` | the INV globals |
 | `FarVtables.java` | the 3 new slot structs, the 92 tables |
-| `FarSlotSignatures.java` | `1090 defs`, `1090 calls` |
+| `FarSlotSignatures.java` | `1090 defs`, `1090 calls`, `1090 site …` (the timer-pointer calls and the hand-checked virtual calls) |
 | `NearNullTests.java` | `1018`, `1028`, `1058`, `1088` |
 
 Inline, not committed: the TIRO → INV data transfer (shift table above) and the copy of TIRO's 24
