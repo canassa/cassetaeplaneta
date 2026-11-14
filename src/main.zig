@@ -2,7 +2,7 @@
 //!
 //!     noite [--headless] [--ms N] [--assets DIR] [--save DIR] [--trace FILE]
 //!           [--input FILE] [--dump DIR] [--dump-every MS] [--bmp]
-//!           [--scene NAME [--take ID,ID…]] [--minigame win|lose|encaixe]
+//!           [--scene NAME [--take ID,ID…]] [--minigame win|lose|encaixe|tiro]
 //!           [--minigame-stub] [--minigame-startup MS] [--minigame-reply MS] [--quiet]
 //!           [--fix NAME,…|all[,-NAME…]] [--skip-videos] [--one-button]
 //!
@@ -12,7 +12,7 @@
 //! and on `dump` commands, `--scene` starts in an INI scene instead of the
 //! opening. A panic prints the scene and the last messages first.
 //!
-//! `--minigame encaixe` runs ENCAIXE.EXE alone (`runAlone`); `--minigame
+//! `--minigame encaixe|tiro` runs ENCAIXE.EXE or TIRO.EXE alone (`runAlone`); `--minigame
 //! win|lose` is the result of the stubbed minigames, and `--minigame-stub`
 //! stubs the ported ones too (`platform/host.zig`).
 //!
@@ -54,9 +54,11 @@ pub const platform = struct {
 };
 /// ENCAIXE.EXE's port (src/encaixe/, docs/encaixe/DESIGN.md).
 pub const encaixe = @import("encaixe/root.zig");
+/// TIRO.EXE's port (src/tiro/, docs/tiro/DESIGN.md).
+pub const tiro = @import("tiro/root.zig");
 /// The minigames ported: NOITE's WinExec runs them as tasks once `ready`,
 /// `--minigame NAME` runs one alone.
-pub const minigames = [_]*const platform.host.Program{&encaixe.program};
+pub const minigames = [_]*const platform.host.Program{ &encaixe.program, &tiro.program };
 pub const units = @import("units.zig");
 const one_button = @import("one_button.zig");
 const Game = core.game.Game;
@@ -162,7 +164,7 @@ pub fn main(init: std.process.Init) !void {
             } else if (findMinigame(v)) |prog| {
                 args.alone = prog;
             } else {
-                std.log.err("--minigame {s}: want win, lose or a ported minigame (encaixe)", .{v});
+                std.log.err("--minigame {s}: want win, lose or a ported minigame (encaixe, tiro)", .{v});
                 return error.BadArgument;
             }
         } else if (std.mem.eql(u8, a, "--minigame-stub")) {
@@ -339,6 +341,7 @@ test {
     // Pulls in every port unit's tests (the index is generated) and the core.
     _ = @import("units.zig");
     _ = encaixe;
+    _ = tiro;
     _ = one_button;
     std.testing.refAllDecls(core);
     std.testing.refAllDecls(platform.sim);

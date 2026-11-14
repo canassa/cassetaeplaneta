@@ -20,10 +20,11 @@ const units = @import("units.zig");
 const one_button = @import("one_button.zig");
 const host = @import("platform/host.zig");
 const encaixe = @import("encaixe/root.zig");
+const tiro = @import("tiro/root.zig");
 
 /// The minigames ported (as `main.zig`'s `minigames`); `noite_start`'s
 /// `minigame` is an index into it plus one.
-const minigames = [_]*const host.Program{&encaixe.program};
+const minigames = [_]*const host.Program{ &encaixe.program, &tiro.program };
 
 pub const std_options: std.Options = .{ .logFn = log };
 
@@ -64,7 +65,7 @@ export fn __main_argc_argv(argc: c_int, argv: ?*anyopaque) c_int {
 /// version), `skip_videos` lets a click or Esc/Enter/Space end a video
 /// (`--skip-videos`), `one_button` plays with the left button or touch
 /// alone (`--one-button`); `minigame` (0: NOITE) runs that minigame alone
-/// (1: ENCAIXE, `--minigame encaixe`; 3 when it is not ported yet).
+/// (1: ENCAIXE, `--minigame encaixe`; 2: TIRO; 3 when it is not ported yet).
 export fn noite_start(fixes: bool, skip_videos: bool, one_button_mode: bool, minigame: u32) i32 {
     backend.init(gpa, skip_videos);
     const fx: @import("core/fixes.zig").Fixes = if (fixes) .all() else .{};
