@@ -22,7 +22,8 @@ import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
-PLAN_REL = "db/plan.tsv"
+from noite import program
+
 HAND_STATUSES = ("dead", "absorbed", "replaced")
 _HEADER = (
     "# noite plan: units, function assignments, hand-set statuses, manual unit deps.\n"
@@ -32,6 +33,11 @@ _HEADER = (
 
 class PlanError(RuntimeError):
     pass
+
+
+def plan_rel() -> str:
+    """The active program's plan file (``db/plan.tsv`` for NOITE)."""
+    return program.current().plan
 
 
 def _esc(v: str | None) -> str:

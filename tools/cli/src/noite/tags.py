@@ -21,6 +21,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
+from noite import program
 from noite.db import Oracle
 
 _TAG = re.compile(r"//[/!]?\s*@orig\s+([0-9a-fA-F]{4}:[0-9a-fA-F]{4})\b(.*)$")
@@ -120,13 +121,21 @@ def _make(m: re.Match[str], path: str, line: int, is_test: bool) -> Tag:
 
 
 def zig_files(root: Path) -> Iterator[Path]:
-    for sub in ("src", "tests"):
+    """The active program's Zig files: NOITE's ``src/`` (minus the minigames' trees)
+    and ``tests/``; a minigame's own tree (``src/encaixe/``)."""
+    prog = program.current()
+    subs = (prog.src, "tests") if prog.src == "src" else (prog.src,)
+    for sub in subs:
         base = root / sub
         if not base.is_dir():
             continue
         for p in sorted(base.rglob("*.zig")):
-            if not _SKIP_DIRS.intersection(p.relative_to(root).parts):
-                yield p
+            rel = p.relative_to(root)
+            if _SKIP_DIRS.intersection(rel.parts):
+                continue
+            if any(rel.as_posix().startswith(x + "/") for x in prog.exclude):
+                continue
+            yield p
 
 
 def scan(root: Path) -> list[Tag]:

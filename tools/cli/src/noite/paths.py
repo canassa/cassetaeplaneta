@@ -12,6 +12,8 @@ import os
 import subprocess
 from pathlib import Path
 
+from noite import program
+
 
 def _git(cwd: Path, *args: str) -> str:
     out = subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True).stdout
@@ -40,7 +42,7 @@ def db_path(root: Path | None = None) -> Path:
     env = os.environ.get("NOITE_DB")
     if env:
         return Path(env)
-    return (root or repo_root()) / "db" / "port.sqlite"
+    return (root or repo_root()) / program.current().db
 
 
 def work_dir(root: Path) -> Path:
@@ -48,8 +50,8 @@ def work_dir(root: Path) -> Path:
 
 
 def worktree_path(root: Path, unit: str) -> Path:
-    return work_dir(root) / unit
+    return work_dir(root) / program.current().worktree_name(unit)
 
 
 def branch_name(unit: str) -> str:
-    return f"port/{unit}"
+    return f"port/{program.current().worktree_name(unit)}"

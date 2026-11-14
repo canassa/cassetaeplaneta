@@ -104,6 +104,12 @@ def default_funcs() -> list[FunctionInfo]:
     ]
 
 
+@pytest.fixture(autouse=True)
+def _noite_program(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every test starts on NOITE, whatever the shell exports."""
+    monkeypatch.delenv("NOITE_PROGRAM", raising=False)
+
+
 @pytest.fixture
 def conn(tmp_path: Path) -> sqlite3.Connection:
     return connect(tmp_path / "port.sqlite")

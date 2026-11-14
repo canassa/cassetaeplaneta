@@ -34,13 +34,13 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from noite import program
 from noite.ne import NeImage
 from noite.tags import _SKIP_DIRS, _code
 
 _TAG = re.compile(r"^\s*//\s*@orig\s+(g_[^(]*)")
 _FIELD = re.compile(r'^\s*(\w+|@"[^"]+")\s*:\s*([^=]+?)\s*(?:=\s*(.*?))?\s*,?\s*(//.*)?$')
 _STRUCT = re.compile(r"\b(?:pub\s+)?const\s+(\w+)\s*=\s*(?:extern\s+|packed\s+)?struct\b")
-_DATA_SEGS = (0x1030, 0x1038, 0x1040, 0x1048, 0x1050)
 
 
 @dataclass
@@ -91,10 +91,14 @@ def _names(text: str) -> list[str]:
 
 
 def scan(root: Path) -> list[Field]:
-    """Every field tagged ``// @orig g_*`` under ``root/src``."""
+    """Every field tagged ``// @orig g_*`` in the active program's source tree."""
+    prog = program.current()
     fields: list[Field] = []
-    for p in sorted((root / "src").rglob("*.zig")):
+    for p in sorted((root / prog.src).rglob("*.zig")):
+        rel = p.relative_to(root).as_posix()
         if _SKIP_DIRS & set(p.relative_to(root).parts):
+            continue
+        if any(rel.startswith(x + "/") for x in prog.exclude):
             continue
         fields.extend(_scan_file(p, p.relative_to(root).as_posix()))
     return fields
@@ -155,16 +159,17 @@ def _field(rel: str, li: int, sname: str, m: re.Match[str], names: list[str], sk
 
 def module_expr(rel: str, units: set[str]) -> str | None:
     """The Zig expression (from the dump program) naming the file's module."""
-    parts = rel.removeprefix("src/").removesuffix(".zig").split("/")
+    prog = program.current()
+    parts = rel.removeprefix(prog.src + "/").removesuffix(".zig").split("/")
     if parts[0] == "core" and len(parts) == 2:
-        return f"noite.core.{parts[1]}"
+        return f"{prog.zig_module}.core.{parts[1]}"
     handler = parts[0] == "handlers" and len(parts) == 2
     name = f"handler_{parts[1]}" if handler else parts[-1]
-    return f"noite.units.{name}" if name in units else None
+    return f"{prog.zig_module}.units.{name}" if name in units else None
 
 
 def _units(root: Path) -> set[str]:
-    text = (root / "src" / "units.zig").read_text(encoding="utf-8")
+    text = (root / program.current().index).read_text(encoding="utf-8")
     return set(re.findall(r"pub const (\w+) = @import", text))
 
 
@@ -308,7 +313,7 @@ def compare(f: Field, value: object, globs: dict[str, Global], image: NeImage) -
     if missing:
         return Result(f, False, f"unknown global(s) {', '.join(missing)} (not in the DB)")
     known = [g for g in gs if g is not None]
-    if any(g.addr[0] not in _DATA_SEGS for g in known):
+    if any(g.addr[0] not in program.current().data_segments for g in known):
         return Result(f, True, "not in a data segment (skipped)")
     raw = b"".join(_read(image, g) for g in known)
     flat = _flatten(value)

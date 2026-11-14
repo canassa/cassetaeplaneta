@@ -8,6 +8,10 @@ into registers (``MOV DX, 0x1018`` next to ``MOV AX, 0x36d8``). Each candidate i
 kept only when the bytes at that address in ``assets/NOITE.EXE`` look like a
 NUL-terminated string (see :meth:`noite.ne.NeImage.c_string`), so stray pairs of
 constants drop out.
+
+A small-model program (ENCAIXE) passes most strings as near DGROUP offsets
+(``PUSH 0x10c6``), which look like any other constant; for those the strings
+Ghidra names (``s_*`` globals the function references) are listed too.
 """
 
 from __future__ import annotations
@@ -19,7 +23,8 @@ from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from pathlib import Path
 
-from noite.ne import DGROUP, NeImage, c_literal
+from noite import program
+from noite.ne import NeImage, c_literal
 
 _LINE = re.compile(r"^([0-9a-fA-F]{4}):[0-9a-fA-F]{4}\s+(\w+)\s*(.*)$")
 _IMM = re.compile(r"-?0x[0-9a-fA-F]+|-?\d+")
@@ -66,7 +71,7 @@ def candidates(disasm: str | None, selectors: Iterable[int]) -> list[tuple[int, 
                 if v >> 16 in sels:
                     out.append((v >> 16, v & 0xFFFF))
                 continue
-            seg = {"DS": DGROUP, "CS": cs}.get(arg.upper(), v)
+            seg = {"DS": program.current().dgroup, "CS": cs}.get(arg.upper(), v)
             off = _imm16(nxt[2]) if nxt and nxt[1] == "PUSH" else None
             if seg in sels and off is not None:
                 out.append((seg, off))
@@ -93,16 +98,21 @@ def _mov_imm(arg: str) -> tuple[str, int] | None:
 
 
 def find(
-    disasm: str | None, image: NeImage, skip: AbstractSet[str] = frozenset()
+    disasm: str | None,
+    image: NeImage,
+    skip: AbstractSet[str] = frozenset(),
+    named: Iterable[str] = (),
 ) -> list[StringRef]:
     """The string constants ``disasm`` references (each once, first use first).
     ``skip``: addresses known not to be strings (typed non-char globals)."""
     sels = {s for s, seg in image.segments.items() if seg.data}
+    dgroup = program.current().dgroup
     out: dict[tuple[int, int], StringRef] = {}
-    for sel, off in candidates(disasm, sels):
+    near = [(int(a[:4], 16), int(a[5:], 16)) for a in named]
+    for sel, off in [*candidates(disasm, sels), *near]:
         if (sel, off) in out or f"{sel:04x}:{off:04x}" in skip:
             continue
-        s = image.c_string(sel, off)
+        s = image.c_string(sel, off, dgroup)
         if s is not None:
             out[(sel, off)] = StringRef(sel, off, s)
     return list(out.values())
@@ -120,22 +130,38 @@ def non_string_globals(conn: sqlite3.Connection) -> set[str]:
     return out
 
 
+def named_strings(conn: sqlite3.Connection) -> dict[str, list[str]]:
+    """function addr -> addresses of the ``s_*`` string globals it references."""
+    out: dict[str, list[str]] = {}
+    for r in conn.execute(
+        "SELECT fg.func, g.addr FROM function_globals fg JOIN globals g ON g.addr = fg.global "
+        "WHERE g.name GLOB 's_*' ORDER BY fg.func, g.addr"
+    ):
+        out.setdefault(r[0], []).append(r[1])
+    return out
+
+
 def render(
-    funcs: Iterable[sqlite3.Row], image: NeImage | None, skip: AbstractSet[str] = frozenset()
+    funcs: Iterable[sqlite3.Row],
+    image: NeImage | None,
+    skip: AbstractSet[str] = frozenset(),
+    named: dict[str, list[str]] | None = None,
 ) -> str:
+    exe = program.current().exe
     doc = [
         "# Strings referenced by this unit",
         "",
-        "Exact bytes from assets/NOITE.EXE (escaped: `\\xNN` for non-ASCII, `\\\\`, `\\r`, "
+        f"Exact bytes from {exe} (escaped: `\\xNN` for non-ASCII, `\\\\`, `\\r`, "
         "`\\n`; the length excludes the NUL). Found from far-pointer pushes in the "
-        "disassembly, so a string reached another way is missing.",
+        "disassembly (and the named `s_*` globals the function uses), so a string "
+        "reached another way is missing.",
         "",
     ]
     if image is None:
-        return "\n".join([*doc, "assets/NOITE.EXE not found; no strings extracted.", ""])
+        return "\n".join([*doc, f"{exe} not found; no strings extracted.", ""])
     any_ = False
     for f in funcs:
-        refs = find(f["disasm"], image, skip)
+        refs = find(f["disasm"], image, skip, (named or {}).get(f["addr"], ()))
         if refs:
             any_ = True
             doc += [f"## {f['addr']} {f['name']}", "", *(r.render() for r in refs), ""]
@@ -145,5 +171,5 @@ def render(
 
 
 def load_image(root: Path) -> NeImage | None:
-    exe = root / "assets" / "NOITE.EXE"
+    exe = root / program.current().exe
     return NeImage.load(exe) if exe.is_file() else None

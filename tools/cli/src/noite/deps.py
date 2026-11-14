@@ -28,6 +28,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from noite import program
 from noite.db import DONE, Status, UnitStatus
 
 
@@ -75,6 +76,32 @@ OTHER_VTABLES: dict[str, dict[int, str]] = {
     "ConditionVtbl": _flat("condition", 3),
 }
 
+# The same for ENCAIXE (docs/encaixe/DESIGN.md "Other vtables").
+ENCAIXE_OTHER_VTABLES: dict[str, dict[int, str]] = {
+    "Object3DVtbl": _flat("space3d", 8),
+    "AnimationVtbl": {0: "animation"},
+    "MoverVtbl": {0: "movement"},
+    "PieceVtbl": {0: "movement", 1: "piece", 2: "piece"},
+    "ControlPanelVtbl": {0: "animation"} | dict.fromkeys(range(1, 9), "panels"),
+    "GameVtbl": {0: "game_input"} | dict.fromkeys(range(1, 7), "game"),
+    "SceneVtbl": _flat("scene", 13) | {0: "tetris", 5: "tetris", 7: "tetris"},
+    "BackdropVtbl": _flat("backdrop", 19),
+    "GridBackdropVtbl": _flat("backdrop", 20),
+    "ConditionVtbl": _flat("game", 3),
+    "FrameVtbl": {0: "object_create"},
+}
+# ENCAIXE's SceneObject type-test slots (3C-4D, 54/55; docs/encaixe/DATA.md).
+ENCAIXE_TYPE_TEST_SLOTS = set(range(0x3C, 0x4E)) | {0x54, 0x55}
+
+
+def other_vtables() -> dict[str, dict[int, str]]:
+    return ENCAIXE_OTHER_VTABLES if program.current().name == "encaixe" else OTHER_VTABLES
+
+
+def type_test_slots() -> set[int]:
+    return ENCAIXE_TYPE_TEST_SLOTS if program.current().name == "encaixe" else TYPE_TEST_SLOTS
+
+
 _SLOT_ROW = re.compile(r"^\|\s*([0-9A-Fa-f]{2})\s*\|\s*(\w+)\s*\|\s*(\w+)\s*\|")
 
 
@@ -96,7 +123,7 @@ def parse_scene_object_table(text: str) -> dict[int, str]:
 
 
 def slot_owners(design: Path) -> dict[str, dict[int, str]]:
-    owners = {k: dict(v) for k, v in OTHER_VTABLES.items()}
+    owners = {k: dict(v) for k, v in other_vtables().items()}
     owners[SCENE_OBJECT] = parse_scene_object_table(design.read_text())
     return owners
 
@@ -106,7 +133,8 @@ def vtable_layouts(conn: sqlite3.Connection) -> dict[str, dict[str, int]]:
     out: dict[str, dict[str, int]] = {}
     for r in conn.execute("SELECT name, fields FROM structs WHERE name LIKE '%Vtbl'"):
         fields = json.loads(r["fields"] or "[]")
-        out[r["name"]] = {f["name"]: f["offset"] // 4 for f in fields}
+        size = program.current().slot_size
+        out[r["name"]] = {f["name"]: f["offset"] // size for f in fields}
     return out
 
 
@@ -118,7 +146,6 @@ _VTBL_WORD = re.compile(r"\b(\w+Vtbl)\b")
 _SLOT_TYPE = re.compile(r"\b(\w+Vtbl)_(\w+)Fn\b")
 _VAR_DECL = re.compile(r"\b(\w+Vtbl) \*+(\w+)")
 _CAST = re.compile(r"\((\w+Vtbl) \*\)[^;]*?\)->(\w+)")
-_ASM_CALL = re.compile(r"\bCALLF \[(?:BX|SI|DI)(?: \+ (0x[0-9a-fA-F]+|\d+))?\]")
 
 
 @dataclass
@@ -149,15 +176,17 @@ def slots_called(
     # Asm calls the decompiler left as raw offsets: use the one vtable the
     # function mentions, if there is exactly one.
     mentioned = {v for v in _VTBL_WORD.findall(text) if v in layouts}
-    covered = {i * 4 for _, i in use.pairs}
-    for m in _ASM_CALL.finditer(disasm or ""):
+    prog = program.current()
+    size = prog.slot_size
+    covered = {i * size for _, i in use.pairs}
+    for m in prog.vcall.finditer(disasm or ""):
         off = int(m.group(1), 0) if m.group(1) else 0
-        if off % 4 or off in covered:
+        if off % size or off in covered:
             continue
         if len(mentioned) == 1:
             (vt,) = mentioned
-            if off // 4 < len(layouts[vt]):
-                use.pairs.add((vt, off // 4))
+            if off // size < len(layouts[vt]):
+                use.pairs.add((vt, off // size))
                 continue
         use.loose_offsets.add(off)
     return use
@@ -189,6 +218,7 @@ def infer(conn: sqlite3.Connection, design: Path) -> InferResult:
     names = {v: {i: n for n, i in f.items()} for v, f in layouts.items()}
     units_ = {r["name"] for r in conn.execute("SELECT name FROM units")}
     res = InferResult()
+    size = program.current().slot_size
     # (unit, owner) -> examples
     found: dict[tuple[str, str], list[str]] = defaultdict(list)
     skip = (Status.ABSORBED, Status.REPLACED, Status.DEAD)
@@ -204,8 +234,8 @@ def infer(conn: sqlite3.Connection, design: Path) -> InferResult:
         pairs = set(use.pairs)
         loose = []
         for off in sorted(use.loose_offsets):
-            if off >= GUESS_MIN_OFFSET and off // 4 in layouts.get(SCENE_OBJECT, {}).values():
-                pairs.add((SCENE_OBJECT, off // 4))
+            if off >= GUESS_MIN_OFFSET and off // size in layouts.get(SCENE_OBJECT, {}).values():
+                pairs.add((SCENE_OBJECT, off // size))
                 res.guessed += 1
             else:
                 loose.append(off)
@@ -217,7 +247,7 @@ def infer(conn: sqlite3.Connection, design: Path) -> InferResult:
             if owner is None:
                 reason = (
                     "type test (Object.is/as)"
-                    if vt == SCENE_OBJECT and idx in TYPE_TEST_SLOTS
+                    if vt == SCENE_OBJECT and idx in type_test_slots()
                     else "no owner in the design"
                 )
                 res.unmapped.setdefault(label, reason)

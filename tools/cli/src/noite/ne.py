@@ -82,7 +82,7 @@ class NeImage:
         seg = self.segments.get(selector)
         return b"" if seg is None else seg.data[offset : offset + n]
 
-    def c_string(self, selector: int, offset: int) -> bytes | None:
+    def c_string(self, selector: int, offset: int, dgroup: int = DGROUP) -> bytes | None:
         """The NUL-terminated string at ``selector:offset`` (without the NUL), if the
         bytes there look like text: printable ASCII, Latin-1 letters, tab, CR, LF.
         An empty string (``""``) counts only in a code segment and right after
@@ -93,7 +93,7 @@ class NeImage:
             return None
         end = seg.data.find(b"\0", offset, offset + MAX_STRING)
         if end == offset:
-            ok = selector != DGROUP and offset > 0 and seg.data[offset - 1] == 0
+            ok = selector != dgroup and offset > 0 and seg.data[offset - 1] == 0
             return b"" if ok else None
         if end < offset:
             return None

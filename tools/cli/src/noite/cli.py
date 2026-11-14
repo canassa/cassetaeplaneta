@@ -12,6 +12,8 @@ noite check               @orig tags vs the DB
 noite initdata            defaults of @orig g_* fields vs the EXE's initial data
 noite build / test        zig build / zig build test (-w UNIT for a worktree)
 noite unit …              create units and assign functions
+
+noite -p encaixe …        the same for a minigame (its own DB, plan, src tree)
 """
 
 from __future__ import annotations
@@ -28,7 +30,7 @@ from typing import Annotated
 import typer
 
 from noite import check as checkmod
-from noite import claim, deps, importer, initdata, paths, plan, types, units
+from noite import claim, deps, importer, initdata, paths, plan, program, types, units
 from noite.db import Status, UnitKind, connect, find_function, norm_addr, tx
 
 app = typer.Typer(name="noite", help=__doc__, no_args_is_help=True, add_completion=False)
@@ -40,6 +42,25 @@ dep_app = typer.Typer(
 unit_app.add_typer(dep_app, name="dep")
 plan_app = typer.Typer(help="The committed unit plan (db/plan.tsv).", no_args_is_help=True)
 app.add_typer(plan_app, name="plan")
+
+
+@app.callback()
+def _program(
+    prog: Annotated[
+        str | None,
+        typer.Option(
+            "--program",
+            "-p",
+            help="Which program: noite (default) or encaixe. Also NOITE_PROGRAM.",
+        ),
+    ] = None,
+) -> None:
+    if prog is not None:
+        try:
+            program.select(prog)
+        except ValueError as e:
+            _die(str(e))
+
 
 WorkOpt = Annotated[
     str | None, typer.Option("--work", "-w", help="Operate on the worktree of this unit.")
@@ -56,8 +77,8 @@ def _plan_sync(conn: sqlite3.Connection) -> None:
     root = paths.repo_root()
     if paths.tree_root() != root:
         return
-    if plan.write(conn, root / plan.PLAN_REL):
-        typer.echo(f"  {plan.PLAN_REL} updated (commit it)", err=True)
+    if plan.write(conn, root / plan.plan_rel()):
+        typer.echo(f"  {plan.plan_rel()} updated (commit it)", err=True)
 
 
 def _die(msg: str) -> None:
@@ -94,7 +115,10 @@ def import_cmd(
     url: Annotated[
         str, typer.Option(help="ghidra-mcp bridge endpoint.")
     ] = "http://127.0.0.1:8000/mcp",
-    program: Annotated[str, typer.Option(help="Ghidra program name.")] = "NOITE.EXE",
+    ghidra_program: Annotated[
+        str | None,
+        typer.Option("--ghidra-program", help="Ghidra program name (default: the program's)."),
+    ] = None,
     no_decompile: Annotated[
         bool, typer.Option("--no-decompile", help="Keep stored decompiles (fast refresh).")
     ] = False,
@@ -104,7 +128,7 @@ def import_cmd(
     from noite.ghidra import GhidraError, GhidraSource, McpClient
 
     conn = _db()
-    src = GhidraSource(McpClient(url), program)
+    src = GhidraSource(McpClient(url), ghidra_program or program.current().ghidra)
 
     def progress(done: int, total: int) -> None:
         typer.echo(f"\r  {done}/{total} functions", nl=done == total, err=True)
@@ -116,7 +140,7 @@ def import_cmd(
             decompile=not no_decompile,
             with_types=not no_types,
             progress=progress,
-            plan_file=paths.repo_root() / plan.PLAN_REL,
+            plan_file=paths.repo_root() / plan.plan_rel(),
         )
     except GhidraError as e:
         _die(str(e))
@@ -131,7 +155,7 @@ def import_cmd(
     if res.plan:
         p = res.plan
         typer.echo(
-            f"applied {plan.PLAN_REL}: {p.units} units, {p.functions} assignments, "
+            f"applied {plan.plan_rel()}: {p.units} units, {p.functions} assignments, "
             f"{p.statuses} statuses, {p.deps} deps ({p.skipped} skipped); "
             "run `noite check --fix-status` for ported functions"
         )
@@ -542,7 +566,7 @@ def initdata_cmd(
     """Compare the defaults of fields tagged `// @orig g_*` with the EXE's initial data."""
     conn = _db()
     root = _tree(work)
-    exe = paths.repo_root() / "assets" / "NOITE.EXE"
+    exe = paths.repo_root() / program.current().exe
     try:
         results, skipped = initdata.run(conn, root, exe)
     except FileNotFoundError:
@@ -751,7 +775,7 @@ def unit_list(
 
 @unit_app.command("sync")
 def unit_sync() -> None:
-    """Write missing unit stubs and regenerate src/units.zig (main checkout only)."""
+    """Write missing unit stubs and regenerate the unit index (main checkout only)."""
     conn = _db()
     root = paths.repo_root()
     if paths.tree_root() != root:
@@ -829,7 +853,7 @@ def dep_infer() -> None:
     """Derive `auto` deps from the virtual slots each function calls (replaces
     `auto`, keeps `manual`). Slot owners: docs/DESIGN.md + noite/deps.py."""
     conn = _db()
-    design = paths.repo_root() / "docs" / "DESIGN.md"
+    design = paths.repo_root() / program.current().design
     try:
         with tx(conn):
             r = deps.infer(conn, design)
@@ -888,17 +912,17 @@ def plan_export() -> None:
     """Write db/plan.tsv from the DB (main checkout)."""
     conn = _db()
     root = paths.repo_root()
-    changed = plan.write(conn, root / plan.PLAN_REL)
-    typer.echo(f"{plan.PLAN_REL} {'updated' if changed else 'unchanged'}")
+    changed = plan.write(conn, root / plan.plan_rel())
+    typer.echo(f"{plan.plan_rel()} {'updated' if changed else 'unchanged'}")
 
 
 @plan_app.command("apply")
 def plan_apply() -> None:
     """Load db/plan.tsv into the DB (adds and updates; never clears)."""
     conn = _db()
-    f = paths.repo_root() / plan.PLAN_REL
+    f = paths.repo_root() / plan.plan_rel()
     if not f.exists():
-        _die(f"no {plan.PLAN_REL}")
+        _die(f"no {plan.plan_rel()}")
     try:
         with tx(conn):
             r = plan.apply(conn, f.read_text())

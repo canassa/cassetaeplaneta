@@ -83,6 +83,11 @@ def far_pointers(data: Sequence[int]) -> tuple[str, ...]:
     return tuple(out)
 
 
+def near_pointers(data: Sequence[int], segment: str) -> tuple[str, ...]:
+    """2-byte near code pointers (small model) as ``seg:off`` in ``segment``."""
+    return tuple(f"{segment}:{data[i] | data[i + 1] << 8:04x}" for i in range(0, len(data) - 1, 2))
+
+
 class Source(Protocol):
     """What the importer needs from Ghidra (a fake in the tests)."""
 
@@ -252,9 +257,12 @@ class GhidraSource:
         res = self.client.call(
             "find_data_types", {"program": self.program, "kind": "struct", "limit": 0}
         )
+        from noite import program
+
+        cats = program.current().type_categories
         out = []
         for t in res["data_types"]:
-            if t.get("category") != "/":  # the program's own types, not archives
+            if t.get("category") not in cats:  # the program's own types, not archives
                 continue
             lay = self.client.call(
                 "get_struct_layout", {"program": self.program, "struct_name": t["name"]}
@@ -289,7 +297,13 @@ class GhidraSource:
             mem = self.client.call(
                 "read_memory", {"program": self.program, "address": addr, "length": it["size"]}
             )
-            out.append(
-                VtableInfo(addr, it["label"], it.get("type"), it["size"], far_pointers(mem["data"]))
+            from noite import program
+
+            prog = program.current()
+            slots = (
+                near_pointers(mem["data"], prog.code_segment)
+                if prog.slot_size == 2
+                else far_pointers(mem["data"])
             )
+            out.append(VtableInfo(addr, it["label"], it.get("type"), it["size"], slots))
         return out
