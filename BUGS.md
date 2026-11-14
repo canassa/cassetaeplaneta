@@ -758,6 +758,25 @@ Confidence 8–9.
   switch (`game_scenes.landFallingItem`: the remaining steps run at once; one that never arrives is stopped).
 - **Confidence:** 9 (code, port repro).
 
+### B44. The pope's closet: a drawer closed without a pick leaves the last pick in the closet, over the drawers
+- **Where:** `handler_3fpapclo` 1020:8db8, scene start (0x401), 1020:94c4–94ce: the last picked item (slot
+  `pickedCount - 1`) is placed whenever the closet starts, then `portable_drop` 1010:71ac (1020:94e1) copies its
+  scene name into `prevSceneName`; `Game.pickAdded` (+0x6c4), which the right-click hook 1018:c0fc sets on a pick
+  and 1020:9546 clears, is never tested. The verdicts give the items back with `portable_move_to_scene`
+  (1020:9032, 91cb, 9355), which swaps `sceneName` and `prevSceneName`, and `moveToAndDrop` at the drawer
+  position, in the closet's backdrop.
+- **What the code does:** a drawer closed with a right click on nothing (no pick) brings the closet back and
+  drops the last pick again: both of its scene names are now `3FPAPCLO`. When the verdict hands the items back,
+  the swap leaves that one in the closet, at the coordinates it had in its drawer scene.
+- **Effect:** after picking, opening and closing a drawer, then two more picks and a wrong verdict, the item's
+  full drawer picture shows over the drawers (after the first failure from the next entry on; after the second,
+  on the next visit), and its occupancy cells take the right clicks there: the handler returns 1 for a portable
+  under the cursor, so the drawers it covers can no longer be opened. The item never comes back to its drawer,
+  so a right item (0xac, 0xb4, 0xb9) caught this way makes the puzzle unsolvable.
+- **Port:** reproduced (`tools/play/b44-closet-redrop.input`, `--scene 3fhall --fix pope_closet_reachable`);
+  `Fixes.closet_places_new_pick_once` places the last pick only when `pickAdded` says it is new.
+- **Confidence:** 9 (code, port repro).
+
 ---
 
 ## Unfinished features (never wired up)

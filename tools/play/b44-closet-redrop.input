@@ -1,0 +1,35 @@
+# BUGS.md B44 repro: pick, close a drawer without a pick, two more picks,
+# the wrong verdict, then open and close a drawer.
+#
+#   zig-out/bin/noite --headless --ms 60000 --scene 3fhall --fix pope_closet_reachable --input tools/play/b44-closet-redrop.input
+#
+# The guitar (ve0) stays over the drawers and the click on drawer va0 does
+# nothing; with `,closet_places_new_pick_once` the drawer opens.
+1000 rclick 327 200
++0 wait 3fpapclo
++20000 rclick 299 214
++0 wait 3fpapve0 20000
++1000 rclick 348 135
++0 wait 3FPAPCLO 20000
++2000 rclick 380 180
++0 wait 3fpapvb0 20000
++1000 rclick 5 470
++0 wait 3FPAPCLO 20000
++2000 rclick 463 180
++0 wait 3fpapvc0 20000
++1000 rclick 310 180
++0 wait 3FPAPCLO 20000
++2000 rclick 546 180
++0 wait 3fpapvd0 20000
++1000 rclick 310 196
++0 wait 3FPAPCLO 20000
++20000 dump verdict_over
++0 rclick 380 180
++1500 dump after_click
++0 state
++0 rclick 5 470
++1500 dump back
++0 rclick 299 180
++1500 dump click_drawer
++0 state
++0 quit

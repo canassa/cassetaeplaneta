@@ -187,7 +187,10 @@ fn sceneStarted(g: *Game, s: *State) i16 {
         const o = slot.object orelse continue;
         const it = o.as(.portable).?;
         s.item = it;
-        if (@as(i16, g.pickedCount) -% @as(i16, i) == 1) {
+        // B44: the original drops the last pick again on every entry (a
+        // drawer closed without a pick too); `pickAdded` says it is new.
+        const fresh = !g.fixes.closet_places_new_pick_once or g.pickAdded != 0;
+        if (@as(i16, g.pickedCount) -% @as(i16, i) == 1 and fresh) {
             _ = portable.drop(g, it, g.scene.?);
             space3d.moveToAndDrop(g, it, 0x280, 0x1e0, bdOf(g));
             it.portable.iconW = 0x50;

@@ -140,6 +140,10 @@ pub const Fixes = struct {
     /// B43: a scene change ends the fall of a dropped item in the scene it
     /// was dropped in, so its timer no longer draws it into the next scene.
     scene_change_lands_item: bool = false,
+    /// B44: the pope's closet places a picked item only when the pick is
+    /// new, so closing a drawer without a pick no longer drops the last one
+    /// again (which kept it in the closet, over the drawers, for good).
+    closet_places_new_pick_once: bool = false,
     /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"):
     /// while an inventory item is dragged out of the control panel (right
     /// button held), its panel icon follows the pointer. The original shows
