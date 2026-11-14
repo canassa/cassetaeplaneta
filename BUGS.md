@@ -629,6 +629,24 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   picture each time the panel is drawn.
 - **Confidence:** 8 (code, port repro).
 
+### B40. Green bushes show through the taxi driver's face
+- **Where:** `[2fportdi]` (the Portuguese taxi driver, `handler_2fportdi` 1020:4306): `Animated=21` (his head
+  and body, `2sbusf`, at 384,85) has `_3DOriginY` 70, `Animated=24` (the bushes passing by the windows,
+  `2smovs`, 278×54 at 170,161) 0. `scene_add_object` 1018:292e sorts both into the draw list by
+  `object3d_is_in_front_of` 1010:5c5c, whose first tests compare the depths `object3d_set_elevation`
+  1010:531c unprojects from the anchor rows: the head's (155) is farther than the bushes' (161).
+- **What the code does:** the bushes are drawn after the head. Each tick of their animation
+  (`animated3d_tick` 1010:631e) restores the background and redraws what they overlap in draw-list order
+  (`object3d_redraw_overlapping` 1010:5e10): the head, then the bushes over it, then the mouth (`Animated=23`,
+  anchored lower) over both.
+- **Effect:** in one frame of three the right-hand bush covers the driver's face around the mouth: green
+  dots above the moustache and down the left of the mouth (x 410–447, y 171–211 less the mouth), offer or
+  not. Not the art (neither sprite has transparent pixels there); `[2fportd2]` anchors the same head at 100
+  (row 185) and has no bushes, and `[2fshardi]`'s and `[2fgaydir]`'s drivers are anchored below theirs.
+- **Port:** reproduced; `Fixes.driver_in_front_of_scenery` anchors the head at 100, as `[2fportd2]`, when the
+  handler sees it created (before the bushes enter the draw list).
+- **Confidence:** 9 (INI, code, port repro).
+
 ## Harmless: wrong paths rescued by the wave fallback
 
 `wave_open` retries `<root>pan\wav\<file name>.wav`, and `PAN\WAV\` holds a copy of almost every wave, so these

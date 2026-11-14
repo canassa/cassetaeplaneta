@@ -98,6 +98,9 @@ pub const Fixes = struct {
     /// (it would select another item, or clear the handler's hit object),
     /// so the reply's end takes back, or consumes, the offered item.
     reply_keeps_offer: bool = false,
+    /// B40: 2fportdi's driver is drawn in front of the passing bushes, not
+    /// behind them (they showed through his face).
+    driver_in_front_of_scenery: bool = false,
     /// B34: the open control panel is redrawn on the screen when the
     /// inventory changes under it (an offered item handed back to the
     /// first slot), so its icons are the items a drag takes.

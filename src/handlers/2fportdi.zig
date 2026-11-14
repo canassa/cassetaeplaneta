@@ -27,6 +27,7 @@ const ini = @import("../ini.zig");
 const object_list = @import("../object_list.zig");
 const portable = @import("../portable.zig");
 const sound = @import("../sound.zig");
+const space3d = @import("../behaviour/space3d.zig");
 const update_list = @import("../update_list.zig");
 
 /// INI Numbers of the scene's objects.
@@ -163,6 +164,19 @@ fn takeItemBack(g: *Game, s: *State) void {
     _ = portable.pickUp(g, item, must(Object, must(Object, g.player).as(.player)));
 }
 
+/// B40's fix (not in the original): the driver's head (`Animated=21`,
+/// `_3DOriginY` 70, anchored at row 155) is sorted behind the passing
+/// bushes (`Animated=24`, anchored at their top, row 161), which then show
+/// through his face. Anchors it as `[2fportd2]` does the same head (100,
+/// row 185) before the bushes enter the draw list.
+fn driverInFront(g: *Game, head: *Object) void {
+    const bd = bdOf(g);
+    _ = space3d.setAnchor(g, head, head.o3d.anchorX, 100);
+    _ = space3d.setElevation(g, head, bd, head.o3d.worldElev);
+    draw_list.remove(&g.drawList, head);
+    _ = draw_list.insert(g, bd, head);
+}
+
 // @orig 1020:4306 handler_2fportdi
 pub fn handle(g: *Game, m: Msg) i16 {
     const s = g.sceneState(State);
@@ -287,7 +301,10 @@ pub fn handle(g: *Game, m: Msg) i16 {
         },
         msg.noite.object_created => {
             switch (@as(i16, @bitCast(m.wparam))) {
-                BUSF_ID => s.busf = g.newObject,
+                BUSF_ID => {
+                    s.busf = g.newObject;
+                    if (g.fixes.driver_in_front_of_scenery) driverInFront(g, must(Object, s.busf));
+                },
                 DRINKING_ID => {
                     s.drinking = g.newObject;
                     hideAndRedraw(g, s.drinking);
