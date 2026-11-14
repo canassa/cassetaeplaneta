@@ -48,6 +48,10 @@ tools/web/stamp.py, served at the same origin): the reload downloads
 only that file, runs the new noite.js and drops the stale cache entry.
 Then "Jogo" = Encaixe Perfeito: the minigame starts alone and a left
 arrow moves its falling piece one column (encaixe.png, encaixe-left.png).
+Then "Jogo" = Tiro ao Álvaro: TIRO starts alone and SPACE fires: the
+crossbow turns to its unloaded picture (tiro.png, tiro-fire.png); on a
+touch screen the pad shows ◀, a fire button and ▶, and the fire button
+fires (tiro-touch.png).
 Exits non-zero on the first failed check or on a page error.
 """
 
@@ -523,6 +527,66 @@ def main():
                   f"Encaixe Perfeito runs: the left arrow moves the piece (left edge {before} -> {after})")
             check(not errors, "Encaixe Perfeito: no page errors")
 
+        def crossbow():
+            """A checksum of the crossbow's picture (TIRO, x 200-484, y
+            385-454: below the arrow's flight), or None."""
+            return page.evaluate("""() => {
+                const d = document.getElementById("screen").getContext("2d").getImageData(200, 385, 285, 70).data;
+                let sum = 0;
+                for (let i = 0; i < d.length; i += 4) sum = (sum * 31 + d[i] + 7 * d[i + 1] + 13 * d[i + 2]) % 1000000007;
+                return sum;
+            }""")
+
+        def tiro_alone():
+            """Jogo: Tiro ao Álvaro alone. It starts, SPACE fires (the crossbow
+            shows `bestse`, unloaded), no page errors."""
+            page.goto(url)
+            load()
+            check(not page.is_disabled("#jogo option[value=tiro]"), "the loader offers Tiro ao Álvaro alone")
+            page.select_option("#jogo", "tiro")
+            page.check('input[name="versao"][value="original"]')
+            play()
+            time.sleep(1.5)
+            shot("tiro.png")
+            before = crossbow()
+            page.keyboard.press("Space")
+            time.sleep(0.3)
+            after = crossbow()
+            shot("tiro-fire.png")
+            check(before is not None and after is not None and before != after,
+                  "Tiro ao Álvaro runs: SPACE fires (the crossbow is unloaded)")
+            check(not errors, "Tiro ao Álvaro: no page errors")
+
+        def tiro_touch():
+            """Tiro ao Álvaro alone on a touch screen: the pad's keys are
+            TIRO's (LEFT, fire, RIGHT) and the fire button fires."""
+            tctx = browser.new_context(viewport={"width": 844, "height": 390}, has_touch=True, is_mobile=True)
+            tpage = tctx.new_page()
+            terrors = []
+            tpage.on("pageerror", lambda e: terrors.append(str(e)))
+            tpage.goto(url)
+            tpage.wait_for_function("window.noite.ready || window.noite.failure", timeout=600_000)
+            tpage.select_option("#jogo", "tiro")
+            tpage.click("#play")
+            tpage.wait_for_function("window.noite.started || window.noite.failure", timeout=60_000)
+            time.sleep(1.5)
+            shown = tpage.evaluate("""() => Array.from(document.querySelectorAll('#dpad button'))
+                .filter((b) => !b.hidden).map((b) => Number(b.dataset.key))""")
+            check(sorted(shown) == [32, 37, 39], f"touch TIRO: the pad shows LEFT, fire and RIGHT ({shown})")
+            sum_js = """() => {
+                const d = document.getElementById("screen").getContext("2d").getImageData(200, 385, 285, 70).data;
+                let sum = 0;
+                for (let i = 0; i < d.length; i += 4) sum = (sum * 31 + d[i] + 7 * d[i + 1] + 13 * d[i + 2]) % 1000000007;
+                return sum;
+            }"""
+            before = tpage.evaluate(sum_js)
+            tpage.locator('#dpad [data-key="32"]').tap()
+            time.sleep(0.3)
+            tpage.screenshot(path=str(out / "tiro-touch.png"))
+            check(tpage.evaluate(sum_js) != before, "touch TIRO: the fire button fires")
+            check(not terrors, "touch TIRO: no page errors")
+            tctx.close()
+
         def manifest():
             return page.evaluate("""async () => {
                 const html = await (await fetch("./", { cache: "no-cache" })).text();
@@ -691,6 +755,8 @@ def main():
             check(not errors, "no page errors after the deploy")
             shutil.rmtree(new_site)
         minigame_alone()
+        tiro_alone()
+        tiro_touch()
         browser.close()
     if not args.url:
         httpd.shutdown()
