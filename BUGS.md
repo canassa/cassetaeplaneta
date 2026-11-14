@@ -1143,6 +1143,24 @@ Addresses are Ghidra `seg:off` in `/ENCAIXE.EXE`; the game is described in `docs
 - **Confidence:** 9 (code); 8 (effect).
 - **Port:** reproduced (unit `game`, src/encaixe/; x is taken as 0); no flag, nothing to fix.
 
+### E12. Rotations of a new piece before its first fall step leave the earlier rotations drawn
+- **Where:** `te_piece_on_landed` 1008:ba20 (the next piece), with `te_piece_restore_background` 1008:c304.
+- **What the code does:** the landing's `te_piece_stop_moving_dc` 1008:bbd8 sets `Mover.prevX/prevY` (+0x12/+0x14)
+  to where the piece landed; `te_piece_on_landed` then puts the next piece at x 160, y 0 without touching them.
+  Until the first fall step (`mover_place_at` sets them) or a sideways key (`mover_stop_moving`), each erase uses
+  that stale position: `te_piece_restore_background` copies the clean bitmap over x from `min(x, prevX)`,
+  `|stepX| + 128` (160) wide, and y from 0, 160 high. A rotation is drawn by `animation_tick` 1008:7dec
+  (`actor2d_redraw`: erase, occupy, draw the new frame) on the next timer tick, and each UP press restarts that
+  timer, so pressing UP faster than the fall period keeps the piece at the top and every rotation erases that rect.
+- **Effect:** when the landed piece's x was below 160 (its left column 0–3), the erase stops at `prevX + 160`, and
+  from the second rotation on, the earlier frames' cells right of that line stay drawn under the new one: the
+  sprite at the top shows extra cells (after a landing in column 0, everything in columns 5–7). The board is not affected. The
+  first fall step erases x 160–319, y 0–159 and clears them.
+- **Confidence:** 9 (code; reproduced in the port, which runs the same erase).
+- **Port:** reproduced (unit `piece`, src/encaixe/); the fix is `Fixes.encaixe_spawn_syncs_previous_position`
+  (`--fix encaixe_spawn_syncs_previous_position`, on in the Corrigida version): the new piece's previous position
+  is its spawn point. Drawing only: the moves, the fall and the timers are unchanged.
+
 ---
 
 ## TIRO.EXE (the "Tiro ao Álvaro" minigame)

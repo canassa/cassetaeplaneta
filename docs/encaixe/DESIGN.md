@@ -5,7 +5,7 @@ Zig, next to NOITE's port. NOITE's `docs/DESIGN.md` and the zig-developer
 skill hold for everything this file does not override. Ghidra (program
 `ENCAIXE.EXE`, through the tracker snapshot `noite -p encaixe show`) is the
 specification; `GAME.md` (rules, protocol), `DATA.md` (classes, vtables,
-globals), `FUNCTIONS.md` (names, dead code), BUGS.md E1–E11.
+globals), `FUNCTIONS.md` (names, dead code), BUGS.md E1–E12.
 
 ## Decisions
 
@@ -32,7 +32,7 @@ globals), `FUNCTIONS.md` (names, dead code), BUGS.md E1–E11.
   `rowsCopyTransparent32` (tagged with ENCAIXE's 1000:0114 / 1000:0024) may
   call NOITE's `src/dib.zig` versions. Any other reuse of a NOITE function
   needs the two decompiles shown identical in the unit's commit.
-- **Faithful first, the owner's rule.** E1–E11 are reproduced as they are by
+- **Faithful first, the owner's rule.** E1–E12 are reproduced as they are by
   default. Each fix exists only behind its own `Fixes` flag (off by default,
   on in the Corrigida version, `Fixes.all()`). A unit ports the buggy code
   and keeps the fixed path only under its flag.
@@ -336,6 +336,7 @@ and PostMessage fails.
 | E7 skipped speed-up | `encaixe_speed_up_on_crossing` | piece |
 | E8 strip cells | `encaixe_strip_cells_by_count` | object_create |
 | E9 grid walls | `encaixe_grid_walls_match_board` | backdrop |
+| E12 leftover rotations at the top | `encaixe_spawn_syncs_previous_position` | piece |
 
 All in `Fixes.all()`. E4's uninitialised stack word is taken as 0 (no
 cells). E3 cannot happen (`rand() % 6`). E10 (row 0 never rewritten,

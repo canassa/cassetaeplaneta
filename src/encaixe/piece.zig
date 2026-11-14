@@ -8,7 +8,8 @@
 //!
 //! BUGS.md: E3 (an unknown kind leaves `bottomRow` uninitialised), E6 (a
 //! loss does not stop the landing), E7 (the speed-up is only tested after
-//! the whole landing); fixes behind `g.fixes.encaixe_*`. One more quirk not
+//! the whole landing), E12 (the next piece keeps the landed one's previous
+//! position); fixes behind `g.fixes.encaixe_*`. One more quirk not
 //! in BUGS.md: `te_piece_clear_row` stops its shift at row 1, so row 0 is
 //! never rewritten (its '0' branch and the `dib_copy_transparent` one are
 //! dead code, kept).
@@ -191,6 +192,13 @@ pub fn onLanded(g: *Game, obj: *Object, bd: *Backdrop, kind: i16, rotation: i16)
     movement.moveToEdgeV(g, p, bd, 8);
     g.piece.?.y = 0;
     g.piece.?.mover.targetY = 0;
+    // E12: the original leaves the previous position where the last piece
+    // landed, and the erase of the rotations before the first fall step
+    // starts there (te_piece_restore_background).
+    if (g.fixes.encaixe_spawn_syncs_previous_position) {
+        p.mover.prevX = p.x;
+        p.mover.prevY = p.y;
+    }
     _ = obj;
 }
 
@@ -505,6 +513,54 @@ test "landing in the top rows sends a loss; E6 carries on unless fixed" {
 
 fn onLandedNoMove(g: *Game, obj: *Object, bd: *Backdrop) void {
     onLanded(g, obj, bd, 5, 0);
+}
+
+/// Lands a piece resting at column 0 (x 32, y 320, previous position the
+/// same, as `te_piece_stop_moving_dc` leaves it), then runs the next
+/// piece's first erase (`te_piece_restore_background`, what each rotation
+/// before the first fall step does) over a working bitmap of 1s and a clean
+/// one of 0s. Returns the 1s left in the new piece's 128×128 frame.
+fn spawnEraseLeftovers(g: *Game) !usize {
+    const render = @import("behaviour/render.zig");
+    var obj: Object = .{ .kind = .piece };
+    g.piece = &obj;
+    var frames = @as([6]object.Frame, @splat(.{ .width = 128, .height = 128, .count = 4 }));
+    obj.frames = &frames;
+    obj.piece.row = 10;
+    obj.x = 32;
+    obj.y = 320;
+    obj.mover.prevX = 32;
+    obj.mover.prevY = 320;
+    obj.mover.stepX = 32;
+    obj.mover.stepY = 32;
+    var bd: Backdrop = .{ .bgWidth = 640, .bgHeight = 480, .dibOrientation = -1 };
+    bd.pixels = try std.testing.allocator.alloc(u8, 640 * 480);
+    defer std.testing.allocator.free(bd.pixels);
+    bd.pixels2 = try std.testing.allocator.alloc(u8, 640 * 480);
+    defer std.testing.allocator.free(bd.pixels2);
+    @memset(bd.pixels, 1);
+    @memset(bd.pixels2, 0);
+    onLandedNoMove(g, &obj, &bd);
+    try std.testing.expectEqual(@as(i16, 0xa0), obj.x);
+    try std.testing.expectEqual(@as(i16, 0), obj.y);
+    render.restoreBackground(g, &obj, &bd, 1);
+    var left: usize = 0;
+    for (0..128) |r| {
+        for (0..128) |c| left += bd.pixels[r * 640 + 0xa0 + c];
+    }
+    return left;
+}
+
+// @orig 1008:ba20 te_piece_on_landed oracle=documented
+test "E12: the next piece's first erase misses its frame right of x 192 unless fixed" {
+    var t = try TestGame.init(std.testing.allocator);
+    defer t.deinit();
+    const g = t.game;
+    // The original erases x 32-191 (min(x, prevX) = 32, 32 + 128 wide):
+    // the frame's columns 192-287 keep what was drawn there.
+    try std.testing.expectEqual(@as(usize, 96 * 128), try spawnEraseLeftovers(g));
+    g.fixes.encaixe_spawn_syncs_previous_position = true;
+    try std.testing.expectEqual(@as(usize, 0), try spawnEraseLeftovers(g));
 }
 
 // @orig 1008:b898 te_piece_spawn_shape oracle=documented
