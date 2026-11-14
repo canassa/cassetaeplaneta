@@ -18,9 +18,9 @@ thunks are named after named targets; 3 carry their dead target's `FUN_` name (`
 | Import thunk | 89 | `10c8`, all typed (§Imports in `QUALITY.md`) |
 | Adjustor thunk | 387 | `10a0:0170–1e78` (349), `59ce–5a72` (8), `61d6–6290` (9), `68de–6aa0` (21): 59 fixed, 328 vtordisp; `<target>_thunk[_k]` |
 | CRT | 98 | `1098`, all named |
-| 32-bit blitters | 4 | `1000:0024` (new), `0148` `dib_rows_copy_transparent32`, `0234` `dib_rows_copy32`; `1008:0024` (new). Not typed |
+| 32-bit blitters | 4 | `1000:0024` (new), `0148` `dib_rows_copy_transparent32`, `0234` `dib_rows_copy32`; `1008:0024` (new), all named and typed (twins of JARDIM's, §RLE path) |
 | DIB | 17 | `1010` (6), `1018` (11) |
-| RLE | 11 | `1068` (8, RLE-aware DIB copies), `1088` (3, `transrle.cpp`) — unnamed |
+| RLE | 11 | `1068` (8, scaled and stretched DIB copies), `1088` (3, `transrle.cpp`); JARDIM's twins, §RLE path |
 | App shell | 10 | `1058` |
 | WaveMix | 11 | `1090` |
 | Engine | 460 | `1020–1040`, `1050`, `1060`, `1070`, `1078`, `10a0` |
@@ -30,13 +30,13 @@ By segment (code functions other than the adjustor thunks; named / total):
 
 | Seg | Named | Seg | Named | Seg | Named |
 |---|---|---|---|---|---|
-| `1000` | 2/3 | `1038` | 7/7 | `1070` | 11/11 |
-| `1008` | 0/1 | `1040` | 2/2 | `1078` | 17/18 |
-| `1010` | 4/6 | `1048` | 6/6 | `1080` | 38/38 |
-| `1018` | 11/11 | `1050` | 4/4 | `1088` | 0/3 |
+| `1000` | 3/3 | `1038` | 7/7 | `1070` | 11/11 |
+| `1008` | 1/1 | `1040` | 2/2 | `1078` | 17/18 |
+| `1010` | 4/6 (`0960`, `0c49` plated, `FUN_`) | `1048` | 6/6 | `1080` | 38/38 |
+| `1018` | 11/11 | `1050` | 4/4 | `1088` | 3/3 |
 | `1020` | 51/53 | `1058` | 10/10 | `1090` | 11/11 |
 | `1028` | 9/9 | `1060` | 7/7 | `1098` | 98/98 |
-| `1030` | 53/53 | `1068` | 0/8 | `10a0` | 332/336 |
+| `1030` | 53/53 | `1068` | 8/8 | `10a0` | 332/336 |
 
 Conventions (Ghidra's): 542 `__stdcall16far`, 95 `__cdecl16far`, 13 on the `ghidra/cspec` far
 cdecl extensions (`_dx_ax` 2, `_dxax_ptr` 11), 22 near (CRT helpers), 23 unknown (the 32-bit
@@ -149,10 +149,7 @@ bodies in phase 4 (`pacman_refresh_power_strip`, `ghost_choose_direction`,
 
 ## Remaining `FUN_` functions
 
-- **Not mapped (no plate, 15):** the RLE path (group 4 and part of group 3 below): `1068` (8, the RLE-aware DIB
-  copies), `1088` (3, `transrle.cpp`), the 32-bit `1000:0024` and `1008:0024`, `1010:0960` and
-  `0c49`. Nothing calls the `enableRle` slot, so the RLE draw path never runs (NOITE's is dormant too,
-  `BUGS.md` L1, L2).
+- **The RLE path (13 named, 2 `FUN_` with a plate and `review`):** see §RLE path.
 - **Dead, role unproven (7, noted in their plates):** `1020:1680` (empty, this + five words),
   `1020:2dfc` (huge-pointer add), `1078:01a6` (an Animation-like ctor body, as JARDIM's),
   `10a0:52e6` (zeroes 8 bytes), `10a0:5b8c`, `5ba2`, `5c00` (empty members reached only by thunks
@@ -206,8 +203,7 @@ groups 20–22 last.
 
 ## Phase 4 results
 
-Groups 1, 2 and 5–22 are done. Group 4 and the four new routines of group 3 (the RLE path) are not
-mapped. The game is described in
+Groups 1–22 are done (group 4 and the four new routines of group 3 in §RLE path). The game is described in
 `GAME.md`, its bugs in `BUGS.md` (section SAUNA, P1–P8). What phase 4 corrected in the earlier
 picture:
 - **The mouse is live:** the scene handler returns 0 for mouse messages, so `game_handle_message`
@@ -265,3 +261,33 @@ Scratch (not committed, `zig-out/sauna/`): `SaunaSurvey`, `SaunaRelocs`, `SaunaD
 `SaunaFnList`, `SaunaVtDump`, `SaunaCrtFix`, `SaunaMk`, `SaunaLst` (Java), and `ne.py`,
 `crtmatch.py`, `feat.py`, `align.py`, `crt.py`, `crt2.py`, `vtm.py`, `vtslot.py`, `slotmap.py`,
 `names.py`, `ctors.py`, `gamecls.py`, `sofields.py`, `groups.py`.
+
+## RLE path (group 4 and the new routines of group 3)
+
+Everything here is JARDIM.EXE's code: each function has the same size as its JARDIM twin and the
+same bytes, apart from relocated call targets and DGROUP offsets (compared per function with the NE
+relocation masks); names, signatures and plates are copied from JARDIM's (`docs/jardim/FUNCTIONS.md`)
+and adapted. The 32-bit routines were not retyped (read with `objdump -mi386`). Nothing in SAUNA calls
+`1068:0000`, `1068:1336` or the encoder, and nothing calls `enableRle`, so none of it runs (`rle_blit_transparent`
+is reachable only on the RLE branch of `scene_object_draw_clip_to`/`draw_dirty_to`). In JARDIM the
+labyrinth wall and sprite drawers use the scaled blits; SAUNA has no such caller.
+
+| Address | Name | Twin | Score |
+|---|---|---|---|
+| `1000:0024` | `blit_scaled_column` (32-bit, shaded 4-px column) | JARDIM `1000:0024`, byte-identical | 9 |
+| `1008:0024` | `blit_scaled_sprite_transparent` (32-bit) | JARDIM `1018:0024`, byte-identical | 9 |
+| `1068:0000` | `dib_blit_scaled_column` | JARDIM `1068:0000` | 9 |
+| `1068:01f5` | `dead_dib_blit_scaled_column_huge16` | JARDIM `1068:01f5` | 8 |
+| `1068:0583` | `dead_dib_blit_scaled_column_byte` (`sig?`: signature inferred, no caller) | JARDIM `1068:0583` | 8 |
+| `1068:0702` | `dead_dib_blit_scaled_column_byte_huge16` | JARDIM `1068:0702` | 8 |
+| `1068:09fc` | `dead_dib_stretch_copy_rect` (`sig?`) | JARDIM `1068:09fc` | 8 |
+| `1068:0c8e` | `dead_dib_stretch_copy_rect_huge16` | JARDIM `1068:0c8e` | 8 |
+| `1068:1336` | `dib_stretch_copy_transparent` | JARDIM `1068:1336` | 9 |
+| `1068:16ec` | `dead_dib_stretch_copy_transparent_huge16` | JARDIM `1068:16ec` | 8 |
+| `1088:0000` | `rle_blit_transparent` | JARDIM `1088:0000` (replaces NOITE `1018:b78a`) | 9 |
+| `1088:0389` | `dead_rle_blit_transparent_whole` (`sig?`) | JARDIM `1088:0389` | 8 |
+| `1088:06ce` | `dead_rle_encode_dib` (`sig?`; asserts on `d:\c&p\pacman\transrle.cpp`) | JARDIM `1088:06ce` | 8 |
+| `1010:0960` | `FUN_1010_0960` (`review`: row-table stepped clipped copy, role guessed) | JARDIM `1060:0960` (also unnamed) | 4 |
+| `1010:0c49` | `FUN_1010_0c49` (`review`: its inner loop) | JARDIM `1060:0c49` | 4 |
+
+`1000:0148`/`0234` are NOITE's row copies (JARDIM's `dib_rows_copy_transparent32`/`dib_rows_copy32`).
