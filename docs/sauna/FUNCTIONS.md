@@ -8,8 +8,8 @@ the reference for the names, NOITE for the slots TIRO lacks. The data is in `DAT
 
 ## Counts
 
-**1,171 functions:** 89 import thunks, 387 adjustor thunks and 695 code functions. **564 of the
-695 are named, 131 stay `FUN_`** (mostly the out-of-line accessors in `10a0`, the RLE modules
+**1,171 functions:** 89 import thunks, 387 adjustor thunks and 695 code functions. **569 of the
+695 are named, 126 stay `FUN_`** (mostly the out-of-line accessors in `10a0`, the RLE modules
 `1068`/`1088` and the 32-bit blitters). 346 of the 387 thunks are named after named targets; 41
 still carry their target's `FUN_` name.
 
@@ -32,14 +32,15 @@ By segment (code functions other than the adjustor thunks; named / total):
 |---|---|---|---|---|---|
 | `1000` | 2/3 | `1038` | 7/7 | `1070` | 11/11 |
 | `1008` | 0/1 | `1040` | 2/2 | `1078` | 15/18 |
-| `1010` | 4/6 | `1048` | 6/6 | `1080` | 33/38 |
+| `1010` | 4/6 | `1048` | 6/6 | `1080` | 38/38 |
 | `1018` | 11/11 | `1050` | 4/4 | `1088` | 0/3 |
 | `1020` | 51/53 | `1058` | 10/10 | `1090` | 11/11 |
 | `1028` | 9/9 | `1060` | 7/7 | `1098` | 98/98 |
 | `1030` | 50/53 | `1068` | 0/8 | `10a0` | 233/336 |
 
-Conventions (Ghidra's, not yet re-derived): 542 `__stdcall16far`, 99 `__cdecl16far`, 21 near
-(CRT helpers), 33 unknown (the 32-bit routines and CRT entries).
+Conventions (Ghidra's): 542 `__stdcall16far`, 99 `__cdecl16far`, 21 near (CRT helpers), 33
+unknown (the 32-bit routines and CRT entries). Phase 3 gave 373 methods a real signature (far
+`this` + word parameters, `DATA.md`); the rest keep Ghidra's parameterless prototypes.
 
 ## Function discovery
 
@@ -128,7 +129,7 @@ thunks were renamed after their targets with `NearAdjustorThunks` again.
 | CRT: NOITE bytes with relocations masked (45), NOITE link-order alignment ≥0.9, TIRO link-order alignment ≥0.85, frameless entries and `_output` helpers by position | 98 |
 | Module segments, in-order alignment against TIRO (`align.py`), pairs ≥0.4 inside a segment whose alignment beats the next TIRO segment by 3× or more | 102 |
 | Vtable slot: slot *i* of a SAUNA table gets the name in the mapped slot of the same class's TIRO table (thunks resolved on both sides); NOITE's tables for Scene, Backdrop, GridBackdrop; SaunaGame/SaunaScene/Pacman/Ghost overrides by slot field | 302 |
-| Role: ctors and dtors by their vptr stores, checked against TIRO's ctor of the class (0.78–0.93), the 32-bit blitters by bytes, the SaunaScene and score functions | 62 |
+| Role: ctors and dtors by their vptr stores, checked against TIRO's ctor of the class (0.78–0.93), the 32-bit blitters by bytes, the SaunaScene and score functions (5 of them in phase 3) | 67 |
 
 Slot names took precedence: alignment and slot agree on 79 of the 82 functions both name; the
 3 others are next to functions SAUNA inserted (`enableRle` `1020:0877`, the AVI stubs
@@ -146,7 +147,7 @@ The Pacman/Ghost/SaunaScene override names describe the slot they fill (`pacman_
 
 ## Remaining unknowns
 
-The 131 `FUN_` functions:
+The 126 `FUN_` functions:
 - `10a0` (103): accessors and helpers reached directly (`1f10–211c`, `2f5c–3252`, `3fbe`,
   `4384–44fc`, `5a7e–6688`, `8820–8d8a`, `9038–9548`), the three Moveable ctors and three Mover
   ctors, `0000`/`00cc`/`008e` (scalar-deleting dtors and similar), `6480–68be` (game helpers next
@@ -155,13 +156,11 @@ The 131 `FUN_` functions:
 - `1000:0024`, `1008:0024`: new 32-bit routines (RLE row copies by their callers).
 - `1010:0960`, `0c49`; `1020:1680` (empty, as TIRO's unnamed `1028:0e71`), `2dfc` (as TIRO's
   `1028:1cb7`); `1030:25c1`, `2aed`, `32d6`; `1078:01a6`, `0a0f`, `0a68`.
-- `1080` (5): `4082`, `40e3`, `411c`, `417c` (score/wave helpers, shaped like TIRO's
-  `tiro_play_shot_wave`/`tiro_hit_*`), `41fd`.
 
 Dead (no call, no slot; 59 functions): the DIB extras (`dib_copy_transparent_whole`, `dib_set_usage`,
 `dib_create`, `dib_map_to_palette`), the PerspectiveBackdrop and Portable methods, the second
 draw list (`1070:0050–0593`), the StatusBar methods, `sauna_scene_dtor`, `wave_pump`, four of the
-`1068` copies, `1088:0389`/`06ce`, and about 200 adjustor thunks whose vtables the linker did not
+`1068` copies, `1088:0389`/`06ce`, and 126 adjustor thunks whose vtables the linker did not
 keep (Exit, Player, Animated3D and Moveable variants: `10a0:1052–1b28`, `59ce–5a68`,
 `61d6–6286`).
 
@@ -194,7 +193,7 @@ named from TIRO/NOITE; the agent verifies, signs (`ghidra-fix-signature`) and ty
 | 19 | `10a0:8a56–9ca4` | 57 (14) | Backdrop/GridBackdrop/Scene defaults, scene/occupancy helpers, Ghost and SaunaBackdrop ctors | mixed, medium |
 | 20 | `1080:0000–13bd` | 15 (0) | **Pacman**: occupy/vacate, move (`move_to`, edges, `move_tick` 1.7 KB, `restore_background` 1.7 KB), `can_step`, stop, tick | SAUNA, high |
 | 21 | `1080:13be–238f` | 9 (0) | **Ghost**: occupy/vacate, `restore_background`, `can_step`, `move_tick`, the two extra slots (`ghost_vt_slot1` 1 KB: the chase?) | SAUNA, high |
-| 22 | `1080:2390–437a` | 14 (5) | **SaunaScene**: backdrop create, ctor/dtor, create/create_screen, the handler `32f7` (3.5 KB: keys, timers, 0x40a), `sauna_scene_slot10` (1.7 KB), score and wave helpers `4082–426e` | SAUNA, high |
+| 22 | `1080:2390–437a` | 14 (0) | **SaunaScene**: backdrop create, ctor/dtor, create/create_screen, the handler `32f7` (3.5 KB: keys, timers, 0x40a), `sauna_scene_slot10` (1.7 KB), score and wave helpers `4082–426e` | SAUNA, high |
 
 Order of work: groups 1–3 and 11 first (they anchor the CRT, DIB and app names), then 5–10 and
 12, then the `10a0` groups 13–19 (they need the vtable structs of phase 3), group 4, and the game
