@@ -10,7 +10,8 @@
 // (`--skip-videos`) and whether the left button (or a touch) does all
 // (`--one-button`, on by default on a touch screen); they are remembered
 // in localStorage and passed to `noite_start`. Each version keeps its own
-// saves.
+// saves. "Jogo" can run one minigame alone instead of the game
+// (`--minigame NAME`; MINIGAMES, in `noite_start`'s order).
 //
 // Every file but index.html is requested by content hash (`url?h=<hash>`,
 // tools/web/stamp.py): index.html passes the wasm's and the manifest's
@@ -34,6 +35,10 @@
   // were two versions; the Corrigida's are kept apart.
   const SAVE_PREFIXES = { original: "noite:save:", corrigida: "noite:corrigida:save:" };
   const VERSION_NAMES = { original: "Original", corrigida: "Corrigida" };
+  // The minigames that can run alone: `noite_start`'s `minigame` is the
+  // index + 1 (src/web_main.zig `minigames`). `ready` follows the port's
+  // `ready` (src/<name>/root.zig): until then the choice is disabled.
+  const MINIGAMES = [{ name: "encaixe", title: "Encaixe Perfeito", ready: false }];
   // The files of the current manifest, by hashed URL. The name must not
   // start with "noite-": loaders before the hashes deleted every
   // "noite-*" cache but their own (their caches are migrated below).
@@ -250,12 +255,13 @@
 
   /** { version: "original" | "corrigida", skip: bool, oneButton: bool } */
   function readPrefs() {
-    const prefs = { version: "original", skip: true, oneButton: coarsePointer() };
+    const prefs = { version: "original", skip: true, oneButton: coarsePointer(), minigame: "" };
     try {
       const p = JSON.parse(localStorage.getItem(PREFS_KEY) || "{}");
       if (p.version in SAVE_PREFIXES) prefs.version = p.version;
       if (typeof p.skip === "boolean") prefs.skip = p.skip;
       if (typeof p.oneButton === "boolean") prefs.oneButton = p.oneButton;
+      if (MINIGAMES.some((m) => m.ready && m.name === p.minigame)) prefs.minigame = p.minigame;
     } catch {}
     // "Trocar versão" reloads with ?versao=… (works without localStorage).
     const asked = new URLSearchParams(location.search).get("versao");
@@ -276,7 +282,13 @@
 
   function chosenPrefs() {
     const radio = document.querySelector('input[name="versao"]:checked');
-    return { version: radio ? radio.value : "original", skip: $("skip").checked, oneButton: $("onebutton").checked };
+    const jogo = $("jogo");
+    return {
+      version: radio ? radio.value : "original",
+      skip: $("skip").checked,
+      oneButton: $("onebutton").checked,
+      minigame: jogo ? jogo.value : "",
+    };
   }
 
   let prefs = readPrefs();
@@ -879,12 +891,20 @@
     for (const r of document.querySelectorAll('input[name="versao"]')) r.checked = r.value === prefs.version;
     $("skip").checked = prefs.skip;
     $("onebutton").checked = prefs.oneButton;
+    for (const o of $("jogo").options) {
+      const m = MINIGAMES.find((x) => x.name === o.value);
+      if (m && !m.ready) {
+        o.disabled = true;
+        o.textContent += " (em breve)";
+      }
+    }
+    $("jogo").value = prefs.minigame;
     return new Promise((resolve) => {
       $("play").onclick = () => {
         startAudio(); // a user gesture: the opening is heard
         prefs = chosenPrefs();
         writePrefs(prefs);
-        for (const el of $("options").querySelectorAll("input, button")) el.disabled = true;
+        for (const el of $("options").querySelectorAll("input, button, select")) el.disabled = true;
         $("play").textContent = ready ? "Iniciando…" : "Começa quando o download terminar…";
         resolve();
       };
@@ -1007,12 +1027,15 @@
       canvas.hidden = snap ? snap.header.mainShown === false : false;
       $("away").hidden = !canvas.hidden;
       showTools();
-      if (prefs.oneButton) showDpad();
+      // The arrows a minigame needs, on a touch screen too.
+      if (prefs.oneButton || (prefs.minigame && coarsePointer())) showDpad();
       fit();
       watchSize();
       attachInput();
       if (!snap) {
-        const rc = wasm.noite_start(prefs.version === "corrigida" ? 1 : 0, prefs.skip ? 1 : 0, prefs.oneButton ? 1 : 0);
+        const minigame = MINIGAMES.findIndex((m) => m.name === prefs.minigame) + 1;
+        const rc = wasm.noite_start(prefs.version === "corrigida" ? 1 : 0, prefs.skip ? 1 : 0, prefs.oneButton ? 1 : 0, minigame);
+        if (rc === 3) throw new Error("este minijogo ainda não foi portado");
         if (rc !== 0) throw new Error(`o jogo não iniciou (${rc})`);
       }
       restored = !!snap;

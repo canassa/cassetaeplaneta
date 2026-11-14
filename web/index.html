@@ -13,7 +13,9 @@
     background: #000; touch-action: none; cursor: default;
     -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
   .panel { position: absolute; max-width: 30rem; width: calc(100% - 32px); padding: 1.25rem 1.5rem;
-    background: #111; border: 1px solid #333; border-radius: 8px; box-sizing: border-box; }
+    background: #111; border: 1px solid #333; border-radius: 8px; box-sizing: border-box;
+    max-height: calc(100% - 16px); overflow-y: auto; }
+  select { font: inherit; background: #222; color: #ddd; border: 1px solid #444; border-radius: 4px; }
   .panel h1 { font-size: 1.1rem; margin: 0 0 .75rem; color: #fff; }
   .bar { height: 10px; background: #222; border-radius: 5px; overflow: hidden; margin: .75rem 0 .5rem; }
   .bar > div { height: 100%; width: 0; background: #e8b830; transition: width .15s; }
@@ -80,6 +82,10 @@
           <span>Original <small>— fiel ao jogo de 1995, com os bugs dele</small></span></label>
         <label><input type="radio" name="versao" value="corrigida">
           <span>Corrigida <small>— com os bugs do original consertados</small></span></label>
+        <label>Jogo: <select id="jogo">
+            <option value="" selected>Noite Animal (o jogo todo)</option>
+            <option value="encaixe">Jogar só o minijogo: Encaixe Perfeito</option>
+          </select></label>
       </fieldset>
       <fieldset>
         <label><input type="checkbox" id="skip" checked>

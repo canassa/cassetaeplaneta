@@ -18,6 +18,12 @@ const harness = @import("platform/harness.zig");
 const report = @import("platform/report.zig");
 const units = @import("units.zig");
 const one_button = @import("one_button.zig");
+const host = @import("platform/host.zig");
+const encaixe = @import("encaixe/root.zig");
+
+/// The minigames ported (as `main.zig`'s `minigames`); `noite_start`'s
+/// `minigame` is an index into it plus one.
+const minigames = [_]*const host.Program{&encaixe.program};
 
 pub const std_options: std.Options = .{ .logFn = log };
 
@@ -40,7 +46,10 @@ fn panicWithReport(text: []const u8, first_trace_addr: ?usize) noreturn {
 
 const gpa = std.heap.c_allocator;
 var backend: web.Web = undefined;
+var hs: host.Host = undefined;
 var game: ?*Game = null;
+/// A minigame run alone (`noite_start`'s `minigame`), instead of `game`.
+var alone: ?struct { prog: *const host.Program, ctx: *anyopaque } = null;
 var audio_buf: [8192 * 2]i16 = undefined;
 
 /// wasi-libc's start code references `main`; a reactor never calls it.
@@ -54,10 +63,20 @@ export fn __main_argc_argv(argc: c_int, argv: ?*anyopaque) c_int {
 /// `fixes` turns every BUGS.md fix on (`--fix all`, the "Corrigida"
 /// version), `skip_videos` lets a click or Esc/Enter/Space end a video
 /// (`--skip-videos`), `one_button` plays with the left button or touch
-/// alone (`--one-button`).
-export fn noite_start(fixes: bool, skip_videos: bool, one_button_mode: bool) i32 {
+/// alone (`--one-button`); `minigame` (0: NOITE) runs that minigame alone
+/// (1: ENCAIXE, `--minigame encaixe`; 3 when it is not ported yet).
+export fn noite_start(fixes: bool, skip_videos: bool, one_button_mode: bool, minigame: u32) i32 {
     backend.init(gpa, skip_videos);
-    const g = Game.create(gpa, backend.platform()) catch return 1;
+    const fx: @import("core/fixes.zig").Fixes = if (fixes) .all() else .{};
+    const prog: ?*const host.Program = if (minigame >= 1 and minigame <= minigames.len) minigames[minigame - 1] else null;
+    hs.init(gpa, backend.platform(), &backend.sim, .{ .real = &minigames, .fixes = fx }, if (prog) |p| p.title else "Noite Animal", prog);
+    if (prog) |p| {
+        if (!p.ready) return 3;
+        const ctx = p.start(gpa, hs.primary(), fx) catch return 2;
+        alone = .{ .prog = p, .ctx = ctx };
+        return 0;
+    }
+    const g = Game.create(gpa, hs.primary()) catch return 1;
     game = g;
     if (fixes) g.fixes = .all();
     if (one_button_mode) one_button.enable(g);
@@ -72,6 +91,7 @@ export fn noite_start(fixes: bool, skip_videos: bool, one_button_mode: bool) i32
 /// One turn of the message loop. Returns 1 once the game has quit (after
 /// app_exit), 0 otherwise.
 export fn noite_frame() i32 {
+    if (alone) |a| return aloneFrame(a.prog, a.ctx);
     const g = game orelse return 1;
     // Like main.zig: the clock stands still while messages are dispatched,
     // so a message that keeps re-posting itself would never let go; give
@@ -91,6 +111,25 @@ export fn noite_frame() i32 {
     }
     units.game_input.showDrag(g);
     g.plat.present();
+    backend.show();
+    return 0;
+}
+
+/// `noite_frame` for a minigame alone: its loop turn, as `main.runAlone`.
+fn aloneFrame(prog: *const host.Program, ctx: *anyopaque) i32 {
+    const plat = hs.primary();
+    var budget: u32 = 50_000;
+    while (!prog.quit(ctx) and budget > 0) : (budget -= 1) {
+        while (plat.poll()) |ev| prog.deliver(ctx, ev);
+        if (!prog.step(ctx)) break;
+    }
+    if (prog.quit(ctx)) {
+        alone = null;
+        prog.exit(ctx);
+        backend.show();
+        return 1;
+    }
+    plat.present();
     backend.show();
     return 0;
 }
@@ -136,8 +175,10 @@ export fn noite_audio_rate() u32 {
 }
 
 /// Test hook (tools/web/test.py): the options `noite_start` got, as bits
-/// (1: every fix on, 2: skip videos, 4: one button); -1 before the start.
+/// (1: every fix on, 2: skip videos, 4: one button, 8: a minigame alone);
+/// -1 before the start.
 export fn noite_options() i32 {
+    if (alone != null) return @as(i32, @intFromBool(std.meta.eql(hs.opts.fixes, .all()))) | @as(i32, @intFromBool(backend.sim.opts.skip_videos)) << 1 | 8;
     const g = game orelse return -1;
     const all = std.meta.eql(g.fixes, .all());
     return @as(i32, @intFromBool(all)) | @as(i32, @intFromBool(backend.sim.opts.skip_videos)) << 1 |
