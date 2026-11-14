@@ -1,4 +1,4 @@
-# ENCAIXE.EXE: data map (phase 3)
+# ENCAIXE.EXE: data map
 
 DGROUP is Ghidra segment `1018` (0x14bd bytes initialised, 0x5410 allocated). All addresses
 below are `1018:` unless they say otherwise. Types live in the data type category `/encaixe`.
@@ -10,10 +10,10 @@ ENCAIXE is small-model: data and `this` pointers are 2 bytes, vtables hold near 
 | What | Count |
 |---|---|
 | Strings defined (Latin-1, exact length) | 66, all named `s_camelCase` |
-| Vtables / vbtables defined | 41 / 20, typed; 56 named, the 5 of the dead class at `0548–061d` typed only |
+| Vtables / vbtables defined | 41 / 20, typed and named |
 | Vtable structs / vbtable structs | 12 / 2 (`Vbtable`, `Vbtable3d`) |
-| Class and record structs | 24 (incl. near `CrtFILE`) |
-| Functions with a typed `this` | 119 |
+| Class and record structs | 27 (incl. near `CrtFILE`) |
+| Functions with a typed `this` | 265 |
 | Globals typed (non-string, non-table) | 116; 97 named |
 | Undefined bytes left in DGROUP | 0x48 (72), see the end |
 
@@ -94,14 +94,14 @@ agree with NOITE's class.
 | SceneObject | `0304` S | `8014` (dtor) | 0x46c | verified |
 | Object3D | `03be` O, `03ce` S | inline | 0x16 + vbase | verified |
 | Mover | `0488` M, `048a` S, `0544` vb | `6418` | 0x32 + vbase | verified |
-| (dead Moveable subclass) | `0548` M, `054a` S, `0604` O, `0614`/`061a` vb | none | SO at 0x56 | typed, unnamed: no store, no ctor |
+| Portable | `0548` M, `054a` S, `0604` O, `0614`/`061a` vb | none | 0x56 + vbase | dead: no vptr store, no ctor; derives Moveable; methods `portable_*` |
 | Moveable | `061e` M, `0620` S, `06da` O, `06ea`/`06f0` vb | `661c` | SO 0x34, O3D 0x4a2 | verified |
 | Game | `07fe` GameVtbl (7, slot 6 pure) | `9e28` | 0x2b4 | verified |
-| Backdrop | `0952` BackdropVtbl (19) | `a7d4` | 0x456 | verified |
+| Backdrop | `0952` BackdropVtbl (19) | inline in `a7d4` | 0x456 | verified |
 | Animated3D | `0978` A, `097a` S, `0a34` O, `0a44`/`0a4a` vb | `ade4` | SO 0x10, O3D 0x47c | verified |
 | Animation | `0a4e` A, `0a50` S, `0b0a` vb | `ae7a` | 0xe + vbase | verified |
 | TetrisPanel | `0b0e` ControlPanelVtbl, `0b20` S, `0bda` O, `0bea`/`0bf0` vb | `a59e` | 0x566 | verified (the game's panel, derives ControlPanel) |
-| GridBackdrop | `0bf4` GridBackdropVtbl (20) | `a7d4` | 0x458 | verified |
+| GridBackdrop | `0bf4` GridBackdropVtbl (20) | inline in `a7d4` | 0x458 | verified |
 | Actor2D | `0c1c` M, `0c1e` A, `0c20` S, `0cda`/`0cde` vb | `aa92` | 0x40 + vbase | verified |
 | Player2D | `0ce2` M, `0ce4` A, `0ce6` S, `0da0`/`0da4` vb | `a520` | 0x46 + vbase | verified |
 | Scene | `0da8` SceneVtbl (13, slot 0 pure) | inline in `a08c` | 0x44 | verified |
@@ -110,7 +110,7 @@ agree with NOITE's class.
 | TetrisGame | `0f62` GameVtbl | `9e28` | 0x2b4 | verified |
 | TetrisScene | `0f70` SceneVtbl | `a08c` | 0x44 | verified |
 | Piece | `0f8a` PieceVtbl (3), `0f90` A, `0f92` S, `104c`/`1050` vb | `9e74` | 0x578 | verified (the player: derives Player2D) |
-| TetrisBackdrop | `1054` GridBackdropVtbl | `a7d4` | 0x458 | verified (overrides `create` with a 32-px grid) |
+| TetrisBackdrop | `1054` GridBackdropVtbl | inline in `a7d4` | 0x458 | verified (overrides `create` with a 32-px grid and the wall cells) |
 | FlagCondition | `107c` ConditionVtbl | `b064` | 4 | verified |
 | CompoundCondition | `1082` ConditionVtbl | none | 8 | layout from `b0c6`; never constructed |
 | Condition | `1088` ConditionVtbl (slot 0 pure) | `b064` | 2 | verified |
@@ -121,46 +121,82 @@ Labels are `g_<class>Vtbl` for the primary table, `g_<class>SceneObjectVtbl`,
 pointer to a `FunctionDefinition` copied from the base target; its default reference (to
 `1018:`) is replaced by a DATA reference to `1008:`. A pure virtual slot holds 0.
 
-**SceneObjectVtbl, 93 slots vs NOITE's 102** (slot-by-slot, by the override pattern of the
-12 tables against NOITE's tables, by RET sizes and by body similarity):
+The Portable tables (`0548–061d`) have no vptr store; the class is reached only through them
+(its methods are `portable_*`, with thunks). Actor, Player and Exit have methods but no tables
+(`actor_*` `603c–628c`, `player_*` `3a5c–3a9c` and `6312–6330`, `exit_*` `3b04`, `3b8a`,
+`6334–637c`), all unreferenced. `7f56` is `object_list_contains`.
+
+**SceneObjectVtbl, 93 slots vs NOITE's 102** (by the override pattern of the 12 tables
+against NOITE's tables, by RET sizes and by body similarity). Field names are NOITE's.
 - Missing in ENCAIXE: NOITE `00 01 02 03 04` (slot00/01, enableRle, isRle, getSceneName),
   `29` reoccupy, `2D` isAvi, `36` advanceFrames, `42` isScrollTarget, `43` slot43, `4A/4B`
   isAnimated3D/asAnimated3D.
 - New in ENCAIXE: `11` (`unk11`, GetDC/ReleaseDC then returns `this`), `18` (`unk18`, a
-  draw variant), `4E` (`unk4E`, returns `""`).
-- So ENCAIXE `00–0C` = NOITE `05–11`, `0D–10` = `12–15`, `12` = drawBounds (`16`), `13–17`
-  = `17–1B`, `19–28` = `1C–2C` minus reoccupy, `29–2A` = nextFrame/prevFrame, `2B–30` =
-  `30–35`, `31–3B` = `37–41`, `3C–49` = `44–53` minus the Animated3D pair, `4A–4D` = `54–57`,
-  `4F–5C` = `58–65`. Field names are NOITE's.
+  draw variant), `4E` (`unk4E`, returns `""`; Portable returns `prevSceneName`).
+- ENCAIXE slot = NOITE slot − k (hex slot indices; byte offset = 2 × slot here, 4 × slot in
+  NOITE):
+
+  | ENCAIXE | NOITE | k | First / last |
+  |---|---|---|---|
+  | `00–10` | `05–15` | 5 | getWorldX … setWorldElev |
+  | `12–17` | `16–1B` | 4 | drawBounds … draw |
+  | `19–25` | `1C–28` | 3 | drawClipTo … vacate |
+  | `26–28` | `2A–2C` | 4 | attach … isStepBlocked |
+  | `29–30` | `2E–35` | 5 | nextFrame … stop |
+  | `31–3B` | `37–41` | 6 | moveTo … setPosition |
+  | `3C–41` | `44–49` | 8 | isPlayer … asAnimation |
+  | `42–4D` | `4C–57` | 10 | isMover … asPortable |
+  | `4F–5C` | `58–65` | 9 | redrawOverlapping … slot65 |
+
 - Less certain: `18/19/1A` (which of the three never-overridden draw slots is new) and `11`
   vs `12` (one of the two Object3D-overridden `return this` stubs draws the 3D box: that one
   is `drawBounds`).
 
 The other vtables, against NOITE: Object3DVtbl 1:1 (8); BackdropVtbl = NOITE `00–12` (the four
-type tests are gone), GridBackdropVtbl adds `createWithGrid`; SceneVtbl = NOITE `00–0C`;
+type tests are gone), GridBackdropVtbl adds `createWithGrid`; SceneVtbl = NOITE `00–0C` (slot
+12 `getExit`, `a7ac`; slot 5 `createScreen`, TetrisScene's is `a7d4`, which builds the
+backdrop);
 GameVtbl drops handleMessageHook and createExitScene: `handleMessage, createPlayer,
 createInitScene, createControlPanel, createStatusBar, init, onCreate` (WM_CREATE calls slot
 6); ControlPanelVtbl is AnimationVtbl's one slot (`playOnce`, AVI removed) plus NOITE's
 ControlPanel slots minus `isOnOptionsButton`; PieceVtbl = `placeAt` (Mover's), `tryStep`
-(`f186`, switch on direction 1/2/4/8 into the four giants), `moveTick` (`f1fe`).
+(`te_piece_try_move`, switch on direction 1/2/4/8 into the four workers), `moveTick`
+(`te_piece_step_move`). `0e7c` is the abstract ControlPanel's ControlPanelVtbl; the game's
+panel is TetrisPanel (`0b0e`).
 
 ## Classes (`/encaixe`)
 
-Class structs hold the non-virtual part only, as NOITE's do; the SceneObject virtual base
-follows it (at the vbtable's offset). Methods that override a SceneObject virtual get `this`
-= the SceneObject subobject and reach their own fields at negative offsets, so they are not
-`this`-typed.
+Class structs hold the non-virtual part, as NOITE's do. In a most-derived object a 2-byte
+vtordisp word follows that part and the SceneObject virtual base comes right after it (at the
+vbtable's offset). The structs that other structs embed as a base leave the vtordisp word
+out; the leaf classes include it as a `vtordisp` field:
+
+| Struct | Size | vtordisp | SceneObject vbase |
+|---|---|---|---|
+| `Animation` | 0xe | +0xe (not in the struct) | +0x10 |
+| `Mover`, `Moveable` | 0x32 | +0x32 (not in the struct) | +0x34 |
+| `Actor2D` | 0x40 | +0x40 (not in the struct) | +0x42 |
+| `Player2D` | 0x46 | +0x46 (not in the struct) | +0x48 |
+| `Portable` | 0x56 | `vtordisp` +0x54 | +0x56 |
+| `ControlPanel` | 0xe4 | `vtordisp` +0xe2 | +0xe4 (Object3D +0x552) |
+| `Piece` | 0x10c | `vtordisp` +0x10a | +0x10c |
+
+Each struct's description in Ghidra says the same. Methods that override a SceneObject
+virtual get `this` = the SceneObject subobject and reach their own fields at negative
+offsets, so they are not `this`-typed.
 
 | Struct | Size | Confidence |
 |---|---|---|
 | `SceneObject` | 0x46c | high: StatusBar (0x53a − 0xce) and the vbase gaps agree; fields from attach (`72e0`), the StatusBar ctor and the occupancy code. `10/12` unknown. No sceneName, wave or RLE fields (their slots are gone too) |
 | `Frame` | 0x16 | high: vptr, `cells` (8-byte `FrameCell`, unknown), width, height, count, far dib, hit rect |
 | `Object3D` | 0x16 | high: the eight getters |
-| `Mover` | 0x32 | medium: NOITE's order shifted by −4; `direction` (+8) and `moving` (+0x30) verified, `allowOffscreen` gone |
-| `Animation` | 0xe | medium: timerId/period/running/playOnce from `playOnce` (`7d0e`); `framesLeft` inferred |
+| `Mover` | 0x32 | medium: NOITE's fields at −4 (the far vtbl/vbptr shrink); `direction` (+8) and `moving` (+0x30) verified, `allowOffscreen` gone |
+| `Moveable` | 0x32 | high: only its Mover base (Moveable's SceneObject is at +0x34, Object3D at +0x4a2) |
+| `Portable` | 0x56 | high for the fields read by `portable_pick_up/drop/draw_icon` and `63ba`: Moveable +0, `owner` +0x32 (its inventory list at owner+0x40), `prevSceneName` +0x34 `char[19]`, far `icon` DIB +0x4a, `iconW` +0x50, `iconH` +0x52; `48`, `4e` unknown. Unlike NOITE's: no scores, no home scene, no icon path |
+| `Animation` | 0xe | high: timerId +4, timerPeriod +6, framesLeft +8, playOnce +0xa, running +0xc (isRunning `5626` returns this−4 = +0xc; play `7ce8` sets +0xc = 1, +0xa = 0) |
 | `Actor2D`, `Player2D` | 0x40, 0x46 | high (Player2D lives + long score) |
-| `Piece` | 0x10c | partial: board, column, row verified; `48–50`, `f0–108` unknown |
-| `ControlPanel` | 0xe4 | partial: isOpen, slideDir, slideStepsLeft; `14–e1` (0xce bytes, likely color + text[200] + x as StatusBar) unknown |
+| `Piece` | 0x10c | partial: board, column, row, rightCol, canFall, linesCleared verified; `46`, `48`, `4e` (written only), `f2–108` (written by the dead `bc72` only) unknown |
+| `ControlPanel` | 0xe4 | high: Animation +0, isOpen, slideDir, slideStepsLeft, `textColor` +0x14 (dword), `text[200]` +0x18, `textX` +0xe0 (as StatusBar's; `control_panel_draw_texts`) |
 | `StatusBar` | 0x53a | high |
 | `Game` | 0x2b4 | high: ctor/dtor/defaults; `UpdateList` holds 30 items here (NOITE 100), DrawList 100 nodes |
 | `Scene` | 0x44 | high for the ctor-written fields; `exits[10]` inferred from the gap |
@@ -187,8 +223,8 @@ follows it (at the vbtable's offset). Methods that override a SceneObject virtua
 - The 19 typed-but-unnamed globals: handle_message's `0036/0038/003a/003c`, `0076`, `0234`,
   the three `_cinit` far hooks at `121e–1229`, and the NMSG id words.
 - `g_unk0012` (byte read by the draw code), `Game.unk0A`, `Game.unk2AE` (= 2).
-- `FrameCell` (8 bytes), the Piece fields outside the board, ControlPanel `14–e1`, the
-  Mover fields other than direction/moving.
+- `FrameCell` (8 bytes), the Piece fields listed above, Portable `48`/`4e`, the Mover fields
+  other than direction/moving and the Bresenham/timer fields.
 - The `_iob` entries' flag/file bytes read `01 14`, `02 14`, `02 14`; the 0x14 is not a
   file number, so the near `CrtFILE` layout of the last two bytes is unconfirmed.
 

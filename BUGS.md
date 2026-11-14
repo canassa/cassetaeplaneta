@@ -1004,14 +1004,16 @@ Addresses are Ghidra `seg:off` in `/ENCAIXE.EXE`; the game is described in `docs
 ### E2. A rotation near the floor writes one cell past the column (row 14)
 - **Where:** `te_piece_rotate` 1008:e392, the bottom tests of the cases where the shape grows downwards
   (`14 < row + h − 1` → fail).
-- **What the code does:** the test lets the new shape's bottom cell reach row index 14. The board is
-  `char[11][14]` column-major, so `board[c][14]` is `board[c+1][0]`, and for c = 10 it is the byte after the board,
-  the low byte of `Piece.column` (`Piece+0xec`). Emulated: an I lying at row 11 (columns 7–10) rotated upright
-  writes `board[8][0]`; a T/L/J at column 9, row 12 writes `board[10][0]` and, in four cases (kind 1 r0, kind 2 r1/r3,
-  kind 3 r1), `'1'` into `Piece.column`, which becomes 49.
-- **Effect:** a phantom filled cell at the top of the next column (a block that can make the next spawn land
-  in the top rows, i.e. a loss), or a piece whose column is 49: every later move indexes far outside the board.
-  Reachable: the rotate key works while the piece rests on the floor before the landing tick.
+- **What the code does:** the test lets the new shape's bottom row reach row index 14. The board is
+  `char[11][14]` column-major, so `board[c][14]` is `board[c+1][0]`: the rotation writes `'1'` into row 0 of the next
+  column for each bottom cell. Emulating every rotation from every valid position: it happens for every kind but
+  the O, with the piece's top at row 11 (kind 0, the I) or row 12 (kinds 1–3), in any column (e.g. an I lying at
+  row 11, columns 7–10, rotated upright writes `board[8][0]`; kind 0 r1 at column 7, row 11 writes
+  `board[8..10][0]`). From a valid position the write never reaches the byte after the board (`Piece.column`).
+- **Effect:** the piece's bottom row is drawn below the playfield and is not in the board; instead invisible
+  filled cells appear in the top row. They block pieces there, and a new piece that lands on one is in the top
+  three rows, which is a loss. Reachable: the rotate key works while the piece rests on the floor before the
+  landing tick.
 - **Confidence:** 9 (code, emulated); 7 (that players hit it).
 
 ### E3. `te_piece_clear_full_lines` leaves `bottomRow` uninitialised for an unknown kind
