@@ -28,14 +28,14 @@ with the left button alone (`src/one_button.zig`, for touch screens): a
 click on a door, an item or a character does what a right click did (the
 player walks over to a door first; a tap on the player walks, even over an
 item he hides), anything else walks; an inventory
-item is tapped then placed with the next click, or dragged. The minigames
-(separate EXEs) are stubbed: they report a win, or a loss with
-`--minigame lose`; their window shows 1.5 s after `WinExec` and answers the
-game's hello after 100 ms (`--minigame-startup MS`, `--minigame-reply MS`).
-ENCAIXE (3ffarao's Tetris) is being ported (`src/encaixe/`,
-`docs/encaixe/DESIGN.md`): once done, NOITE runs it as a second program
-(`src/platform/host.zig`; `--minigame-stub` keeps the stub) and
-`--minigame encaixe` plays it alone.
+item is tapped then placed with the next click, or dragged. ENCAIXE
+(3ffarao's Tetris, `src/encaixe/`, `docs/encaixe/DESIGN.md`) is ported:
+NOITE runs it as a second program (`src/platform/host.zig`), and
+`--minigame encaixe` plays it alone. The other minigames (separate EXEs)
+are stubbed, and ENCAIXE too with `--minigame-stub`: they report a win, or
+a loss with `--minigame lose`; their window shows 1.5 s after `WinExec`
+and answers the game's hello after 100 ms (`--minigame-startup MS`,
+`--minigame-reply MS`).
 Saves go to `save/` (`--save DIR`).
 
 ## Testing the port
@@ -62,8 +62,9 @@ Saves go to `save/` (`--save DIR`).
   released (with B30's fix) or left its image on the screen (with B25's).
   `--scene 2fportdi --take 86 --fix all --ms 6000 --input tools/play/taxi-wine.input` checks that the wine
   given to the taxi driver is not drawn over his drinking animation (B45).
-- **Playthrough**: `./zig-out/bin/noite --headless --ms 560000 --input tools/play/full.input`
-  plays from the title screen to the sportsman ending, checking every scene.
+- **Playthrough**: `./zig-out/bin/noite --headless --ms 600000 --input tools/play/full.input`
+  plays from the title screen to the sportsman ending, checking every scene
+  (the pharaoh's ENCAIXE with a scripted win).
   With the fixes: add `--fix all,-avi_exit_ignores_timer`
   (the script follows this run's hall doors and the 3fstreet shortcut of BUGS.md B21).
   One-button: `--one-button --ms 480000 --input tools/play/onebutton.input` (the
@@ -71,6 +72,14 @@ Saves go to `save/` (`--save DIR`).
   offered by tap-tap and by dragging) and
   `--one-button --scene 1fquarbo --ms 30000 --input tools/play/onebutton-corridor.input`;
   `tools/smoke.py --one-button` runs the smoke test in that mode.
+- **ENCAIXE**: `--minigame encaixe --ms 90000 --input tools/play/encaixe-win.input`
+  (10 lines, `result won 1500`) and `--ms 20000 --input tools/play/encaixe-lose.input`
+  (no input, -500); from NOITE, `--scene 3ffarao --ms 120000 --input
+  tools/play/encaixe-3ffarao-win.input` (NOITE hides, gets the win, +1500, the hall) and
+  `--ms 50000 --input tools/play/encaixe-3ffarao-lose.input` (a life less, 3fcasame); each
+  the same with `--fix all`. The win moves come from `tools/encaixe_plan.py` (the pieces follow
+  from the start time: rerun it when that moves). `tools/smoke.py --minigame encaixe
+  [--monkey SEED]` presses random arrows for 60 s.
 - **SDL without a display**: `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy`
   (or `disk` with `SDL_AUDIO_DISK_OUTPUT_FILE=out.raw` to capture the mix).
 
@@ -90,5 +99,4 @@ them from Cache Storage) while the player picks the version (Original, or
 Corrigida = `--fix all`), whether videos can be skipped (on by
 default) and the one-button control (on by default on touch screens), then
 runs the game; saves go to localStorage, apart per version. "Jogo" picks
-the whole game or one ported minigame alone (Encaixe Perfeito, disabled
-until its port is done).
+the whole game or one ported minigame alone (Encaixe Perfeito).

@@ -140,8 +140,11 @@ map $arg_h $noite_cache {
   trace=openat` logs of native runs and `--check` fails if one opened a
   file the static rules missed — run over the playthrough and six smoke
   runs (plain, `--offers`, `--lose`, `--monkey 1-3`), none was missing.
-  Left out: the minigame directories and EXEs (the minigames are
-  stubbed), installers, drivers, the other fonts, unreferenced files.
+  A ported minigame's names (`src/encaixe/`) are also looked for in its
+  EXE's directory, as the host does (`ENCAIXE/TETRFUN.BMP`, `PECA*.BMP`,
+  `PANEL.BMP`, `TETRIS2.WAV`; `DOOM2.MID` is found at the root first).
+  Left out: the EXEs and DLLs, the stubbed minigames' directories,
+  installers, drivers, the other fonts, unreferenced files.
   `manifest.py` downloads identical files once: `HD\*.AVI` clips that are
   copies of `PAN\AVI\*` are fetched from there (only `HD/2ABUSVOM.AVI`
   has no twin). Regenerate files.txt when the engine starts opening new
@@ -233,11 +236,11 @@ map $arg_h $noite_cache {
   The Corrigida version keeps its own (`noite:corrigida:save:…`): a save
   can hold what only one version produces (a 32-bit score, B19; a scene
   only the fixes reach), so the versions never load each other's.
-- **Minigames.** Stubbed as in the native port (a win after a few
-  seconds); while one "runs" the page shows a note instead of the canvas.
-  A ported one (`src/platform/host.zig`, docs/encaixe/DESIGN.md) runs in
-  the same wasm as a second task and the canvas shows its window; its
-  files join the manifest when it is done.
+- **Minigames.** ENCAIXE runs in the same wasm as a second task
+  (`src/platform/host.zig`, docs/encaixe/DESIGN.md) and the canvas shows
+  its window. The others are stubbed as in the native port (a win after a
+  few seconds); while one "runs" the page shows a note instead of the
+  canvas.
 - **Message boxes** are logged to the console and answered with their
   first button, like the SDL backend.
 
@@ -357,10 +360,12 @@ videos are skipped, a new game starts, the drawer gives the wallet, a
 tap on the door walks the player out to the corridor, a tap on the
 wallet's slot and one in the scene drop it, a tap on it takes it back
 (`touch-corridor.png`, `touch-drop.png`), and a held ◀ on the
-on-screen arrows walks (`touch-dpad.png`). Last, a simulated deploy: a
+on-screen arrows walks (`touch-dpad.png`). Then a simulated deploy: a
 hard-linked copy of the site with `noite.js` and one disc file changed,
 restamped and served at the same origin; the reload downloads only that
 file, runs the new `noite.js`, drops the stale cache entry and starts the
-game. Screenshots go to
+game. Last, "Jogo" = Encaixe Perfeito starts the minigame alone and a
+left arrow moves its falling piece one column, without page errors
+(`encaixe.png`, `encaixe-left.png`). Screenshots go to
 `zig-out/web-test/` (`title.png`, `bedroom.png`, `drawer.png`,
 `window-*.png`, `cache.png`).

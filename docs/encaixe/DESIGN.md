@@ -5,7 +5,7 @@ Zig, next to NOITE's port. NOITE's `docs/DESIGN.md` and the zig-developer
 skill hold for everything this file does not override. Ghidra (program
 `ENCAIXE.EXE`, through the tracker snapshot `noite -p encaixe show`) is the
 specification; `GAME.md` (rules, protocol), `DATA.md` (classes, vtables,
-globals), `FUNCTIONS.md` (names, dead code), BUGS.md E1–E9.
+globals), `FUNCTIONS.md` (names, dead code), BUGS.md E1–E11.
 
 ## Decisions
 
@@ -32,7 +32,7 @@ globals), `FUNCTIONS.md` (names, dead code), BUGS.md E1–E9.
   `rowsCopyTransparent32` (tagged with ENCAIXE's 1000:0114 / 1000:0024) may
   call NOITE's `src/dib.zig` versions. Any other reuse of a NOITE function
   needs the two decompiles shown identical in the unit's commit.
-- **Faithful first, the owner's rule.** E1–E9 are reproduced as they are by
+- **Faithful first, the owner's rule.** E1–E11 are reproduced as they are by
   default. Each fix exists only behind its own `Fixes` flag (off by default,
   on in the Corrigida version, `Fixes.all()`). A unit ports the buggy code
   and keeps the fixed path only under its flag.
@@ -295,17 +295,23 @@ and PostMessage fails.
   while it is up: `key left`, `hold down 400`), `dump` writes the shown
   window, `result won|lost|none [SCORE]` checks the last minigame result.
   Alone, the program-neutral commands work (input, dump, log, focus,
-  freeze, result, quit); the NOITE ones fail the run.
-- **Scripts** (written once the units are ported; the piece sequence is
-  deterministic, `srand(time(NULL))` on the virtual clock):
+  freeze, result, quit); the NOITE ones fail the run. After the program
+  quits, the script's remaining `result`, `log` and `quit` lines still run.
+- **Scripts** (the piece sequence is deterministic, `srand(time(NULL))` on
+  the virtual clock: `epoch + ticks / 1000` at WM_CREATE):
   `tools/play/encaixe-lose.input` (no input: the stack reaches the top
-  rows), `tools/play/encaixe-win.input` (10 lines, `result won 1500`),
-  both with `--minigame encaixe`; `tools/play/encaixe-3ffarao-win.input` /
-  `-lose.input` with `--scene 3ffarao` (the hall after a win, 3fcasame and
-  one life less after a loss). The win script is generated from the piece
-  sequence (a planner placing each piece, or by hand from `dump`s).
-- **Smoke**: `tools/smoke.py --minigame encaixe [--monkey SEED]` (to add
-  with the scripts): random arrows for 60 s, no panic, a result.
+  rows at 6400 ms), `tools/play/encaixe-win.input` (10 lines, `result won
+  1500`), both with `--minigame encaixe`; `tools/play/encaixe-3ffarao-win.input` /
+  `-lose.input` with `--scene 3ffarao` (ENCAIXE starts at 36555 ms; the
+  hall and +1500 after a win, 3fcasame and one life less after a loss);
+  `tools/play/full.input` visits the pharaoh with a win. Each runs the same
+  with `--fix all`. The win moves are `tools/encaixe_plan.py --start MS`:
+  it simulates the board and the timer (GAME.md), places each piece
+  greedily with a look-ahead, rotates and shifts it at row 0 by the arrow
+  keys, and avoids what E1, E2, E5 and E7 would make differ between the
+  versions.
+- **Smoke**: `tools/smoke.py --minigame encaixe [--monkey SEED]`: random
+  arrows for 60 s (seeds 1-5), no panic or leak, a result.
 - **Oracle**: `tools/oracle/oracle.py --exe assets/ENCAIXE/ENCAIXE.EXE
   --near 1008:xxxx …` runs a near function (near return to a HLT at
   `sel:0000`; near pointers are words in DGROUP 1018; seed the board with
@@ -332,7 +338,9 @@ and PostMessage fails.
 | E9 grid walls | `encaixe_grid_walls_match_board` | backdrop |
 
 All in `Fixes.all()`. E4's uninitialised stack word is taken as 0 (no
-cells). E3 cannot happen (`rand() % 6`).
+cells). E3 cannot happen (`rand() % 6`). E10 (row 0 never rewritten,
+`piece`) and E11 (the panel constructor's short call, `game`) show
+nothing: reproduced, no flag.
 
 ## Units
 
@@ -418,12 +426,13 @@ noite -p encaixe failed <unit> "why" / release <unit>
 7. `noite test`, commit (commit skill), `noite -p encaixe finish <unit>`
    from the main checkout.
 
-## Finishing (after the last unit)
+## Finishing (done)
 
-Not a unit: set `ready = true` (`src/encaixe/root.zig`) and
-`MINIGAMES[0].ready` (web/noite.js); add the ENCAIXE files to the web
-manifest (`tools/web/files.py`: TETRFUN.BMP, PECA*.BMP, PANEL.BMP,
-DOOM2.MID, TETRIS2.WAV under `ENCAIXE/`); write the four scripts and the
-smoke option; re-tune `tools/play/full.input` for the real minigame at
-3ffarao (or run it with `--minigame-stub`); check NOITE's music and WaveMix
-after the minigame on SDL and the web.
+`ready` is set (`src/encaixe/root.zig`, `MINIGAMES[0]` in web/noite.js);
+the web manifest has ENCAIXE's files (`tools/web/files.py` looks a
+minigame's names up in its EXE's directory too); the scripts, the smoke
+option and the pharaoh in `full.input` are in Tests. The two programs
+share one synthesizer and one MCI wave voice: a device's pause, stop or
+close touches them only while it holds them (`Sim.synth_dev`/`wave_dev`),
+so ENCAIXE's music plays while NOITE's is paused, and NOITE's restarts
+when it resumes (checked on SDL with the disk audio driver).

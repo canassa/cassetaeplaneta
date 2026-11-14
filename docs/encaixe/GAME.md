@@ -184,4 +184,5 @@ NOITE's `handler_3ffarao` (1020:81f0; `src/handlers/3ffarao.zig`):
   `MCI_NOTIFY_SUCCESSFUL` → `play musica from 0 notify` (it loops). `WM_ACTIVATE` inactive or
   minimised → `pause musica` + `wave_mix_deactivate`; active → `play musica notify` +
   `wave_mix_activate` (a failure shows "Erro Wave Mix"). `close musica` at the end.
-- Sound: WaveMix, one wave (`tetris2.wav`) played on channel 0 once per cleared line.
+- Sound: WaveMix, one wave (`tetris2.wav`) played once per cleared line (no notify window, so
+  on the least recently used channel).
