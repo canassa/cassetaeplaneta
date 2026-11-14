@@ -264,6 +264,16 @@ pub const Fixes = struct {
     /// `g_timerIds[6]`), so its 5-s branch runs besides the 10-s toggle.
     /// A choice until the owner says (`choices`).
     serial_lane2_own_timer: bool = false,
+    // ---- INV.EXE (BUGS.md I1–I2). The src/inv/ units port each bug as it
+    // is and keep the fix only behind its flag. ----
+    /// I1: SPACE sets its latch on key-down, so a held SPACE fires once (no
+    /// new shot on every key repeat once the last one has landed).
+    inv_space_latch: bool = false,
+    /// I2: while the cannon explodes (`hitFrame` != -1) LEFT and RIGHT only
+    /// set or clear their latches: the cannon stays put for the whole
+    /// `Brocha.bmp` explosion (so it cannot fire either) and the explosion's
+    /// end resumes a held key, as it already does.
+    inv_explosion_holds_cannon: bool = false,
     /// U1: draw the status-bar text.
     status_bar_text: bool = false,
     /// `ini_fatal_error` ("Erro Fatal!") quits (`error.Fatal`) instead of
