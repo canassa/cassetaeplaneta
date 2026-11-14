@@ -503,7 +503,9 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   slot off from the items: dragging the first icon offers the refused item again, with the same reply. In
   2fsuabig: the camera refused, the Oscar's icon in the first slot offers the camera.
 - **Port:** reproduced; `Fixes.panel_follows_inventory` redraws the open, still panel as a drop does at the
-  next WM_SYSTIMER when the inventory differs from the one it last showed.
+  next WM_SYSTIMER when the inventory differs from the one it last showed, after flushing the update list
+  (its overlap tests would cut the queued rectangle of an item just dropped across the panel's edge to the
+  strip under the panel, as `update_list_flush` 1010:e362 blits each object's rectangle as it is then).
 - **Confidence:** 8 (code, port repro).
 
 ### B35. A walk that starts or stops shows the player as two poses for a moment

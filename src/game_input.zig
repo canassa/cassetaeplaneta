@@ -209,7 +209,11 @@ fn sysTimer(g: *Game, m: Msg) i32 {
 /// backdrop only, and only a slide or a drop puts them on the screen; an
 /// item handed back by a give-item scene's reply (to the first slot) left
 /// the old icons showing. When the inventory of the open, still panel is
-/// not the one last shown, redraw it as a drop does.
+/// not the one last shown, redraw it as a drop does, after putting what is
+/// waiting in the update list on the screen: the redraw's overlap tests
+/// narrow the dirty rectangles of the objects it meets to their part under
+/// the panel, so an item just dropped across the panel's top edge (queued
+/// whole, flushed at the end of the timer) showed only that strip.
 fn panelFollowsInventory(g: *Game) void {
     const panel = must(Object, g.controlPanel);
     const key = inventoryKey(g);
@@ -220,6 +224,7 @@ fn panelFollowsInventory(g: *Game) void {
     }
     if (g.panelShows == key) return;
     g.panelShows = key;
+    flushUpdates(g);
     render.erase(g, panel, bdOf(g));
     visibility.redrawOverlapping(g, panel, bdOf(g), 1);
     render.draw(g, panel, bdOf(g));
