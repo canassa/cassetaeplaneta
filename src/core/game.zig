@@ -46,6 +46,9 @@ pub const Game = struct {
     /// show on the screen (`game_input.inventoryKey`), for
     /// `Fixes.panel_follows_inventory`; null = not known yet.
     panelShows: ?u64 = null,
+    /// Not in the original: which pixels of the control panel's current
+    /// frame are slot holes, for `Fixes.panel_slots_show_background`.
+    panelHoles: PanelHoles = .{},
     /// Not in the original: the one-button control mode (`src/one_button.zig`),
     /// a front-end option. Its `filter` sees every queued message before the
     /// window procedure; null = off (input is dispatched unchanged).
@@ -317,6 +320,26 @@ pub const Game = struct {
         }) catch return;
         t.appendSlice(g.gpa, line) catch {};
     }
+};
+
+/// `Fixes.panel_slots_show_background`: the classified pixels of one frame
+/// of the control panel (the one `key` names), kept until the frame changes.
+pub const PanelHoles = struct {
+    pub const max_pixels = 640 * 120;
+    pub const solid: u8 = 0;
+    /// Transparent, reached from the frame's top row: above the paper or in
+    /// the gaps of its torn edge (the scene shows there).
+    pub const outside: u8 = 1;
+    /// Transparent and enclosed by the paper: a slot.
+    pub const hole: u8 = 2;
+
+    /// Frame bitmap, source x/y, width and height; null = nothing computed.
+    key: ?[5]usize = null,
+    width: usize = 0,
+    height: usize = 0,
+    /// Row length in `px` (the width rounded up to 4, as the blit pads).
+    stride: usize = 0,
+    px: [max_pixels]u8 = undefined,
 };
 
 /// `Fixes.drag_shows_item`: the right button pressed on an inventory slot

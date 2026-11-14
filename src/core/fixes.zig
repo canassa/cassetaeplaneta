@@ -116,6 +116,10 @@ pub const Fixes = struct {
     /// open goes to the panel only when it is on the panel; on a door it is
     /// the hall's (shuffled) door, not the door's INI exit.
     hall_low_click_takes_door: bool = false,
+    /// B39: the control panel's inventory slots (the see-through holes of
+    /// its bitmap) show the pristine background picture, so the player
+    /// standing behind the open panel no longer shows, and animates, in them.
+    panel_slots_show_background: bool = false,
     /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"):
     /// while an inventory item is dragged out of the control panel (right
     /// button held), its panel icon follows the pointer. The original shows

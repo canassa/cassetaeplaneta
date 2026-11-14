@@ -10,7 +10,9 @@
 //! it panics (`blitFailed`). The shipped data never triggers it.
 
 const std = @import("std");
-const Game = @import("../core/game.zig").Game;
+const core_game = @import("../core/game.zig");
+const Game = core_game.Game;
+const PanelHoles = core_game.PanelHoles;
 const object = @import("../core/object.zig");
 const Object = object.Object;
 const BitmapInfoHeader = object.BitmapInfoHeader;
@@ -257,10 +259,101 @@ fn exitDraw(g: *Game, obj: *Object, bd: *Backdrop) void {
 /// the texts.
 fn controlPanelDraw(g: *Game, obj: *Object, bd: *Backdrop) void {
     animationDraw(g, obj, bd);
+    // B39: the slots are see-through; whatever was drawn into the backdrop
+    // behind them (the player's feet) shows there.
+    if (g.fixes.panel_slots_show_background) fillSlots(g, obj, bd);
     if (obj.panel.isOpen != 0 and obj.anim.running == 0) {
         _ = panels.drawInventory(g, obj, bd);
     }
     panels.drawTexts(g, obj, bd);
+}
+
+/// B39's fix (not in the original): the slots of the panel's current frame,
+/// within its dirty rectangle, get the pristine background picture, as if
+/// nothing stood behind the panel.
+fn fillSlots(g: *Game, obj: *Object, bd: *Backdrop) void {
+    if (misc.isRle(g, obj)) return;
+    const ph = panelHoles(g, obj) orelse return;
+    const d = obj.dirty;
+    const x0: usize = @intCast(@max(d.left, 0));
+    const y0: usize = @intCast(@max(d.top, 0));
+    const x1: usize = @intCast(std.math.clamp(@as(i32, d.left) + d.right, 0, @as(i32, @intCast(ph.width))));
+    const y1: usize = @intCast(std.math.clamp(@as(i32, d.top) + d.bottom, 0, @as(i32, @intCast(ph.height))));
+    var y = y0;
+    while (y < y1) : (y += 1) {
+        const row = ph.px[y * ph.stride ..][0..ph.width];
+        var x = x0;
+        while (x < x1) {
+            if (row[x] != PanelHoles.hole) {
+                x += 1;
+                continue;
+            }
+            const start = x;
+            while (x < x1 and row[x] == PanelHoles.hole) x += 1;
+            copyBackground(g, bd, obj.x +% @as(i16, @intCast(start)), obj.y +% @as(i16, @intCast(y)), @intCast(x - start), 1);
+        }
+    }
+}
+
+/// The pixels of the panel's current frame classified (`g.panelHoles`,
+/// recomputed when the frame changes): the frame is blitted as `drawRectTo`
+/// does onto a top-down buffer of the key colour; key pixels a 4-connected
+/// path of key pixels joins to the top row are `outside` (above the paper,
+/// the gaps of its torn edge), the others are `hole`s. Null when the frame
+/// has no bitmap or does not fit the buffer.
+fn panelHoles(g: *Game, obj: *Object) ?*const PanelHoles {
+    const fd = frames.dib(obj) orelse return null;
+    const w = frames.width(obj);
+    const h = frames.height(obj);
+    if (w <= 0 or h <= 0) return null;
+    const wu: usize = @intCast(w);
+    const hu: usize = @intCast(h);
+    const stride = (wu + 3) & ~@as(usize, 3);
+    if (stride * hu > PanelHoles.max_pixels) return null;
+    const ph = &g.panelHoles;
+    const key = [5]usize{ @intFromPtr(fd), @as(u16, @bitCast(frames.frameSrcX(obj))), @as(u16, @bitCast(frames.frameSrcY(obj))), wu, hu };
+    if (ph.key) |k| if (std.mem.eql(usize, &k, &key)) return ph;
+    ph.key = null;
+    const px = ph.px[0 .. stride * hu];
+    @memset(px, g.unk001C);
+    const hdr: BitmapInfoHeader = .{ .biWidth = @intCast(stride), .biHeight = -@as(i32, h) };
+    const orient: i16 = @truncate(obj.dibFormatOk);
+    _ = dib.copyTransparent(&hdr, px, 0, 0, fd.bits, &fd.header, frames.frameSrcX(obj), frames.frameSrcY(obj), w, orient *% h, g.unk001C) catch return null;
+    for (px) |*p| p.* = if (p.* == g.unk001C) PanelHoles.hole else PanelHoles.solid;
+    // Flood the key pixels from the top row, sweeping both ways until stable.
+    var changed = true;
+    while (changed) {
+        changed = false;
+        for (0..hu) |y| {
+            for (0..wu) |x| {
+                const i = y * stride + x;
+                if (px[i] != PanelHoles.hole) continue;
+                if (y == 0 or px[i - stride] == PanelHoles.outside or (x > 0 and px[i - 1] == PanelHoles.outside)) {
+                    px[i] = PanelHoles.outside;
+                    changed = true;
+                }
+            }
+        }
+        var y = hu;
+        while (y > 0) {
+            y -= 1;
+            var x = wu;
+            while (x > 0) {
+                x -= 1;
+                const i = y * stride + x;
+                if (px[i] != PanelHoles.hole) continue;
+                if ((y + 1 < hu and px[i + stride] == PanelHoles.outside) or (x + 1 < wu and px[i + 1] == PanelHoles.outside)) {
+                    px[i] = PanelHoles.outside;
+                    changed = true;
+                }
+            }
+        }
+    }
+    ph.width = wu;
+    ph.height = hu;
+    ph.stride = stride;
+    ph.key = key;
+    return ph;
 }
 
 /// SceneObject slot 1C: draws the clip part of the current frame into a DIB.

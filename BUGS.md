@@ -589,6 +589,27 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
 - **Evidence:** the disassembly at 1020:7bff; port runs (`ini: no section [jpassara]` in the log).
 - **Confidence:** 8.
 
+### B39. The player's feet show, and animate, in the slots of the open control panel
+- **Where:** `control_panel_draw` 1018:1f1c → `animation_draw` 1010:26fc → `scene_object_draw_dirty_to`
+  1010:b746 blits the panel frame with `dib_copy_transparent` 1010:0000 (key `g_unk001C`); the eight inventory
+  slots of the panel bitmap are key-coloured holes. `game_handle_message` 1018:0000 (WM_SYSTIMER) ticks the
+  player (1018:04a7 timer test, 04e5 slot 34 tick / 050a slot 3C move tick: `player_tick` 1010:65ee →
+  `animated3d_tick` 1010:631e → `scene_object_redraw` 1010:173e), then draws the panel (1018:0616, slot 1B) and
+  the status bar into the backdrop, then flushes (1018:065a).
+- **What the code does:** the player's frame is drawn whole into the backdrop, under the panel's rectangle too;
+  the panel drawn after it covers its paper but not the holes, and the flush puts both on the screen. Nothing
+  is ever drawn over the panel's paper (each timer redraws the panel before the flush, apart from B32's scene
+  animations), but the slots are windows onto the backdrop.
+- **Effect:** with the player low in a scene (feet below row ~400: 1fgarage, 3fprisao, 3fhall, 1fquarbo…),
+  the panel slides open over him and his shoes and legs stay in the slots in front of him, swaying with his
+  idle frames and walking with him; an item dragged out of a slot leaves his legs in its place. It reads as the
+  player drawn over the menu.
+- **Port:** reproduced (`--scene 1fgarage`, click at (320, 425), then move to (320, 470));
+  `Fixes.panel_slots_show_background` fills the slots of the panel's frame (key pixels no key-coloured path
+  joins to its top row, so the gaps of the torn top edge still show the scene) with the pristine background
+  picture each time the panel is drawn.
+- **Confidence:** 8 (code, port repro).
+
 ## Harmless: wrong paths rescued by the wave fallback
 
 `wave_open` retries `<root>pan\wav\<file name>.wav`, and `PAN\WAV\` holds a copy of almost every wave, so these
