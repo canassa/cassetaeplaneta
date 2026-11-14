@@ -8,8 +8,10 @@ reference for the engine names, NOITE for the CRT. The data is in `DATA.md`.
 
 ## Counts
 
-**1,160 functions:** 86 import thunks, 464 adjustor thunks and **610 code functions**. 544 of the
-610 are named and carry a plate; **66 stay `FUN_`** (42 of them the INFERNO game in `1068`).
+**1,160 functions:** 86 import thunks, 464 adjustor thunks and **610 code functions**. 557 of the
+610 are named and carry a plate; **53 stay `FUN_`** (38 of them the INFERNO game in `1068`).
+Phase 2 named 544; phase 3 added the 13 that the class and data map made obvious (the game
+classes' ctors and type tests, the score helpers, the two new Backdrop type-test slots renamed).
 
 | Kind | Fns | Where / names |
 |---|---|---|
@@ -20,7 +22,7 @@ reference for the engine names, NOITE for the CRT. The data is in `DATA.md`.
 | DIB | 15 | `1008`, `1010` |
 | App shell | 10 | `1038` |
 | WaveMix | 11 | `1070` (TIRO's `1078` module) |
-| Engine | 417 | `1018–1060`, `1080` (13 still `FUN_`) |
+| Engine | 417 | `1018–1060`, `1080` (15 still `FUN_`) |
 | INFERNO game | 63 | `1048` (4), `1068` (47), and 12 in `1080` (the game classes' ctors, type tests, scene/backdrop ctors) |
 
 By segment (code functions, without the adjustor thunks):
@@ -31,10 +33,10 @@ By segment (code functions, without the adjustor thunks):
 | `1008` | 4 | 4 | 2 | `1050` | 4 | 4 | 3 |
 | `1010` | 11 | 11 | 3 | `1058` | 6 | 6 | 6 |
 | `1018` | 47 | 46 | 4 | `1060` | 2 | 2 | 0 |
-| `1020` | 7 | 7 | 7 | `1068` | 47 | 5 | 1 |
+| `1020` | 7 | 7 | 7 | `1068` | 47 | 9 | 1 |
 | `1028` | 46 | 44 | 5 | `1070` | 11 | 11 | 2 |
 | `1030` | 10 | 10 | 1 | `1078` | 92 | 92 | 8 |
-| `1038` | 10 | 10 | 2 | `1080` | 305 | 284 | 39 |
+| `1038` | 10 | 10 | 2 | `1080` | 305 | 293 | 39 |
 | `1040` | 2 | 2 | 0 | | | | |
 
 "No reference" (83) counts functions that nothing calls and no live slot or thunk reaches. Some
@@ -129,16 +131,19 @@ arguments, the "Faltou redefinir" defaults call `MESSAGEBOX` directly.
 
 ## Remaining `FUN_` functions
 
-- **`1068` (42)**: the INFERNO game (groups 23–27 below).
-- **`1080` game classes (11)**: `70fa` (Hero ctor, `new 0x4e2` in `inferno_game_create_player`),
-  `86c0` (Platform ctor), `87c0` (Prop ctor, 11 calls), `88ca` (Hazard ctor); the type tests
-  `7244` (Hero, SceneObject slot 0x56), `7262` (Platform, 0x57), `727c`/`7296` (Prop, 0x58/0x5a),
-  `72b4` (Hazard, 0x59); `669a`, `66f8` (`game_handle_message` helper: returns `obj+0x78 == 0`),
-  `671a`, `6802`.
-- **Engine (13)**: `1018:216d` (690 bytes, no reference, between `exit_tick` and `portable_ctor`),
-  `1028:1408` (empty member, TIRO's `FUN_1028_0e71`), `1028:28f7` (TIRO's `FUN_1028_1cb7`, huge-pointer
-  arithmetic), `1080:3c74`, `3daa` (reached only by unreferenced thunks), `3e0a`, `503a`, `5050`,
-  `50ae` (empty members, TIRO's `FUN_1088_35c6/35e0/3642`).
+- **`1068` (38)**: the INFERNO game (groups 23–27 below).
+- **`1080` (12)**: `669a`, `66f8` (`game_handle_message` helper: returns `obj+0x78 == 0`), `671a`,
+  `6802`, `736e`, `74a8` (in the Player2D/Scene ctor range), `3c74`, `3daa` (reached only by
+  unreferenced thunks), `3e0a`, and `503a`, `5050`, `50ae` (empty members, TIRO's
+  `FUN_1088_35c6/35e0/3642`).
+- **`1018`/`1028` (3)**: `1018:216d` (690 bytes, no reference, between `exit_tick` and
+  `portable_ctor`), `1028:1408` (empty member, TIRO's `FUN_1028_0e71`), `1028:28f7` (TIRO's
+  `FUN_1028_1cb7`, huge-pointer arithmetic).
+
+Named in phase 3 (`DATA.md` §4): `hero_ctor` `70fa`, `platform_ctor` `86c0`, `prop_ctor` `87c0`
+(11 calls), `hazard_ctor` `88ca`; the SceneObject slot overrides `hero_slot56` `7244`,
+`platform_is_platform` `7262`, `prop_is_prop` `727c`, `prop_slot5a` `7296`, `hazard_is_hazard`
+`72b4`; `inferno_lose_life`, `inferno_score_add_150/300/100` (`1068:58b2–59f2`).
 
 ## Dead code
 

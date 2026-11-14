@@ -101,7 +101,7 @@ Uncovered: **31,103 bytes** in 180 ranges, 23,059 of them in `1080`, 5,001 in `1
 the CRT. About 5 KB of the `1080` bytes are vtables and strings; the rest is code.
 
 What was missing, and how phase 2 recovered it (`FUNCTIONS.md` has the details):
-- **Vtable targets:** no slot was typed, so no slot made a reference. 1,248 far slots in 52
+- **Vtable targets:** no slot was typed, so no slot made a reference. 1,248 far slots in 42
   tables; 362 targets were not functions (`FarVtSlots.java`, run on the `1080` table ranges).
 - **Adjustor thunks:** 464 in two blocks, none of them functions. Their large-model vtordisp
   shape (`MOV BX,SP; LES BX,SS:[BX+4]; MOV AX,ES:[BX-2]; [ADD AX,k]; MOV BX,SP;
