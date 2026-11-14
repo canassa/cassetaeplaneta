@@ -488,7 +488,11 @@ fn waveDone(g: *Game, s: *State) i16 {
     }
     // The right item: consumed, the drunk is carried off, the barman answers.
     // No score for it (BUGS.md B16): the other scenes add `scoreUse` here.
-    const item = must(Object, g.selectedItem);
+    // A right click on an empty inventory slot while the reply plays
+    // clears the selection: the original calls through the NULL item
+    // (1020:ad7a) before it tests it (BUGS.md B24).
+    if (g.selectedItem == null and g.fixes.reply_without_item) return 0;
+    const item = g.selectedItem orelse @panic("4fbarboy: right item's reply end with no item selected (original GPF, BUGS.md B24)");
     if (g.fixes.barboy_right_item_score) g.score +%= item.portable.scoreUse;
     visibility.hideAndInvalidate(g, item, 0, bd);
     _ = object_list.remove(&g.globalObjects, item);

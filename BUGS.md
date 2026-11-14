@@ -318,7 +318,9 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   (228, `garots08`): the engine default plays their NomeWAVE, and its end arrives with no item selected.
   In 2fsuabig any right click stores the object under it in `g_s2fsuabigHitObject`, so the next wave end
   (with no item) passes the test; the reverse (an item selected, no object hit) reaches the hit object's
-  `reoccupy` through NULL. 2fshardi's gift timer (0x14, 5 s) hands the "selected item" back even when a
+  `reoccupy` through NULL. In 4fbarboy the right-item path reads it unchecked too: a right click on an empty
+  inventory slot while the barman's reply to the Martian plays clears the selection, and the reply's end calls
+  through the NULL item at 1020:ad7a (its NULL tests come after, from 1020:ada8). 2fshardi's gift timer (0x14, 5 s) hands the "selected item" back even when a
   reply ending in between has cleared the selection.
 - **Effect:** a NULL far-pointer read: a general protection fault (the game is closed by Windows).
 - **Port:** panics naming this bug, as the original faults; `Fixes.reply_without_item` ignores that wave
