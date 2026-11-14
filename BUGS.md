@@ -479,8 +479,17 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   click on the panel's top edge, y 340–397) plays it over the panel: a 137×85 rectangle of cat and rug
   covers it and stays after the animation ends, until something repaints that area (the player's idle
   ticks fix the part they overlap). Any scene animation under an open panel does the same.
+- **Also:** that flush empties the whole update list, not only the animation's frame. A portable picked up
+  (`game_handle_message` WM_RBUTTONDOWN: `portable_pick_up` 1018:0b9e, slot 84 `hideAndInvalidate` 0bed
+  restores the background over its box and queues it, slot 160 `redrawOverlapping` 0c08 skips the panel,
+  which is not in the draw list, and slot 1F at 0ca4 is a debug no-op, so no flush and no panel redraw)
+  while an animation runs, after the engine's last timer and before the animation's next tick, reaches the
+  screen with the bars cut out where its box overlapped them. In `1fquarpa` the gift (`Portable=98`,
+  0,350 80×91) ends at y 441: with the moose going, the lives "3" loses its top rows and the badge's torn
+  edge turns to floor until a slide repaints them (`tools/play/b32-gift-lives.input`; which timer comes
+  first is a matter of timing).
 - **Port:** reproduced (`src/scene.zig`); `Fixes.bars_over_scene_animation` draws the panel and status
-  bar into the backdrop after each such tick, before the flush.
+  bar into the backdrop after each such tick, before the flush (both effects).
 - **Confidence:** 9 (code, port repro).
 
 ### B33. The kitchen's cockroach is missing when the player comes back

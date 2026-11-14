@@ -1,0 +1,20 @@
+# BUGS.md B32: a scene animation's timer puts the update list on the screen
+# before the engine draws the bars back. In the parents' bedroom the moose
+# is set going, then the gift (Portable=98, bottom-left, its box reaching
+# y 441) is picked up just before the moose's next tick and after the
+# player's: the restore under the gift erases the top rows of the lives "3"
+# (y 438-440), the moose's tick flushes the gift's rectangle as it is, and
+# the bars the engine redraws afterwards never reach the screen.
+#
+#   zig-out/bin/noite --headless --ms 12000 --one-button --input tools/play/b32-gift-lives.input --dump DIR
+#
+# The "end" dump shows the "3" without its top (19 of its 29 yellow pixels);
+# with `--fix bars_over_scene_animation` it stays whole.
+0 scene 1fcorred 150 130 1 1 0
+1000 click 211 150
++0 wait 1fquarpa 15000
++1520 click 80 100
++290 click 40 400
++4000 dump end
++0 state
++0 quit

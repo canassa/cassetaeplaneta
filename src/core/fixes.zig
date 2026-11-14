@@ -91,7 +91,9 @@ pub const Fixes = struct {
     item_on_support_in_front: bool = false,
     /// B32: a scene animation's frame (the sitting room's cat) is not drawn
     /// over the control panel and status bar: they are drawn back into the
-    /// backdrop before the scene's timer puts the frame on the screen.
+    /// backdrop before the scene's timer puts the frame on the screen (and
+    /// with it whatever else is queued, e.g. a just-picked item's erased
+    /// box cutting the lives "3").
     bars_over_scene_animation: bool = false,
     /// B33: a `Static=` object met again (the kitchen's cockroach and
     /// ketchup, the parents' room's father) is drawn whole on re-entry, not
