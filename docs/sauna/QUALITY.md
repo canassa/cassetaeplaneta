@@ -37,8 +37,8 @@ but it is built in the **large memory model** (far code **and far data**), **wit
 
 Engine revision. The SceneObject interface has **98 slots**: TIRO's 91 plus the five NOITE
 slots before `getWorldX` (`slot00`, `slot01`, `enableRle`, `isRle`, `getSceneName`), ENCAIXE's
-`unk18` after `draw`, and an unknown is/as pair after `asDirectionalPlayer`; TIRO's `unk4E` is
-absent. The Backdrop (23), GridBackdrop (24) and Scene (16) tables have NOITE's slot counts, the
+`unk18` after `draw`, and NOITE's `isScrollTarget`/`slot43` pair before `isPlayer`; TIRO's `unk4E`
+is absent. The Backdrop (23), GridBackdrop (24) and Scene (16) tables have NOITE's slot counts, the
 Animation table has 6 slots (NOITE 8, TIRO 1), the ControlPanel table 14 (NOITE 17, TIRO 9), the
 Game table TIRO's 7. RLE sprites are in: `scene_object_enable_rle`, a `transrle.cpp` module
 (`1088`) and an RLE-aware copy module (`1068`) that calls the 32-bit segments. Code bodies,
@@ -164,8 +164,8 @@ untyped; three are unreferenced (`__AHSHIFT`, `__AHINCR`, `__WINFLAGS`).
 | chkstk | Every body starts with the `_aFchkstk` call (its AX frame size invisible); the call-fixup (§7) removes it and allocates the frame |
 | Signatures | Parameter counts from `[BP+n]` are right; `this` shows as `undefined4 param_1` or `undefined2 *param_1` + `param_1._2_2_` (the segment) |
 | Far pointers | Every field access is `*(int *)((int)param_1 + 0x14)`: the offset half only, the segment dropped. Typing `this` as a far struct pointer fixes it |
-| Virtual calls | `puVar1 = (undefined2 *)((int)*param_1 + 4); (*(code *)*puVar1)(0x1098, …)`: the slot load is two words, so the decompiler falls back to the default model and passes the pushed `CS` as a first argument (the same problem FarSlotSignatures solved for TIRO) |
-| Globals | DS = `10b0` is set everywhere, but the BSS globals are undefined, so many read `*(int *)0x1d6` |
+| Virtual calls | `puVar1 = (undefined2 *)((int)*param_1 + 4); (*(code *)*puVar1)(0x1098, …)`: the slot load is two words, so the decompiler falls back to the default model and passes the pushed `CS` as a first argument. Fixed by call-site overrides on all 469 sites (`FarSlotSignatures.java … large`, `FUNCTIONS.md` Cleanup) |
+| Globals | DS = `10b0` is set everywhere, but the BSS globals were undefined, so many read `*(int *)0x1d6`; all typed in phase 3 and the cleanup (`DATA.md`) |
 | API calls | Correct once typed (`POSTMESSAGE(0,hwnd,0x40c,g_noiteWnd)`), except where the far string pointer is split |
 | Overall | The control flow is good; `/Od` bodies are long but literal |
 
@@ -185,7 +185,7 @@ untyped; three are unreferenced (`__AHSHIFT`, `__AHINCR`, `__WINFLAGS`).
 files are `LABIRIN*.BMP`, `PAC*.BMP`, `GHOST*.BMP`, `pac.mid`, `pacman*.wav`, and DGROUP holds the
 maze as 30 text rows of 40 characters (`1` wall, 96 `2`, four `3` near the corners;
 `031a–07e7`). The
-`1080` segment has a player class (derives Player2D, overrides `isPlayer`; built by
+`1080` segment has a player class (derives Player2D, whose `isScrollTarget`/`slot43` it keeps; built by
 createPlayer) and a ghost class (derives Actor2D; four of them built by the SaunaScene ctor),
 plus two bitmap objects `3o1amend.bmp`/`3o1rolha.bmp`. `DATA.md` has the details.
 

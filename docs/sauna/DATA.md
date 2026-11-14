@@ -15,9 +15,9 @@ segment `10a8`. Types live in the data type category `/sauna`. SAUNA is large mo
 | Vtable structs (far slots) / vbtable structs | 14 / 2 (`Vbtable`, `Vbtable3d`) |
 | Slot `FunctionDefinition`s rewritten from their targets (`FarSlotSignatures defs`) | 222 |
 | Class and record structs | 27 |
-| Globals typed and named (non-string, non-table) | 69 (67 in DGROUP, 2 in `10a8`) |
+| Globals typed and named (non-string, non-table) | 101 (99 in DGROUP, 36 of them the CRT's; 2 in `10a8`) |
 | Functions given a far `this` and a `__stdcall16far` signature (`SaunaFarThisTypes.java`) | 373 |
-| Virtual calls with a call-site override (`FarSlotSignatures calls`) | 147 of 473 (326 unresolved, §Decompiler residue) |
+| Virtual calls with a call-site override (`FarSlotSignatures … large`) | all 469 (450 `calls large`, 19 `site large`), plus the 12 calls through the two timer pointers |
 | Undefined bytes left in DGROUP | 0x7c0, almost all CRT data and padding (end of file) |
 
 ## DGROUP map
@@ -30,7 +30,7 @@ segment `10a8`. Types live in the data type category `/sauna`. SAUNA is large mo
 | `00a8–00bb` | `game_handle_message`'s latches: `g_keyLeft/Right/Up/Down`, `g_itemSelected`, `g_exitPending`, `g_selectedItem` (far `Portable *`), `g_dropElevation` (TIRO `00f2–0101`, same order) |
 | `00ba–011c` | The nine Pacman strip file names `3SP*.bmp` |
 | `011e–0177` | **Pacman strip tables**: `g_pacmanStripFiles` (9 far `char *`), `g_pacmanStripFrames` {2×8, 6}, `g_pacmanStripWidths` (40 ×9), `g_pacmanStripHeights` (40 ×9) |
-| `0178–0195` | `s_pacinterBmp` (the panel), `s_mazeTitle` "Labirinto" (the scene name), `g_unk0190` = 0x0b (read by every draw routine, TIRO's `g_unk00A8`) |
+| `0178–0195` | `s_pacinterBmp` (the panel), `s_mazeTitle` "Labirinto" (the scene name), `g_transparentColor` `0190` = 0x0b (the colour key of every transparent copy, TIRO's `g_unk00A8`) |
 | `0196–01d5` | `s_appName` "Sauna Mista" (class, title, NOITE's `FindWindow` target), `s_appIcon`, `g_noiteWnd` (`01a2`), `s_alreadyRunning`, `s_userModule` ×2 |
 | `01d6`, `01d8` | `g_started`, `g_handshakePending` (= 1) |
 | `01da–025b` | the visible-objects overflow strings |
@@ -45,7 +45,7 @@ segment `10a8`. Types live in the data type category `/sauna`. SAUNA is large mo
 | `093a–0975` | `s_negScoreFormat` "-%04d", `s_scoreFormat` " %04d", `s_transrleFile` "d:\c&p\pacman\transrle.cpp", `s_assertOutputBuffer` |
 | `0976–09cd` | WaveMix: `g_waveMixOpenResult`, `g_waveMixSession`, `g_waves` (20 far), `g_waveCount` |
 | `09ce–0abb` | WaveMix error strings, the assert format |
-| `0abc–0f7c` | CRT data (`_C_FILE_INFO=`, `_iob`, heap, argv/envp, the NMSG table and R6xxx strings); placeholders typed, not named, except `g_crtStackOverflowHook` `0a82` (`_aFchkstk` jumps through it), `g_crtFloatHooks` `0bb2` (7 far → `_fptrap`), `g_crtInitHook` `0bf6` (→ `init_static_conditions_entry`), `g_crtExitTable` `0c08` (→ `crt_endstdio`) |
+| `0a6e–0f7c` | CRT data, NOITE's names (matched by the CRT instruction that reads each one): `g_crtStackLimit` `0a6e`, `g_crtPrevInstance`, `g_crtInstance`, `g_crtCmdLine` (far), `g_crtCmdShow` `0a78`, `g_crtStackOverflowHook` `0a82` (`_aFchkstk` jumps through it), `g_crtHoldRand` `0a86` (`rand`), `s_cFileInfo`, `g_crtSavedVector` `0aca`, `g_crtErrno` `0ad8`, `g_crtPsp`, `g_crtWinVersion`, `g_crtOsMinor/Major`, `g_crtOsVersion`, `g_crtOsMode`, `g_crtDosErrno`, `g_crtNFile` (20), `g_crtNHandle` (40), `g_crtOsFile[40]` `0af0`, `g_crtArgc` `0b18`, `g_crtArgv`, `g_crtEnviron`, `g_crtPgmPath`, `g_crtExitType` `0b29`, `g_crtArgvRet`, `g_crtNearHeapFail` `0b94`, `g_crtFarHeapFail`, `g_crtLastIob`, `g_crtFloatHooks` `0bb2` (7 far → `_fptrap`), `g_crtPairTable` `0bd2`, `g_crtPairTableSize`, `g_crtInitHook` `0bf4` (→ `init_static_conditions_entry`), `g_crtTermHook` `0bfa`, `g_crtExitTable` `0c06` (→ `crt_endstdio`), `g_crtIob` `0c0a` (`CrtFILE[20]`), `g_crtNmsgTable` `0df2`, the R6xxx strings. The words NOITE itself leaves `g_crtUnk…` keep placeholders |
 | `0f94–1443` | `g_unk0F94`: 300 dwords, read (BX×4) only by the dead `FUN_1010_0960` |
 | `1444–28d4` | **`g_occupancyCount`** `char[65][81]` |
 | `28d6–7b19` | **`g_occupancyObject`** far `SceneObject *[65][81]` (twice TIRO's size) |
@@ -71,17 +71,19 @@ All in `10a0`; `FUNCTIONS.md` has the class mapping and the ctors. Labels:
 
 The vtable structs (`/sauna`, 4-byte slots, each a pointer to `<Vtbl>_<field>Fn`):
 - **SceneObjectVtbl** (98): NOITE's first five slots (`slot00`, `slot01`, `enableRle`, `isRle`,
-  `getSceneName`), then TIRO's fields with ENCAIXE's `unk18` after `draw` and the unknown
-  `slot44`/`slot45` pair after `asDirectionalPlayer`; no `unk4E`; ENCAIXE/NOITE's `slot61…slot65`
-  at the end. Full list: `zig-out/sauna/so_fields.json` (from `sofields.py`).
+  `getSceneName`), then TIRO's fields with ENCAIXE's `unk18` after `draw`; the type tests at
+  `0x100–0x114` are `isScrollTarget`, `slot43` (Player2D overrides both), `isPlayer`, `asPlayer`,
+  `isDirectionalPlayer`, `asDirectionalPlayer` (NOITE's and JARDIM's order, from the callers); no
+  `unk4E`; ENCAIXE/NOITE's `slot61…slot65` at the end.
 - **Object3DVtbl** (8), **MoverVtbl** (`placeAt`), **FrameVtbl** (`getCell`), **GameVtbl** (7),
   **ConditionVtbl** (3): TIRO's.
 - **AnimationVtbl** (6): `setAvi`, `isAvi`, `aviSlot2–4`, `playOnce`. **ControlPanelVtbl** (14):
   those 6 + `isOpen`, `getVisibleHeight`, `slide`, `drawInventory`, `isOutside`, `contains`,
   `getInventoryItemAt`, `drawInventoryItem`.
 - **SceneVtbl** (16), **BackdropVtbl** (23), **GridBackdropVtbl** (24): NOITE's.
-- **SaunaSceneVtbl** (17) = SceneVtbl + `slot10`; **PacmanVtbl** (2) = `placeAt`, `slot1`;
-  **GhostVtbl** (3) = `placeAt`, `slot1`, `slot2`.
+- **SaunaSceneVtbl** (17) = SceneVtbl + `sendGhostsHome`; **PacmanVtbl** (2) = `placeAt`,
+  `slot1` (`pacman_refresh_power_strip`); **GhostVtbl** (3) = `placeAt`, `slot1`
+  (`ghost_choose_direction`), `slot2` (`ghost_is_next_step_free`).
 
 The vbtables are `{vbptrOffset = −4, sceneObjectOffset[, object3dOffset]}`:
 
@@ -127,9 +129,9 @@ functions (`zig-out/sauna/offs.py`) and against the ctors.
 | `UpdateList` | 0x7a | 30 far items + `count` |
 | `DrawList`, `DrawListNode` | 0x4b8, 0xc | 100 far nodes, `freeHead`, `head`; node `item`/`prev`/`next` far |
 | `OccupancyGrid` | 0x10 | NOITE's |
-| `Backdrop` | 0x45e | `hdc` 4, `bits` 6, `hpalette` a, `oldBitmap` c, ENCAIXE's second DC (`oldBitmap2` e, `hdc2` 10, `bits2` 12), 4 unknown bytes at 0x16, `background` 0x1a, `bgWidth/Height` 0x1e/0x20, `originX/Y` 0x22/0x24, `viewWidth/Height` 0x26/0x28, `bmiHeader` 0x2e, `bmiColors` 0x56, `dibOrientation` 0x456, `sceneList` 0x45a (all from `backdrop_ctor`/`backdrop_create`). high except 0x16 and 0x2a–0x2d |
+| `Backdrop` | 0x45e | `hdc` 4, `bits` 6, `hpalette` a, `oldBitmap` c, ENCAIXE's second DC (`oldBitmap2` e, `hdc2` 10, `bits2` 12: the background with the dots), `hwnd` 0x16 and `hdcWindow` 0x18 (set by the scene handler and the move ticks), `background` 0x1a, `bgWidth/Height` 0x1e/0x20, `originX/Y` 0x22/0x24, `viewWidth/Height` 0x26/0x28, `bmiHeader` 0x2e, `bmiColors` 0x56, `dibOrientation` 0x456, `sceneList` 0x45a (all from `backdrop_ctor`/`backdrop_create`). high except 0x2a–0x2d |
 | `GridBackdrop` | 0x462 | `grid` far at 0x45e |
-| `Scene` | 0x62 | `backdrop` 4, `exits` (10 far) 8, `exitCount` 0x30, `name[20]` 0x32 (strncpy 0x13), `objects` 0x46, `hasPlayer/StatusBar/ControlPanel` 0x4e–0x52, `is1Animation`, `isClickExit`, `animation` far 0x58, `mayDropObject` 0x5c (= 1), `sceneNumber` 0x5e, `unk60` (the handler returns 0 while it is 0) |
+| `Scene` | 0x62 | `backdrop` 4, `exits` (10 far) 8, `exitCount` 0x30, `name[20]` 0x32 (strncpy 0x13), `objects` 0x46, `hasPlayer/StatusBar/ControlPanel` 0x4e–0x52, `is1Animation`, `isClickExit`, `animation` far 0x58, `mayDropObject` 0x5c (= 1), `sceneNumber` 0x5e, `handlerEnabled` 0x60 (set by `scene_create`; the handler returns 0 while it is 0) |
 | `SaunaScene` | 0x7a | Scene + `ghosts[4]` far 0x62, `peanut` 0x72, `cork` 0x76 |
 | `Game` | 0x560 | `scene` 4, `oldScene` 8, `statusBar` c, `controlPanel` 0x10, 4 unknown bytes 0x14, `player` 0x18, `globalObjects` 0x1c (capacity 30), `lastGlobalObject` 0x24 (NOITE has it), `updateList` 0x28, `drawList` 0xa2, `unk55A` (= 2), `clearWidth/Height` 0x55c/0x55e |
 | `Condition`, `FlagCondition`, `CompoundCondition` | 4, 6, 0xe | far vptr; `value`; `left`/`right` far, `isOr` |
@@ -142,7 +144,7 @@ TIRO), the other slots and the ctors their class.
 
 **The maze** (`s_mazeRow00…29`, 30 × 40 cells of 16×16 px over the 640×480 window):
 - `sauna_backdrop_create` marks every `1` as a wall in the occupancy grid (`grid_backdrop_create_with_grid`
-  with shift 4, then `FUN_10a0_914c` per cell).
+  with shift 4, then `occupancy_grid_set_cell(grid, NULL, -1, col, row)` per cell).
 - `sauna_scene_create` stamps the dot pictures into the background: a **peanut** (`3o1amend.bmp`,
   20×12) at each `2` and a **cork** (`3o1rolha.bmp`, 20×25) at each `3`, at (16·col + 8,
   16·row + 10). There are 96 peanuts and 4 corks, and `g_dotsLeft` starts at **100**.
@@ -181,75 +183,43 @@ success. Six waves through WaveMix (`sauna_scene_create` opens them in this orde
 
 **The actors.**
 - **Pacman** (`g_pacman`, `pacman_ctor`, built by `sauna_game_create_player`): starts at (300, 304)
-  (`0x130`), 9 strips; its ctor arguments include 0x10, 0x10, 0x37 (55) and 0x10 (the timer id,
-  inferred: the ghosts differ only there, with 0x11).
+  (`0x130`), 9 strips, timer id 0x10 at 55 ms, step 16 px, hit box 24×24 at (8, 8).
 - **Four ghosts** (`SaunaScene.ghosts`, `ghost_ctor`, built by `sauna_scene_ctor`): all four with
-  the **same arguments**, home at (300, 230) (`0xe6`), timer id **0x11** each (inferred), 8 strips.
-  Message 0x401 seeds `rand` with GetTickCount and calls each ghost's
-  `GhostVtbl.slot1` (the move decision, 1 KB, phase 4).
+  the **same arguments**, home at (300, 230) (`0xe6`), timer id **0x11** shared by design (the
+  handler steps all four on `ghosts[0]`'s id), 8 strips. Message 0x401 seeds `rand` with
+  GetTickCount and calls each ghost's `ghost_choose_direction`.
 
-## The game rules (from the data and the handlers)
+## The game
 
-*Sauna Mista* is Pac-Man in a sauna. NOITE launches it from `handler_3fsauna`.
-- **Controls.** Arrow keys only. WM_KEYDOWN LEFT/RIGHT call the Pacman's `moveToEdgeH` slot
-  with 1/2, UP/DOWN its `moveToEdgeV` with 4/8; each key is latched (`g_key*Held`) until any
-  arrow WM_KEYUP clears all four. The mouse is ignored.
-- **Movement.** On WM_SYSTIMER (0x118) the handler steps Pacman when the timer is his
-  (`getTimerId`): `tick` while not moving, `moveTick` while moving; the same for each ghost whose
-  timer matches. Walls are the occupancy grid; `pacman_can_step`/`ghost_can_step` test the cells.
-- **Dots.** A peanut gives **+100**; a cork starts the **power mode**: `g_powerStrip` = 4 (the
-  picture swap), the waves, and (via `g_powerStartPending`) SetSystemTimer(10, 5000 ms). When
-  timer 10 fires with `g_powerStrip` = 4, the power ends: every actor's `slot1` is called to redraw,
-  `g_powerStrip` = 0, the loop wave stops, timer 10 is killed. Each dot decrements `g_dotsLeft`.
-- **Ghosts.** Meeting a ghost while powered: **+500**, and the ghost is hidden and put back home
-  at (300, 230). Unpowered: `sauna_lose_life` — `--g_lives` (3 at start) and **−500**, then
-  `g_pacmanDying` = 1: the handler plays the death strip (strip 8, 6 frames at 110 ms, counted
-  by `g_deathFramesLeft` = 5), puts Pacman back at (300, 304) on strip 0 and clears the keys.
-- **End.** All 100 dots eaten: `SendMessage(hwnd, WM_DESTROY, 0xffff, 0)` (a win). The third
-  life lost: `SendMessage(hwnd, WM_DESTROY, 0, 0)` (a loss; the last −500 is skipped).
-- **Result** (WM_DESTROY in `sauna_scene_handle_message`): stop and free the waves, close WaveMix
-  and MCI, then `g_score += wParam ? +1000 : −1000` and
-  **`PostMessage(noite, 0x40a, wParam, (long)g_score)`**. So **won = all dots eaten**, and the
-  score (which starts at 0 and can be negative) goes to NOITE, which adds it and takes a life
-  on a loss.
-- **Score box** (`sauna_draw_score`): the 192×20 box at (416, 437) is restored from the
-  background, the score is printed `" %04d"` / `"-%04d"` one character every 32 px from x 460,
-  y 445, in colour 0xedeeee; `sauna_blit_score_box` copies it to the window.
-- **Pause.** WM_ACTIVATE pauses/resumes the MIDI and WaveMix.
+*Sauna Mista* is Pac-Man in a sauna; `GAME.md` describes it. In short: arrows (or a left click)
+send Pacman along the maze in 16-px steps; a peanut is +100, a cork +0 and 5 s of power (the
+pictures swap, the ghosts flee, a ghost eaten is +500 and goes home); a ghost met unpowered costs
+500 and a life; all 100 dots won (+1000), the third life lost (−1000) ends it.
 
-## Candidate original bugs (for BUGS.md, not verified in play)
+## How it talks to NOITE
 
-1. **Closing the window is a loss.** Any WM_DESTROY reaching the scene handler with wParam 0 —
-   including the system's on Alt+F4 or when Windows destroys the window at exit — scores −1000
-   and posts 0x40a "lost".
-2. **The end runs on after WM_DESTROY.** `sauna_lose_life` and the win path send WM_DESTROY with
-   SendMessage, which closes WaveMix and MCI and posts the quit; the caller then keeps going
-   (GetDC, score redraw, in the win path the rest of `pacman_restore_background`) with the wave
-   system closed. Nothing calls DestroyWindow, so the real WM_DESTROY comes later, after
-   `app_exit` has deleted `g_game`: APPWNDPROC may forward it to a freed object (and, if it
-   reached the handler, post a second 0x40a).
-3. **All four ghosts share timer id 0x11.** Each ghost ctor gets the same id, so the four
-   SetSystemTimer calls replace one another and the handler moves every ghost on the same tick
-   (inferred from the identical ctor arguments; to check in play).
-4. **Unused per-object state.** `Player2D.lives`/`score` are never used (the game has
-   `g_lives`/`g_score`), as in TIRO.
+- NOITE (`handler_3fsauna`) runs `sauna\sauna.exe`, polls `FindWindow("Sauna Mista")` on timer
+  0x14 and posts 0x40b with its window in lParam; APPWNDPROC stores it in `g_noiteWnd`.
+- **0x40c** ("ready"): APPWNDPROC posts it once (`g_handshakePending`), with SAUNA's window in
+  wParam, on the first message after `g_started` that finds `g_noiteWnd` set.
+- **0x40a** (result): the scene handler's `WM_DESTROY` case posts `(wParam, (long)g_score)` after
+  adding ±1000: wParam 0xffff from the win, 0 from the last life or any other destroy (End Task).
+- If the window vanishes without 0x40a, NOITE's system timer posts itself `(0x40a, 0, 0)`.
 
-## Decompiler residue (expected)
+## Original bugs
 
-- **326 virtual calls keep the default model** ("Load size is inaccurate", a pushed `CS` as first
-  argument): FarSlotSignatures' resolver follows TIRO's near vbptr; SAUNA reaches the SceneObject
-  through a far vbptr (`LES BX,[obj+4]; MOV AX,ES:[BX+2]`). They are in the scene handler, the
-  Pacman/Ghost code, `game_handle_message`, `game_take_exit`, the Mover/Moveable bodies. A
-  large-model resolver (or `site` overrides per call) is phase-4 work.
+In `BUGS.md`, section SAUNA (P1–P8, and a Harmless list).
+
+## Decompiler residue
+
+- The calls into the 32-bit segments and the CRT function-pointer calls keep the default model.
 - The remaining parameters are `undefined2` words; far pointer parameters show as two words.
-- CRT data at `0a6e–0f7c` keeps Ghidra's placeholders.
 
 ## Unknown
 
-- `g_unk0190` (= 0x0b), `g_unk0F94` (300 dwords), `Game` 0x14–0x17, `Backdrop` 0x16–0x19 and
-  0x2a–0x2d, `Animation.unk12`, `Scene.unk60` (the handler's enable flag), `FrameCell`.
-- `SceneObjectVtbl.slot44`/`slot45` (an is/as pair nobody overrides), `PacmanVtbl.slot1`,
-  `GhostVtbl.slot1`/`slot2`, `SaunaSceneVtbl.slot10` (named by slot; bodies in phase 4).
+- `g_unk0F94` (300 dwords), `Game` 0x14–0x17, `Backdrop` 0x2a–0x2d, `Animation.unk12`,
+  `FrameCell`.
+- `SceneObjectVtbl.slot43` (Player2D's `player2d_as_scroll_target` returns the object).
 - The letters of the `3SP??B/P` names (two picture sets, `B` and `P`, swapped by the power mode).
 
 ## Scripts
@@ -261,7 +231,8 @@ success. Six waves through WaveMix (`sauna_scene_create` opens them in this orde
 | `NearStructs.java` | `/sauna <cls.arg>`: the 27 class structs (far pointers as `T*32`) |
 | `NearGlobals.java` | `/sauna <glob.arg>` and two more |
 | `SaunaFarThisTypes.java` (new) | `/sauna <this.arg>`: far `this` + `__stdcall16far` word signature from `RETF n` |
-| `FarSlotSignatures.java` | `10a0 defs`, `10a0 calls` |
+| `FarSlotSignatures.java` | `10a0 defs large`, `10a0 calls large`, `10a0 site large …` (`FUNCTIONS.md`) |
+| `CopyTypesFromProgram.java` | `/TIRO.EXE SetSystemTimerFn KillSystemTimerFn`, `/NOITE.EXE CrtFILE` |
 | `UndefinedRanges.java`, `DumpListing.java` | the checks above |
 
 Scratch in `zig-out/sauna/`: `vtspec.py`, `cls.spec`, `glob.spec`, `thisspec.py`, `offs.py`,

@@ -1,17 +1,17 @@
 # SAUNA.EXE: function inventory
 
-The Ghidra program `/SAUNA.EXE` after the phase-2 mapping: every function bounded, classified and,
-where a twin or a vtable slot says so, named with a plate that gives the evidence. Addresses are
+The Ghidra program `/SAUNA.EXE` after phase 4 and the cleanup: every function bounded, classified,
+named where the evidence allows, and plated (but 15, below) with where its name comes from. Addresses are
 Ghidra `seg:off`. SAUNA is a large-model `/Od` build (far code and data, `this` a far pointer at
 `[BP+6]`, vtables of far slots in code segment `10a0`); see `QUALITY.md` §0. TIRO (`docs/tiro/`) is
 the reference for the names, NOITE for the slots TIRO lacks. The data is in `DATA.md`.
 
 ## Counts
 
-**1,171 functions:** 89 import thunks, 387 adjustor thunks and 695 code functions. **569 of the
-695 are named, 126 stay `FUN_`** (mostly the out-of-line accessors in `10a0`, the RLE modules
-`1068`/`1088` and the 32-bit blitters). 346 of the 387 thunks are named after named targets; 41
-still carry their target's `FUN_` name.
+**1,171 functions:** 89 import thunks, 387 adjustor thunks and 695 code functions. **673 of the
+695 are named, 22 stay `FUN_`** ("Remaining `FUN_` functions"); 680 have a plate. 384 of the 387
+thunks are named after named targets; 3 carry their dead target's `FUN_` name (`5b8c`, `5ba2`,
+`5c00`).
 
 | Kind | Fns | Where / names |
 |---|---|---|
@@ -24,23 +24,23 @@ still carry their target's `FUN_` name.
 | App shell | 10 | `1058` |
 | WaveMix | 11 | `1090` |
 | Engine | 460 | `1020–1040`, `1050`, `1060`, `1070`, `1078`, `10a0` |
-| SAUNA game | 47 | `1048` (6), `1080` (38), `10a0` (`pacman_ctor`, `ghost_ctor`, `sauna_backdrop_ctor`) |
+| SAUNA game | 47 | `1048` (6), `1080` (38), `10a0` (`pacman_ctor`, `ghost_ctor`, `sauna_backdrop_ctor`); `GAME.md` |
 
 By segment (code functions other than the adjustor thunks; named / total):
 
 | Seg | Named | Seg | Named | Seg | Named |
 |---|---|---|---|---|---|
 | `1000` | 2/3 | `1038` | 7/7 | `1070` | 11/11 |
-| `1008` | 0/1 | `1040` | 2/2 | `1078` | 15/18 |
+| `1008` | 0/1 | `1040` | 2/2 | `1078` | 17/18 |
 | `1010` | 4/6 | `1048` | 6/6 | `1080` | 38/38 |
 | `1018` | 11/11 | `1050` | 4/4 | `1088` | 0/3 |
 | `1020` | 51/53 | `1058` | 10/10 | `1090` | 11/11 |
 | `1028` | 9/9 | `1060` | 7/7 | `1098` | 98/98 |
-| `1030` | 50/53 | `1068` | 0/8 | `10a0` | 233/336 |
+| `1030` | 53/53 | `1068` | 0/8 | `10a0` | 332/336 |
 
-Conventions (Ghidra's): 542 `__stdcall16far`, 99 `__cdecl16far`, 21 near (CRT helpers), 33
-unknown (the 32-bit routines and CRT entries). Phase 3 gave 373 methods a real signature (far
-`this` + word parameters, `DATA.md`); the rest keep Ghidra's parameterless prototypes.
+Conventions (Ghidra's): 542 `__stdcall16far`, 95 `__cdecl16far`, 13 on the `ghidra/cspec` far
+cdecl extensions (`_dx_ax` 2, `_dxax_ptr` 11), 22 near (CRT helpers), 23 unknown (the 32-bit
+routines, the CRT entries and the unmapped RLE module).
 
 ## Function discovery
 
@@ -87,7 +87,7 @@ alignment) and by its ctor; the small tables by slot count against NOITE. `S` = 
 | `7b96` M, `7b9a` A, `7bb2` S | Player2D | TIRO `154a/154e/1552` | `player2d_ctor` `718c` |
 | `7d42` A, `7d5a` S, `7ee2` O | Animated3D | TIRO `1c3c/1c40/1dac` | `animated3d_ctor_strips_no_hitbox` `72c2` |
 | `7f0c` (14), `7f44` S, `80cc` O | ControlPanel (concrete; no TIRO-style subclass) | TIRO `1a32/1a56/1bc2` + `1038` | `control_panel_ctor` `6aac` |
-| `80f6` (2), `80fe` A, `8116` S | **Pacman** (derives Player2D; MoverVtbl + 1 slot; overrides `isPlayer`) | — | `pacman_ctor` `7018` |
+| `80f6` (2), `80fe` A, `8116` S | **Pacman** (derives Player2D, keeps its `isScrollTarget`/`slot43`; MoverVtbl + 1 slot) | — | `pacman_ctor` `7018` |
 | `82a6` (7) | Game (slot 6 `_purecall`) | TIRO `0eee` | `game_ctor` `6c40`, `game_dtor` `86fc` |
 | `82c2` A, `82da` S | Animation | TIRO `125a/125e` | `animation_ctor` `7782`, `_ctor_strips_no_hitbox` `7502` |
 | `8466` (7) | **SaunaGame** (slots 1–4, 6 in `1048`) | role of TIRO `11f2` | `sauna_game_ctor` `1048:0000` |
@@ -102,10 +102,11 @@ alignment) and by its ctor; the small tables by slot count against NOITE. `S` = 
 There is no StatusBar table (`sauna_game_create_status_bar` returns NULL), no Exit, Player or
 PerspectiveBackdrop table, though their methods are linked (`1030`, `1038`; dead).
 
-**SceneObjectVtbl (98 slots).** SAUNA slot *i* = TIRO slot *i*−5 for 5–27, *i*−6 for 29–67,
-*i*−8 for 70–83 and *i*−7 for 84–97 (TIRO's `unk4E` has no SAUNA slot). The SAUNA-only slots are
+**SceneObjectVtbl (98 slots).** SAUNA slot *i* = TIRO slot *i*−5 for 5–27, *i*−6 for 29–63,
+*i*−8 for 66–83 and *i*−7 for 84–97 (TIRO's `unk4E` has no SAUNA slot). The SAUNA-only slots are
 NOITE's `slot00`, `slot01`, `enableRle`, `isRle`, `getSceneName` (0–4), ENCAIXE's `unk18` (28) and
-an unknown is/as pair `slot44`/`slot45` (68, 69). The alignment (`zig-out/sauna/slotmap.py`) scores
+the is/as pair `isScrollTarget`/`slot43` (64, 65; NOITE's and JARDIM's names, placed by the callers
+`backdrop_autoscroll` and `exit_tick`). The alignment (`zig-out/sauna/slotmap.py`) scores
 every matched slot 0.81–0.98 from the override pattern over ten class pairs and the default bodies;
 `DATA.md` lists the fields. TIRO's own type tests `isProjectile`/`isTarget`/`isCrossbow` are
 ENCAIXE's `slot61`/`slot63`/`slot64` and stay so here: no SAUNA class overrides them.
@@ -142,27 +143,31 @@ are named from NOITE's Scene table instead: `scene_create`, `scene_add_object`,
 `scene_add_exit`, `scene_add_exit_to_scene`, `scene_add_exit_at`, `scene_add_exit_alt`, and
 `scene_dtor` (`0075`, the only other store of the Scene vptr).
 
-The Pacman/Ghost/SaunaScene override names describe the slot they fill (`pacman_move_tick`,
-`ghost_can_step`, `sauna_scene_slot10`); their bodies are phase 4.
+The Pacman/Ghost/SaunaScene overrides were named by the slot they fill in phase 2 and by their
+bodies in phase 4 (`pacman_refresh_power_strip`, `ghost_choose_direction`,
+`sauna_scene_send_ghosts_home`, "Phase 4 results").
 
-## Remaining unknowns
+## Remaining `FUN_` functions
 
-The 126 `FUN_` functions:
-- `10a0` (103): accessors and helpers reached directly (`1f10–211c`, `2f5c–3252`, `3fbe`,
-  `4384–44fc`, `5a7e–6688`, `8820–8d8a`, `9038–9548`), the three Moveable ctors and three Mover
-  ctors, `0000`/`00cc`/`008e` (scalar-deleting dtors and similar), `6480–68be` (game helpers next
-  to `game_init`).
-- `1068` (8) and `1088` (3): the RLE copies and `transrle.cpp`.
-- `1000:0024`, `1008:0024`: new 32-bit routines (RLE row copies by their callers).
-- `1010:0960`, `0c49`; `1020:1680` (empty, as TIRO's unnamed `1028:0e71`), `2dfc` (as TIRO's
-  `1028:1cb7`); `1030:25c1`, `2aed`, `32d6`; `1078:01a6`, `0a0f`, `0a68`.
+- **Not mapped (no plate, 15):** the RLE path (group 4 and part of group 3 below): `1068` (8, the RLE-aware DIB
+  copies), `1088` (3, `transrle.cpp`), the 32-bit `1000:0024` and `1008:0024`, `1010:0960` and
+  `0c49`. Nothing calls the `enableRle` slot, so the RLE draw path never runs (NOITE's is dormant too,
+  `BUGS.md` L1, L2).
+- **Dead, role unproven (7, noted in their plates):** `1020:1680` (empty, this + five words),
+  `1020:2dfc` (huge-pointer add), `1078:01a6` (an Animation-like ctor body, as JARDIM's),
+  `10a0:52e6` (zeroes 8 bytes), `10a0:5b8c`, `5ba2`, `5c00` (empty members reached only by thunks
+  no vtable holds; TIRO and INFERNO leave their twins unnamed too).
 
-Dead (no call, no slot; 59 functions): the DIB extras (`dib_copy_transparent_whole`, `dib_set_usage`,
-`dib_create`, `dib_map_to_palette`), the PerspectiveBackdrop and Portable methods, the second
-draw list (`1070:0050–0593`), the StatusBar methods, `sauna_scene_dtor`, `wave_pump`, four of the
-`1068` copies, `1088:0389`/`06ce`, and 126 adjustor thunks whose vtables the linker did not
-keep (Exit, Player, Animated3D and Moveable variants: `10a0:1052–1b28`, `59ce–5a68`,
-`61d6–6286`).
+## Dead code
+
+No call and no live slot: the DIB extras (`dib_copy_transparent_whole`, `dib_set_usage`,
+`dib_create`, `dib_map_to_palette`), the PerspectiveBackdrop and Portable methods, the second draw
+list (`1070:0050–0593`), the StatusBar methods, `sauna_scene_dtor`, `wave_pump`, the Exit and
+Player methods (`exit_*`, `player_*`), the DirectionalPlayer overrides `10a0:6436–68be` (NOITE's
+names; SAUNA builds no DirectionalPlayer), `frame_vector_deleting_dtor` and its huge part, and 126
+adjustor thunks whose vtables the linker did not keep (`10a0:1052–1b28`, `59ce–5a68`,
+`61d6–6286`). In `game_handle_message` the `WM_KEYDOWN`, `WM_KEYUP` and `WM_SYSTIMER` arms are
+dead (the scene handler answers those messages), as are `0x205` and `0x402`.
 
 ## Phase 4: function groups
 
@@ -188,28 +193,71 @@ named from TIRO/NOITE; the agent verifies, signs (`ghidra-fix-signature`) and ty
 | 14 | `10a0:2c5e–3437` | 49 (19) | Object3D/Animated3D/Moveable overrides, helpers `2f5c–3252`, Portable/ControlPanel type tests | by slot, medium |
 | 15 | `10a0:3438–3fbd` | 82 (0) | SceneObjectVtbl defaults (trivial) | by slot, low |
 | 16 | `10a0:3fbe–5327` | 21 (17) | Occupancy helpers, SceneObject/Object3D/Moveable/Mover ctors (the 3 + 3 ambiguous ones), strip init/alloc, frame init | mixed, medium |
-| 17 | `10a0:5328–6c3f` | 28 (24) | Backdrop/draw helpers `5a7e–5c38` (one 1.2 KB), update list `629c–634e`, game helpers `6436–68be`, ControlPanel ctor and slots | mixed, high |
+| 17 | `10a0:5328–6c3f` | 28 (24) | Backdrop/draw helpers `5a7e–5c38` (one 1.2 KB), update list `629c–634e`, the DirectionalPlayer overrides `6436–68be` (dead), ControlPanel ctor and slots | mixed, high |
 | 18 | `10a0:6c40–8a55` | 38 (12) | Game ctor/dtor/init and defaults, Pacman/Animation/Actor2D/Mover ctors, Conditions, scalar dtors `86be–8970` | mixed, medium |
 | 19 | `10a0:8a56–9ca4` | 57 (14) | Backdrop/GridBackdrop/Scene defaults, scene/occupancy helpers, Ghost and SaunaBackdrop ctors | mixed, medium |
 | 20 | `1080:0000–13bd` | 15 (0) | **Pacman**: occupy/vacate, move (`move_to`, edges, `move_tick` 1.7 KB, `restore_background` 1.7 KB), `can_step`, stop, tick | SAUNA, high |
-| 21 | `1080:13be–238f` | 9 (0) | **Ghost**: occupy/vacate, `restore_background`, `can_step`, `move_tick`, the two extra slots (`ghost_vt_slot1` 1 KB: the chase?) | SAUNA, high |
-| 22 | `1080:2390–437a` | 14 (0) | **SaunaScene**: backdrop create, ctor/dtor, create/create_screen, the handler `32f7` (3.5 KB: keys, timers, 0x40a), `sauna_scene_slot10` (1.7 KB), score and wave helpers `4082–426e` | SAUNA, high |
+| 21 | `1080:13be–238f` | 9 (0) | **Ghost**: occupy/vacate, `restore_background`, `can_step`, `move_tick`, the two extra slots (`ghost_choose_direction`, `ghost_is_next_step_free`) | SAUNA, high |
+| 22 | `1080:2390–437a` | 14 (0) | **SaunaScene**: backdrop create, ctor/dtor, create/create_screen, the handler `32f7` (3.5 KB: keys, timers, 0x40a), `sauna_scene_send_ghosts_home`, score and wave helpers `4082–426e` | SAUNA, high |
 
 Order of work: groups 1–3 and 11 first (they anchor the CRT, DIB and app names), then 5–10 and
 12, then the `10a0` groups 13–19 (they need the vtable structs of phase 3), group 4, and the game
 groups 20–22 last.
+
+## Phase 4 results
+
+Groups 1, 2 and 5–22 are done. Group 4 and the four new routines of group 3 (the RLE path) are not
+mapped. The game is described in
+`GAME.md`, its bugs in `BUGS.md` (section SAUNA, P1–P8). What phase 4 corrected in the earlier
+picture:
+- **The mouse is live:** the scene handler returns 0 for mouse messages, so `game_handle_message`
+  runs them: a left click walks Pacman to the point (`pacman_move_to`), a mouse move below y 440
+  starts the (off-screen) panel's slide, a right click on Pacman or a ghost runs its `playOnce`.
+- **The override names:** `PacmanVtbl.slot1` is `pacman_refresh_power_strip`, `GhostVtbl.slot1`
+  `ghost_choose_direction` (the ghost AI), `GhostVtbl.slot2` `ghost_is_next_step_free`,
+  `SaunaSceneVtbl` slot 16 `sauna_scene_send_ghosts_home` (the struct field `sendGhostsHome`).
+- **The type tests:** SceneObjectVtbl `0x100`/`0x104` are `isScrollTarget`/`slot43` (Player2D
+  overrides them: `player2d_is_scroll_target`, `player2d_as_scroll_target`), then `isPlayer`,
+  `asPlayer`, `isDirectionalPlayer`, `asDirectionalPlayer` at `0x108–0x114`.
+- **The four ghosts share timer 0x11 by design:** the handler tests `ghosts[0]`'s id and steps all
+  four in turn on it.
+- **The power mode starts one message late:** the cork sets `g_powerStartPending`; the next
+  message of any kind swaps the pictures and starts timer 10 (5 s).
+- **Keys:** key-up clears the four latches but does not stop Pacman; he runs until blocked.
+- **`Scene.unk60`** is `handlerEnabled`; `Backdrop` +0x16 is `hwnd`, +0x18 `hdcWindow`;
+  `g_unk0190` is `g_transparentColor`.
+
+Cleanup:
+- **Virtual calls:** `FarSlotSignatures.java 10a0 defs large` (223 slot definitions; no target for
+  `SceneVtbl.handleMessage`, slot 0 is `_purecall`) and `calls large`: 450 of the 469 `CALLF [BX+k]`
+  sites; the other 19 read by hand and typed with `site large` (Mover, Animation, Object3D, Ghost,
+  ControlPanel and Condition calls through the class's own vptr, two SceneObject calls on an
+  untyped local, `asAnimation()->playOnce` in `game_handle_message`): 469 overrides, none left.
+  The 12 calls through `g_setSystemTimer` (8) and `g_killSystemTimer` (4) have
+  `/SetSystemTimerFn` and `/KillSystemTimerFn` (copied from TIRO; the two globals typed as far
+  pointers to them). The CRT function-pointer calls and the calls into the 32-bit segments stay
+  untyped.
+- **Names:** `frame_vector_deleting_dtor` `10a0:0000` and `_huge` `00cc` (INFERNO's names),
+  `mover_dtor` `9548`, the nine DirectionalPlayer overrides `6436–68be` (NOITE's
+  `directional_player_*`, same bodies in the same order).
+- **Tags:** 19 `review` notes: 12 resolved by the names above and `scene_object_unk18` (ENCAIXE's
+  slot: `drawDirtyTo` into the backdrop's second bitmap); 7 left with a one-line note (above).
+- **CRT data:** 34 globals named after NOITE's by the instruction that reads them (`DATA.md`).
+- `NearAdjustorThunks.java` rerun on the four blocks: 387 thunks, every name matching its target.
+- `game_handle_message`'s plate no longer carries the note on the old slot names.
 
 ## Scripts
 
 | Script | Use here |
 |---|---|
 | `NearAdjustorThunks.java` (`far`) | `10a0 0000 1e84 far`, `59ca 5a80`, `61d0 62a0`, `68d0 6ab0`; rerun after renaming |
+| `FarSlotSignatures.java` (`large`) | `10a0 defs large`, `10a0 calls large`, `10a0 site large <addr>=<Vtbl>\|/SetSystemTimerFn …` |
 | `CodeGapSweep.java` | every code segment, `create` |
 | `FarVtSlots.java` (new `large` mode) | `10a0 41f8 4384 large`, `5326 59ca`, `79ea 8482`, `869a 86be`, `8f9c 9038`, `99ec 9ca4` |
 | `DeadJumps.java` | `1010 … 10a0` |
 | `SaunaDeadBlock.java` (new) | `1068:0167-1068:01a5 1068:162b-1068:167e 1080:402f-1080:4034` |
 | `SaunaSpecInstall.java` (new) | `ghidra/cspec 1098:00f8`: the spec extensions and the chkstk fixup |
-| `CopyTypesFromProgram.java` | `/NOITE.EXE`, `/TIRO.EXE`, `/ENCAIXE.EXE` |
+| `CopyTypesFromProgram.java` | `/NOITE.EXE`, `/TIRO.EXE`, `/ENCAIXE.EXE`; `/TIRO.EXE SetSystemTimerFn KillSystemTimerFn`, `/NOITE.EXE CrtFILE` |
 | `RenameFunctions.java` | `zig-out/sauna/rn_p2*.tsv` |
 | `ExportFunctionOps.java` | op dumps of SAUNA, TIRO, NOITE, ENCAIXE for the matchers |
 

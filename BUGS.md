@@ -1864,3 +1864,142 @@ consistent code with a plausible intent.
 - **The `0x12` (`WM_QUIT`) case is dead:** 1068:4d87 posts the report, but `WM_QUIT` is never
   dispatched to a window procedure. Confidence 9.
 - **`WinMain` 1038:021a returns an uninitialised word,** as TIRO's. Confidence 9.
+
+---
+
+## SAUNA.EXE (the "Sauna Mista" Pac-Man minigame)
+
+Addresses are Ghidra `seg:off` in `/SAUNA.EXE`; the game is described in `docs/sauna/GAME.md`.
+`sauna_scene_handle_message` is 1080:32f7. The letter is P (for Pac-Man): S is SALGIN's. Left out
+as design: closing the window (End Task, or a Windows shutdown: the window has no system menu)
+forfeits, reported as a loss with −1000; the four ghosts share timer 0x11 and step together; an
+arrow's key-up does not stop Pacman and there is no turn buffering; eating a ghost stops Pacman;
+the ghosts chase only when aligned within a cell and otherwise turn at random; a cork is worth no
+points and a second one re-arms the 5-s power; the last life costs no −500 (the loss's −1000
+follows); `ROLHAS01.WAV` restarts on every `WM_PAINT`; the game runs on while inactive. Each is
+consistent code with a plausible intent. Left out as unreachable: the `WM_DESTROY` case has no
+guard against a second call, but the game sends it once and then quits (`app_exit` frees the game
+object, and a message after that would reach a freed object; no path to one is known).
+
+### P1. Only a move left or up meets the other actor; a move right or down passes through it
+- **Where:** `pacman_can_step` 1080:0874, `ghost_can_step` 1080:20fe; `pacman_occupy` 1080:0000,
+  `ghost_occupy` 1080:13be; `occupancy_grid_query_rect`.
+- **What the code does:** a step queries the 2×2 block of 16-px cells under the next hit box and
+  takes the object of the first occupied cell in row-major order; it is a meeting only if that
+  object is the other kind (a ghost for Pacman, Pacman for a ghost). An actor occupies a 2×3 block
+  of cells, and the next block of a step right or down starts with one of its own cells, so the
+  object found is the mover itself and anything in the other cells is ignored. A step left or up
+  scans cells it does not occupy first.
+- **Effect:** Pacman running right or down into a ghost does not touch it, nor does a ghost running
+  right or down into Pacman: a ghost behind Pacman going the same way never catches him, and a
+  powered Pacman cannot eat a ghost he chases rightward or downward. A head-on meeting is caught by
+  whichever of the two moves left or up.
+- **Confidence:** 9 (code); 8 (effect).
+- **Port:** not ported yet.
+
+### P2. An actor that moves clears the cells of any other actor on them
+- **Where:** `pacman_vacate` 1080:01c1, `ghost_vacate` 1080:157f; `pacman_occupy`,
+  `ghost_occupy`.
+- **What the code does:** occupy sets each cell's count to 1 and its object to the actor (the
+  engine default counts up); vacate sets the count to 0 and the object to NULL whoever owns the
+  cell. Every step vacates the old cells, so an actor leaving cells it shared with another (a ghost
+  through a ghost, or one that passed over Pacman by P1) empties the other's cells until that one
+  redraws or steps (its next tick, up to 55 ms).
+- **Effect:** for that tick the other actor is invisible to the collision test: a step into it
+  passes through. Occasional missed catches or missed ghost eats.
+- **Confidence:** 9 (code); 5 (how often it shows).
+- **Port:** not ported yet.
+
+### P3. A dot is eaten after Pacman has left it, so the win waits for a move
+- **Where:** `pacman_restore_background` 1080:0d05 (the dot test and the `SendMessage(WM_DESTROY,
+  0xffff)` at its end).
+- **What the code does:** `mover_place_at` calls it after setting the new position; it looks for a
+  dot in the cells of the position Pacman has just left (`prevX`/`prevY`), and tests
+  `g_dotsLeft == 0` only there.
+- **Effect:** a dot disappears, scores and sounds one step after Pacman passes over it; a dot where
+  he stops (against a wall) stays until he moves off, and when it is the last one the game is won
+  only then.
+- **Confidence:** 9 (code); 7 (that the old position was not meant).
+- **Port:** not ported yet.
+
+### P4. The power mode's start and end turn Pacman to face right
+- **Where:** `sauna_scene_handle_message`, the power start (1080:3324) and end (1080:3ee4), which
+  call `pacman_refresh_power_strip` 1080:05ef with dir 2.
+- **What the code does:** `pacman_refresh_power_strip` sets the strip `g_powerStrip + (dir == 2 ?
+  1 : 2)`; both callers pass 2, so the strip is always the right-facing one, whatever Pacman's
+  heading. The move tick never sets the strip.
+- **Effect:** when a cork is eaten and when the 5 s end, Pacman faces right (powered or normal
+  picture) while he runs left, up or down, until the next arrow.
+- **Confidence:** 9 (code); 8 (effect).
+- **Port:** not ported yet.
+
+### P5. A click shows Pacman facing up or right instead of the way he walks
+- **Where:** `pacman_move_to` 1080:074a (reached from `game_handle_message`'s `WM_LBUTTONDOWN`).
+- **What the code does:** the strip is `g_powerStrip + 2` when the target is left of Pacman, else
+  `g_powerStrip + 1`: NOITE's DirectionalPlayer numbering (2 walk left, 1 walk right). SAUNA's
+  strips are left 0, right 1, up 2, down 3.
+- **Effect:** a click to the left walks Pacman left showing the up picture; any other click, up and
+  down included, shows the right picture.
+- **Confidence:** 9 (code); 8 (effect).
+- **Port:** not ported yet.
+
+### P6. The ghosts keep moving while Pacman dies, and can take another life
+- **Where:** `sauna_scene_handle_message`, the ghosts' timer arm (1080:3b1c, no `g_pacmanDying`
+  test) and the death sequence (1080:379e–3a5a); `ghost_can_step` 1080:20fe;
+  `sauna_scene_send_ghosts_home` 1080:2404.
+- **What the code does:** a catch sends the ghosts home without stopping them and starts the
+  0.7-s death strip; Pacman stays at the spot, his cells occupied (the death ticks redraw him). The
+  ghosts' arm keeps stepping them, and a ghost that meets the dying Pacman calls `sauna_lose_life`
+  again.
+- **Effect:** a catch near the ghost house can cost two lives (−1000), or end the game, for one
+  death.
+- **Confidence:** 9 (code); 6 (how often: the ghosts walk back along their old lines, toward the
+  spot).
+- **Port:** not ported yet.
+
+### P7. An arrow during the death restarts it, and Pacman reappears running
+- **Where:** `sauna_scene_handle_message`, `WM_KEYDOWN` (1080:35b8, no `g_pacmanDying` test) and
+  the death sequence (1080:37b7); `pacman_move_to_edge_h` 1080:037e, `pacman_move_to_edge_v`
+  1080:0468.
+- **What the code does:** the arrow's `moveToEdge` stops the animation, sets a walking strip and
+  starts a move (moving = 1, timer 0x10 at 55 ms). The next death tick finds a strip below 8 and
+  starts the death over (strip 8, 110 ms, 5 more frames); the respawn does not clear `moving`.
+- **Effect:** each new arrow press while dying restarts the 0.7-s death strip, which leaves the
+  ghosts more time (P6); at the respawn Pacman runs off in that direction at once.
+- **Confidence:** 9 (code); 8 (effect).
+- **Port:** not ported yet.
+
+### P8. A score of 10000 or more shows a tenth of its value
+- **Where:** `sauna_draw_score` 1080:426e, `sauna_blit_score_box` 1080:4221.
+- **What the code does:** `" %04d"` of 10000 or more is six characters, drawn every 32 px from
+  x 460, so the last one lands at x 620, outside the 192-px box (416–608) that is restored and
+  copied to the window.
+- **Effect:** the box shows the first five characters (" 1010" for 10100); the last digit appears
+  only when the window is repainted, and stays in the backdrop after the score drops below 10000.
+  One ghost eaten and no life lost reach it with 95 peanuts.
+- **Confidence:** 9 (code); 7 (effect).
+- **Port:** not ported yet.
+
+### Harmless (SAUNA)
+
+- **`pacman_stop_and_redraw_dc` 1080:0696 sets the power strip and then strip 0:**
+  `actor2d_stop_and_redraw_dc` resets it, so a powered Pacman would show the normal picture; no
+  game path calls the slot (`pacman_stop_and_redraw` 1080:06e5 has no caller). Confidence 8.
+- **The power mode starts on the next message:** `pacman_restore_background` sets
+  `g_powerStartPending`, and the handler's preamble does the picture swap and starts timer 10 on
+  the next message of any kind; timer 1 alone brings one within 50 ms. Confidence 8.
+- **After the losing `WM_DESTROY` the current message runs on with WaveMix closed:**
+  `sauna_lose_life` sends it and returns to the score redraw, `sauna_scene_send_ghosts_home` and
+  `g_pacmanDying`; the window quits right after. Confidence 7.
+- **A right click on Pacman or a ghost runs its `playOnce`** (`game_handle_message`, the
+  `isAnimation` arm): the ticks of both classes ignore the play-once fields, so it only re-arms the
+  actor's timer with its 55-ms period (also during Pacman's 110-ms death strip). Confidence 7.
+- **The control panel is built at y 592, below the window:** a mouse move below y 440 starts its
+  slide, whose timer 0xc the handler swallows, so it never moves. Nothing shows. Confidence 8.
+- **Dead code:** `game_handle_message`'s `WM_KEYDOWN`, `WM_KEYUP` and `WM_SYSTIMER` arms (the
+  scene handler answers those messages; the arrow arm would dereference `asDirectionalPlayer()`,
+  NULL for Pacman), the DirectionalPlayer, Exit, Player and Portable methods, the second draw list.
+  Confidence 9.
+- **`Player2D.lives` and `score` are never used** (the game keeps `g_lives` and `g_score`), as in
+  TIRO. Confidence 9.
+- **`WinMain` 1058:021a returns an uninitialised word,** as TIRO's. Confidence 9.
