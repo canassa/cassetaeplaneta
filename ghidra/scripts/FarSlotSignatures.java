@@ -29,6 +29,9 @@ import java.util.*;
 public class FarSlotSignatures extends GhidraScript {
 	boolean dry;
 	DataTypeManager dtm;
+	// category of the class and vtable structs: /tiro, or (another twin built from TIRO's sources)
+	// the category that holds SceneObjectVtbl
+	String cat = "/tiro/";
 
 	public void run() throws Exception {
 		String[] a = getScriptArgs();
@@ -36,6 +39,11 @@ public class FarSlotSignatures extends GhidraScript {
 		String mode = a[1];
 		dry = a.length > 2 && a[2].equals("dry");
 		dtm = currentProgram.getDataTypeManager();
+		if (dtm.getCategory(new CategoryPath("/tiro")) == null) {
+			List<DataType> l = new ArrayList<>();
+			dtm.findDataTypes("SceneObjectVtbl", l);
+			for (DataType d : l) if (d instanceof Structure) cat = d.getCategoryPath().getPath() + "/";
+		}
 		if (mode.equals("defs")) defs(seg);
 		else if (mode.equals("site")) sites(a);
 		else calls();
@@ -140,7 +148,7 @@ public class FarSlotSignatures extends GhidraScript {
 			ParameterDefinition[] pd = new ParameterDefinition[ps.length];
 			for (int i = 0; i < ps.length; i++) pd[i] = new ParameterDefinitionImpl(ps[i].getName(), ps[i].getDataType(), null);
 			// `this` is the vtable's own class
-			DataType cls = dtm.getDataType("/tiro/" + owner.get(fd));
+			DataType cls = dtm.getDataType(cat + owner.get(fd));
 			if (ps.length > 0 && cls != null && !owner.get(fd).equals("Object3D"))
 				pd[0] = new ParameterDefinitionImpl("this", new PointerDataType(cls, 2, dtm), null);
 			String before = fd.getPrototypeString(true);
@@ -190,7 +198,7 @@ public class FarSlotSignatures extends GhidraScript {
 	}
 
 	FunctionDefinition fieldOf(String vt, int k) {
-		Structure st = (Structure) dtm.getDataType("/tiro/" + vt);
+		Structure st = (Structure) dtm.getDataType(cat + vt);
 		if (st == null) return null;
 		DataTypeComponent c = st.getComponentAt(k);
 		if (c == null || c.getOffset() != k) return null;
