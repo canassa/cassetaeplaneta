@@ -202,6 +202,12 @@ pub const Sim = struct {
     // MCI
     devices: std.ArrayList(MciDevice) = .empty,
     next_device: p.Device = 1,
+    /// The sequencer / waveaudio device whose sound the synthesizer / the
+    /// MCI wave voice holds (0: none). With two programs each has its own
+    /// `musica`: pausing, stopping or closing one leaves the other's sound
+    /// alone, and a device that lost the synthesizer restarts its song.
+    synth_dev: p.Device = 0,
+    wave_dev: p.Device = 0,
     videos: std.ArrayList(Video) = .empty,
     mix: mixer.Mixer = .{},
     /// Input that skipped a video: its release (and the button's bit in
@@ -723,15 +729,47 @@ pub const Sim = struct {
                 // The synth plays from the start only; a resume after
                 // "pause" restarts the song in sound, not in timing.
                 syn.play();
+                s.synth_dev = d.id;
             },
-            .waveaudio => if (d.pcm) |pcm| s.mix.mci_wave.start(pcm, 0),
+            .waveaudio => if (d.pcm) |pcm| {
+                s.mix.mci_wave.start(pcm, 0);
+                s.wave_dev = d.id;
+            },
         }
     }
 
+    /// Whether `d`'s sound is the one in its voice (see `synth_dev`).
+    fn ownsAudio(s: *Sim, d: *const MciDevice) bool {
+        return d.id == switch (d.kind) {
+            .sequencer => s.synth_dev,
+            .waveaudio => s.wave_dev,
+        };
+    }
+
     fn stopAudio(s: *Sim, d: *MciDevice) void {
+        if (!s.ownsAudio(d)) return;
         switch (d.kind) {
-            .sequencer => if (s.mix.synth) |syn| syn.stop(),
-            .waveaudio => s.mix.mci_wave.stop(),
+            .sequencer => {
+                if (s.mix.synth) |syn| syn.stop();
+                s.synth_dev = 0;
+            },
+            .waveaudio => {
+                s.mix.mci_wave.stop();
+                s.wave_dev = 0;
+            },
+        }
+    }
+
+    /// Pause (`on` false) or resume the device's sound; a resume of a
+    /// device whose voice another one took restarts its sound.
+    fn pauseAudio(s: *Sim, d: *MciDevice, on: bool) void {
+        if (!s.ownsAudio(d)) {
+            if (on) s.startAudio(d);
+            return;
+        }
+        switch (d.kind) {
+            .sequencer => if (s.mix.synth) |syn| if (on) syn.play() else syn.pause(),
+            .waveaudio => s.mix.mci_wave.paused = !on,
         }
     }
 
@@ -804,9 +842,7 @@ pub const Sim = struct {
             const resume_audio = d.playing or d.pos_ms != 0;
             d.playing = true;
             d.since = now;
-            if (!resume_audio or from_zero) s.startAudio(d) else if (d.kind == .sequencer) {
-                if (s.mix.synth) |syn| syn.play();
-            } else s.mix.mci_wave.paused = false;
+            if (!resume_audio or from_zero) s.startAudio(d) else s.pauseAudio(d, true);
             if (notify) {
                 d.notify = true;
                 s.schedule(now +% (d.length_ms - d.pos_ms), .{ .message = .{ .id = wm.mm_mcinotify, .wparam = mci_notify_successful, .lparam = d.id } });
@@ -818,20 +854,14 @@ pub const Sim = struct {
             d.pos_ms = position(d, now);
             d.playing = false;
             if (std.ascii.eqlIgnoreCase(verb, "stop") and d.kind == .waveaudio) d.pos_ms = 0;
-            switch (d.kind) {
-                .sequencer => if (s.mix.synth) |syn| syn.pause(),
-                .waveaudio => s.mix.mci_wave.paused = true,
-            }
+            s.pauseAudio(d, false);
             return 0;
         }
         if (std.ascii.eqlIgnoreCase(verb, "resume")) {
             if (!d.playing) {
                 d.playing = true;
                 d.since = now;
-                switch (d.kind) {
-                    .sequencer => if (s.mix.synth) |syn| syn.play(),
-                    .waveaudio => s.mix.mci_wave.paused = false,
-                }
+                s.pauseAudio(d, true);
             }
             return 0;
         }
