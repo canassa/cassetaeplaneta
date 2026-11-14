@@ -65,9 +65,11 @@ pub const tiro = @import("tiro/root.zig");
 pub const serial = @import("serial/root.zig");
 /// INV.EXE's port (src/inv/, docs/inv/DESIGN.md).
 pub const inv = @import("inv/root.zig");
+/// SALGIN.EXE's port (src/salgin/, docs/salgin/DESIGN.md).
+pub const salgin = @import("salgin/root.zig");
 /// The minigames ported: NOITE's WinExec runs them as tasks once `ready`,
 /// `--minigame NAME` runs one alone.
-pub const minigames = [_]*const platform.host.Program{ &encaixe.program, &tiro.program, &serial.program, &inv.program };
+pub const minigames = [_]*const platform.host.Program{ &encaixe.program, &tiro.program, &serial.program, &inv.program, &salgin.program };
 pub const units = @import("units.zig");
 const one_button = @import("one_button.zig");
 const Game = core.game.Game;
@@ -370,6 +372,7 @@ test {
     _ = @import("units.zig");
     _ = encaixe;
     _ = tiro;
+    _ = salgin;
     _ = inv;
     _ = serial;
     _ = one_button;
