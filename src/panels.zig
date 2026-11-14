@@ -122,6 +122,10 @@ pub fn slide(g: *Game, obj: *Object, bd: *Backdrop, direction: i16) void {
     const up: i16 = if (direction == 4) 1 else 0;
     obj.panel.slideStepsLeft = frames.frameCount(obj) -% up;
     obj.curFrame = 0;
+    // B48: frame 0 is the closed panel; the first step of a slide down
+    // goes back to the open frame (prevFrame wraps), so until then any
+    // redraw of the panel cut the closed frame into the open one.
+    if (g.fixes.panel_close_keeps_open_frame and direction == 8) obj.curFrame = frames.curStrip(obj).count -% 1;
     tick.play(g, obj, bd);
 }
 

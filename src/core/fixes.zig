@@ -148,6 +148,10 @@ pub const Fixes = struct {
     /// B46: a scene change clears the player's off-screen walking, which
     /// the party-street arrivals turn on and nothing turns off.
     player_offscreen_per_scene: bool = false,
+    /// B48: the control panel's slide down keeps its open frame until the
+    /// first step, so a redraw before that step (the player's idle tick, a
+    /// walk starting) no longer cuts the closed frame into the open panel.
+    panel_close_keeps_open_frame: bool = false,
     /// B44: the pope's closet places a picked item only when the pick is
     /// new, so closing a drawer without a pick no longer drops the last one
     /// again (which kept it in the closet, over the drawers, for good).

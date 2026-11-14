@@ -760,6 +760,24 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   before slot 0's lines.
 - **Confidence:** 9 (disc data, code, port repro).
 
+### B48. The closing control panel is cut away around the player for a tick
+- **Where:** `game_handle_message` 1018:0000, WM_MOUSEMOVE above y 340: `control_panel_slide` 1018:2250 sets the
+  frame to 0 (the closed panel) for either direction, then the panel is drawn into the backdrop. Going down,
+  the first `control_panel_tick` 1018:22cc step (`animated3d_prev_frame` 1010:362c) wraps back to the last,
+  open frame; the panel's timer gives that step 100 ms later.
+- **What the code does:** until that step the panel's frame is the closed one while the screen shows it open.
+  A redraw that erases an object over the panel and flushes in between, as WM_SYSTIMER's player idle tick
+  (1018:04e5, panel 0616, flush 065a), draws only the closed frame's bottom strip back in that rectangle.
+- **Effect:** with the player behind the open panel (feet below ~400: 1fquarbo, 1fcorred, 1fgarage…), the panel
+  starts closing with his whole frame drawn over it, and the scene around him, down to the closed strip, for
+  up to 100 ms. Timing: the idle tick must come before the first step (on the web, almost always). In the
+  Corrigida version B35's fix (the strip change redraws the player at once) does it on every walk that closes
+  the panel: each one-button tap in the scene.
+- **Port:** reproduced (`--scene 1fquarbo`: a walk down, the panel opened, a move up 30 ms off the timers'
+  phase); `Fixes.panel_close_keeps_open_frame` starts the slide down on the open frame and keeps it for the
+  first step (same steps, same timing). `tools/web/test.py` checks the frames the page presents.
+- **Confidence:** 9 (code, port repro, web frames).
+
 ---
 
 ## Harmless: wrong paths rescued by the wave fallback

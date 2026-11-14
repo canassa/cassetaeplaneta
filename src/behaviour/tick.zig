@@ -189,9 +189,13 @@ fn controlPanelTick(g: *Game, obj: *Object, bd: *Backdrop) void {
         obj.anim.running = 0;
         return;
     }
+    // B48: the slide down already shows the frame its first step goes to.
+    const first = p.slideStepsLeft == frames.frameCount(obj);
     p.slideStepsLeft -%= 1;
     if (p.slideDir == 4) {
         _ = animation.nextFrame(g, obj);
+    } else if (g.fixes.panel_close_keeps_open_frame and first) {
+        // stays on the open frame
     } else {
         _ = animation.prevFrame(g, obj);
     }

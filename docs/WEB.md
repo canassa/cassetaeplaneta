@@ -255,7 +255,9 @@ centred with its aspect ratio, and the buttons stay off the game unless
 the letterbox has no room (`window-WxH.png`); then the version button
 reloads into
 the Corrigida version, which loads every file from Cache Storage, has
-every fix on in the wasm and is remembered; a drag there shows the item.
+every fix on in the wasm and is remembered; a drag there shows the item,
+and with the player behind the open panel no frame the page presents
+cuts the panel as it starts closing (B48, `panel-close.png`).
 Then a phone-sized touch context (`has_touch`): the one-button control is
 on by default and reaches the wasm, and with `touchscreen.tap` only the
 videos are skipped, a new game starts, the drawer gives the wallet, a

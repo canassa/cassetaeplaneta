@@ -24,7 +24,10 @@ button reloads into the Corrigida version: the loader shows it chosen, the load 
 and the wasm has every fix on; a new game there, to the corridor with
 the wallet (as in tools/play/full.input), drags the wallet out of the
 panel: its icon follows the pointer (drag.png) and is gone once it is
-released over the panel (drag-released.png). On a phone-sized touch
+released over the panel (drag-released.png); with the player walked down
+behind the open panel, three closes each keep the panel whole in every
+frame the page presents until the first step of the slide (B48,
+panel-close.png). On a phone-sized touch
 screen (a new context, has_touch): the loader has "Controle com um botão"
 on by default and the wasm gets it; with taps only, the opening video is
 skipped, a new game starts, the desk drawer opens and gives the wallet,
@@ -260,6 +263,57 @@ def main():
             n += changed(panel_before, region(300, 430))
             check(n == 0, f"Corrigida: released on the panel, the icon is gone ({n} pixels differ)")
             check(not errors, "Corrigida: drag, no page errors")
+            panel_close_whole()
+
+        def panel_close_whole():
+            """Corrigida (B48): with the player standing behind the open
+            panel, every frame the page presents while the panel starts
+            sliding closed keeps the panel whole: until its first step
+            (which changes the whole width) nothing changes in its paper
+            rows 365-395 (above the slots). Three closes: the cut needed
+            the player's idle tick to come before the first step."""
+            click(200, 400)  # a walk down, behind the panel
+            time.sleep(4)
+            page.evaluate("""() => {
+                const ctx = document.getElementById("screen").getContext("2d");
+                const put = CanvasRenderingContext2D.prototype.putImageData;
+                window.__rows = [];
+                ctx.putImageData = function (img, ...rest) {
+                    window.__rows.push(img.data.slice(365 * 640 * 4, 396 * 640 * 4));
+                    return put.call(this, img, ...rest);
+                };
+            }""")
+            results = []
+            for i in range(3):
+                page.mouse.move(*at(320, 452))  # open
+                time.sleep(1.5)
+                if i == 0:
+                    shot("panel-close.png")
+                page.evaluate("window.__rows = []")
+                page.mouse.move(*at(320, 200))  # close
+                time.sleep(1.5)
+                results.append(page.evaluate("""() => {
+                    const f = window.__rows, cuts = [];
+                    for (let i = 1; i < f.length; i++) {
+                        let lo = 640, hi = -1;
+                        for (let k = 0; k < f[i].length; k += 4) {
+                            if (f[i][k] !== f[i - 1][k] || f[i][k + 1] !== f[i - 1][k + 1]
+                                || f[i][k + 2] !== f[i - 1][k + 2]) {
+                                const x = (k / 4) % 640;
+                                lo = Math.min(lo, x);
+                                hi = Math.max(hi, x);
+                            }
+                        }
+                        if (hi < 0) continue;
+                        if (lo < 60 && hi > 580) return {frames: f.length, slid: true, cuts};
+                        cuts.push([i, lo, hi]);
+                    }
+                    return {frames: f.length, slid: false, cuts};
+                }"""))
+            page.evaluate('delete document.getElementById("screen").getContext("2d").putImageData')
+            check(all(r["slid"] and not r["cuts"] for r in results),
+                  "Corrigida: the panel slides closed over the player whole, three times"
+                  f" (frames, cuts before the first step: {[(r['frames'], r['cuts']) for r in results]})")
 
         def one_button_touch():
             """A touch screen: the one-button mode by default, taps only."""
