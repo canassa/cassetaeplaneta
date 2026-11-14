@@ -347,6 +347,35 @@ pub const Fixes = struct {
     /// X11: the walls test the position after the step and the recoil stops
     /// at x 0: the fighter stays within x 0-400.
     xilindro_fighter_stays_on_screen: bool = false,
+    // ---- SAUNA.EXE (BUGS.md P1–P8). The src/sauna/ units port each bug as
+    // it is and keep the fix only behind its flag. ----
+    /// P1: a step's meeting test looks past the mover's own cells: it finds
+    /// the other kind (a ghost for Pacman, Pacman for a ghost) in any cell
+    /// of the next position, so a move right or down meets too.
+    sauna_meet_any_direction: bool = false,
+    /// P2: an actor's vacate clears only the cells it owns, and the cells
+    /// of another actor it leaves are marked for that actor again, so no
+    /// actor goes missing from the grid when another passes over it.
+    sauna_vacate_own_cells: bool = false,
+    /// P3: a dot is eaten in the cells of the position Pacman steps to, not
+    /// the one he left, and the win comes with the last dot. A choice until
+    /// the owner says (`choices`).
+    sauna_eat_on_arrival: bool = false,
+    /// P4: the power mode's start and end keep Pacman's heading (the strip
+    /// of his current direction, powered or not) instead of facing right.
+    sauna_power_keeps_heading: bool = false,
+    /// P5: a click shows Pacman facing the way he walks (left, right, up or
+    /// down, by the larger leg of the line) in SAUNA's strip order.
+    sauna_click_faces_walk: bool = false,
+    /// P6: a ghost meeting Pacman while he dies costs no life (the ghosts
+    /// keep walking; only the first catch counts).
+    sauna_no_catch_while_dying: bool = false,
+    /// P7: the arrows do nothing while Pacman dies, so the death strip
+    /// plays once and he reappears standing.
+    sauna_no_arrows_while_dying: bool = false,
+    /// P8: a score of five digits is drawn one character to the left, so
+    /// all six characters fit the 192-px box that is restored and blitted.
+    sauna_score_fits_box: bool = false,
     /// U1: draw the status-bar text.
     status_bar_text: bool = false,
     /// `ini_fatal_error` ("Erro Fatal!") quits (`error.Fatal`) instead of
@@ -355,7 +384,7 @@ pub const Fixes = struct {
 
     /// Flags left out of `all` (`--fix all`, the web build's "Corrigida"
     /// version), e.g. the hall-door reshuffle.
-    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit", "serial_lane2_own_timer", "salgin_opponent_damage_table", "salgin_block_holds", "salgin_insert_locked", "salgin_weak_reaction_by_energy", "salgin_banner_shown", "xilindro_block_holds", "xilindro_insert_locked", "xilindro_banner_shown" };
+    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit", "serial_lane2_own_timer", "sauna_eat_on_arrival", "salgin_opponent_damage_table", "salgin_block_holds", "salgin_insert_locked", "salgin_weak_reaction_by_energy", "salgin_banner_shown", "xilindro_block_holds", "xilindro_insert_locked", "xilindro_banner_shown" };
 
     /// `--fix all`: every flag but the `choices`.
     pub fn all() Fixes {

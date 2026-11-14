@@ -1,0 +1,24 @@
+# SAUNA's non-SceneObject vtable slot owners (docs/sauna/DESIGN.md "Other vtables")
+# and its SceneObject type-test slots; read by `noite -p sauna unit dep infer`.
+# vtable	slots	unit	(slots: hex, `*` = all, `a-b` range, `a,b` list; a later row overrides)
+Object3DVtbl	0-7	space3d
+AnimationVtbl	*	animation
+ControlPanelVtbl	0-5	animation
+ControlPanelVtbl	6-d	panels
+MoverVtbl	0	movement
+PacmanVtbl	0	movement
+PacmanVtbl	1	animation
+GhostVtbl	0	movement
+GhostVtbl	1,2	ghost
+GameVtbl	0	game_input
+GameVtbl	1-6	game
+SceneVtbl	*	scene
+SceneVtbl	0,5,7	maze
+SaunaSceneVtbl	*	scene
+SaunaSceneVtbl	0,5,7	maze
+SaunaSceneVtbl	10	ghost
+BackdropVtbl	*	backdrop
+GridBackdropVtbl	*	backdrop
+ConditionVtbl	*	game
+FrameVtbl	0	object_create
+type_test	40-53,59,5a,5d,5f,60
