@@ -22,6 +22,7 @@ const occupancy = @import("../behaviour/occupancy.zig");
 const movement = @import("../behaviour/movement.zig");
 const object = @import("../core/object.zig");
 const report_json = @import("report.zig");
+const Host = @import("host.zig").Host;
 
 pub const Options = struct {
     input: ?[]const u8 = null,
@@ -55,6 +56,10 @@ pub const Harness = struct {
     sdl: ?*@import("sdl.zig").Sdl = null,
     /// The offer check (`watchOffers`).
     offer: OfferWatch = .{},
+    /// The programs (`host.zig`): scripted input goes to the active
+    /// window's program, dumps show the window on top, `result` reads the
+    /// minigames' results.
+    host: ?*Host = null,
 
     pub fn init(gpa: std.mem.Allocator, io: std.Io, opts: Options, assets_dir: []const u8) !Harness {
         var h: Harness = .{ .gpa = gpa, .io = io, .opts = opts, .assets_dir = assets_dir };
@@ -115,8 +120,11 @@ pub const Harness = struct {
             switch (a) {
                 .input => |m| {
                     if (m.id == msg.wm.rbuttondown or m.id == msg.wm.lbuttondown) h.offer.clicked = true;
-                    if (g.plat.filterInput(m)) |in| g.queue.postInput(in);
+                    if (h.otherActive()) {
+                        h.host.?.input(m);
+                    } else if (g.plat.filterInput(m)) |in| g.queue.postInput(in);
                 },
+                .result => |r| h.checkResult(now, r),
                 .dump => |name| h.dump(g, name),
                 .scene => |j| h.jump(g, j),
                 .log => |text| std.debug.print("[{d}] log: {s}\n", .{ now, text }),
@@ -154,6 +162,69 @@ pub const Harness = struct {
         return did;
     }
 
+    /// Another program's window has the focus (a real minigame NOITE
+    /// started): input goes there.
+    fn otherActive(h: *const Harness) bool {
+        const hs = h.host orelse return false;
+        return !hs.alone() and hs.active != 0;
+    }
+
+    /// `result`: the last minigame result against `r`.
+    fn checkResult(h: *Harness, now: u32, r: script.ResultCheck) void {
+        const items = if (h.host) |hs| hs.results.items else &.{};
+        const last: ?@import("host.zig").Result = if (items.len > 0) items[items.len - 1] else null;
+        const ok = switch (r.want) {
+            .none => last == null,
+            .won, .lost => if (last) |l| l.won == (r.want == .won) and (r.score == null or r.score.? == l.score) else false,
+        };
+        if (last) |l| {
+            if (ok) {
+                if (h.opts.verbose) std.debug.print("[{d}] result {t}: ok ({s}, score {d})\n", .{ now, r.want, if (l.won) "won" else "lost", l.score });
+            } else std.debug.print("[{d}] result {t}: FAILED, the minigame {s} (score {d})\n", .{ now, r.want, if (l.won) "won" else "lost", l.score });
+        } else if (ok) {
+            if (h.opts.verbose) std.debug.print("[{d}] result none: ok\n", .{now});
+        } else std.debug.print("[{d}] result {t}: FAILED, no minigame result\n", .{ now, r.want });
+        if (!ok) h.failed = true;
+    }
+
+    /// `step` for a minigame run alone: the program-neutral commands
+    /// (input to the active window, dump, log, focus, freeze, result,
+    /// quit). True if it did anything; `quit` sets `quit.*`.
+    pub fn stepAlone(h: *Harness, hs: *Host, quit: *bool) bool {
+        const now = hs.machine.ticks();
+        var did = false;
+        if (h.opts.dump_dir != null and h.opts.dump_every != 0 and now >= h.next_dump) {
+            h.dumpScreen(hs.shownScreen(), now, "");
+            while (h.next_dump <= now) h.next_dump += h.opts.dump_every;
+        }
+        h.now = now;
+        while (h.script.due(now, "")) |a| {
+            did = true;
+            switch (a) {
+                .input => |m| hs.input(m),
+                .dump => |name| h.dumpScreen(hs.shownScreen(), now, name),
+                .log => |text| std.debug.print("[{d}] log: {s}\n", .{ now, text }),
+                .focus => |on| hs.focus(on),
+                .freeze => |ms| {
+                    std.debug.print("[{d}] freeze {d} ms\n", .{ now, ms });
+                    hs.machine.freeze(ms);
+                    return true;
+                },
+                .result => |r| h.checkResult(now, r),
+                .quit => {
+                    quit.* = true;
+                    return true;
+                },
+                else => {
+                    std.debug.print("[{d}] {t}: needs NOITE (not with a minigame alone)\n", .{ now, a });
+                    h.failed = true;
+                },
+            }
+            if (a == .input) break;
+        }
+        return did;
+    }
+
     pub fn noteScene(h: *Harness, g: *Game) void {
         const s = g.scene orelse return;
         if (std.mem.eql(u8, &s.name, &h.last_scene)) return;
@@ -175,7 +246,8 @@ pub const Harness = struct {
         else
             std.fmt.bufPrint(&path_buf, "{s}/{d:0>4}-{d:0>7}.{s}", .{ dir, h.dumps, g.plat.ticks(), ext })) catch return;
         h.dumps += 1;
-        writeScreen(h.gpa, h.io, g.plat.screen(), path, h.opts.dump_bmp) catch |e| {
+        const scr = if (h.host) |hs| hs.shownScreen() else g.plat.screen();
+        writeScreen(h.gpa, h.io, scr, path, h.opts.dump_bmp) catch |e| {
             std.log.err("dump {s}: {t}", .{ path, e });
         };
         if (h.sdl) |s| {
@@ -192,6 +264,19 @@ pub const Harness = struct {
             const wpath = std.fmt.bufPrint(&wbuf, "{s}-window.png", .{path[0 .. path.len - 4]}) catch return;
             std.Io.Dir.cwd().writeFile(h.io, .{ .sub_path = wpath, .data = out.items }) catch |e| std.log.err("dump {s}: {t}", .{ wpath, e });
         }
+    }
+
+    /// `dump` of a minigame run alone: `scr` to `<dir>/<n>-<ticks>[-name].png`.
+    fn dumpScreen(h: *Harness, scr: *const p.Screen, now: u32, name: []const u8) void {
+        const dir = h.opts.dump_dir orelse return;
+        var path_buf: [512]u8 = undefined;
+        const ext = if (h.opts.dump_bmp) "bmp" else "png";
+        const path = (if (name.len > 0)
+            std.fmt.bufPrint(&path_buf, "{s}/{d:0>4}-{d:0>7}-{s}.{s}", .{ dir, h.dumps, now, name, ext })
+        else
+            std.fmt.bufPrint(&path_buf, "{s}/{d:0>4}-{d:0>7}.{s}", .{ dir, h.dumps, now, ext })) catch return;
+        h.dumps += 1;
+        writeScreen(h.gpa, h.io, scr, path, h.opts.dump_bmp) catch |e| std.log.err("dump {s}: {t}", .{ path, e });
     }
 
     /// Switches to an INI scene. Without flags: those of the first exit

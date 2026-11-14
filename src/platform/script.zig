@@ -38,7 +38,15 @@
 //!                       dispatches nothing (the web page hidden, its frame
 //!                       loop stopped), then everything due fires at once;
 //!                       later relative times count from the end of it
+//!     result won|lost|none [SCORE]
+//!                       fail the run unless the last minigame result
+//!                       (0x40a, from a real minigame: `host.zig`) is a
+//!                       win / a loss (with that score delta), or none came
 //!     quit              end the run
+//!
+//! A minigame run alone (`--minigame encaixe`) takes the input, `dump`,
+//! `log`, `focus`, `freeze`, `result` and `quit` commands; the others need
+//! NOITE.
 //!
 //! Mouse commands keep track of the buttons held, as `wParam` (MK_*).
 
@@ -60,7 +68,14 @@ pub const Action = union(enum) {
     where: i16,
     focus: bool,
     freeze: u32,
+    result: ResultCheck,
     quit,
+};
+
+/// `result won|lost|none [SCORE]`.
+pub const ResultCheck = struct {
+    want: enum { won, lost, none },
+    score: ?i32 = null,
 };
 
 pub const Wait = struct { name: []const u8, max_ms: u32 };
@@ -253,6 +268,11 @@ pub fn parse(gpa: std.mem.Allocator, text: []u8) ParseError!Script {
             const ms = try num(u32, words.next(), line_no);
             try s.steps.append(gpa, .{ .at = t, .action = .{ .freeze = ms } });
             t += ms;
+        } else if (eq(u8, cmd, "result")) {
+            const w = words.next() orelse return bad(line_no, "missing won|lost|none");
+            var r: ResultCheck = .{ .want = if (eq(u8, w, "won")) .won else if (eq(u8, w, "lost")) .lost else if (eq(u8, w, "none")) .none else return bad(line_no, "want won, lost or none") };
+            if (words.peek() != null) r.score = try num(i32, words.next(), line_no);
+            try s.steps.append(gpa, .{ .at = t, .action = .{ .result = r } });
         } else if (eq(u8, cmd, "quit")) {
             try s.steps.append(gpa, .{ .at = t, .action = .quit });
         } else return bad(line_no, "unknown command");

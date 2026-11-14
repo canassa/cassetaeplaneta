@@ -69,6 +69,9 @@ pub const Key = enum(u16) { enter = 0x0d, escape = 0x1b, space = 0x20, left = 0x
 pub const Web = struct {
     sim: Sim,
     screen_buf: p.Screen = .{},
+    /// What `show` hands the page: another program's window (`presentScreen`),
+    /// or null for `screen_buf`.
+    shown_screen: ?*const p.Screen = null,
     rgba: [p.screen_width * p.screen_height * 4]u8 = undefined,
     /// The screen changed since the page last showed it.
     dirty: bool = true,
@@ -165,11 +168,12 @@ pub const Web = struct {
     pub fn show(w: *Web) void {
         if (!w.dirty) return;
         w.dirty = false;
+        const scr = w.shown_screen orelse &w.screen_buf;
         var lut: [256][4]u8 = undefined;
-        for (&lut, w.screen_buf.palette) |*l, c| l.* = .{ c.r, c.g, c.b, 255 };
-        for (w.screen_buf.pixels, 0..) |i, k| w.rgba[k * 4 ..][0..4].* = lut[i];
+        for (&lut, scr.palette) |*l, c| l.* = .{ c.r, c.g, c.b, 255 };
+        for (scr.pixels, 0..) |i, k| w.rgba[k * 4 ..][0..4].* = lut[i];
         const px: *[p.screen_width * p.screen_height][4]u8 = @ptrCast(&w.rgba);
-        w.screen_buf.drawOverlay([4]u8, px, p.screen_width, &lut);
+        scr.drawOverlay([4]u8, px, p.screen_width, &lut);
         js.js_present(&w.rgba);
     }
 
@@ -200,7 +204,17 @@ pub const Web = struct {
     /// Marks the screen for the end of the frame (`show`): the game
     /// presents after every message burst, the page shows once a frame.
     fn present(ptr: *anyopaque) void {
-        self(ptr).dirty = true;
+        const w = self(ptr);
+        w.shown_screen = null;
+        w.dirty = true;
+    }
+    fn presentScreen(ptr: *anyopaque, scr: ?*const p.Screen) void {
+        const w = self(ptr);
+        w.shown_screen = scr;
+        w.dirty = true;
+    }
+    fn windowHandle(_: *anyopaque) p.Hwnd {
+        return msg.main_window;
     }
     fn textOut(ptr: *anyopaque, surf: p.Surface, style: p.TextStyle, x: i16, y: i16, text: []const u8) bool {
         return self(ptr).sim.textOut(surf, style, x, y, text);
@@ -305,6 +319,7 @@ pub const Web = struct {
         .wait = wait,
         .screen = screen,
         .present = present,
+        .presentScreen = presentScreen,
         .textOut = textOut,
         .textExtent = textExtent,
         .open = open,
@@ -331,6 +346,7 @@ pub const Web = struct {
         .findWindow = findWindow,
         .postTo = postTo,
         .showMain = showMain,
+        .windowHandle = windowHandle,
         .messageBox = messageBox,
         .filterInput = filterInput,
         .freeze = freeze,

@@ -70,17 +70,20 @@ pub const Voice = struct {
     }
 };
 
+/// WaveMix sessions mixed at once: one per program (`platform.max_tasks`).
+pub const sessions = 4;
+
 pub const Mixer = struct {
-    /// The eight WaveMix channels.
-    channels: [8]Voice = @splat(.{}),
+    /// The eight WaveMix channels of each program's session.
+    channels: [sessions][8]Voice = @splat(@splat(.{})),
     /// MCI waveaudio devices (one alias at a time is enough for the game).
     mci_wave: Voice = .{},
     /// The playing AVI's soundtrack.
     video: Voice = .{},
     /// The MIDI synthesizer (owned by the backend; null = no music).
     synth: ?*midi.Synth = null,
-    /// WaveMixActivate(false) silences the WaveMix channels.
-    active: bool = true,
+    /// WaveMixActivate(false) silences the session's WaveMix channels.
+    active: [sessions]bool = @splat(true),
 
     /// Mixes `out.len / 2` stereo frames. No allocation.
     pub fn render(m: *Mixer, out: []i16) void {
@@ -92,7 +95,9 @@ pub const Mixer = struct {
             if (n == 0) break;
             const a = acc[0..n];
             @memset(a, 0);
-            if (m.active) for (&m.channels) |*v| v.mixInto(a);
+            for (&m.channels, m.active) |*bank, on| {
+                if (on) for (bank) |*v| v.mixInto(a);
+            }
             m.mci_wave.mixInto(a);
             m.video.mixInto(a);
             if (m.synth) |s| {
@@ -110,13 +115,13 @@ test "a mono 8-bit voice resamples to stereo and ends" {
     var data: [22]u8 = undefined; // 22 frames at 22050 Hz
     for (&data, 0..) |*d, i| d.* = if (i % 2 == 0) 128 + 64 else 128 - 64;
     var m: Mixer = .{};
-    m.channels[0].start(.{ .data = &data, .rate = 22050, .bits = 8, .channels = 1 }, 0);
+    m.channels[0][0].start(.{ .data = &data, .rate = 22050, .bits = 8, .channels = 1 }, 0);
     var out: [200]i16 = undefined;
     m.render(&out);
     try std.testing.expectEqual(@as(i16, 64 << 8), out[0]);
     try std.testing.expectEqual(out[0], out[1]); // mono → both sides
     try std.testing.expectEqual(@as(i16, 64 << 8), out[2]); // 2:1 upsampling
     try std.testing.expectEqual(@as(i16, -64 << 8), out[4]);
-    try std.testing.expect(m.channels[0].pcm == null); // 44 out frames < 100
+    try std.testing.expect(m.channels[0][0].pcm == null); // 44 out frames < 100
     try std.testing.expectEqual(@as(i16, 0), out[199]);
 }

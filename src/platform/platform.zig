@@ -27,6 +27,11 @@ pub const screen_height = 480;
 pub const client_width = 638;
 pub const client_height = 459;
 
+/// The programs that can run at once (`host.zig`): NOITE and the minigames
+/// it launches, or a minigame alone. Task 0 is the one `main` started.
+pub const max_tasks = 4;
+pub const TaskId = u8;
+
 /// An open file (the original's DOS handle).
 pub const File = u16;
 /// A wave opened through WaveMix.
@@ -292,6 +297,10 @@ pub const Platform = struct {
         screen: *const fn (*anyopaque) *Screen,
         /// Show `screen` (after the palette or pixels changed).
         present: *const fn (*anyopaque) void,
+        /// Not Windows (the host, `host.zig`): show another program's
+        /// window contents instead of `screen` from now on; `present` (and
+        /// a null here) go back to the backend's own screen.
+        presentScreen: *const fn (*anyopaque, scr: ?*const Screen) void,
         /// GDI TextOut with the system font (VGASYS.FON) into `s`; (x, y)
         /// is the top-left of the text. False when no font is available.
         textOut: *const fn (*anyopaque, s: Surface, style: TextStyle, x: i16, y: i16, text: []const u8) bool,
@@ -344,6 +353,10 @@ pub const Platform = struct {
         postTo: *const fn (*anyopaque, hwnd: Hwnd, m: Msg) bool,
         /// ShowWindow(main window, SW_SHOW / SW_HIDE).
         showMain: *const fn (*anyopaque, show: bool) void,
+        /// The program's main window handle (CreateWindow's result): what
+        /// it compares and hands to other programs. A backend alone has one
+        /// window, `msg.main_window`; the host gives each task its own.
+        windowHandle: *const fn (*anyopaque) Hwnd,
         // UI
         /// MessageBox(main window, text, caption, style): the button pressed.
         messageBox: *const fn (*anyopaque, caption: []const u8, text: []const u8, style: u16) i16,
@@ -373,6 +386,12 @@ pub const Platform = struct {
     }
     pub fn present(p: Platform) void {
         p.vtable.present(p.ptr);
+    }
+    pub fn presentScreen(p: Platform, scr: ?*const Screen) void {
+        p.vtable.presentScreen(p.ptr, scr);
+    }
+    pub fn windowHandle(p: Platform) Hwnd {
+        return p.vtable.windowHandle(p.ptr);
     }
     /// SelectPalette(hdc, hpalette) + RealizePalette(hdc) on the window DC:
     /// the screen palette becomes `colors` (the backdrop's colour table,

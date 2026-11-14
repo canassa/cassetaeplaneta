@@ -94,7 +94,19 @@ const OpenFile = struct {
     save_path: ?[]u8 = null,
 };
 
-const Pending = struct { due: u32, ev: p.Event };
+/// A notification due at `due` for the program `task` (the one whose call
+/// scheduled it: `Sim.task`).
+const Pending = struct { due: u32, ev: p.Event, task: p.TaskId = 0 };
+
+/// One program's WaveMix session (WAVEMIX.DLL keeps one per task; the
+/// session handle is the task + 1).
+const MixState = struct {
+    session: p.MixSession = 0,
+    channels_open: bool = false,
+    lru: [8]u32 = @splat(0),
+    /// The wave each channel was last given (0 = none, flushed or freed).
+    playing: [8]p.Wave = @splat(0),
+};
 
 const Window = struct {
     title: []const u8,
@@ -118,6 +130,8 @@ const DeviceKind = enum { sequencer, waveaudio };
 /// An MCI device opened with mciSendString.
 const MciDevice = struct {
     id: p.Device,
+    /// The program that opened it: MCI aliases are per task.
+    task: p.TaskId = 0,
     kind: DeviceKind,
     alias: [32]u8 = @splat(0),
     alias_len: usize = 0,
@@ -170,16 +184,21 @@ pub const Sim = struct {
     opts: Options,
     files: [max_files]?OpenFile = @splat(null),
     pending: std.ArrayList(Pending) = .empty,
+    /// The program making the current call (`host.zig` sets it before each
+    /// call it forwards; 0 without a host): it owns the MCI devices and the
+    /// WaveMix session the call uses, and the notifications it schedules.
+    task: p.TaskId = 0,
+    /// The program the event `poll` last returned is for.
+    polled_task: p.TaskId = 0,
+    /// Each program's own directory (`\ENCAIXE`): OpenFile looks there for
+    /// a relative name the current directory lacks. Null: none (NOITE).
+    task_dirs: [p.max_tasks]?[]const u8 = @splat(null),
     minigames: [4]?Window = @splat(null),
     font: ?Font = null,
     font_tried: bool = false,
-    // WaveMix
-    session: p.MixSession = 0,
-    channels_open: bool = false,
+    // WaveMix: one session per program; the waves are shared ids.
+    mixes: [p.max_tasks]MixState = @splat(.{}),
     waves: std.ArrayList(?WaveData) = .empty, // id = index + 1
-    lru: [8]u32 = @splat(0),
-    /// The wave each channel was last given (0 = none, flushed or freed).
-    playing: [8]p.Wave = @splat(0),
     // MCI
     devices: std.ArrayList(MciDevice) = .empty,
     next_device: p.Device = 1,
@@ -217,7 +236,9 @@ pub const Sim = struct {
             if (best == null or @as(i32, @bitCast(pe.due -% s.pending.items[best.?].due)) < 0) best = i;
         }
         const i = best orelse return null;
-        const ev = s.pending.orderedRemove(i).ev;
+        const pe = s.pending.orderedRemove(i);
+        const ev = pe.ev;
+        s.polled_task = pe.task;
         if (ev == .message and ev.message.id == wm.mm_mcinotify) s.mciNotified(ev.message, now);
         // The minigame reports and exits: its window is gone from now on
         // (the scenes poll FindWindow on their timers until then).
@@ -238,15 +259,15 @@ pub const Sim = struct {
     }
 
     fn schedule(s: *Sim, due: u32, ev: p.Event) void {
-        s.pending.append(s.gpa, .{ .due = due, .ev = ev }) catch {};
+        s.pending.append(s.gpa, .{ .due = due, .ev = ev, .task = s.task }) catch {};
     }
 
-    /// Drops the scheduled messages `pred` matches.
+    /// Drops the current program's scheduled messages `pred` matches.
     fn unschedule(s: *Sim, ctx: anytype, comptime pred: fn (@TypeOf(ctx), p.Msg) bool) void {
         var i: usize = 0;
         while (i < s.pending.items.len) {
             const ev = s.pending.items[i].ev;
-            if (ev == .message and pred(ctx, ev.message)) {
+            if (ev == .message and s.pending.items[i].task == s.task and pred(ctx, ev.message)) {
                 _ = s.pending.orderedRemove(i);
             } else i += 1;
         }
@@ -310,7 +331,19 @@ pub const Sim = struct {
         return out[0..n];
     }
 
+    /// The file `dos` names, read whole. A relative name the disc root
+    /// lacks is looked for in the current program's directory too
+    /// (`task_dirs`), as OpenFile searches the task's EXE directory.
     fn readHost(s: *Sim, dos: []const u8) ?[]u8 {
+        if (s.readHostAt(dos)) |b| return b;
+        const dir = s.task_dirs[s.task] orelse return null;
+        if (dos.len == 0 or dos[0] == '\\' or dos[0] == '/' or (dos.len >= 2 and dos[1] == ':')) return null;
+        var buf: [512]u8 = undefined;
+        const in_dir = std.fmt.bufPrint(&buf, "{s}\\{s}", .{ dir, dos }) catch return null;
+        return s.readHostAt(in_dir);
+    }
+
+    fn readHostAt(s: *Sim, dos: []const u8) ?[]u8 {
         if (s.opts.host_files) |h| {
             var kb: [512]u8 = undefined;
             return h.read(h.ctx, s.gpa, hostKey(&kb, dos) orelse return null);
@@ -509,44 +542,50 @@ pub const Sim = struct {
         return if (s.opts.wavemix_failure == .get_info) mmsyserr_error else 0;
     }
 
+    /// The calling program's session state.
+    fn mixOf(s: *Sim) *MixState {
+        return &s.mixes[s.task];
+    }
+
     pub fn mixConfigureInit(s: *Sim, channels: u16, rate_khz: u16) p.MixSession {
         _ = .{ channels, rate_khz }; // the mixer resamples whatever it gets
-        if (s.opts.wavemix_failure == .configure_init or s.session != 0) return 0;
-        s.session = 1;
-        return s.session;
+        const m = s.mixOf();
+        if (s.opts.wavemix_failure == .configure_init or m.session != 0) return 0;
+        m.session = @as(p.MixSession, s.task) + 1;
+        return m.session;
     }
 
     pub fn mixOpenChannel(s: *Sim, session: p.MixSession, channel: i16, flags: u32) u16 {
         _ = .{ channel, flags };
-        if (session == 0 or session != s.session) return mmsyserr_invalhandle;
+        if (session == 0 or session != s.mixOf().session) return mmsyserr_invalhandle;
         if (s.opts.wavemix_failure == .open_channel) return mmsyserr_error;
-        s.channels_open = true;
+        s.mixOf().channels_open = true;
         return 0;
     }
 
     pub fn mixCloseChannel(s: *Sim, session: p.MixSession, channel: i16, flags: u32) u16 {
-        if (session == 0 or session != s.session) return mmsyserr_invalhandle;
+        if (session == 0 or session != s.mixOf().session) return mmsyserr_invalhandle;
         _ = s.waveFlush(session, channel, flags);
-        if (flags & p.wmix.openall != 0) s.channels_open = false;
+        if (flags & p.wmix.openall != 0) s.mixOf().channels_open = false;
         return 0;
     }
 
     pub fn mixCloseSession(s: *Sim, session: p.MixSession) u16 {
-        if (session == 0 or session != s.session) return mmsyserr_invalhandle;
+        if (session == 0 or session != s.mixOf().session) return mmsyserr_invalhandle;
         _ = s.waveFlush(session, 0, p.wmix.all);
-        s.session = 0;
-        s.channels_open = false;
+        s.mixOf().session = 0;
+        s.mixOf().channels_open = false;
         return 0;
     }
 
     pub fn mixActivate(s: *Sim, session: p.MixSession, active: bool) u16 {
-        if (session == 0 or session != s.session) return mmsyserr_invalhandle;
-        s.mix.active = active;
+        if (session == 0 or session != s.mixOf().session) return mmsyserr_invalhandle;
+        s.mix.active[s.task] = active;
         return 0;
     }
 
     pub fn waveOpen(s: *Sim, session: p.MixSession, path: []const u8) ?p.Wave {
-        if (session == 0 or session != s.session) return null;
+        if (session == 0 or session != s.mixOf().session) return null;
         const bytes = s.readHost(path) orelse return null;
         const info = parseWave(bytes) orelse {
             s.gpa.free(bytes);
@@ -571,14 +610,14 @@ pub const Sim = struct {
     }
 
     pub fn waveFree(s: *Sim, session: p.MixSession, w: p.Wave) u16 {
-        if (session == 0 or session != s.session) return mmsyserr_invalhandle;
+        if (session == 0 or session != s.mixOf().session) return mmsyserr_invalhandle;
         const wd = s.wave(w) orelse return mmsyserr_invalhandle;
         // WAVEMIX.DLL's WaveMixFreeWave (seg 1:20d8) unlinks the wave from
         // every channel's play queue, the playing entry included, and posts
         // nothing: the wave stops and its MM_WOM_DONE never comes.
-        for (&s.playing, 0..) |*pw, c| if (pw.* == w) {
+        for (&s.mixOf().playing, 0..) |*pw, c| if (pw.* == w) {
             s.unschedule(ChannelMatch{ .channel = @intCast(c) }, ChannelMatch.matches);
-            s.mix.channels[c].stop();
+            s.mix.channels[s.task][c].stop();
             pw.* = 0;
         };
         if (wd.bytes) |b| s.gpa.free(b);
@@ -594,11 +633,11 @@ pub const Sim = struct {
     };
 
     pub fn wavePlay(s: *Sim, now: u32, params: p.PlayParams) u16 {
-        if (params.session == 0 or params.session != s.session or !s.channels_open) return mmsyserr_invalhandle;
+        if (params.session == 0 or params.session != s.mixOf().session or !s.mixOf().channels_open) return mmsyserr_invalhandle;
         const wd = s.wave(params.wave) orelse return mmsyserr_invalhandle;
         var ch: usize = undefined;
         if (params.use_lru_channel) {
-            ch = std.mem.indexOfMin(u32, &s.lru);
+            ch = std.mem.indexOfMin(u32, &s.mixOf().lru);
         } else {
             if (params.channel < 0 or params.channel >= 8) return mmsyserr_invalparam;
             ch = @intCast(params.channel);
@@ -606,9 +645,9 @@ pub const Sim = struct {
         // The game always clears the queue; queued play (no flag) is not
         // modelled: the new wave replaces the old one either way.
         s.unschedule(ChannelMatch{ .channel = @intCast(ch) }, ChannelMatch.matches);
-        s.lru[ch] = now +% 1;
-        s.playing[ch] = params.wave;
-        if (wd.pcm) |pcm| s.mix.channels[ch].start(pcm, params.loops) else s.mix.channels[ch].stop();
+        s.mixOf().lru[ch] = now +% 1;
+        s.mixOf().playing[ch] = params.wave;
+        if (wd.pcm) |pcm| s.mix.channels[s.task][ch].start(pcm, params.loops) else s.mix.channels[s.task][ch].stop();
         if (params.notify and params.loops != 0xffff) {
             const ms = wd.ms *% (@as(u32, params.loops) + 1);
             s.schedule(now +% ms, .{ .message = .{ .id = wm.mm_wom_done, .wparam = @intCast(ch) } });
@@ -617,12 +656,12 @@ pub const Sim = struct {
     }
 
     pub fn waveFlush(s: *Sim, session: p.MixSession, channel: i16, flags: u32) u16 {
-        if (session == 0 or session != s.session) return mmsyserr_invalhandle;
+        if (session == 0 or session != s.mixOf().session) return mmsyserr_invalhandle;
         for (0..8) |c| {
             if (flags & p.wmix.all == 0 and c != channel) continue;
             s.unschedule(ChannelMatch{ .channel = @intCast(c) }, ChannelMatch.matches);
-            s.mix.channels[c].stop();
-            s.playing[c] = 0;
+            s.mix.channels[s.task][c].stop();
+            s.mixOf().playing[c] = 0;
         }
         return 0;
     }
@@ -638,8 +677,9 @@ pub const Sim = struct {
     const mci_notify_superseded: u16 = 2;
     const mci_notify_aborted: u16 = 4;
 
+    /// The calling program's device `alias` (aliases are per task).
     fn device(s: *Sim, alias: []const u8) ?*MciDevice {
-        for (s.devices.items) |*d| if (std.ascii.eqlIgnoreCase(d.aliasName(), alias)) return d;
+        for (s.devices.items) |*d| if (d.task == s.task and std.ascii.eqlIgnoreCase(d.aliasName(), alias)) return d;
         return null;
     }
 
@@ -732,7 +772,7 @@ pub const Sim = struct {
             if (s.device(a) != null) return mcierr_duplicate_alias;
             const k = kind orelse return mcierr_invalid_device_name;
             const bytes = s.readHost(words[1]) orelse return mcierr_file_not_found;
-            var d: MciDevice = .{ .id = s.next_device, .kind = k, .length_ms = 0, .bytes = bytes };
+            var d: MciDevice = .{ .id = s.next_device, .task = s.task, .kind = k, .length_ms = 0, .bytes = bytes };
             switch (k) {
                 .sequencer => d.length_ms = midi.songLengthMs(s.gpa, bytes) catch {
                     s.gpa.free(bytes);

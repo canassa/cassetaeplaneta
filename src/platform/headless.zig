@@ -17,6 +17,9 @@ pub const Headless = struct {
     script: []const Scripted = &.{},
     next_script: usize = 0,
     screen_buf: p.Screen = .{},
+    /// Another program's window shown instead of `screen_buf`
+    /// (`presentScreen`); what the harness dumps.
+    shown_screen: ?*const p.Screen = null,
     presents: u32 = 0,
     shown: bool = true,
 
@@ -69,8 +72,21 @@ pub const Headless = struct {
     fn screen(ptr: *anyopaque) *p.Screen {
         return &self(ptr).screen_buf;
     }
+    /// The screen last presented (the harness's dumps).
+    pub fn presented(h: *const Headless) *const p.Screen {
+        return h.shown_screen orelse &h.screen_buf;
+    }
+    fn presentScreen(ptr: *anyopaque, scr: ?*const p.Screen) void {
+        const h = self(ptr);
+        h.shown_screen = scr;
+        h.presents += 1;
+    }
+    fn windowHandle(_: *anyopaque) p.Hwnd {
+        return @import("../core/msg.zig").main_window;
+    }
     fn present(ptr: *anyopaque) void {
         const h = self(ptr);
+        h.shown_screen = null;
         h.presents += 1;
         // Frame dumps: AVI frames that fell due (only with decode_video).
         _ = h.sim.videoUpdate(h.now, &h.screen_buf);
@@ -182,6 +198,7 @@ pub const Headless = struct {
         .wait = wait,
         .screen = screen,
         .present = present,
+        .presentScreen = presentScreen,
         .textOut = textOut,
         .textExtent = textExtent,
         .open = open,
@@ -208,6 +225,7 @@ pub const Headless = struct {
         .findWindow = findWindow,
         .postTo = postTo,
         .showMain = showMain,
+        .windowHandle = windowHandle,
         .messageBox = messageBox,
         .filterInput = filterInput,
         .freeze = freeze,

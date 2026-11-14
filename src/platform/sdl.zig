@@ -254,11 +254,17 @@ pub const Sdl = struct {
     }
 
     fn present(ptr: *anyopaque) void {
+        presentScreen(ptr, null);
+    }
+
+    /// `present` of another program's window (the host), or of `screen_buf`.
+    fn presentScreen(ptr: *anyopaque, shown: ?*const p.Screen) void {
         const s = self(ptr);
+        const scr = shown orelse &s.screen_buf;
         var lut: [256]u32 = undefined;
-        for (&lut, s.screen_buf.palette) |*l, col| l.* = @as(u32, col.r) << 16 | @as(u32, col.g) << 8 | col.b;
-        for (&s.rgb, s.screen_buf.pixels) |*o, i| o.* = lut[i];
-        s.screen_buf.drawOverlay(u32, &s.rgb, p.screen_width, &lut);
+        for (&lut, scr.palette) |*l, col| l.* = @as(u32, col.r) << 16 | @as(u32, col.g) << 8 | col.b;
+        for (&s.rgb, scr.pixels) |*o, i| o.* = lut[i];
+        scr.drawOverlay(u32, &s.rgb, p.screen_width, &lut);
         _ = c.SDL_UpdateTexture(s.texture, null, &s.rgb, p.screen_width * 4);
         _ = c.SDL_RenderClear(s.renderer);
         const client: c.FRect = .{ .x = 0, .y = 0, .w = p.client_width, .h = p.client_height };
@@ -364,6 +370,9 @@ pub const Sdl = struct {
         const s = self(ptr);
         _ = if (show) c.SDL_ShowWindow(s.window) else c.SDL_HideWindow(s.window);
     }
+    fn windowHandle(_: *anyopaque) p.Hwnd {
+        return @import("../core/msg.zig").main_window;
+    }
     fn messageBox(_: *anyopaque, caption: []const u8, text: []const u8, style: u16) i16 {
         std.log.warn("MessageBox [{s}] {s} (style {x})", .{ caption, text, style });
         return p.defaultButton(style);
@@ -385,6 +394,7 @@ pub const Sdl = struct {
         .wait = wait,
         .screen = screen,
         .present = present,
+        .presentScreen = presentScreen,
         .textOut = textOut,
         .textExtent = textExtent,
         .open = open,
@@ -411,6 +421,7 @@ pub const Sdl = struct {
         .findWindow = findWindow,
         .postTo = postTo,
         .showMain = showMain,
+        .windowHandle = windowHandle,
         .messageBox = messageBox,
         .filterInput = filterInput,
         .freeze = freeze,
