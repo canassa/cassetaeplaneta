@@ -63,15 +63,13 @@ pub const KeyRepeat = struct {
     period_ms: u32 = 33,
 
     /// Windows 3.1's defaults (WIN.INI KeyboardDelay / KeyboardSpeed),
-    /// taken as 500 ms and ~30 per second until confirmed.
+    /// 500 ms, then ~30 per second.
     pub const windows: KeyRepeat = .{};
     /// The SDL and web backends' default.
     pub const interactive_default: ?KeyRepeat = windows;
-    /// The headless default (`--key-repeat` overrides it): off, so the
-    /// scripts written before the repeats play as they did. Set it to
-    /// `windows` to repeat held keys in every run (docs/tiro/DESIGN.md
-    /// "Platform").
-    pub const headless_default: ?KeyRepeat = null;
+    /// The headless default (`--key-repeat` overrides it): the same as
+    /// the interactive one, so scripts see what a player does.
+    pub const headless_default: ?KeyRepeat = windows;
 
     /// `DELAY,PERIOD` (ms) or `off` (null).
     pub fn parse(text: []const u8) !?KeyRepeat {

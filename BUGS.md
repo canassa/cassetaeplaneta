@@ -1189,7 +1189,7 @@ Addresses are Ghidra `seg:off` in `/TIRO.EXE`; the game is described in `docs/ti
   The game can end with fewer shots than arrows.
 - **Confidence:** 9.
 - **Port:** ported and reproduced (unit `gallery`, src/tiro/); the fix is
-  `Fixes.tiro_arrow_spent_on_shot` (`--fix tiro_arrow_spent_on_shot`, a choice: left out of the Corrigida version (`Fixes.choices`) until the owner decides).
+  `Fixes.tiro_arrow_spent_on_shot` (`--fix tiro_arrow_spent_on_shot`; in Corrigida).
 
 ### T3. The end test `lives == 1` can be skipped, and then the game never ends
 - **Where:** `tiro_scene_handle_message` 1068:1790, the four target branches of `WM_SYSTIMER`
@@ -1214,7 +1214,7 @@ Addresses are Ghidra `seg:off` in `/TIRO.EXE`; the game is described in `docs/ti
   and the 16th is never fired: of the 16 arrows only 14 can score.
 - **Confidence:** 9 (code); 8 (effect).
 - **Port:** ported and reproduced (unit `gallery`, src/tiro/); the fix is
-  `Fixes.tiro_last_arrow_lands` (`--fix tiro_last_arrow_lands`, a choice: left out of the Corrigida version (`Fixes.choices`) until the owner decides).
+  `Fixes.tiro_last_arrow_lands` (`--fix tiro_last_arrow_lands`; in Corrigida).
 
 ### T5. A hit goes to the first target that overlaps the arrow in x, whichever row it is on
 - **Where:** `projectile_try_step` 1068:1448 (first stage) and `tiro_scene_handle_message` 1068:1790, arrow branch

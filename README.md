@@ -37,8 +37,8 @@ EXEs) are stubbed, and the ported ones too with `--minigame-stub`: they
 report a win, or a loss with `--minigame lose`; their window shows 1.5 s
 after `WinExec` and answers the game's hello after 100 ms
 (`--minigame-startup MS`, `--minigame-reply MS`). A held key repeats as on
-Windows (500 ms, then every 33 ms; `--key-repeat DELAY,PERIOD|off`): on in
-the window and the browser, off headless. A minigame gets every key
+Windows (500 ms, then every 33 ms; `--key-repeat DELAY,PERIOD|off`), in
+the window, the browser and headless runs. A minigame gets every key
 (TIRO: LEFT, RIGHT, SPACE); NOITE gets Enter, Esc and Space only to skip
 videos.
 Saves go to `save/` (`--save DIR`).

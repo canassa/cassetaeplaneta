@@ -18,8 +18,8 @@
 //! stubs the ported ones too (`platform/host.zig`).
 //!
 //! `--key-repeat` sets the auto-repeat of a held key (`Sim`, on the game's
-//! clock; ms): on by default in the SDL window, off headless
-//! (`sim.KeyRepeat`'s `interactive_default` / `headless_default`).
+//! clock; ms): on by default (`sim.KeyRepeat`'s `interactive_default` /
+//! `headless_default`).
 //!
 //! The loop is the original's `app_message_loop` (PeekMessage/WaitMessage)
 //! around the emulated Win16 queue: platform events become queued input or

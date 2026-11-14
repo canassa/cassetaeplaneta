@@ -5,9 +5,7 @@
 //! Choices, not bug fixes, left out of `all` (`choices`):
 //! `quit_on_ini_error` (quit where the original only shows a message box
 //! and carries on) and `hall_shuffle_each_visit` (the original shuffles the
-//! hall's doors once per run, by design); TIRO's `tiro_arrow_spent_on_shot`
-//! and `tiro_last_arrow_lands` (T2, T4: how many shots a game has) until
-//! the owner decides.
+//! hall's doors once per run, by design).
 //!
 //! Latent bugs (L*) are not flags: the port never executes them either,
 //! and where it would, it returns an error instead of corrupting memory (or,
@@ -218,14 +216,13 @@ pub const Fixes = struct {
     /// shot and no arrow spent per key repeat), as LEFT/RIGHT already do.
     tiro_space_latch: bool = false,
     /// T2: a SPACE press spends an arrow only when it fires (the arrow is
-    /// not in flight). A choice until the owner says (`choices`).
+    /// not in flight).
     tiro_arrow_spent_on_shot: bool = false,
     /// T3: the end test is `lives <= 1` instead of `== 1`, so presses
     /// between two target ticks cannot skip it and leave the game endless.
     tiro_end_test_at_most_one: bool = false,
     /// T4: the game ends when the arrows are used up and the last one has
-    /// stopped, so all 16 fly to the end and can score. A choice until the
-    /// owner says (`choices`).
+    /// stopped, so all 16 fly to the end and can score.
     tiro_last_arrow_lands: bool = false,
     /// T5: the second hit stage also needs the target's row (y ranges
     /// overlap) and counts touching edges, so a hit scores for the target
@@ -242,7 +239,7 @@ pub const Fixes = struct {
 
     /// Flags left out of `all` (`--fix all`, the web build's "Corrigida"
     /// version), e.g. the hall-door reshuffle.
-    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit", "tiro_arrow_spent_on_shot", "tiro_last_arrow_lands" };
+    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit" };
 
     /// `--fix all`: every flag but the `choices`.
     pub fn all() Fixes {

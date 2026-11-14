@@ -75,9 +75,7 @@ show`) is the specification; `GAME.md` (rules, protocol), `DATA.md`
   wrapper carries TIRO's `@orig` tag.
 - **Faithful first, the owner's rule.** T1–T6 are reproduced as they are
   by default. Each fix exists only behind its own `Fixes` flag (off by
-  default). Corrigida (`Fixes.all()`) takes the clear bug fixes; T2 and
-  T4 change how many shots a game has, so they sit in `Fixes.choices`
-  until the owner decides (questions at the end).
+  default). Corrigida (`Fixes.all()`) takes all six.
 - **Two programs in one process**, as ENCAIXE (`src/platform/host.zig`,
   docs/encaixe/DESIGN.md "Running two programs"): TIRO is a task with its
   own state, queue, timers, window and screen; the protocol runs through
@@ -310,9 +308,9 @@ DC's default font) draws on it and `tiro_blit_score_box` blits the box.
 | Bug | Flag | Unit | What the fix changes | In `all` |
 |---|---|---|---|---|
 | T1 SPACE latch never set | `tiro_space_latch` | gallery | the fire branch sets `g_keySpaceHeld` = 1 (WM_KEYUP already clears it): a held SPACE fires once, key repeats do nothing | yes |
-| T2 arrow spent on a press that fires nothing | `tiro_arrow_spent_on_shot` | gallery | `lives` is decremented only when the arrow is free and fires | **choice** (owner) |
+| T2 arrow spent on a press that fires nothing | `tiro_arrow_spent_on_shot` | gallery | `lives` is decremented only when the arrow is free and fires | yes |
 | T3 `lives == 1` end test skipped | `tiro_end_test_at_most_one` | gallery | the four target-tick tests are `lives <= 1`: the game always ends | yes |
-| T4 the 15th arrow cut off, 16th never fired | `tiro_last_arrow_lands` | gallery | the end test becomes `lives <= 0` and the arrow not moving, and SPACE with `lives <= 0` does nothing: 16 shots, each flies to its end and can score (implies T3) | **choice** (owner) |
+| T4 the 15th arrow cut off, 16th never fired | `tiro_last_arrow_lands` | gallery | the end test becomes `lives <= 0` and the arrow not moving, and SPACE with `lives <= 0` does nothing: 16 shots, each flies to its end and can score (implies T3) | yes |
 | T5 hit by x alone | `tiro_hit_needs_row` | gallery | the second stage matches a target when the x ranges overlap with touching edges counted (`a <= t+75 and t <= a+55`) **and** the y ranges overlap (arrow y..y+27, target y..y+95), in the same 2, 3, 1, 0 order | yes |
 | T6 restore strip one step too wide | `tiro_target_restore_one_step` | render | `target_restore_background`'s rect (and its `addDirtyRect`) adds \|stepX\| once, as `mover_restore_background` | yes |
 
@@ -367,7 +365,7 @@ hello) instead.
   minigame alone on a touch screen) the keys follow the program whose
   window is on top (`noite_top_program`): for TIRO LEFT, a fire button
   (key 32) and RIGHT instead of the four arrows (`PAD_KEYS` in
-  `web/noite.js`, a proposal: question 6).
+  `web/noite.js`).
 
 ## Platform: every key to a minigame, key repeat
 
@@ -388,9 +386,8 @@ hello) instead.
   (`e.repeat`).
 - **Rate and defaults** (`sim.KeyRepeat`): Windows 3.1's 500 ms delay and
   33 ms period; `--key-repeat DELAY,PERIOD|off`. On by default in the SDL
-  window and the web page (`interactive_default`), off headless
-  (`headless_default`, one constant to flip: question 4), so the scripts
-  written before the repeats play as they did.
+  window, the web page and headless runs (`interactive_default`,
+  `headless_default`), so a script sees what a player does.
 - **Held keys elsewhere.** NOITE latches its arrows (BUGS.md B50): its
   scripts play the same with the repeats on (`full.input`,
   `b50-arrow-overlap.input`). ENCAIXE's DOWN restarts its 55 ms fall
@@ -546,22 +543,3 @@ noite -p tiro failed <unit> "why" / release <unit>
    `asset` from `assets/TIRO/`, `documented` from Ghidra.
 8. `noite test`, commit (commit skill), `noite -p tiro finish <unit>` from
    the main checkout.
-
-## Questions for the owner
-
-1. **T2 in Corrigida?** (`tiro_arrow_spent_on_shot`) A SPACE press while
-   the arrow flies costs an arrow. It may be a penalty for spamming the
-   key; the fix makes only shots count. Now in `Fixes.choices`.
-2. **T4 in Corrigida?** (`tiro_last_arrow_lands`) The game ends right
-   after the 15th press, so only 14 shots can score. The fix lets all 16
-   fly and score (a different end condition). Now in `Fixes.choices`.
-3. **T1 in Corrigida** (`tiro_space_latch`, in `all`): auto-fire on a held
-   SPACE goes away. The unused latch says it was meant, but players may
-   have liked holding the key. Keep it in `all`?
-4. **Key repeat in headless runs.** Off by default now
-   (`sim.KeyRepeat.headless_default`); on everywhere would be faithful
-   (the scripts already pass with it on).
-5. **The repeat rate**: 500 ms / 33 ms (Windows 3.1's usual defaults),
-   unless you know the machine the game was tuned on.
-6. **Touch screens**: the fire button in place of UP/DOWN on the pad for
-   TIRO (`PAD_KEYS`) — keep it?
