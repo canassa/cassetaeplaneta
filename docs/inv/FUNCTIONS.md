@@ -8,9 +8,10 @@ through TIRO's.
 
 ## Counts
 
-**1,193 functions:** 93 import thunks, 449 adjustor thunks and 651 code functions. **597 of the
-651 are named**; 54 stay `FUN_` (49 game functions in `1068`, 5 dead unknowns that TIRO leaves
-unnamed too). Every named code function has a plate. 14 carry the tag `review`, 1 `sig?`.
+**1,193 functions:** 93 import thunks, 449 adjustor thunks and 651 code functions. **611 of the
+651 are named**; 40 stay `FUN_` (35 game functions in `1068`, 5 dead unknowns that TIRO leaves
+unnamed too). Phase 3 named 14 of the `1068` ones: the 6 creators and the 8 wave and score helpers
+(`DATA.md`). Every named code function has a plate. 14 carry the tag `review`, 1 `sig?`.
 
 | Kind | Fns | Where / names |
 |---|---|---|
@@ -32,7 +33,7 @@ By segment (code functions other than the adjustor thunks):
 | `1008` | 4 | 4 | `1050` | 4 | 4 |
 | `1010` | 11 | 11 | `1058` | 15 | 15 |
 | `1018` | 51 | 51 | `1060` | 4 | 4 |
-| `1020` | 7 | 7 | `1068` | 54 | 5 |
+| `1020` | 7 | 7 | `1068` | 54 | 19 |
 | `1028` | 49 | 47 | `1070` | 11 | 11 |
 | `1030` | 9 | 9 | `1078` | 11 | 11 |
 | `1038` | 10 | 10 | `1080` | 79 | 79 |
