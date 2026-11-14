@@ -1158,7 +1158,8 @@ Addresses are Ghidra `seg:off` in `/TIRO.EXE`; the game is described in `docs/ti
   again as soon as the arrow is free. A held SPACE drains the 16 arrows within a second or two and is the usual
   way to skip the end test (T3).
 - **Confidence:** 9 (code); 8 (effect, depends on the keyboard repeat rate).
-- **Port:** not ported yet.
+- **Port:** unit `gallery` (src/tiro/, docs/tiro/DESIGN.md), not ported yet; the fix is
+  `Fixes.tiro_space_latch` (`--fix tiro_space_latch`, on in the Corrigida version).
 
 ### T2. An arrow is spent on a press that fires nothing
 - **Where:** `tiro_scene_handle_message` 1068:1790, `VK_SPACE`: `DEC word ptr [BX+0x40]` at 1068:19a4, then the
@@ -1168,7 +1169,8 @@ Addresses are Ghidra `seg:off` in `/TIRO.EXE`; the game is described in `docs/ti
 - **Effect:** every SPACE press, or key repeat (T1), during a flight of about a second wastes one of the 16 arrows.
   The game can end with fewer shots than arrows.
 - **Confidence:** 9.
-- **Port:** not ported yet.
+- **Port:** unit `gallery` (src/tiro/, docs/tiro/DESIGN.md), not ported yet; the fix is
+  `Fixes.tiro_arrow_spent_on_shot` (`--fix tiro_arrow_spent_on_shot`, a choice: left out of the Corrigida version (`Fixes.choices`) until the owner decides).
 
 ### T3. The end test `lives == 1` can be skipped, and then the game never ends
 - **Where:** `tiro_scene_handle_message` 1068:1790, the four target branches of `WM_SYSTIMER`
@@ -1181,7 +1183,8 @@ Addresses are Ghidra `seg:off` in `/TIRO.EXE`; the game is described in `docs/ti
   arrow) until `lives` wraps round to 1 after some 65,000 more presses or the window is closed. No result reaches
   NOITE until then.
 - **Confidence:** 9 (code); 8 (effect).
-- **Port:** not ported yet.
+- **Port:** unit `gallery` (src/tiro/, docs/tiro/DESIGN.md), not ported yet; the fix is
+  `Fixes.tiro_end_test_at_most_one` (`--fix tiro_end_test_at_most_one`, on in the Corrigida version).
 
 ### T4. The 15th arrow is lost, so at most 14 shots can score
 - **Where:** `tiro_game_create_player` 1048:0029 (`lives` = 16) and the end test of T3.
@@ -1191,7 +1194,8 @@ Addresses are Ghidra `seg:off` in `/TIRO.EXE`; the game is described in `docs/ti
 - **Effect:** the 15th arrow is cut off in flight (it scores only if the target ticks are held up for a second),
   and the 16th is never fired: of the 16 arrows only 14 can score.
 - **Confidence:** 9 (code); 8 (effect).
-- **Port:** not ported yet.
+- **Port:** unit `gallery` (src/tiro/, docs/tiro/DESIGN.md), not ported yet; the fix is
+  `Fixes.tiro_last_arrow_lands` (`--fix tiro_last_arrow_lands`, a choice: left out of the Corrigida version (`Fixes.choices`) until the owner decides).
 
 ### T5. A hit goes to the first target that overlaps the arrow in x, whichever row it is on
 - **Where:** `projectile_try_step` 1068:1448 (first stage) and `tiro_scene_handle_message` 1068:1790, arrow branch
@@ -1204,7 +1208,8 @@ Addresses are Ghidra `seg:off` in `/TIRO.EXE`; the game is described in `docs/ti
   that happens to be under it in x, with that target's sign (+150 or −150). When no target matches (an exact
   alignment, or the grid cell touched but the x-ranges do not overlap) the arrow is stopped and spent with no score.
 - **Confidence:** 9 (code); 7 (how often players see it).
-- **Port:** not ported yet.
+- **Port:** unit `gallery` (src/tiro/, docs/tiro/DESIGN.md), not ported yet; the fix is
+  `Fixes.tiro_hit_needs_row` (`--fix tiro_hit_needs_row`, on in the Corrigida version).
 
 ### T6. `target_restore_background` erases a strip one step wider than the move
 - **Where:** `target_restore_background` 1068:0e2f (`getStepX` calls at 1068:0edd and 0ef8).
@@ -1215,7 +1220,8 @@ Addresses are Ghidra `seg:off` in `/TIRO.EXE`; the game is described in `docs/ti
   move uncovered. Whatever else is drawn there, the arrow or a target in its hit animation (which `target_redraw_overlapping`
   skips), loses that strip until its own next redraw; elsewhere the background is restored over background.
 - **Confidence:** 9 (code); 6 (effect).
-- **Port:** not ported yet.
+- **Port:** unit `render` (src/tiro/, docs/tiro/DESIGN.md), not ported yet; the fix is
+  `Fixes.tiro_target_restore_one_step` (`--fix tiro_target_restore_one_step`, on in the Corrigida version).
 
 ### Latent (TIRO)
 
