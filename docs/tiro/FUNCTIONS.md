@@ -284,6 +284,13 @@ The matchers are `zig-out/tiro/*.py` (scratch, not committed):
 
 ## Phase-4 groups (refreshed)
 
+Phase 3 (`DATA.md`) typed the vtables, the classes and `this` on 163 functions. The groups
+do not change; the TIRO classes now have names: **Crossbow** (`1088:4f50`, the player,
+derives Player2D), **Target** (`603a`, derives Actor2D), **Projectile** (`6170`) and
+**Arrow** (`60d8`, derives Projectile), plus TiroGame/TiroScene/TiroPanel/TiroBackdrop
+(the Tetris roles of ENCAIXE). A virtual call through a typed table now reads
+`this->vtbl->slot`, so group agents can follow the slot names in `DATA.md`.
+
 The counts exclude the adjustor and import thunks. "verify only" means every function in the
 group was named mechanically; its agent checks, signs and types. Order of work:
 - first the CRT, DIB and app groups (1–4, 10);
@@ -315,8 +322,8 @@ group was named mechanically; its agent checks, signs and types. Order of work:
 | 20 | `1088:2c00–2fff` | 31 | 4 | SceneObject getters, Portable, Game defaults, position accessors | mixed |
 | 21 | `1088:3000–37ff` | 17 | 14 | Mover ctors and helpers, Frame, `367e` | mostly unnamed |
 | 22 | `1088:3800–42c1` | 34 | 28 | Game defaults, `game_init`, dtor chains, occupancy cell, the view blit | mostly unnamed |
-| 23 | `1088:4d7e–52ff` | 19 | 11 | TIRO panel, Game/StatusBar/Player2D/ControlPanel ctors, TIRO class `4f50` | mixed (TIRO) |
+| 23 | `1088:4d7e–52ff` | 19 | 11 | TiroPanel ctor `4d7e` and slot `4e16`, Game/StatusBar/Player2D/ControlPanel ctors, Crossbow ctor `4f50`, TiroScene ctor `5004` and createScreen `503e` | mixed (TIRO) |
 | 24 | `1088:5300–57ff` | 31 | 1 | Scene and Backdrop slots, Scene/GridBackdrop ctors, TIRO backdrop `554e` | mostly named |
-| 25 | `1088:5800–622b` | 32 | 10 | Actor2D/Animated3D/Animation ctors, Backdrop ctor/dtor, Conditions, the TIRO class ctors | mixed (TIRO) |
-| 26 | `1068:0000–178f` | 24 | 24 | TIRO scene create, music/waves, aim, the TIRO classes' methods, hit, respawn, arrow | TIRO |
+| 25 | `1088:5800–622b` | 32 | 10 | Actor2D/Animated3D/Animation ctors, Backdrop ctor/dtor, Conditions, the Target (`603a`), Arrow (`60d8`) and Projectile (`6170`) ctors | mixed (TIRO) |
+| 26 | `1068:0000–178f` | 24 | 24 | TiroBackdrop create `0000`, TiroScene create `008d` (music, waves), target creator `0163`, arrow creator `038a`, aim `0476`, Crossbow overrides `0586`/`05b0`, Target overrides `0618`, `068e`, `06df`, `07f4`, `0883`, `0e2f`, `1288`, hit `08ab`, respawn `0991`, `TargetVtbl` slots `0fcf`/`1037`, Projectile overrides `139f`/`13f7`/`1511` and `ProjectileVtbl` slots `1448`/`1641`/`1739` | TIRO |
 | 27 | `1068:1790–2fcb` | 6 | 6 | TIRO handler `1790`, score helpers `2d89–2ed4` (high effort) | TIRO |
