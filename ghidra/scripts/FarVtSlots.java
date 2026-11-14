@@ -19,19 +19,25 @@ import java.util.*;
 //   - adds a DATA reference from each vptr store (`MOV word ptr [r+k], imm`, imm a slot address in
 //     [lo,hi), in any code block) to its table.
 // Prints the tables (start, slot count, stores) and the targets it could not create.
+// With `large` (anywhere after hi; SAUNA, large model) the tables sit in a code segment and the vptr is
+// far: a store counts only when the next instruction stores the table's segment
+// (`MOV word ptr [r+k+2], <seg>`), and a dword inside an instruction is never a slot.
 public class FarVtSlots extends GhidraScript {
 	public void run() throws Exception {
 		String[] a = getScriptArgs();
 		Memory mem = currentProgram.getMemory();
 		Address data = toAddr(a[0] + ":0000");
 		int lo = Integer.parseInt(a[1], 16), hi = Integer.parseInt(a[2], 16);
-		boolean dry = a.length > 3 && a[3].equals("dry");
+		boolean dry = false, large = false;
+		for (int i = 3; i < a.length; i++) { if (a[i].equals("dry")) dry = true; if (a[i].equals("large")) large = true; }
+		int dseg = Integer.parseInt(a[0], 16);
 		RelocationTable rt = currentProgram.getRelocationTable();
 		ReferenceManager rm = currentProgram.getReferenceManager();
 		TreeMap<Integer, Address> slots = new TreeMap<>();
 		for (int off = lo; off + 3 < hi; off += 2) {
 			Address s = data.add(off);
 			if (!rt.hasRelocation(s.add(2))) continue;
+			if (large && getInstructionContaining(s.add(2)) != null) continue;
 			int o = mem.getShort(s) & 0xffff, seg = mem.getShort(s.add(2)) & 0xffff;
 			Address t;
 			try { t = toAddr(String.format("%04x:%04x", seg, o)); }
@@ -49,6 +55,11 @@ public class FarVtSlots extends GhidraScript {
 			Scalar sc = in.getScalar(1);
 			if (sc == null) continue;
 			int v = (int) sc.getUnsignedValue();
+			if (large) {
+				Instruction nx = in.getNext();
+				if (nx == null || !nx.toString().startsWith("MOV word ptr") || nx.getScalar(1) == null
+					|| (nx.getScalar(1).getUnsignedValue() & 0xffff) != dseg) continue;
+			}
 			if (slots.containsKey(v)) st.computeIfAbsent(v, k -> new ArrayList<>()).add(in.getAddress());
 		}
 		Set<Address> targets = new TreeSet<>(slots.values());
