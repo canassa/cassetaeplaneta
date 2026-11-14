@@ -837,6 +837,27 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   pixels after three walks); `Fixes.restore_copies_key_pixels` restores the rectangle with a copy that has no key.
 - **Confidence:** 9 (code, disc data, port repro).
 
+### B53. Sprites have holes: stray pixels of the transparent index inside the art
+- **Where:** the sprite bitmaps on the disc; every object draw (`scene_object_draw_dirty_to` 1010:b746,
+  `mover_draw_dirty_to` 1010:b8a0, the inventory icons) copies with `dib_copy_transparent` 1010:0000, key
+  `g_unk001C` = 0x0b.
+- **What the code does:** it skips every source pixel of index 11, the blue (0,136,208) backdrop of the sprites.
+  The art has index-11 pixels inside it too, mostly single ones, a palette-reduction accident against that
+  blue: 1174 such pixels in 42 of the 300 bitmaps NOITE draws as sprites (the INI objects, portables and their
+  icons, the player, the panel and the status bar).
+- **Effect:** each one is a hole showing the scene behind: the living room's coffee table (`1OMESA.BMP`,
+  26 on the plates, the glass and the candelabra), the garage skeleton's chest (`CAVE.BMP`), the bar's quiz
+  parchments (`4SPESO`, `4SPESP`, `4SPVAM`), the bus-stop sign's pictogram (`2OPONIBU`), the letters of the
+  credits (`CREDDIR`, `CREDESQ`), faces and clothes of the animations.
+- **Port:** reproduced; `Fixes.sprite_key_specks` fills, when a bitmap is loaded (`dib.loadDib` →
+  `src/key_specks.zig`), the pixels listed `fill` in `src/data/key_specks.tsv`: each reviewed by hand, with
+  its fill index (the most common neighbour, or the line's own colour for the pictogram and the credits'
+  anti-aliasing). 1090 are filled; 84 that may be meant are kept (gaps between the skeleton's bones, the
+  horseshoe icon's nail holes, the gun smoke in `2SASSM`, a hidden AVI exit's picture) with the reason in the
+  list. `tools/key_review.py` rebuilds the list and its review sheets; `tools/play/b53-sala-table-specks.input`
+  checks the coffee table (`-orig.input`: the Original's holes).
+- **Confidence:** 9 (disc data, port repro); the fill/keep calls are judgement.
+
 ---
 
 ## Harmless: wrong paths rescued by the wave fallback
@@ -2059,7 +2080,8 @@ Each is consistent code with a plausible intent.
   Windows, −278 after an hour, never positive; it does not depend on the time played. A difference
   of 0 would divide by zero in `_aFldiv`, which needs the labyrinth to start within 33 s of Windows.
 - **Confidence:** 10 (code); 8 (that a bonus for speed was meant: 10⁹ / elapsed ms).
-- **Port:** not ported yet.
+- **Port:** unit `labyrinth_input` (src/jardim/, docs/jardim/DESIGN.md), not ported yet; the fix is
+  `Fixes.jardim_time_bonus` (`--fix jardim_time_bonus`, on in the Corrigida version).
 
 ### J2. Phase 3's Chato can be shot again and again
 - **Where:** `phase3_scene_hit` 10b0:264c.
@@ -2068,7 +2090,8 @@ Each is consistent code with a plausible intent.
 - **Effect:** Chato stays where it is (and keeps hitting), and each shot at it scores 200 again:
   the score can be farmed with the ammunition, which comes back with every death.
 - **Confidence:** 9 (code); 8 (that the clear is missing: phases 1 and 2 have it).
-- **Port:** not ported yet.
+- **Port:** unit `phase3` (src/jardim/, docs/jardim/DESIGN.md), not ported yet; the fix is
+  `Fixes.jardim_chato_removed` (`--fix jardim_chato_removed`, on in the Corrigida version).
 
 ### J3. A weapon picked up while a shot flies is lost
 - **Where:** `phase1_scene_touch` 1098:2823 (bra, crossbow), `phase2_scene_touch` 10a8:3227 and
@@ -2079,7 +2102,8 @@ Each is consistent code with a plausible intent.
 - **Effect:** walking over a crossbow, bra or bazooka during the second or so a shot needs to reach
   a wall makes it vanish with no effect, until the next death puts it back.
 - **Confidence:** 9 (code); 7 (that a deferred or refused pickup was meant).
-- **Port:** not ported yet.
+- **Port:** units `phase1`, `phase2`, `phase3` (src/jardim/, docs/jardim/DESIGN.md), not ported yet; the fix is
+  `Fixes.jardim_weapon_waits_for_shot` (`--fix jardim_weapon_waits_for_shot`, on in the Corrigida version).
 
 ### J4. The wall textures stay on the screen instead of on the walls
 - **Where:** `raycast_render_view` 1028:0951, the calls of `wall_strip_draw_wall_a/b`
@@ -2091,7 +2115,8 @@ Each is consistent code with a plausible intent.
   or walks, the walls move and their texture does not, it slides over them. Doors are textured
   right.
 - **Confidence:** 9 (code); 7 (that the hit coordinate was meant: the door path uses it).
-- **Port:** not ported yet.
+- **Port:** unit `raycast` (src/jardim/, docs/jardim/DESIGN.md), not ported yet; the fix is
+  `Fixes.jardim_wall_texture_on_wall` (`--fix jardim_wall_texture_on_wall`, on in the Corrigida version).
 
 ### J5. A sprite whose top lands on row 478 crashes the game
 - **Where:** `blit_scaled_sprite_transparent` 1018:0024 (the magnifying row loops at +0x177 and
@@ -2105,7 +2130,8 @@ Each is consistent code with a plausible intent.
   Such a sprite is a short pickup seen from under a cell (the medkit at a depth of about 27 units,
   the bombs, the açaí, the shrimp), so it needs an exact distance while approaching one: rare.
 - **Confidence:** 9 (code); 5 (how often it happens).
-- **Port:** not ported yet.
+- **Port:** unit `scaled` (src/jardim/, docs/jardim/DESIGN.md), not ported yet; the fix is
+  `Fixes.jardim_sprite_last_rows` (`--fix jardim_sprite_last_rows`, on in the Corrigida version; the Original port panics naming J5 where the original faults).
 
 ### J6. Running into a life-taking enemy takes a life every tick
 - **Where:** `labyrinth_move_and_render` 1028:3e23; the held-key branch of
@@ -2118,7 +2144,25 @@ Each is consistent code with a plausible intent.
 - **Effect:** holding UP into Seios, Siri or Bicho for 165 ms costs three lives, the whole game; the
   5-health enemies drain a life in about a second.
 - **Confidence:** 9 (code); 6 (that one life per contact was meant).
-- **Port:** not ported yet.
+- **Port:** unit `labyrinth_input` (src/jardim/, docs/jardim/DESIGN.md), not ported yet; the fix is
+  `Fixes.jardim_enemy_blocks_walk` (`--fix jardim_enemy_blocks_walk`, a choice: left out of the Corrigida version (`Fixes.choices`) until the owner decides).
+
+### J7. From `espquete` the variant never reaches JARDIM: the final enemy is always the vampire's
+- **Where:** `APPWNDPROC` 1020:0353 (the `FindWindow("Noite Animal")` branch at the top of every message
+  and its WM_SYSTIMER retry); NOITE's `handler_espquete` 1028:0a88, `0x40c` case.
+- **What the code does:** JARDIM does not wait for NOITE's hello: on its first message, sent inside
+  CreateWindow, it finds NOITE's window and posts `0x40c`. NOITE cannot run before JARDIM's WinMain yields,
+  so this `0x40c` is queued before NOITE's timer 0x14 can find JARDIM's window. `handler_espquete` takes any
+  first `0x40c` as the reply: it kills timer 0x14 and hides itself, and its ack goes to window 0. The hello
+  (`0x40b`, wParam = variant 1) is never posted and `g_variant` keeps its initial 0. `handler_4fjarvamp`
+  ignores a `0x40c` while it does not know JARDIM's window, so its hello (variant 0) does arrive.
+- **Effect:** after the garden cutscene the final enemy of phase 3 is `vamanf` (the vampire's picture, meant
+  for `4fjarvamp`) instead of `espanf`. JARDIM never gets NOITE's ack either and posts `0x40c` on every
+  message until it ends (each one a no-op for NOITE).
+- **Confidence:** 9 (code); 8 (the order: Windows 3.1 runs the new task's WinMain until it first yields).
+- **Port:** unit `app` (src/jardim/, docs/jardim/DESIGN.md), not ported yet; the fix is
+  `Fixes.jardim_variant_hello` (`--fix jardim_variant_hello`, on in the Corrigida version): JARDIM posts
+  `0x40c` only after `0x40b`, as TIRO does.
 
 ### Latent (JARDIM)
 
@@ -2141,8 +2185,9 @@ Each is consistent code with a plausible intent.
 
 ### Harmless (JARDIM)
 
-- **`0x40c` is re-posted on every message until NOITE answers** (`APPWNDPROC` 1020:0353): NOITE
-  answers each with `0x40a`, so a few extra posts follow the hello. Confidence 9.
+- **`0x40c` is re-posted on every message until NOITE answers** (`APPWNDPROC` 1020:0353): after
+  `4fjarvamp`'s hello NOITE acks the first one and a few more follow; after `espquete` NOITE never acks (J7)
+  and the posts go on until JARDIM ends, each ignored. Confidence 9.
 - **The wall column blit is off by one row:** `blit_scaled_column` 1000:0024 writes one row more
   than the slice (above it, over the sky) when the wall is less than half the texture's height
   (beyond about 4.7 cells), and for an odd slice height taller than the view it draws the column

@@ -1,0 +1,714 @@
+# Native port of JARDIM.EXE — design
+
+JARDIM.EXE ("Noite Animal Jardim", the garden's first-person labyrinth, source folder `doom`) in
+Zig, next to NOITE's, ENCAIXE's and TIRO's ports. NOITE's `docs/DESIGN.md`, TIRO's
+`docs/tiro/DESIGN.md` (and ENCAIXE's) and the zig-developer skill hold for everything this file
+does not override. Ghidra (program `JARDIM.EXE`, through the tracker snapshot `noite -p jardim
+show`) is the specification; `GAME.md` (the raycaster, the map, the rules, the phases, the
+protocol), `DATA.md` (classes, vtables, globals), `FUNCTIONS.md` (names, dead code),
+`QUALITY.md` (the large-model `/Od` build), BUGS.md J1–J7.
+
+## Decisions
+
+- **Own tree, TIRO's Zig for the engine, NOITE's layouts.** JARDIM runs the engine sources TIRO
+  and ENCAIXE are built from ("Faltou redefinir…", `MAX_OBJECT_QTY`), compiled `/Od` with stack
+  probes like TIRO, but in the **large model** like NOITE (far code, far data, far `this`, the
+  vtables in code segment `10c0`). So it is a third build of the same engine, and a different
+  program from both:
+  - the struct layouts are NOITE's (far pointers): SceneObject 0x49e, the Backdrop is NOITE's
+    base Backdrop (one WinG bitmap, no grid), Object3D/Mover/Animation at NOITE's offsets;
+  - the SceneObjectVtbl has **97** slots: NOITE's 102 without `reoccupy`, `isAvi`,
+    `advanceFrames`, `isAnimated3D`/`asAnimated3D`; it keeps NOITE's five leading slots
+    (`slot00`, `slot01`, `enableRle`, `isRle`, `getSceneName`) that TIRO lacks; the
+    AnimationVtbl has 6 slots (`lock`, `isLocked`, three stubs where NOITE has its AVI methods,
+    `playOnce`);
+  - the class set is NOITE's: Player, Actor, Exit, Portable, Moveable, Animated3D are linked,
+    and Portable, Exit, Player and ControlPanel are **built** (TIRO's Actor2D/Player2D/Crossbow do
+    not exist); the occupancy grid is linked but dead;
+  - `/Od` keeps the accessors, the update list and the Object3D ctor out of line, as in TIRO;
+  - and the game itself has no twin anywhere: the LabyrinthBackdrop (`1028`), the scaled DIB
+    copies (`1068`), the three phase scenes (`1098`, `10a8`, `10b0`) and four **32-bit**
+    segments (`1000–1018`): the two ray walks, the wall-column blit and the sprite blit.
+
+  JARDIM gets its own units under `src/jardim/`, ported from its own functions with its own
+  `@orig` addresses; it calls neither TIRO's nor NOITE's units. **Sharing was weighed and
+  rejected**, for TIRO's reasons (docs/tiro/DESIGN.md "Decisions"), which weigh more here:
+  - every engine function takes its program's `Game`/`Object`/`Backdrop`; sharing means making
+    finished TIRO (or NOITE) units generic over the memory model, the slot numbering (91 vs 97 vs
+    102), the class set and the Backdrop, i.e. editing checked units for JARDIM's sake;
+  - an `@orig` tag maps to one program's address, `noite check` scans one program's tree and
+    `noite finish` refuses a unit that edits another program's tree: a shared function would need
+    two tags and a tracker that checks a file against two DBs, and a J-fix could not land in it;
+  - where the builds differ, a shared body carries `if (jardim)` branches; a copy keeps each port
+    a plain transcription of its own binary.
+
+  The copy is cheap: **TIRO's unit of the same name** (`src/tiro/`, ported and checked; the same
+  `/Od` code shape, the same slot names and signatures) is the starting point of every engine
+  unit; **NOITE's** (`src/behaviour/*`, `src/object_create.zig`, …) is the template for what TIRO
+  lacks (the Player/Actor/Exit/Portable/Moveable/Animated3D overrides and the five leading
+  slots) and for the large-model offsets. An agent transcribes each JARDIM function from
+  JARDIM's decompile/asm, reuses the twin's Zig where the decompiles agree, and says in its commit
+  body which functions differ from the twin and how.
+- **Shared, because identical or not game code:** the platform layer (`src/platform/`, host
+  included), `core/msg.zig`, `core/queue.zig`, `core/cstr.zig`, `core/stub.zig`,
+  `core/errors.zig`, `core/fixes.zig` (one `Fixes`, J-flags prefixed `jardim_`), the Win16 data
+  types (`Dib`, `BitmapInfoHeader`, `RgbQuad`, `Rect`). JARDIM's `1000:0148`/`0234` are NOITE's
+  two 32-bit row copies (checked in the oracle on 300 random cases each,
+  `zig-out/jardim/g4/cmp_noite.py`): `dib.rowsCopyTransparent32`/`rowsCopy32`, tagged with
+  JARDIM's addresses, call NOITE's `src/dib.zig`, as TIRO's and ENCAIXE's do (bug B12 comes with
+  them: `fixes.opaque_copy_black_tail`). The same state-free delegation rule as TIRO's holds
+  (`read_dib_info`, the `dib` copies, `rle_blit_transparent` if its decompile matches NOITE's).
+- **The 32-bit routines are transcribed, then proved bit-exact in the oracle** ("The 32-bit
+  routines" below): Zig functions written from the `objdump -mi386` listings, tested against the
+  original code run in `tools/oracle` (`oracle=emulated`), which already ran all six in phase 4.
+- **The trigonometric tables are precomputed and verified, not computed at run time**
+  ("The tables" below): a generator models `raycast_build_tables`' x87 sequence exactly and
+  checks every entry against the original run in the oracle; the port embeds the result.
+  Porting the CRT's FP library (`_trandisp`, 3.4 KB of 8087 code) or calling a host libm were
+  rejected.
+- **Faithful first, the owner's rule.** J1–J7 are reproduced as they are by default; each fix
+  exists only behind its own `Fixes` flag (off by default). Corrigida (`Fixes.all()`) takes the
+  clear bugs; J6's fix invents a rule and is a choice (`Fixes.choices`) until the owner says.
+  J5 (the original faults) and the latent overruns become panics naming their BUGS.md entry, as
+  NOITE's L5: a smoke "orig" line.
+- **Two programs in one process**, as ENCAIXE and TIRO (`src/platform/host.zig`): JARDIM is a
+  task with its own state, queue, timers, window and screen; the protocol runs through the
+  platform as in Windows. The host needs nothing new for JARDIM; the platform needs the keys and
+  `GetKeyState` ("Platform" below).
+- **The heap.** JARDIM never frees most of what it allocates: the seven tables per backdrop
+  (three backdrops, `_fmalloc`, 71 KB each), the backdrops, the phase scenes' Portables (their
+  destructors never run). `Game.local()` is the task's heap (an arena freed by `Game.destroy`):
+  every `operator new`/`_fmalloc` of JARDIM allocates there, and the faithful leak is not a leak
+  of the port.
+
+## Source layout
+
+```
+src/jardim/root.zig          program root: core, units, `ready`, `program` (host.Program)
+src/jardim/core/             types only (not units)
+  game.zig                   Game: JardimGame + every JARDIM DGROUP global; queue, send/post, timers, heap
+  object.zig                 Object (kinds scene_object / wall_strip / portable / exit / player / control_panel), parts, Frame
+  world.zig                  Scene (+ SceneVtbl, the phases'), Backdrop (+ LabyrinthBackdrop), SpriteQueue, Tables, lists, Condition
+src/jardim/<unit>.zig        module units
+src/jardim/behaviour/        behaviour units (one group of SceneObject slots)
+src/jardim/units.zig         generated index (`noite -p jardim unit sync`)
+src/jardim/tables.bin        the precomputed trigonometric tables (unit `tables`, generated)
+src/jardim/testdata/         oracle vectors of the 32-bit routines (units `raycast`, `scaled`)
+```
+
+The core files are types only; a unit that finds a field the skeleton lacks adds it there with
+its `@orig` offset (DATA.md lists Portable, Exit, ControlPanel, Moveable, Animated3D and Frame as
+skeletons: their parts carry the twins' fields until a unit confirms them).
+
+## Object model
+
+As TIRO's (one `Object`, a `kind`, every part present), with JARDIM's classes. Six kinds are
+built:
+
+| Kind | Class (vtables) | Used for | Parts live |
+|---|---|---|---|
+| `scene_object` | SceneObject (3f0e) | the face (`rostoN`), the hands (`maosN` strips, `curStrip` = the weapon), the shot (`shotN`) | base |
+| `wall_strip` | WallStrip (8e60: SceneObject + `attach`) | the wall textures (`paredesN`, 6 × 32×300) | base (+ `textureCount`) |
+| `portable` | Portable ← Moveable ← Mover + Object3D (59d4, 59d8, 5b5c) | every pickup and enemy: **one** object per type, stored in many map cells | base, o3d, mover, portable |
+| `exit` | Exit ← Animated3D ← Animation + Object3D (8fe4, 8ffc, 9180) | phases 1–2's `portainv.bmp`, only its exit index | base, o3d, anim, exit |
+| `player` | Player ← Actor ← Moveable + Animated3D (7d6a, 7d6e, 7d86, 7f0a) | createPlayer's dummy (`passo1.bmp`, not on the disc), never shown | base, o3d, anim, mover, actor |
+| `control_panel` | ControlPanel ← Animated3D (7b84, 7bbc, 7d40) | `labinter.bmp` | base, o3d, anim, panel |
+
+`Object.is/as` are the type-test slots 41–52, 58, 59. Mover, Moveable, Animation, Animated3D,
+Object3D and Actor are only bases: their methods that no live table reaches are `dead` in the
+plan, with TIRO's leftovers (`actor2d_*`, `player2d_*`, the dead Player methods). A method that
+overrides a SceneObject slot gets the SceneObject subobject in the original and reaches its class
+through the vbtable (DATA.md "Classes"; the decompile shows `*(int *)(&p[0x10].field_0x1a +
+vbptr->sceneObjectOffset)`): in the port that is just `obj`. The labyrinth's own fields on the
+SceneObject: `worldX`/`worldY` (+0x496/+0x498, the map position), `isEnemy` (+0x49a),
+`framesLeft` (+0x49c; the wall strip's texture height).
+
+## Virtual slots
+
+Each SceneObject slot is one `pub fn` dispatcher (named after the vtable field) in the unit that
+owns it, already declared in the skeleton with its final signature and a `stub.unported` body; it
+switches on `obj.kind` and calls one function per original implementation, each tagged `@orig`.
+The default stub (`scene_object_*_default`, absorbed) is the `else` arm. Thunks (276), defaults
+(86) and type tests (40) are `absorbed`. Signatures: `(g: *Game, obj: *Object, <args in source
+order>)` (Ghidra lists far pascal parameters reversed); hwnd and hdc parameters are dropped;
+`*Backdrop` stays; out-parameters join the return value (`space3d.Support`). The signatures are
+TIRO's skeleton's where the field exists there. A class's override of a SceneObject slot lives
+in the slot's unit, next to its dispatcher (the wall strip's `attach` is in `occupancy`, the
+Exit's `play`/`tick` and `exit_has_key_object` in `animation`, the panel's `draw` and its texts
+in `render`).
+
+Single-class tables are plain functions: Game (`game`, `game_input`), Backdrop (only the
+LabyrinthBackdrop is built: `labyrinth.create` is slot 00, `labyrinth_input.handleMessage` slot
+17, the defaults are `backdrop`'s), ControlPanel (`panels`), Condition (`game`), Frame
+(`object_create.getCell`).
+
+### Scenes
+
+The scene is the one table with several live classes: Phase1Scene, Phase2Scene and Phase3Scene
+(LabyrinthSceneVtbl 834c, 91aa, 92da; 24 slots = SceneVtbl's 16 + `hit`, `touch`,
+`placeObjects`, the four sounds, `onLifeLost`). The port keeps the original's shape:
+`world.SceneVtbl` is a table of function pointers (the slots a phase overrides), one constant
+per phase unit (`phase1.vtbl` …), stored in `Scene.vtbl` by the phase's ctor
+(`labyrinth_scene.ctor(phase)`), and called through `Scene`'s wrappers (`s.touch(g, obj)` …). A
+dispatcher that switched on the phase would have to import the three phase units from a unit
+they call (a cycle the tracker refuses). The base slots (SceneVtbl 01–04, 08–0F) are `scene`'s
+plain functions; `scene.createNewSceneDefault` (absorbed, "Faltou redefinir…") is what each
+phase's `createNewScene` calls first and what Phase3Scene's slot 06 is.
+
+### SceneObject slots (kinds: scene_object, wall_strip, portable, exit, player, control_panel)
+
+JARDIM's slot numbers (byte offset = 4 × slot); `tiro` is TIRO's slot of the same field.
+Generated from the tracker's vtables (thunks resolved); `noite -p jardim unit dep infer` reads
+the unit column.
+
+| slot | behaviour | unit | tiro | default | overrides (impl: kinds) |
+|---|---|---|---|---|---|
+| 00 | slot00 | position | – | scene_object_slot00_default |  |
+| 01 | slot01 | position | – | scene_object_slot01_default |  |
+| 02 | enableRle | position | – | scene_object_enable_rle |  |
+| 03 | isRle | position | – | scene_object_is_rle |  |
+| 04 | getSceneName | position | – | scene_object_get_scene_name |  |
+| 05 | getWorldX | space3d | 00 | scene_object_get_world_x_default | object3d_get_world_x: portable exit player control_panel |
+| 06 | getWorldDepth | space3d | 01 | scene_object_get_world_depth_default | object3d_get_world_depth: portable exit player control_panel |
+| 07 | getWorldElev | space3d | 02 | scene_object_get_world_elev_default | object3d_get_world_elev: portable exit player control_panel |
+| 08 | getSizeW | space3d | 03 | scene_object_get_size_w_default | object3d_get_size_w: portable exit player control_panel |
+| 09 | getSizeH | space3d | 04 | scene_object_get_size_h_default | object3d_get_size_h: portable exit player control_panel |
+| 0A | getSizeD | space3d | 05 | scene_object_get_size_d_default | object3d_get_size_d: portable exit player control_panel |
+| 0B | getAnchorX | space3d | 06 | scene_object_get_anchor_x_default | object3d_get_anchor_x: portable exit player control_panel |
+| 0C | getAnchorY | space3d | 07 | scene_object_get_anchor_y_default | object3d_get_anchor_y: portable exit player control_panel |
+| 0D | getX | position | 08 | scene_object_get_x | mover_get_x: portable player |
+| 0E | getY | position | 09 | scene_object_get_y | mover_get_y: portable player |
+| 0F | getStepX | position | 0A | scene_object_get_step_x_default | mover_get_step_x: portable player |
+| 10 | getStepY | position | 0B | scene_object_get_step_y_default | mover_get_step_y: portable player |
+| 11 | slot11 | position | 0C | scene_object_slot11_default |  |
+| 12 | setElevation | space3d | 0D | scene_object_set_elevation_default | portable_set_elevation: portable; object3d_set_elevation: exit control_panel; moveable_set_elevation: player |
+| 13 | setAnchor | space3d | 0E | scene_object_set_anchor_default | object3d_set_anchor: portable exit player control_panel |
+| 14 | setSize | space3d | 0F | scene_object_set_size_default | object3d_set_size: portable exit player control_panel |
+| 15 | setWorldElev | space3d | 10 | scene_object_set_world_elev_default | portable_set_world_elev: portable |
+| 16 | drawBounds | space3d | 11 | scene_object_draw_bounds_default | object3d_draw_bounds: portable exit player control_panel |
+| 17 | addDirtyRect | render | 12 | scene_object_add_dirty_rect |  |
+| 18 | computeOverlap | render | 13 | scene_object_compute_overlap |  |
+| 19 | restoreBackground | render | 14 | scene_object_restore_background | mover_restore_background: portable player |
+| 1A | drawDirtyTo | render | 15 | scene_object_draw_dirty_to | mover_draw_dirty_to: portable player |
+| 1B | draw | render | 16 | scene_object_draw | exit_draw: exit; player_draw: player; control_panel_draw: control_panel |
+| 1C | drawClipTo | render | 17 | scene_object_draw_clip_to |  |
+| 1D | drawClip | render | 18 | scene_object_draw_clip |  |
+| 1E | erase | render | 19 | scene_object_erase | animation_erase: exit player control_panel |
+| 1F | slot1F | render | 1A | scene_object_slot1f_default | animation_slot1f: exit player control_panel |
+| 20 | redraw | visibility | 1B | scene_object_redraw | animated3d_redraw: exit player control_panel |
+| 21 | hideAndInvalidate | visibility | 1C | scene_object_hide_and_invalidate |  |
+| 22 | blitToDc | visibility | 1D | scene_object_blit_to_dc | moveable_blit_to_dc: portable player |
+| 23 | invalidate | visibility | 1E | scene_object_invalidate | moveable_invalidate: portable player |
+| 24 | slot24 | visibility | 1F | scene_object_slot24_default | mover_slot24: portable player |
+| 25 | hide | visibility | 20 | scene_object_hide | mover_hide: portable player |
+| 26 | show | visibility | 21 | scene_object_show | mover_show: portable; animated3d_show: exit control_panel; actor_show: player |
+| 27 | occupy | occupancy | 22 | scene_object_occupy | player_occupy: player; control_panel_occupy: control_panel |
+| 28 | vacate | occupancy | 23 | scene_object_vacate | player_vacate: player; control_panel_vacate: control_panel |
+| 29 | attach | occupancy | 24 | scene_object_attach | wall_strip_attach: wall_strip; moveable_attach: portable player; object3d_attach: exit; control_panel_attach: control_panel |
+| 2A | canStep | occupancy | 25 | scene_object_can_step_default | portable_can_step: portable; moveable_can_step: player |
+| 2B | isStepBlocked | occupancy | 26 | scene_object_is_step_blocked |  |
+| 2C | nextFrame | animation | 27 | scene_object_next_frame_default | animated3d_next_frame: exit player control_panel |
+| 2D | prevFrame | animation | 28 | scene_object_prev_frame_default | animated3d_prev_frame: exit player control_panel |
+| 2E | play | animation | 29 | scene_object_play_default | exit_play: exit; animated3d_play: player control_panel |
+| 2F | playIdle | animation | 2A | scene_object_play_idle_default |  |
+| 30 | stopAndRedrawDc | animation | 2B | scene_object_stop_and_redraw_dc_default | animated3d_stop_and_redraw_dc: exit control_panel; actor_stop_and_redraw_dc: player |
+| 31 | stopAndRedraw | animation | 2C | scene_object_stop_and_redraw_default | animated3d_stop_and_redraw: exit control_panel; actor_stop_and_redraw: player |
+| 32 | tick | animation | 2D | scene_object_tick_default | exit_tick: exit; player_tick: player; control_panel_tick: control_panel |
+| 33 | stop | animation | 2E | scene_object_stop_default | animated3d_stop: exit player control_panel |
+| 34 | moveTo | movement | 2F | scene_object_move_to_default | moveable_move_to: portable player |
+| 35 | moveToEdgeH | movement | 30 | scene_object_move_to_edge_h_default | moveable_move_to_edge_h: portable player |
+| 36 | moveToEdgeV | movement | 31 | scene_object_move_to_edge_v_default | moveable_move_to_edge_v: portable player |
+| 37 | stopMovingDc | movement | 32 | scene_object_stop_moving_dc_default | moveable_stop_moving_dc: portable; actor_stop_moving_dc: player |
+| 38 | stopMoving | movement | 33 | scene_object_stop_moving_default | moveable_stop_moving: portable; actor_stop_moving: player |
+| 39 | moveTick | movement | 34 | scene_object_move_tick_default | moveable_move_tick: portable; player_move_tick: player |
+| 3A | getTimerId | animation | 35 | scene_object_get_timer_id_default | moveable_get_timer_id: portable; animated3d_get_timer_id: exit control_panel; actor_get_timer_id: player |
+| 3B | isMoving | movement | 36 | scene_object_is_moving_default | moveable_is_moving: portable player |
+| 3C | isRunning | animation | 37 | scene_object_is_running_default | animation_is_running: exit player control_panel |
+| 3D | moveToAndDrop | space3d | 38 | scene_object_move_to_and_drop_default | portable_move_to_and_drop: portable; object3d_move_to_and_drop: exit control_panel; moveable_move_to_and_drop: player |
+| 3E | setPosition | position | 39 | scene_object_set_position | moveable_set_position: portable player |
+| 3F | isScrollTarget | position | – | scene_object_is_scroll_target | player_is_scroll_target: player |
+| 40 | slot43 | position | – | scene_object_slot43_default |  |
+| 53 | redrawOverlapping | visibility | 4D | scene_object_redraw_overlapping_default | object3d_redraw_overlapping: portable exit player control_panel |
+| 54 | hitboxOverlaps | position | 4E | scene_object_hitbox_overlaps |  |
+| 55 | boundsOverlap | position | 4F | scene_object_bounds_overlap |  |
+| 56 | slot5B | position | 50 | scene_object_slot5b_default |  |
+| 57 | slot5C | position | 51 | scene_object_slot5c_default |  |
+| 5A | isEnabled | position | 54 | scene_object_is_enabled_default | exit_is_enabled: exit |
+| 5B | getExitIndex | position | 55 | scene_object_get_exit_index_default | exit_get_exit_index: exit |
+| 5C | slot61 | position | – | scene_object_slot61_default |  |
+| 5D | slot62 | position | – | scene_object_slot62_default |  |
+| 5E | slot63 | position | – | scene_object_slot63_default |  |
+| 5F | slot64 | position | – | scene_object_slot64_default |  |
+| 60 | slot65 | position | – | scene_object_slot65_default |  |
+| 41–52, 58, 59 | type tests | (Object.is/as) | | | |
+
+### Other vtables
+
+`docs/jardim/SLOTS.tsv` is this table for the tracker (`unit dep infer`).
+
+| vtable | slots → unit |
+|---|---|
+| Object3DVtbl (8) | `space3d`: slot00, findSupport, isBelow, isAboveOnScreen, isInFrontOf, overlaps3d, moveToAtElev, dropToSupport (Object3D's, Moveable's, Portable's) |
+| MoverVtbl (1) | `movement.placeAt` (moveable_place_at: every live Mover is a Moveable) |
+| AnimationVtbl (6) | `animation`: lock, isLocked, slot02–04 (the three stubs), playOnce |
+| ControlPanelVtbl (14) | 00–05 `animation` (the AnimationVtbl part); 06–0D `panels` |
+| GameVtbl (7) | 00 `game_input.handleMessage`; 01–06 `game` (createPlayer … onCreate) |
+| SceneVtbl (16) / LabyrinthSceneVtbl (24) | `world.SceneVtbl` through `Scene.vtbl` (above): 00, 05–07, 10–17 per phase (`phase1..3`, createScreen and the ctors in `labyrinth_scene`); 01–04, 08–0F `scene` |
+| BackdropVtbl (23) / LabyrinthBackdropVtbl (24) | 00 `labyrinth.create` (labyrinth_backdrop_create; Backdrop's `backdrop_create` is its base call); 01–16 `backdrop` (defaults); 17 `labyrinth_input.handleMessage` |
+| ConditionVtbl (3) | `game` (FlagCondition; CompoundCondition is dead) |
+| FrameVtbl (1) | `object_create.getCell` |
+
+## State
+
+`core/game.zig`'s `Game` is JardimGame + Game flattened (`g_game` and `g_jardimGame` are the
+game itself) plus every DGROUP global (`g_carryHealth` → `g.carryHealth` …; the strip tables;
+the backdrop handler's latches `g_keyLeftDown` … and the shot's `g_shotSec/Csc`,
+`g_shotCellObject`; the phase wave tables; `g_columnDepth[120]`; `g_labyrinthTables` →
+`g.tables`). `noite -p jardim initdata` checks the `// @orig g_*` defaults against DGROUP. No
+counterpart: the timer pointers, the module handle, `g_biosTickPtr` (dead), the FP constants and
+`g_angleRadians` (the tables are precomputed), the minimap's pens and brushes (their colours, in
+`hud`), the occupancy matrices (dead in JARDIM). Leaf units take the narrowest thing, as in NOITE.
+One `Game` per running JARDIM.
+
+`core/world.zig`:
+- **`Scene`**: Scene + LabyrinthScene + the phases' fields flattened (one Portable per object
+  type, the Exit and its index, the final enemy), `phase` and `vtbl`. The base Scene fields are
+  TIRO's with far pointers (LabyrinthScene's `handlerEnabled` at +0x60 confirms the sum); `scene`
+  confirms them.
+- **`Backdrop`**: the Backdrop base (NOITE's layout, one top-down 640×480 WinG bitmap,
+  `surface()`: NOITE's pixel contract) + the LabyrinthBackdrop: the player (`playerX/Y` in 1/32
+  cell, `viewAngle` 0–2879), the start, the scrolls, the velocity, the view rectangle, the speed,
+  `secAt`/`cscAt` (the original's far pointers into tables 5 and 6 at the view angle: indices
+  here), the map (`wallRows[80][58]` i8, `objectRows[80][57]` ?*Object), `health`, `lives`,
+  `ammo`, `level`, `score` (16-bit), the face, hands, shot, wall strip, the scene, `active`,
+  `shotInFlight`.
+- **`SpriteQueue`**: 100 `SpriteQueueEntry` nodes {object, dist, angle, col, row, left, right},
+  `root`, `nextFree`.
+- **`Tables`**: the seven 16.16 tables as slices into the task heap (unit `tables`).
+- `DrawList`, `UpdateList` (30), `Condition` (FlagCondition).
+
+The variant (`g.variant`, 0x40b's wParam) only picks the final enemy's picture (`espanf` for 1,
+`vamanf` for 0). `g_startTick` is `GetTickCount()` of the first backdrop: `g.plat.ticks()` of the
+virtual clock (J1's penalty, and its division by zero when the low word of the win's tick equals
+the start tick, follow from it).
+
+## Reading JARDIM (large model, /Od)
+
+- Code is far: one segment per module, `CALLF`, `RETF n`. Game code is far pascal, Ghidra
+  `__stdcall16far`, parameters listed **reversed** (`phase1_scene_hit(this, row, col, obj)` is
+  source `(obj, col, row)` → `hit(g, s, obj, col, row)`); `this` is a **far** pointer at
+  `[BP+6]`, reloaded with `LES BX,[BP+6]` before each access. `__cdecl16far*` where the caller
+  pops (the scaled copies, the 16:32 gateways).
+- Data is far: DS = DGROUP `10d0` (loaded once by the CRT, no `PUSH DS; MOV DS` prologue);
+  pointers are 4 bytes; strings and globals are `10d0:xxxx`, except the engine strings and
+  `opcaoN.bmp` in `10c0`.
+- A virtual call is `LES BX,[obj]; LES BX,ES:[BX]; CALLF ES:[BX+off]`: slot = off / 4. Every
+  call site has a call-site override with the slot's definition (FUNCTIONS.md "Cleanup"), so the
+  decompile reads `(**ppSVar7)(obj)` with `ppSVar7 = &vtbl->nextFrame`. The vtables are in
+  `10c0`; the adjustor thunks (`<target>_thunk[_k]`) adjust `this` through the vbtable.
+- Every function starts `PUSH BP; MOV BP,SP; MOV AX,frame; CALLF _aFchkstk` (a call-fixup:
+  ignore it). `/Od` adds a `JMP` to the epilogue after each return, long jumps, compare chains
+  for every `switch`, and four dead arms folded into their functions (`JardimDeadBlocks`).
+- SceneObject fields reached through the virtual base read as `*(int *)(&((Portable
+  *)p)[0x10].field_0x1a + vbptr->sceneObjectOffset)`: the SceneObject field at that offset
+  (here +0x496, `worldX`). 32-bit arithmetic is `_aFlmul`/`_aFldiv` and `CONCAT22` pairs: take
+  the signedness from the asm.
+- `1028:2609` (6 KB) and the phase handlers are long; the plates of every `1028` function
+  describe its cases (units, angle wraps, the tables' use).
+
+## The 32-bit routines
+
+Four segments (Ghidra `1000–1018`) switch themselves to 32-bit code through DPMI on first entry;
+Ghidra decodes them as 16-bit, so their listing is garbage past the prologue (the tracker's `.ref`
+files warn for `1000` only; `1008`, `1010` and `1018` are the same case). Six routines:
+
+| Address | Name | Unit | Called by | What |
+|---|---|---|---|---|
+| `1000:0024` | `blit_scaled_column` | `scaled` | `dib_blit_scaled_column` 1068:0000 | a 4-px wall column: texture row (v+1)/2 − 1 scaled to h rows (nearest row), clipped to the 300-row view; depth shading `k·0x17171717` added to each dword, k = min(3, dist >> 6) |
+| `1000:0148` | `dib_rows_copy_transparent32` | `dib` | the transparent copies | NOITE's 1000:0024 (delegates) |
+| `1000:0234` | `dib_rows_copy32` | `dib` | the opaque copies | NOITE's 1000:0114 (delegates; B12) |
+| `1008:0024` | `raycast_walk_horizontal` | `raycast` | `raycast_render_view` | DDA along y = 32k: ray length, cell value, hit x; queues the objects of the empty cells crossed |
+| `1010:0024` | `raycast_walk_vertical` | `raycast` | `raycast_render_view` | DDA along x = 32k (the same with x and y swapped; odd/even doors see-through/recessed the other way) |
+| `1018:0024` | `blit_scaled_sprite_transparent` | `scaled` | `dib_stretch_copy_transparent` 1068:1336 | column-by-column 2-D Bresenham stretch, key colour 10 transparent; BUGS.md J5 |
+
+**How they are ported.**
+1. The listing: extract the segment and disassemble it as 32-bit code (it starts at offset
+   0x24 after the DPMI prologue):
+
+   ```sh
+   nix develop -c python3 -I -c "import sys; sys.path.insert(0,'tools/oracle'); from noiteemu import NE
+   n=NE('assets/JARDIM/JARDIM.EXE'); s=n.segs[2]   # segs[0..3] = 1000, 1008, 1010, 1018
+   open('zig-out/seg_1010.bin','wb').write(n.data[s['off']:s['off']+s['len']])"
+   nix develop -c objdump -D -b binary -mi386 zig-out/seg_1010.bin > zig-out/seg_1010.lst
+   ```
+
+   (in the worktree's `zig-out/`; phase 4's listings and Python models are in the main checkout's
+   `zig-out/jardim/g4/`, not committed). The far calls of the walks into `1028:4b04`/`4b81` are
+   NE-relocated (`n.relocs(s)`): the listing shows the unrelocated selector.
+2. The Zig: one function per routine, transcribed instruction-group by instruction-group with the
+   register semantics kept (32-bit wrapping arithmetic, `SAR` as `>>` on `i32`, `IDIV`
+   truncation, `IMUL` low halves, the loop-counter tests exactly as compiled). The arguments are
+   the 16-bit caller's pushes (`dib_blit_scaled_column`'s and `dib_stretch_copy_transparent`'s
+   frames, `raycast_render_view`'s), as slices and integers instead of far pointers. The walks'
+   callbacks (`sprite_enqueue_from32`, `object_set_visible_from32`, 16:32 gateways) are direct
+   calls to `sprites.insert` and the visibility store, in the same order and with the same
+   arguments; the gateways' own `@orig` tags go on those call wrappers in `raycast`.
+3. Where the original loops 2³² times or runs off its selector (J5, the latent 1-row source, the
+   border doors' reads outside the map), the port does the same thing up to the first write or
+   read out of bounds and then panics naming the BUGS.md entry; J5's fix draws the remaining rows.
+4. **Oracle tests** (`oracle=emulated`, required for these six, optional elsewhere): a committed
+   generator, `tools/oracle/jardim32.py` (from `zig-out/jardim/g4/walk_test.py`,
+   `blit_test*.py`, `sprite_test*.py`), runs the original routine in `tools/oracle` (Unicorn,
+   `Emu('assets/JARDIM/JARDIM.EXE')`; the DPMI switch is emulated) on seeded random and edge
+   inputs and writes the vectors to `src/jardim/testdata/<routine>.zig`; the unit's tests run
+   the port on each vector and compare every output byte (blits: the whole destination buffer;
+   walks: dist, cell, hit coordinate and the ordered list of gateway calls). Sizes: the walks
+   2,000 rays over the three shipped maps (random positions in floor cells, every angle class,
+   rays along the axes, positions on a grid line, doors of both parities) plus the map-border
+   cases; `blit_scaled_column` 1,000 (every shading k, slices shorter and taller than the view,
+   odd heights: the harmless off-by-one rows); the sprite blit 1,000 (magnify and minify, clips
+   at every edge, widths up to 400, the J5 row-478 case asserted as the port's documented panic,
+   or with the fix the rows drawn). The tag on each test:
+   `// @orig 1008:0024 raycast_walk_horizontal oracle=emulated`.
+
+The two 16-bit wrappers (`dib_blit_scaled_column`, `dib_stretch_copy_transparent`, huge pointers
+and the clip) are oracle-tested the same way (whole destination buffers), with their dead 16-bit
+workers (`dead_*_huge16`, the `/Od` constant-false branch) marked dead.
+
+## The tables
+
+`raycast_build_tables` (1028:0077, once per backdrop create) fills seven `_fmalloc`'d tables of
+16.16 longs with the CRT's x87 math (GAME.md "Units"): for i = 0…2880, a(i) =
+`raycast_angle_to_radians(i)`, then [0] = tan·65536, [1] = 65536/tan, [2] = ±32·|tan|·65536 (sign
+by i < 1440), [3] = ±32·|cot|·65536 (sign by 720 ≤ i < 2160), [5] = 65536/cos, [6] = 65536/sin,
+each clamped to ±2³¹ and truncated by `_ftol`; [4][i+240] = 22500/cos(a(i))·65536 for i =
+−240…240. Every wall, sprite and step of the game reads them, so an entry off by one can move a
+hit across a cell boundary. They depend on nothing but constants.
+
+**Options.**
+- *Port the CRT routines* (`sin`/`cos`/`tan` → `_trandisp1` → the FP library, 10b8:2f87–4b37,
+  26 unnamed 8087 entry points with register arguments): it would still need a model of the x87's
+  `FPTAN`/`FPATAN`/`F2XM1` (the library's primitives) to the last bit, which no Zig or host
+  library gives. Rejected.
+- *Compute them at run time with the host's math* (`std.math.tan` on f64): the results differ
+  from the original's in the last bits and the truncation turns that into ±1 in the entries
+  where the exact value is close to an integer; it also varies with the target (wasm). Rejected.
+- *Precompute with exact x87 semantics and verify against the oracle*: **chosen.**
+
+**The generator** `tools/jardim_tables.py` (unit `tables`, committed with it):
+1. The reference model, from the asm of 1028:003b and 1028:0077 (not the decompile, which the plate
+   calls garbled): the angle is `FILD` (2·(i|1)) → `FMUL m64` [10d0:13ee] (π/2880 as stored) →
+   `FADD m64` [13f6] (0.0003272 as stored), each rounded to the x87's 64-bit significand
+   (round to nearest even), then `FSTP m32` into `g_angleRadians`: **the angle is a binary32**,
+   which moves many entries by far more than an ulp; then each table's sequence with its exact
+   roundings: the transcendental of that binary32 value evaluated to well beyond 64 bits (Python
+   `decimal`, 60 digits, Taylor series), rounded to the 64-bit significand as `_trandisp1`
+   returns it on ST(0); the operations with `g_fixedOne16`/`g_cellSize`/`g_wallHeightK` in
+   extended precision; the double stores the asm makes (`fabs` takes and returns a double in
+   `__fac` 10d0:0c3e, so [2] and [3] round to binary64 before the last multiply); the clamp; the
+   truncation toward zero of `_ftol` (`FISTP m64` with RC = chop), low 32 bits kept. The
+   precision control is the x87's power-on 64 bits (to confirm from the CRT's `_fpinit` in `10b8`
+   by the `tables` agent).
+2. The oracle: `raycast_build_tables` itself run in `tools/oracle` (with `_fmalloc` stubbed to a
+   scratch selector, or the CRT heap with its two KERNEL imports stubbed), the seven tables read
+   back. Unicorn computes the transcendental instructions on host doubles, so where the model and
+   the oracle disagree the exact value lies within about 2⁻⁴⁰ of an integer: such entries are
+   printed and settled by the model (and listed in the commit body). Expected: none.
+3. Output: `src/jardim/tables.bin`, the seven tables back to back as little-endian i32 (6 × 2881 +
+   481 = 17,767 entries, 71,068 bytes), written only when the model and the oracle agree; its
+   SHA-256 is printed and recorded in the unit's test.
+
+**The port.** `tables.build(g)` (`@orig 1028:0077 raycast_build_tables`) allocates the seven
+tables from `g.local()` (three times per game, as the original never frees them) and fills them
+from `@embedFile("tables.bin")` (`std.mem.readInt` per entry: the embedded bytes have no
+alignment). `tables.angleToRadians(i)` (`@orig 1028:003b`) is ported literally with Zig's `f80`
+(IEEE extended, round to nearest even: the x87 at 64-bit precision; compiler-rt soft-float on
+wasm32) and an `f32` result; only the tests call it. Tests: the SHA-256 of `tables.bin`; 50 entries
+across the seven tables against oracle values (`oracle=emulated`); `angleToRadians` against the
+oracle's `g_angleRadians` for 20 indices including 0, 1, 719, 720, 1439, 2879, 2880.
+
+## Fixes (BUGS.md J section)
+
+| Bug | Flag | Unit | What the fix changes | In `all` |
+|---|---|---|---|---|
+| J1 the win's time bonus is a penalty | `jardim_time_bonus` | labyrinth_input | the WM_DESTROY win branch subtracts the whole 32-bit `g_startTick` from the whole 32-bit tick: score += 10⁹ / ms played (16-bit truncation kept) | yes |
+| J2 Chato is never removed | `jardim_chato_removed` | phase3 | `phase3_scene_hit` clears Chato's cell (`objectRows[row][col] = NULL`) as every other kill | yes |
+| J3 a weapon picked up while a shot flies is lost | `jardim_weapon_waits_for_shot` | phase1, phase2, phase3 | the weapon branches of `touch`, with `shotInFlight`, leave the pickup in its cell and play nothing (as a refused pickup), so it can be taken once the shot has stopped | yes |
+| J4 wall textures stay on the screen | `jardim_wall_texture_on_wall` | raycast | `raycast_render_view` passes the hit coordinate & ~3 for a wall too (as for a door), so the texture column follows the wall | yes |
+| J5 a sprite with its top on row 478 crashes | `jardim_sprite_last_rows` | scaled | the magnifying row loop draws the 1–2 rows left on the surface; the Original port panics "BUGS.md J5" where the original faults | yes |
+| J6 a held key into a life-taking enemy takes a life every tick | `jardim_enemy_blocks_walk` | labyrinth_input | a step undone by `touch` ends the held key's walk (the tick does not repeat it until the key is pressed again): one life, or 5 health, per press | **no: a choice** |
+| J7 the variant never reaches JARDIM from `espquete` | `jardim_variant_hello` | app | AppWndProc posts 0x40c only after NOITE's 0x40b (the FindWindow branches post nothing), so `espquete`'s timer finds JARDIM, sends the hello and variant 1 arrives: the final enemy is `espanf` | yes |
+
+Each unit ports the buggy code and keeps the fixed path only under its flag
+(`g.fixes.jardim_…`). The Latent entries get no flag: where the port would run them it panics
+naming the entry (the sprite queue's 101st node, a border door's read outside the map, the
+1-row source of `blit_scaled_column`) or behaves as the original's data allows (a short map
+file: `_filbuf`'s −1, i.e. 0xff, as the cell value). The Harmless entries get none either
+(the 0x40c re-posting, the blit's off-by-one rows, the overwritten placements, the constructor
+positions in walls, the phase destructors, `passo1.bmp`, phase 3's dead exit branch, Chato's
+silent attack, the repeated loss reports, `WinMain`'s return).
+
+## Integration
+
+JARDIM is wired (`src/main.zig` `minigames`) and switched off (`src/jardim/root.zig` `ready =
+false`) until every unit is ported and the tests below pass: until then NOITE's WinExec runs the
+stub and `--minigame jardim` says it is not ported.
+
+### The launch from NOITE
+
+Two scenes launch it (NOITE's side is ported and does not change):
+- `handler_espquete` (`src/handlers/espquete.zig`), the garden cutscene: at the video's
+  successful end (`MM_MCINOTIFY`) `WinExec("<CD>jardim\jardim.exe")` and timer 0x14 (100 ms),
+  whose tick posts **0x40b with variant 1** once `FindWindow("Noite Animal Jardim")` succeeds;
+- `handler_4fjarvamp` (`src/handlers/4fjarvamp.zig`), the vampire's garden: the same at the
+  scene start (0x401), **variant 0**.
+
+The host matches `jardim` to `jardim.program` and starts the task `--minigame-startup` ms later
+(1500; its WinMain: `app.start`, after `init_static_conditions` as `_cinit` runs it).
+JARDIM's AppWndProc (unlike TIRO's) does not wait for the hello: at the top of **every** message,
+while `g_noiteWnd` is 0 it calls `FindWindow("Noite Animal")` (task 0's title) and posts **0x40c**
+(wParam its window) to what it found; then, until NOITE's 0x40a ack (`g_noiteAcked`), it posts
+0x40c again on every message; timer 10 (50 ms) retries the FindWindow. Its first message is sent
+inside CreateWindow, so the first 0x40c is in NOITE's queue before NOITE's timer can find the
+window (in Windows 3.1 too: NOITE does not run until JARDIM's WinMain yields):
+- `4fjarvamp` ignores a 0x40c while it does not know JARDIM's window; its timer then finds it and
+  posts 0x40b (0); JARDIM stores the variant and NOITE's window and posts 0x40c; NOITE acks with
+  0x40a, kills the timer and hides;
+- `espquete` takes the first 0x40c as the reply: it kills the timer and hides, and its ack goes to
+  window 0. The hello is never sent, `g_variant` keeps its initial 0 and the final enemy is
+  `vamanf` (BUGS.md J7); JARDIM re-posts 0x40c to NOITE on every message until it ends, each one
+  a no-op for NOITE.
+
+**The result.** The win (touching phase 3's final enemy) posts JARDIM's own `WM_DESTROY` with
+wParam 0xffff; a loss (lives 0, at an enemy's attack or a touch) posts it with 0. The phase
+handler stops and frees the waves, closes WaveMix and `close musica`, and the backdrop's case
+posts **0x40a** to `g_noiteWnd` (won: wParam 1, lParam score + the J1 bonus; lost: wParam 0,
+score − 1000); AppWndProc kills timer 10 and posts WM_QUIT, which comes after the posted
+messages (`core/queue.zig`), so the further `WM_DESTROY`s of a loss (harmless list) post their
+0x40a too. The host then runs `app.exit`, destroys the window and activates NOITE, which shows
+itself, adds the score and goes to `6fsai1` (espquete won), `6fsai2` (4fjarvamp won) or
+`6fsaida` (lost; no life is taken). ESC quits JARDIM without a result (`PostQuitMessage` from the
+backdrop): NOITE's `WM_SYSTIMER` check finds the window gone and posts itself a loss with no
+score change; closing the window is a loss with −1000. `--minigame-stub` keeps the stub.
+
+### Standalone
+
+- `noite --minigame jardim [--headless …]`: JARDIM alone (task 0, its title, `\JARDIM`); its
+  FindWindow("Noite Animal") fails on every message (nothing is posted), the variant stays 0;
+  the result (0x40a to window 0) is recorded and printed by the host.
+- Web: `web_main.minigames` and `MINIGAMES` in `web/noite.js` get JARDIM ("Noite Animal
+  Jardim") when `ready`; the "Jogo" select offers "Jogar só o minijogo: Jardim";
+  `tools/web/files.py` finds its files in `JARDIM\` (as TIRO's). **Touch pad** (one-button mode,
+  or a minigame alone on a touch screen; `PAD_KEYS` follows the program on top): JARDIM needs
+  turn (LEFT/RIGHT), walk (UP/DOWN), fire (CTRL) and open (SPACE). Proposal, an owner question:
+  the four arrows where they are, SPACE (open, a door glyph) in the centre, CTRL (fire, a
+  crosshair) in the bottom-right corner of the 3×3 grid, i.e. `PAD_KEYS.jardim = [37, 38, 39,
+  40, 32, 17]` with `#dpad [data-key="17"] { grid-area: 3 / 3; }`; running (SHIFT) and strafing
+  (CAPS LOCK held) left out, or as two latching buttons in the top corners (1/1, 1/3) whose state
+  `GetKeyState` reports while they are lit.
+
+### The harness, smoke and full.input
+
+- Script keys: `key`/`hold` get `ctrl` (0x11), `shift` (0x10) and `capslock` (0x14); `hold
+  shift 3000` with `hold up 3000` runs.
+- `tools/smoke.py --minigame jardim [--fix all] [--monkey SEED]`: random arrows, CTRL and SPACE
+  (no ESC), holds of 55–1000 ms, for 60 s, seeds 1–5: no panic but an "orig" J5 line, no leak;
+  a result or none (a monkey seldom wins or loses in 60 s).
+- `tools/play/full.input` and `onebutton.input` reach `espquete` (the first ending); once JARDIM is
+  ready they play its scripted win (below) instead of the stub's, re-planned from the start time
+  the run gives it; the timeline after it moves and the rest of the script is re-tuned.
+
+## Platform
+
+What JARDIM needs that ENCAIXE and TIRO did not, done on main outside the tracker (the platform
+is NOITE's tree, so no JARDIM unit can change it), before the `labyrinth_input` agent tests
+interactively:
+- **Keys.** The minigame task gets VK_CONTROL (0x11, fire), VK_SHIFT (0x10) and VK_CAPITAL
+  (0x14) as WM_KEYDOWN/WM_KEYUP, besides the arrows, Space, Enter and Esc: SDL (LCTRL/RCTRL,
+  LSHIFT/RSHIFT, CAPSLOCK), the web page (`Control`, `Shift`, `CapsLock`) and the script's names;
+  `Sim.filterInput` passes them to a minigame and drops them for NOITE (which ignores them).
+- **`GetKeyState`.** `Platform.getKeyState(vk) i16` (bit 15: down, bit 0: toggled), per task, as
+  of the last input message the task's queue handed out (Windows' synchronous key state):
+  JARDIM reads SHIFT (run) on the tick and CAPS LOCK **held down** (`< 0`, strafe) on the turn
+  keys. The Caps Lock key's events: some systems (macOS, some browsers) report only the toggles
+  (down on the first press, up on the second); then strafing needs Caps Lock locked, an accepted
+  difference (an owner question if it matters).
+- **Repeats.** The backdrop latches each key (`g_keyLeftDown` …): a repeat only records
+  `g_keyAltContext`; the 55-ms tick drives held keys. The `Sim` repeat generator needs nothing.
+- **Timers.** The game tick is `WM_SYSTIMER` from system timer 1 (55 ms) **and** from timer 10
+  (50 ms, AppWndProc's FindWindow retry): the backdrop does not check the id, so the game ticks
+  about 38 times a second (the queue's exact periods). In Windows 3.1 both fire on the 55-ms
+  hardware tick (36 a second, in pairs). The port keeps the queue as it is (NOITE's and TIRO's
+  scripts and planners rely on it); the planner models the port's timers.
+
+## Tests
+
+- **Planner** `tools/jardim_plan.py --start MS (--win|--lose) [--variant 0|1]` (MS: JARDIM's
+  WM_CREATE: 0 alone, WinExec + 1500 from NOITE). It knows the three maps (`raymapN.dat`), the
+  starts, the doors, the placements (`phaseN_scene_place_objects`, transcribed once into a
+  table) and the movement model exactly: a `key up`/`key down` press moves 16 units (`0x100000 /
+  tables[5|6]` at the view angle, the integer quotient), a `key left`/`right` press turns 48
+  units (6°), the start angle 480 and the axes (0, 720, 1440, 2160) are multiples of 48, so a
+  route of presses on cell centres and axis-aligned headings is exact (no held keys: no tick
+  ramps, no coasting). The **win**: a cell path (BFS) from each start to the exit door (phase 1:
+  `8` at row 77 col 0; phase 2: `7` at row 79 col 42), opening the `9`–`C` doors on the way with
+  SPACE, and in phase 3 to the final enemy (row 78 col 2), choosing routes and headings that keep
+  enemies out of view (each visible enemy costs 1 health per animation cycle, about 9 a second
+  at 38 frames a second) and shooting the ones in the way with the weapons picked up; its
+  `--check FILE` runs the port headless on the script (`--minigame jardim --input FILE --trace`)
+  and reads the result and the deaths. The win must not land where the low word of the virtual
+  tick equals the start tick (J1: a division by zero in the Original). The **loss**: phase 1's
+  nearest Seios (a life per touch), held into: three lives in 165 ms in the Original (J6), three
+  presses with `jardim_enemy_blocks_walk`.
+- **Scripts** (`tools/play/`), each Original and `--fix all`, the same script (the result's
+  score differs by J1's bonus):
+  - `jardim-alone-win.input` (`--minigame jardim --ms 600000`): the three phases, `result won N`;
+  - `jardim-alone-lose.input`: `result lost -1000` (plus the beers drunk on the way);
+  - `jardim-espquete-win.input` / `-lose.input` (`--scene espquete`): the video ends, JARDIM
+    starts, NOITE hidden (`dump`), the final enemy `vamanf` in the Original and `espanf` with the
+    fixes (J7; a `pixel` check on the sprite), `6fsai1` with the score added / `6fsaida`;
+  - `jardim-4fjarvamp-win.input` (`--scene 4fjarvamp`): `vamanf` in both, `6fsai2`;
+  - `full.input`, `onebutton.input`: espquete's JARDIM with the planner's win.
+- **Smoke**: `tools/smoke.py --minigame jardim` (above).
+- **Web**: `tools/web/test.py` plays "Jogo" = Jardim: JARDIM starts and UP moves the minimap's
+  player square.
+- **Unit tests**: required for the six 32-bit routines and the tables (above); optional
+  elsewhere, as worth it: `labyrinth_load_map` (`asset`, the three maps: the exit doors and the
+  starts of GAME.md), `sprite_queue_insert`/`draw_tree` (the order of a known set), the step's
+  collision push (`labyrinth_move_and_render` on a map fragment, `documented`), the HUD's text
+  (`asset` with `labinter.bmp`).
+
+## Units
+
+29 units, 399 functions to port; 113 dead, 402 absorbed (276 thunks, 86 defaults, 40 type
+tests), 246 replaced (153 CRT, the FP library included: `sin`, `cos`, `tan`, `fabs`, `_ftol`,
+`_trandisp1/2` and the 26 unnamed 8087 entries of 10b8:2f87–4b37, replaced by the precomputed
+tables; 93 imports). Hard deps are direct calls into another unit (`noite -p jardim next
+--blocked`); virtual calls are soft (`unit dep show`). Level = the longest chain of hard deps
+below the unit: the units of one level can run in parallel once the levels below are done.
+
+| Level | Unit | Fns | Size | Calls into |
+|---|---|---|---|---|
+| 0 | `dib` | 9 | 4.5 KB | — |
+| 0 | `position` | 34 | 1.8 KB | — |
+| 0 | `scaled` | 4 | 2.0 KB | — |
+| 0 | `sound` | 9 | 0.9 KB | — |
+| 0 | `tables` | 2 | 1.2 KB | — |
+| 1 | `backdrop` | 12 | 2.6 KB | dib, position |
+| 1 | `labmap` | 4 | 0.7 KB | position |
+| 1 | `render` | 20 | 4.0 KB | dib, position |
+| 1 | `space3d` | 33 | 5.9 KB | position |
+| 2 | `animation` | 33 | 4.8 KB | position, render |
+| 2 | `hud` | 9 | 1.7 KB | dib, position, render |
+| 2 | `lists` | 16 | 3.0 KB | position, render |
+| 2 | `occupancy` | 16 | 2.0 KB | position, render |
+| 2 | `sprites` | 6 | 2.9 KB | labmap, position, scaled |
+| 3 | `movement` | 19 | 4.2 KB | animation, backdrop, position, render |
+| 3 | `object_create` | 37 | 7.6 KB | dib, lists, position |
+| 3 | `panels` | 10 | 1.1 KB | animation, dib, lists, position |
+| 3 | `raycast` | 9 | 2.9 KB | position, scaled, sprites |
+| 4 | `labyrinth` | 7 | 4.9 KB | backdrop, dib, hud, labmap, raycast, render, sprites, tables |
+| 4 | `scene` | 20 | 1.6 KB | backdrop, lists, object_create |
+| 4 | `visibility` | 16 | 2.4 KB | lists, panels, position, render |
+| 5 | `labyrinth_input` | 2 | 7.4 KB | hud, labyrinth, position, raycast, sprites |
+| 5 | `labyrinth_scene` | 10 | 1.4 KB | labyrinth, scene, sound |
+| 6 | `game` | 18 | 3.0 KB | labyrinth_scene, lists, object_create, occupancy, scene |
+| 6 | `phase1` | 11 | 12.6 KB | labmap, labyrinth, labyrinth_scene, object_create, position, sound |
+| 6 | `phase2` | 11 | 15.3 KB | labmap, labyrinth, labyrinth_scene, object_create, position, sound |
+| 6 | `phase3` | 10 | 10.5 KB | labmap, labyrinth, labyrinth_scene, object_create, position, sound |
+| 7 | `app` | 9 | 1.6 KB | backdrop, dib, game |
+| 7 | `game_input` | 3 | 6.9 KB | game, lists, movement, position, render, space3d |
+
+Ready first (parallel): `dib`, `position`, `scaled`, `sound`, `tables`; then `backdrop`,
+`labmap`, `render`, `space3d`; then `animation`, `hud`, `lists`, `occupancy`, `sprites`; then
+`movement`, `object_create`, `panels`, `raycast`; then `labyrinth`, `scene`, `visibility`;
+then `labyrinth_input`, `labyrinth_scene`; then `game`, `phase1`, `phase2`, `phase3`; then
+`app`, `game_input`. The largest single functions: `phase2_scene_place_objects` (8.5 KB, a list
+of placements), `phase1_scene_place_objects` (6.3 KB), `labyrinth_backdrop_handle_message`
+(6.2 KB, `labyrinth_input`), `game_handle_message` (5.9 KB, `game_input`).
+
+Placement choices that keep the call graph acyclic: `labyrinth_place_object`/`remove_object` are
+in `labmap` (the sprites move enemies between cells, and the frame calls the sprites); the
+phases' ctors and `createScreen` are in `labyrinth_scene` (phase 1's `createNewScene` builds a
+Phase2Scene: with the ctors in the phase units the phases would form a chain); the panel's texts
+are drawn in `render`, `object_list_delete_all` (it deletes objects) is in `object_create`,
+`exit_has_key_object` in `animation`, `portable_draw_icon` in `panels`;
+`message_box_printf` is in `position` (the lowest unit that calls it).
+
+## Tracker
+
+`noite -p jardim …` (or `NOITE_PROGRAM=jardim`): DB `db/jardim.sqlite` (local; `noite -p jardim
+import` rebuilds it from Ghidra and the plan), plan `db/jardim-plan.tsv` (committed), tree
+`src/jardim/`, index `src/jardim/units.zig`, worktrees `work/jardim-<unit>/` on branches
+`port/jardim-<unit>`. A worktree's `.ref/env.sh` sets `NOITE_PROGRAM`, so `noite test`/`check`
+there need no `-p`. The program's layout (`tools/cli/src/noite/program.py` `JARDIM`): CRT `10b8`,
+imports `10e8`, DGROUP `10d0`, far 4-byte vtable slots, virtual calls `CALLF [BX+off]`. The
+non-SceneObject slot owners are `docs/jardim/SLOTS.tsv`.
+
+```
+noite -p jardim next [--blocked]      # units ready to claim
+noite -p jardim start <unit>          # worktree work/jardim-<unit>/
+noite -p jardim show <addr|name>      # row, decompile (--asm), callers/callees
+noite -p jardim unit show <unit>
+noite -p jardim check -w <unit>       # @orig tags vs JARDIM's DB
+noite -p jardim initdata -w <unit>    # `// @orig g_*` defaults vs JARDIM's DGROUP
+noite -p jardim finish <unit>         # from the main checkout
+noite -p jardim failed <unit> "why" / release <unit>
+```
+
+## How to port a JARDIM unit
+
+1. `noite -p jardim next`, `noite -p jardim start <unit>`, then work in `work/jardim-<unit>/`
+   (`. .ref/env.sh`; tools via `nix develop -c`). Scratch output, listings and frame dumps go in
+   the worktree's `zig-out/`, never `/tmp`.
+2. Read the unit's `.ref/*.c` (plate, decompile, disassembly), `.ref/types.md`,
+   `.ref/strings.md`; GAME.md / DATA.md for the rules and the class. Ghidra
+   (`mcp__ghidra__*`, `program="JARDIM.EXE"`) for anything else. For `1000–1018` the `.ref`
+   listing is garbage: use objdump ("The 32-bit routines").
+3. Read the twin: TIRO's unit of the same name (`src/tiro/<unit>.zig`) for the engine code,
+   NOITE's for the classes and slots TIRO lacks; JARDIM's offsets are NOITE's. Transcribe each
+   JARDIM function from JARDIM's own decompile/asm, reusing the twin's Zig where they agree; note
+   in the commit body every function whose code differs from the twin's (and how). Never call a
+   TIRO or NOITE unit, except the state-free delegation of Decisions.
+4. Write only your unit's file (and, for `tables`, `raycast`, `scaled`: their generated data and
+   generator, `src/jardim/tables.bin`, `src/jardim/testdata/`, `tools/…`): replace each declared
+   dispatcher's body, keep its signature; one `// @orig <seg:off> <ghidra_name>` per function
+   (JARDIM addresses; `(absorbed)` for the defaults and thunks an arm covers). Public names: the
+   Ghidra name minus the unit's class prefix, camelCase (`sprite_queue_insert` in `sprites` →
+   `sprites.insert`). A field missing from `core/` is added there with its `@orig` offset.
+5. Faithful first: port each J-bug as the code does it and put the fix only behind its flag
+   (`g.fixes.jardim_…`, table above). NOITE's conventions hold (`i16`/`i32` with wrapping where
+   the original overflows, `cstr`, `?*T`, message boxes through `plat.messageBox`, every
+   PostMessage/SendMessage/SetSystemTimer at the same point, `error.Fatal` only where the original
+   ends). Allocate what the original `new`s or `_fmalloc`s from `g.local()`.
+6. Call other units' dispatchers and the `Scene` wrappers, never a local copy. If a declared
+   signature cannot express the original, `noite -p jardim failed <unit> "slot <name> (<owner>)
+   needs …"`.
+7. Tests: required for the 32-bit routines and the tables (`oracle=emulated`), optional elsewhere
+   (`oracle=emulated` from tools/oracle, `asset` from `assets/JARDIM/`, `documented` from Ghidra).
+8. `noite test`, commit (commit skill), `noite -p jardim finish <unit>` from the main checkout.
+
+## Finishing
+
+When every unit is ported: the platform work above, the planner and the scripts, the web entry;
+then `ready = true`, `full.input`/`onebutton.input` re-planned, the smoke and web tests, and the
+README's "Running the port"/"Testing the port" entries.
+
+## Owner questions
+
+1. **J6** (`jardim_enemy_blocks_walk`, a choice): is "a blocked step ends the held walk" the
+   Corrigida rule you want (one life, or 5 health, per press into an enemy), or another (an enemy
+   hits once per contact until the player has moved away, or one life per scream)?
+2. **J7**: the reading is that `espquete` never sends the hello, so its final enemy is always the
+   vampire's `vamanf`. The fix is on JARDIM's side (post 0x40c only after 0x40b, as TIRO does);
+   it could instead be on NOITE's (`espquete` ignoring a 0x40c from an unknown window, as
+   `4fjarvamp` does). Which side, and is `espanf` in the Corrigida's first ending what you want?
+3. **J4** in Corrigida: every wall looks different (the texture moves with the wall). It is in
+   `all` as a clear bug; say if you would rather keep the original look.
+4. **The touch pad**: the arrows, SPACE (open) in the centre and CTRL (fire) bottom right; run
+   and strafe left out, or as two latching buttons?
+5. **Timers**: keep the queue's exact 50/55-ms periods (≈ 38 ticks a second), or quantise
+   timers to Windows 3.1's 55-ms tick (36 a second; would apply to every program and replan
+   TIRO's and ENCAIXE's scripts)?
+6. **J5 in the Original**: the port panics where the original crashes (a smoke "orig" line), as
+   NOITE's latent faults. Keep it a crash, or draw the rows silently in both versions?

@@ -311,11 +311,13 @@ NOITE's side (`src/handlers/espquete.zig`, `src/handlers/4fjarvamp.zig`):
 - `handler_espquete` (1028:0a88), the garden cutscene: at the video's successful end
   (`MM_MCINOTIFY`) it `_chdir`s to `<CD>jardim`, `WinExec`s `<CD>jardim\jardim.exe` and starts timer
   0x14 (100 ms); the timer finds "Noite Animal Jardim", hides the main window and posts `0x40b`
-  with **variant 1** (the final enemy is `espanf`).
+  with **variant 1** (the final enemy is `espanf`). JARDIM's own 0x40c gets there first and the handler
+  kills the timer, so this hello is never sent and the final enemy is `vamanf` (`BUGS.md` J7).
 - `handler_4fjarvamp` (1028:0d80), the vampire's garden: the same at the scene start (0x401), with
   **variant 0** (`vamanf`).
-- Both answer each `0x40c` with `0x40a`, and on `WM_SYSTIMER` post themselves `(0x40a, 0, 0)` if
-  the window has gone (the only report after ESC: a loss with no score change).
+- Both answer each `0x40c` with `0x40a` (`espquete` to window 0: it never learns JARDIM's), and on
+  `WM_SYSTIMER` post themselves `(0x40a, 0, 0)` if the window has gone (the only report after ESC: a
+  loss with no score change).
 - The result (`0x40a`): shows the main window, `g_score += lParam`, then the scene switch:
   `espquete` → `6fsai1` (the first ending) on a win, `6fsaida` (game over) on a loss;
   `4fjarvamp` → `6fsai2` (the second ending) on a win, `6fsaida` on a loss. No life is taken: a
