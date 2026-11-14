@@ -141,7 +141,7 @@ pub fn moverAtTarget(obj: *Object) bool {
 }
 
 // @orig 1028:0f89 mover_move_tick
-fn moverMoveTick(g: *Game, obj: *Object, bd: *Backdrop) void {
+pub fn moverMoveTick(g: *Game, obj: *Object, bd: *Backdrop) void {
     if (obj.mover.moving == 0) return;
     moverStep(obj);
     if (occupancy.canStep(g, obj, bd)) {
