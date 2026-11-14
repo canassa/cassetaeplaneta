@@ -51,7 +51,7 @@ def _program(
         typer.Option(
             "--program",
             "-p",
-            help="Which program: noite (default) or encaixe. Also NOITE_PROGRAM.",
+            help="Which program: noite (default), encaixe or tiro. Also NOITE_PROGRAM.",
         ),
     ] = None,
 ) -> None:

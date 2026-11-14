@@ -9,6 +9,7 @@ their tracking survives a rename-by-recreate.
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from collections import Counter
 from collections.abc import Callable
@@ -58,6 +59,15 @@ ON CONFLICT(addr) DO UPDATE SET
 """
 
 
+_JMPF = re.compile(r"\bJMPF 0x([0-9a-fA-F]{4}):([0-9a-fA-F]{4})\b")
+
+
+def far_jumps(disasm: str | None) -> tuple[str, ...]:
+    """``JMPF seg:off`` targets: a far adjustor thunk's (TIRO's) only way out,
+    which Ghidra does not list as a callee."""
+    return tuple(sorted({f"{a}:{b}".lower() for a, b in _JMPF.findall(disasm or "")}))
+
+
 def run(
     conn: sqlite3.Connection,
     source: Source,
@@ -96,7 +106,11 @@ def run(
         for f in listed:
             d = details.get(f.addr, f)
             kind, absorbed_by = classify(
-                f.addr, d.name, ghidra_thunk=f.is_thunk, callees=d.callees, classes=classes
+                f.addr,
+                d.name,
+                ghidra_thunk=f.is_thunk,
+                callees=d.callees or far_jumps(d.disasm),
+                classes=classes,
             )
             kinds[kind.value] += 1
             conn.execute(

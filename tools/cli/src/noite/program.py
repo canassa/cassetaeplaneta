@@ -76,7 +76,7 @@ NOITE = Program(
     src="src",
     index="src/units.zig",
     design="docs/DESIGN.md",
-    exclude=("src/encaixe",),
+    exclude=("src/encaixe", "src/tiro"),
     api_segments=frozenset({"1108"}),
     crt_segments=frozenset({"1008"}),
     dgroup=0x1050,
@@ -117,7 +117,32 @@ ENCAIXE = Program(
     platform_names=frozenset({"WinMain", "?APPWNDPROC@@ZCJIIIJ@Z", "?APPABOUT@@ZCHIIIJ@Z"}),
 )
 
-PROGRAMS = {p.name: p for p in (NOITE, ENCAIXE)}
+# TIRO.EXE ("Tiro ao Alvaro"), medium model /Od: far code (one segment per
+# module, CRT 1080, imports 10a8), near data (DGROUP 1090, `this` and the vptr
+# near) but far 4-byte vtable slots, called as `CALLF [BX+off]` like NOITE's.
+TIRO = Program(
+    name="tiro",
+    ghidra="TIRO.EXE",
+    exe="assets/TIRO/TIRO.EXE",
+    db="db/tiro.sqlite",
+    plan="db/tiro-plan.tsv",
+    src="src/tiro",
+    index="src/tiro/units.zig",
+    design="docs/tiro/DESIGN.md",
+    zig_module="noite.tiro",
+    prefix="tiro-",
+    api_segments=frozenset({"10a8"}),
+    crt_segments=frozenset({"1080"}),
+    dgroup=0x1090,
+    data_segments=(0x1090,),
+    slot_size=4,
+    type_categories=("/", "/tiro"),
+    # Dead classes and code are listed in the plan (status `dead`), not here.
+    type_test_classes=frozenset({"player", "directional_player", "exit", "portable"}),
+    platform_names=frozenset({"WinMain", "APPWNDPROC", "APPABOUT"}),
+)
+
+PROGRAMS = {p.name: p for p in (NOITE, ENCAIXE, TIRO)}
 ENV = "NOITE_PROGRAM"
 
 

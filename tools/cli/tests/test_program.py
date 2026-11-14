@@ -14,6 +14,7 @@ from noite.classify import classify
 from noite.cli import app
 from noite.db import Kind, UnitKind, connect, tx
 from noite.ghidra import FunctionInfo
+from noite.importer import far_jumps
 from noite.importer import run as import_run
 from noite.ne import NeImage, Segment
 
@@ -38,7 +39,7 @@ def test_default_is_noite_and_paths_follow_the_program(
     assert plan.plan_rel() == "db/encaixe-plan.tsv"
     assert units.index_path() == Path("src/encaixe/units.zig")
     with pytest.raises(ValueError):
-        program.get("tiro")
+        program.get("bogus")
 
 
 def test_cli_rejects_an_unknown_program() -> None:
@@ -166,3 +167,42 @@ def test_import_and_plan_for_encaixe(encaixe: program.Program, repo: Path) -> No
     assert s.worktree == repo / "work/encaixe-tetris" and s.branch == "port/encaixe-tetris"
     assert "NOITE_PROGRAM=encaixe" in (s.worktree / ".ref/env.sh").read_text()
     claim.release(conn, repo, "tetris")
+
+
+@pytest.fixture
+def tiro(monkeypatch: pytest.MonkeyPatch) -> program.Program:
+    monkeypatch.setenv(program.ENV, "tiro")
+    return program.current()
+
+
+def test_tiro_layout(tiro: program.Program, tmp_path: Path) -> None:
+    assert paths.db_path(tmp_path) == tmp_path / "db/tiro.sqlite"
+    assert paths.worktree_path(tmp_path, "gallery") == tmp_path / "work/tiro-gallery"
+    assert plan.plan_rel() == "db/tiro-plan.tsv"
+    assert units.index_path() == Path("src/tiro/units.zig")
+
+    def kind(addr: str, name: str, callees: tuple[str, ...] = ()) -> tuple[Kind, str | None]:
+        return classify(addr, name, ghidra_thunk=False, callees=callees, classes=frozenset())
+
+    assert kind("10a8:0010", "POSTMESSAGE")[0] is Kind.API
+    assert kind("1080:02ae", "_purecall")[0] is Kind.CRT
+    assert kind("1068:1790", "tiro_scene_handle_message")[0] is Kind.METHOD
+    # A far adjustor thunk's only way out is its JMPF.
+    asm = "1088:485a  MOV BX, SP\n1088:4869  JMPF 0x1068:07f4"
+    assert far_jumps(asm) == ("1068:07f4",)
+    assert kind("1088:485a", "target_tick_thunk", far_jumps(asm)) == (Kind.THUNK, "1068:07f4")
+    # Far 4-byte slots, `CALLF [BX+off]` as in NOITE.
+    layouts = {"SceneObjectVtbl": {f"slot{i:02x}": i for i in range(0x5B)}}
+    use = deps.slots_called("SceneObjectVtbl *v;", "1068:08a0  CALLF [BX + 0xb4]", layouts)
+    assert use.pairs == {("SceneObjectVtbl", 0x2D)}
+    assert deps.other_vtables()["ProjectileVtbl"][3] == "arrow"
+    assert 0x58 in deps.type_test_slots()
+
+
+def test_noite_does_not_scan_tiro(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (tmp_path / "src/tiro").mkdir(parents=True)
+    (tmp_path / "src/a.zig").write_text("// @orig 1008:0100 noite_fn\nfn a() void {}\n")
+    (tmp_path / "src/tiro/b.zig").write_text("// @orig 1068:0100 tiro_fn\nfn b() void {}\n")
+    assert [t.name for t in tags.scan(tmp_path)] == ["noite_fn"]
+    monkeypatch.setenv(program.ENV, "tiro")
+    assert [t.name for t in tags.scan(tmp_path)] == ["tiro_fn"]

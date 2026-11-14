@@ -94,12 +94,36 @@ ENCAIXE_OTHER_VTABLES: dict[str, dict[int, str]] = {
 ENCAIXE_TYPE_TEST_SLOTS = set(range(0x3C, 0x4E)) | {0x54, 0x55}
 
 
+# The same for TIRO (docs/tiro/DESIGN.md "Other vtables").
+TIRO_OTHER_VTABLES: dict[str, dict[int, str]] = {
+    "Object3DVtbl": _flat("space3d", 8),
+    "AnimationVtbl": {0: "animation"},
+    "MoverVtbl": {0: "movement"},
+    # moveTick (slot 1) is dead in both: nothing calls it.
+    "TargetVtbl": {0: "movement", 2: "target"},
+    "ProjectileVtbl": {0: "movement", 2: "arrow", 3: "arrow"},
+    "ControlPanelVtbl": {0: "animation"} | dict.fromkeys(range(1, 9), "panels"),
+    "GameVtbl": {0: "game_input"} | dict.fromkeys(range(1, 7), "game"),
+    "SceneVtbl": _flat("scene", 13) | {0: "gallery", 5: "gallery", 7: "gallery"},
+    "BackdropVtbl": _flat("backdrop", 19),
+    "GridBackdropVtbl": _flat("backdrop", 20),
+    "ConditionVtbl": _flat("game", 3),
+    "FrameVtbl": {0: "object_create"},
+}
+# TIRO's SceneObject type-test slots: ENCAIXE's 3C-4D, 54/55 shifted by -2
+# (unk11 and unk18 are gone), plus isProjectile/isTarget/isCrossbow 56, 58, 59.
+TIRO_TYPE_TEST_SLOTS = set(range(0x3A, 0x4C)) | {0x52, 0x53, 0x56, 0x58, 0x59}
+
+_OTHER = {"encaixe": ENCAIXE_OTHER_VTABLES, "tiro": TIRO_OTHER_VTABLES}
+_TYPE_TESTS = {"encaixe": ENCAIXE_TYPE_TEST_SLOTS, "tiro": TIRO_TYPE_TEST_SLOTS}
+
+
 def other_vtables() -> dict[str, dict[int, str]]:
-    return ENCAIXE_OTHER_VTABLES if program.current().name == "encaixe" else OTHER_VTABLES
+    return _OTHER.get(program.current().name, OTHER_VTABLES)
 
 
 def type_test_slots() -> set[int]:
-    return ENCAIXE_TYPE_TEST_SLOTS if program.current().name == "encaixe" else TYPE_TEST_SLOTS
+    return _TYPE_TESTS.get(program.current().name, TYPE_TEST_SLOTS)
 
 
 _SLOT_ROW = re.compile(r"^\|\s*([0-9A-Fa-f]{2})\s*\|\s*(\w+)\s*\|\s*(\w+)\s*\|")
