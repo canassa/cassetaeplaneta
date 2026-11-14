@@ -146,7 +146,7 @@ pub fn drawInventory(g: *Game, obj: *Object, bd: *Backdrop) ?*ObjectList {
     return inv;
 }
 
-/// Not in the original (`Fixes.panel_icons_while_sliding`): the icons
+/// B49's fix (`Fixes.panel_icons_while_sliding`): the icons
 /// drawn while the panel slides, lowered with its art. A frame shows the
 /// art `getVisibleHeight` rows high, so the icons sit that much below
 /// where the open frame puts them (clipped at the screen's bottom).

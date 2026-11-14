@@ -778,6 +778,18 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   first step (same steps, same timing). `tools/web/test.py` checks the frames the page presents.
 - **Confidence:** 9 (code, port repro, web frames).
 
+### B49. The inventory icons vanish while the control panel slides
+- **Where:** `control_panel_draw` 1018:1f1c draws the panel's frame, then the inventory icons only when the
+  panel is open and its slide animation is not running (`isOpen != 0` and the animation stopped).
+- **What the code does:** the slide changes the panel's frame (more or less of its art shows; the panel's
+  position stays), and each tick redraws the panel without the icons.
+- **Effect:** the icons disappear the moment the panel starts to close and appear only once it is fully
+  open: the slots slide empty both ways.
+- **Port:** reproduced; `Fixes.panel_icons_while_sliding` draws them during the slide too, lowered by the
+  art's offset (`panels.drawInventorySliding`; the open frame's visible height minus the current one),
+  clipped at the screen's bottom.
+- **Confidence:** 9 (code, port frames).
+
 ---
 
 ## Harmless: wrong paths rescued by the wave fallback
@@ -854,9 +866,6 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
   on the presented frame, `Screen.overlay`); the original shows nothing (no `SetCursor` anywhere).
 - `Fixes.smooth_item_fall`: a falling item is drawn in 2-row frames between its 10-row steps (system timer
   0xfa11, `movement.smoothFallTick`); the steps, path, end and timing are the original's.
-- `Fixes.panel_icons_while_sliding`: the inventory icons stay drawn while the control panel slides, lowered
-  with its art (`panels.drawInventorySliding`); the original draws them only when the panel is open and
-  still (`control_panel_draw` 1018:1f1c).
 
 ---
 
