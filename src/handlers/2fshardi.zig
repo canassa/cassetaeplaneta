@@ -1,6 +1,7 @@
 //! Port unit `handler_2fshardi` (handler). scene handler 1020:32b2.
 //!
-//! The rock star's dressing room. Items dropped on the band (objects 0xb-0xd,
+//! A dressing room: a singer with a German-sounding accent and her band
+//! (waves STONES*.WAV). Items dropped on them (objects 0xb-0xd,
 //! 0x21) get their WAVE reply and come back to the inventory with a score
 //! penalty. The bible (item 0x30), or the gift package (item 0x6b) when its
 //! random picture is not the fourth one, is the right answer and leads to

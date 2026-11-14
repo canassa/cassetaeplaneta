@@ -220,7 +220,7 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   whole long.
 - **Confidence:** 9 (code); 6 (that a normal playthrough passes 32767).
 
-### B20. Giving the bible to the rock star freezes the game (2fshardi)
+### B20. Giving the bible to the singer in the dressing room freezes the game (2fshardi)
 - **Where:** `handler_2fshardi` 1020:32b2, MM_WOM_DONE with `g_s2fshardiRightItem` set (the right-item
   branch after the score/used-list block): 2sshaa (object 11) plays once and `wave_play(2sshaa.wave)`;
   only the 0x403 for object 11 leaves the scene (`2ffesta3`).
