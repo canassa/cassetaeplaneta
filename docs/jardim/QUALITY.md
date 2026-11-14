@@ -204,10 +204,11 @@ The same three fixes as TIRO; they are stored in the program.
   register-based and stays untyped.
 - **Mechanical conventions**: `NearSignatures.java` on all 16-bit segments
   (`regargs=10b8:0000-4b37`), see §3.
-- **Still to do (phase 3)**: virtual calls still read `(*(code *)*puVar1)(0x10b8, this_lo,
-  this_hi, …)`: a far slot is two 16-bit loads, so the slot prototype is never applied and the
-  pushed `CS` leaks as a first argument. `FarSlotSignatures.java` fixes this once the vtable
-  structs exist.
+- **Virtual calls** (done in the cleanup): a far slot is read as two 16-bit loads, so the slot
+  prototype was never applied and the pushed `CS` leaked as a first argument
+  (`(*(code *)*puVar1)(0x10b8, this_lo, this_hi, …)`). `FarSlotSignatures.java`'s large mode
+  (`10c0 defs large`, `calls large`, `site large`) put a call-site override with the slot's
+  definition on all 421 sites (`FUNCTIONS.md` §Cleanup).
 
 What the decompiler shows well already: the control flow (switches as compare chains, loops),
 API calls with real arguments (`MCISENDSTRING(hwnd,0,0,"close musica")`,
@@ -243,11 +244,13 @@ JARDIM's `APPWNDPROC` differs from TIRO's and ENCAIXE's:
 - Then every message goes to `g_game->vtbl[0]` (`game_handle_message`).
 
 The result is posted from `1028:2609` (the labyrinth backdrop's slot 23):
-- a loss: `score −= 1000; PostMessage(noite, 0x40a, 0, score)`;
-- a win: `score += 1000000000 / (GetTickCount() − start)`, then
+- a loss (lives 0, or any `WM_DESTROY` other than the win's): `score −= 1000;
+  PostMessage(noite, 0x40a, 0, score)`;
+- a win (`WM_DESTROY` with wParam 0xffff, posted when the player touches phase 3's final enemy,
+  and lives ≠ 0): `score += 1000000000 / (GetTickCount() − start)`, then
   `PostMessage(noite, 0x40a, 1, score)`;
   where the score is the word at backdrop+0x718 and `start` is the dword at `10d0:00ae`, the
-  tick count of the first labyrinth created (§10, J1).
+  tick count of the first labyrinth created (`BUGS.md` J1).
 
 NOITE adds lParam to its score and goes to `6fsai1`/`6fsai2` on a win, `6fsaida` on a loss.
 
@@ -256,10 +259,9 @@ NOITE adds lParam to its score and goes to `6fsai1`/`6fsai2` on a win, `6fsaida`
 Applicable as they are: `CopyTypesFromProgram.java` (from NOITE only), `NearAdjustorThunks.java`
 (`far`), `CodeGapSweep.java`, `DeadJumps.java`, `NearSignatures.java`, `ExportFunctionOps.java`,
 `RenameFunctions.java`, `NoiteStructs.java`/`NoiteFieldSet.java` (far layouts, NOITE's syntax),
-`FarSlotSignatures.java` (slot defs and call overrides; its vbtable fallback assumes TIRO's
-+2/+4 vbtable rows and needs checking), `FarVtables.java` (its `dataseg` argument can be the
-code segment `10c0`), `DefineStrings.java`, `UndefinedRanges.java`, `DumpListing.java`, and the
-three `ghidra/cspec` files.
+`FarSlotSignatures.java` (slot defs and call overrides, in its `large` mode),
+`FarVtables.java` (its `dataseg` argument can be the code segment `10c0`), `DefineStrings.java`,
+`UndefinedRanges.java`, `DumpListing.java`, and the three `ghidra/cspec` files.
 
 Not needed: `NearNullTests.java` (far NULL tests decompile cleanly), `NearVtSlots.java`/
 `NearVtables.java` (near slots), `FarVtSlots.java` as it is (it scans a DGROUP range; JARDIM's
@@ -271,14 +273,8 @@ New:
   stores (`MOV word ptr [r+k],off … MOV word ptr [r+k+2],seg` with a relocated `seg`).
 - `JardimDeadBlocks.java`: folds the unreferenced `/Od` dead arms into their functions.
 
-## 10. Candidate original bugs (for later)
+## 10. Original bugs
 
-- **J1, the time bonus.** The win bonus divides 10⁹ by `GetTickCount() − start`, but the code
-  keeps only `AX` of the DX:AX tick count and sign-extends it (`CWD`) before the 32-bit
-  subtraction (`1028:3d71–3d81`), while `start` (`10d0:00ae`) holds the full 32-bit tick
-  (`1028:2191` stores DX:AX, once: flag `10d0:00b4`). So "elapsed" is
-  `(long)(short)low16(now) − start`: once Windows has run for more than ~33 s it is usually a
-  large negative number and the "bonus" a small negative one (about −10⁹/start); near a
-  coincidence it is tiny or 0 (a huge bonus, or a divide error in `_aFldiv`).
-- **J2, the 0x40c flood.** Until NOITE's 0x40a arrives, every window message (including every
-  WM_MOUSEMOVE and timer tick) posts another 0x40c to NOITE (`APPWNDPROC`).
+`BUGS.md`, section JARDIM: J1 (the time bonus: the 16-bit sign-extended tick against the 32-bit
+start makes it a penalty), J2–J6, and the latent and harmless lists. The 0x40c re-posting of §8 is
+in the harmless list: NOITE answers each one.

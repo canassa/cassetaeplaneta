@@ -2003,3 +2003,143 @@ object, and a message after that would reach a freed object; no path to one is k
 - **`Player2D.lives` and `score` are never used** (the game keeps `g_lives` and `g_score`), as in
   TIRO. Confidence 9.
 - **`WinMain` 1058:021a returns an uninitialised word,** as TIRO's. Confidence 9.
+
+---
+
+## JARDIM.EXE (the "Noite Animal Jardim" first-person labyrinth)
+
+Addresses are Ghidra `seg:off` in `/JARDIM.EXE`; the game is described in `docs/jardim/GAME.md`.
+`labyrinth_backdrop_handle_message` is 1028:2609. The letter is J (for Jardim; free). B11 is
+NOITE's side of the launch. Left out as design: ESC quits without a result, which NOITE's poll
+reports as a loss with no score change, and closing the window (End Task: it has no system menu)
+reports a loss with −1000 (both forfeits); health has no cap; a blocked step does not
+slide along the wall and drops the speed to 16; every enemy on screen, at any distance, costs 1
+health per animation cycle; enemies move only while on screen; a death restores every pickup and
+every killed enemy and costs 500 points; the fists hit nothing; the game runs on while inactive.
+Each is consistent code with a plausible intent.
+
+### J1. The win's time bonus is a penalty
+- **Where:** `labyrinth_backdrop_handle_message`, the `WM_DESTROY` win branch 1028:3d71–3d81;
+  `g_startTick` (10d0:00ae), set by `labyrinth_backdrop_create` 1028:2191.
+- **What the code does:** `g_startTick` holds the full 32-bit `GetTickCount()` of the first
+  labyrinth. The win computes `score += 10⁹ / (now − g_startTick)` but keeps only `AX` of the new
+  tick and sign-extends it (`CWD`) before the 32-bit subtraction, then truncates the quotient to
+  16 bits.
+- **Effect:** the difference is about −`g_startTick` (the milliseconds Windows had been running
+  when the labyrinth started), so the "bonus" is about −10⁹/`g_startTick`: −833 after 20 minutes of
+  Windows, −278 after an hour, never positive; it does not depend on the time played. A difference
+  of 0 would divide by zero in `_aFldiv`, which needs the labyrinth to start within 33 s of Windows.
+- **Confidence:** 10 (code); 8 (that a bonus for speed was meant: 10⁹ / elapsed ms).
+- **Port:** not ported yet.
+
+### J2. Phase 3's Chato can be shot again and again
+- **Where:** `phase3_scene_hit` 10b0:264c.
+- **What the code does:** a shot that stops on `enemyChato` adds 200 and stops the waves, but does
+  not clear its cell; every other kill in the three phases sets `objectRows[row][col] = NULL`.
+- **Effect:** Chato stays where it is (and keeps hitting), and each shot at it scores 200 again:
+  the score can be farmed with the ammunition, which comes back with every death.
+- **Confidence:** 9 (code); 8 (that the clear is missing: phases 1 and 2 have it).
+- **Port:** not ported yet.
+
+### J3. A weapon picked up while a shot flies is lost
+- **Where:** `phase1_scene_touch` 1098:2823 (bra, crossbow), `phase2_scene_touch` 10a8:3227 and
+  `phase3_scene_touch` 10b0:1f44 (bazooka, crossbow).
+- **What the code does:** the weapon branches change the hands and the ammo only when
+  `shotInFlight` is 0; the pickup is still removed from the cell (the "left behind" object stays
+  NULL), and the crossbow's sound plays anyway.
+- **Effect:** walking over a crossbow, bra or bazooka during the second or so a shot needs to reach
+  a wall makes it vanish with no effect, until the next death puts it back.
+- **Confidence:** 9 (code); 7 (that a deferred or refused pickup was meant).
+- **Port:** not ported yet.
+
+### J4. The wall textures stay on the screen instead of on the walls
+- **Where:** `raycast_render_view` 1028:0951, the calls of `wall_strip_draw_wall_a/b`
+  (1028:482c/48e2).
+- **What the code does:** for a wall (values 1–6) it passes the screen x of the column as the
+  texture column (`& 31` in the drawer); for a door (7–12) it passes the hit coordinate & ~3, which
+  the walks compute for every hit.
+- **Effect:** every wall shows the same 32-px pattern aligned to the screen: when the player turns
+  or walks, the walls move and their texture does not, it slides over them. Doors are textured
+  right.
+- **Confidence:** 9 (code); 7 (that the hit coordinate was meant: the door path uses it).
+- **Port:** not ported yet.
+
+### J5. A sprite whose top lands on row 478 crashes the game
+- **Where:** `blit_scaled_sprite_transparent` 1018:0024 (the magnifying row loops at +0x177 and
+  +0x30c); `dib_stretch_copy_transparent` 1068:1336; `labyrinth_draw_sprite_entry` 1028:52a8.
+- **What the code does:** the sprite is clipped only to the 640×480 surface, and 1336 passes the
+  clipped height minus one. The magnifying row loop starts its counter at that value minus one and
+  tests it after decrementing it, so a clip of 2 rows starts at 0 and counts down from −1, 2³²
+  times, stepping the destination one row per pixel.
+- **Effect:** when a magnified sprite (nearer than about 2.3 cells) has its top on row 478 of the
+  surface, only 2 of its rows are on the surface and the copy runs off the selector: a GP fault.
+  Such a sprite is a short pickup seen from under a cell (the medkit at a depth of about 27 units,
+  the bombs, the açaí, the shrimp), so it needs an exact distance while approaching one: rare.
+- **Confidence:** 9 (code); 5 (how often it happens).
+- **Port:** not ported yet.
+
+### J6. Running into a life-taking enemy takes a life every tick
+- **Where:** `labyrinth_move_and_render` 1028:3e23; the held-key branch of
+  `labyrinth_backdrop_handle_message` (`WM_SYSTIMER`); `phase1_scene_touch` (Seios),
+  `phase2_scene_touch` (Siri), `phase3_scene_touch` (Bicho).
+- **What the code does:** a step into an enemy calls `touch`, which takes a life (Seios, Siri,
+  Bicho) or 5 health (Bussuf, Alemão, Chato), and the step is undone; the enemy stays. While an
+  arrow is held the timer repeats the step every 55 ms; the respawn waits for the end of the
+  `berro` wave.
+- **Effect:** holding UP into Seios, Siri or Bicho for 165 ms costs three lives, the whole game; the
+  5-health enemies drain a life in about a second.
+- **Confidence:** 9 (code); 6 (that one life per contact was meant).
+- **Port:** not ported yet.
+
+### Latent (JARDIM)
+
+- **A door on the map border reads outside the map:** the walks read the cell behind a see-through
+  door with no bound: in `raycast_walk_vertical` 1010:0024 column −1 (offset 0xffffffff of the row:
+  a GP fault) or 57; in `raycast_walk_horizontal` 1008:0024 row −1 or 80 (table bytes or
+  `objectRows[0]` taken as a row). The shipped doors on the border (`8` at column 0, `7` on rows 0
+  and 79) all have the parity that is drawn recessed in that direction. Confidence 9.
+- **`sprite_queue_insert` 1028:5ac6 has no capacity check:** a 101st cell with an object in one
+  frame would write past the 100-node pool. The maps put far fewer objects in sight. Confidence 8.
+- **`blit_scaled_column` 1000:0024 with a 1-row source loops 2³² times;** the source is always the
+  300-row texture. Confidence 9.
+- **`blit_scaled_sprite_transparent` ignores the clip when minifying,** and when magnifying a
+  column past the last source column would be read from where the previous one ended. Neither
+  happens: the destination is already cut to the view's columns, a minified sprite ends above
+  y 342, and the column Bresenham never asks for an extra source column within the clip (checked
+  for every source width below 200 and destination width below 400). Confidence 8.
+- **`labyrinth_load_map` 1028:056c does not check the file's length:** a short map would fill the
+  rest with `_filbuf`'s −1. The shipped maps are complete. Confidence 9.
+
+### Harmless (JARDIM)
+
+- **`0x40c` is re-posted on every message until NOITE answers** (`APPWNDPROC` 1020:0353): NOITE
+  answers each with `0x40a`, so a few extra posts follow the hello. Confidence 9.
+- **The wall column blit is off by one row:** `blit_scaled_column` 1000:0024 writes one row more
+  than the slice (above it, over the sky) when the wall is less than half the texture's height
+  (beyond about 4.7 cells), and for an odd slice height taller than the view it draws the column
+  1 px high and leaves the view's bottom row with the floor. Confidence 9.
+- **Magnified sprites lose their last column and their last two rows** (the clip extents minus one,
+  `dib_stretch_copy_transparent` 1068:1336). Confidence 9.
+- **Two placements are overwritten:** phase 1 puts a crossbow and then arrows on row 6 column 53,
+  phase 2 a shrimp and then a beer on row 23 column 29 (`phase1/2_scene_place_objects`): one
+  crossbow and one shrimp fewer. Confidence 9.
+- **Some constructor positions are in walls:** each object is also placed at its constructor
+  position, inside a wall for the phase-1 medkit, beer and arrows, the phase-2 arrows and the
+  phase-3 medkit and shrimp, where it is never drawn or reached; `phase3_scene_create`
+  places Chato twice and never Bicho or the final enemy (their map placements follow).
+  Confidence 9.
+- **The phase scenes' destructors never run:** `game_take_exit` deletes the old scene through
+  `scene_scalar_dtor`, which calls the base `scene_dtor` (Scene has no virtual destructor), so the
+  phase's Portables leak, at most twice per game. Confidence 9.
+- **The Player's picture `passo1.bmp` is not on the disc:** `load_dib` returns NULL and the
+  Player, which no phase scene shows, keeps a NULL frame. Confidence 9.
+- **Phase 3's exit-door branch is dead:** `phase3_scene_handle_message` 10b0:29af would post a loss
+  for a `7`/`8` beyond row 5; map 3's only one is on row 3. Confidence 9.
+- **Chato's attack is silent:** `phase3_scene_play_enemy_attack_sound` plays `g_phase3Waves[0]`,
+  which `phase3_scene_create` never opens (`wave_play` finds nothing). `esmagar` is opened in
+  every phase and never played. Confidence 9.
+- **The loss can be reported several times:** while lives are 0 every visible enemy's attack and
+  every touch post `WM_DESTROY` again, and each one posts another `0x40a` (another −1000) before
+  `WM_QUIT` ends the program. NOITE has switched to `6fsaida` on the first (not traced further).
+  Confidence 6.
+- **`WinMain` 1020:021a returns an uninitialised word,** as TIRO's. Confidence 9.

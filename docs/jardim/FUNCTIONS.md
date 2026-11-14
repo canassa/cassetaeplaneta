@@ -1,54 +1,53 @@
 # JARDIM.EXE: function inventory
 
-The Ghidra program `/JARDIM.EXE` after the phase-2 mapping: every function found, every function
-classified, the engine twins and the CRT named. Addresses are Ghidra `seg:off`. JARDIM is a
-large-model `/Od` build (far code, far data, `this` a far pointer at `[BP+6]`, far vtables in the
-code segment `10c0`); see `QUALITY.md` §0. NOITE is the reference for the class set, the vtable
-layouts and the CRT; TIRO (the other `/Od` build) for the code shape and most engine names.
-The data is in `DATA.md`.
+The Ghidra program `/JARDIM.EXE` after phase 4 and the cleanup: every function found, classified,
+named or noted, and plated; the plate says where the name comes from. Addresses are Ghidra
+`seg:off`. JARDIM is a large-model `/Od` build (far code, far data, `this` a far pointer at
+`[BP+6]`, far vtables in the code segment `10c0`); see `QUALITY.md` §0. NOITE is the reference for
+the class set, the vtable layouts and the CRT; TIRO (the other `/Od` build) for the code shape and
+most engine names. The data is in `DATA.md`, the game in `GAME.md`.
 
 ## Counts
 
-**1,160 functions:** 93 import thunks, 276 adjustor thunks and 791 code functions. **458 of the
-791 are named, 333 stay `FUN_`.** Every named function has a plate saying where the name comes
-from.
+**1,160 functions:** 93 import thunks, 276 adjustor thunks and **791 code functions**, 1,053
+plated (all but the import thunks, 13 FP-library entries and `___EXPORTEDSTUB`). **760 are
+named, 31 stay `FUN_`**: 26 in the FP math library and 5 dead engine functions (§Remaining `FUN_`).
 
 | Kind | Fns | Named | Where |
 |---|---|---|---|
 | Import thunk | 93 | 93 | `10e8`, typed (all but `__FPMATH`) |
-| Adjustor thunk | 276 | (after targets) | `10c0:00e2–17a0`; `<target>_thunk[_k]` |
-| CRT | 153 | 91 | `10b8` (62 `FUN_`, nearly all in the FP math library, `2f87–4b37`) |
-| 32-bit routines | 6 | 0 | `1000` (3), `1008`, `1010`, `1018` |
+| Adjustor thunk | 276 | 276 | `10c0:00e2–17a0`; `<target>_thunk[_k]`, renamed after their targets |
+| CRT | 153 | 127 | `10b8` (the 26 `FUN_` are the FP math library, `2f87–4b37`) |
+| 32-bit routines | 6 | 6 | `1000` (3 blitters), `1008`, `1010` (the ray walks), `1018` (the sprite blitter) |
 | App shell | 10 | 10 | `1020` |
-| Engine | 529 | 357 | `1030–1080`, `1090`, `10a0`, `10c0` (338, including ~20 ctors of the JARDIM classes) |
-| JARDIM game | 93 | 0 | `1028` (47), `1068` (8), `1088` (3), `1098` (12), `10a8` (12), `10b0` (11) |
-
-108 code functions have **no reference at all** (no call, no jump, no vtable slot, no data
-reference; listed below): dead code, or reached only through a code-pointer immediate (as
-`APPABOUT`, `APPWNDPROC`, the scene ctors).
+| Engine | 529 | 524 | `1030–1080`, `1090`, `10a0`, `10c0` (338, including the ctors of the JARDIM classes) |
+| JARDIM game | 87 | 87 | `1028` (47), `1068` (8), `1088` (3), `1098` (12), `10a8` (12), `10b0` (11), plus the phase ctors and slot defaults in `10c0` |
 
 By segment (code functions other than the adjustor thunks):
 
 | Seg | Fns | Named | `FUN_` | Seg | Fns | Named | `FUN_` |
 |---|---|---|---|---|---|---|---|
-| `1000` | 3 | 0 | 3 | `1060` | 6 | 4 | 2 |
-| `1008` | 1 | 0 | 1 | `1068` | 8 | 0 | 8 |
-| `1010` | 1 | 0 | 1 | `1070` | 7 | 7 | 0 |
-| `1018` | 1 | 0 | 1 | `1078` | 18 | 16 | 2 |
-| `1020` | 10 | 10 | 0 | `1080` | 11 | 9 | 2 |
-| `1028` | 47 | 0 | 47 | `1088` | 3 | 0 | 3 |
+| `1000` | 3 | 3 | 0 | `1060` | 6 | 4 | 2 |
+| `1008` | 1 | 1 | 0 | `1068` | 8 | 8 | 0 |
+| `1010` | 1 | 1 | 0 | `1070` | 7 | 7 | 0 |
+| `1018` | 1 | 1 | 0 | `1078` | 18 | 17 | 1 |
+| `1020` | 10 | 10 | 0 | `1080` | 11 | 11 | 0 |
+| `1028` | 47 | 47 | 0 | `1088` | 3 | 3 | 0 |
 | `1030` | 9 | 9 | 0 | `1090` | 6 | 6 | 0 |
-| `1038` | 53 | 47 | 6 | `1098` | 12 | 0 | 12 |
+| `1038` | 53 | 51 | 2 | `1098` | 12 | 12 | 0 |
 | `1040` | 11 | 11 | 0 | `10a0` | 11 | 11 | 0 |
-| `1048` | 53 | 49 | 4 | `10a8` | 12 | 0 | 12 |
-| `1050` | 4 | 4 | 0 | `10b0` | 11 | 0 | 11 |
-| `1058` | 2 | 2 | 0 | `10b8` | 153 | 91 | 62 |
-| | | | | `10c0` | 338 | 182 | 156 |
+| `1048` | 53 | 53 | 0 | `10a8` | 12 | 12 | 0 |
+| `1050` | 4 | 4 | 0 | `10b0` | 11 | 11 | 0 |
+| `1058` | 2 | 2 | 0 | `10b8` | 153 | 127 | 26 |
+| | | | | `10c0` | 338 | 338 | 0 |
 
-Conventions after `NearSignatures.java`: 576 `__stdcall16far` (far pascal, parameters listed
-reversed, `this` first as two words), 137 `__cdecl16far`, 43 CRT near helpers, 98 tagged `sig?`
-(the frameless CRT entries, varargs `sprintf` and `message_box_printf`, and functions no caller
-cleans up after). The adjustor thunks have no signature.
+Conventions (code functions): 582 `__stdcall16far` (far pascal, parameters listed reversed,
+`this` first), 150 far cdecl (120 `__cdecl16far`, 27 `__cdecl16far_dxax_ptr`, 3
+`__cdecl16far_dx_ax`), 43 near (CRT), 16 unknown (frameless CRT entries). 97 carry `sig?`, 79 of
+them in the CRT; the 18 others are dead functions no caller cleans up after (`labyrinth_wait_ticks`,
+`labyrinth_set_fixed12`, `labyrinth_minimap_line`, `labyrinth_draw_rect`, the two dead ray casters,
+the unused DIB, RLE and wave functions). 53 carry `review` (§Remaining `FUN_`). The adjustor thunks
+have no signature.
 
 ## Function discovery
 
@@ -92,62 +91,96 @@ and the one at `7f3a` (ctor `72be`) is **Actor**. The table `8e60` (one override
 Pairs that share a body keep distinct names by slot: `control_panel_draw_inventory_item`
 (`1078:0a0f`) / `_virtual` (`0b10`), `control_panel_get_inventory_item_at` (`0a68`) / `_virtual`
 (`0b69`). The three identical stubs `1038:2362/2392/23c2` (AnimationVtbl slots 2–4: each calls
-slot 1 and returns 0) stay `FUN_`: they sit where NOITE has its AVI methods, and JARDIM has no AVI.
+`animation_is_locked` and returns 0) are `animation_slot02/03/04_stub`: they sit where NOITE has
+its AVI methods, and JARDIM has no AVI.
 
-**Names to verify in phase 4** (method weaker than the rest):
-- `1070:014d/01a8/0206/026a/02b6` (Scene `addObject`/`addExit*`): the SceneVtbl slot order is
-  NOITE's, the TIRO alignment agrees only for `addObject` and `addExitAt`.
-- `1038:274a/2776/27a5` (`player2d_*`): TIRO's names by alignment (0.8); they are unreferenced
-  here, and JARDIM has no Player2D class: dead copies of the module's Player2D code.
-- The CRT names between 0.6 and 0.85 (`rn_crt.tsv`).
+The names phase 2 marked as weaker were confirmed in phase 4: the Scene slots
+`1070:014d/01a8/0206/026a/02b6` against NOITE's bodies (`scene_add_object`, `scene_add_exit_at`,
+`scene_add_exit_to_scene`, `scene_add_exit`, `scene_add_exit_alt`); `1038:274a/2776/27a5` are dead
+copies of TIRO's Player2D overrides (JARDIM has no Player2D class; `review`).
 
 ## Segment inventory
 
-| Seg | What | Status |
+| Seg | What |
+|---|---|
+| `1000` | 32-bit blitters: `blit_scaled_column` `0024` (the wall column, depth shading), `dib_rows_copy_transparent32` `0148`, `dib_rows_copy32` `0234` (NOITE's two). Read with `objdump -mi386`; verified in `tools/oracle` |
+| `1008`, `1010` | 32-bit ray walks: `raycast_walk_horizontal`, `raycast_walk_vertical` (`0024` each), called by `raycast_render_view`; verified in `tools/oracle` |
+| `1018` | 32-bit `blit_scaled_sprite_transparent` (`0024`), called by `dib_stretch_copy_transparent`; verified in `tools/oracle` |
+| `1020` | App shell (TIRO `1038`) |
+| `1028` | **The labyrinth** (table below) |
+| `1030` | Occupancy grid, Backdrop (`backdrop_autoscroll` never scrolls here) |
+| `1038` | SceneObject/Mover/Animation, object list; the dead Player2D copy |
+| `1040` | DIB load/palette/remap |
+| `1048` | Object3D/Moveable/Portable/Player/Exit (`exit_has_key_object` `2510`, `portable_ctor_hitbox` `2aed` dead, `portable_pick_up` `30c3`, `portable_drop` `32d6`) |
+| `1050` | Conditions |
+| `1058` | `game_handle_message` (only its `0x402` case is live here), `game_take_exit` |
+| `1060` | DIB copies; `FUN_1060_0960`, `0c49` (dead, new in JARDIM) |
+| `1068` | Scaled copies: `dib_blit_scaled_column` `0000` (→ `1000:0024`), `dib_stretch_copy_transparent` `1336` (→ `1018:0024`); their dead 16-bit workers and the dead byte-column and opaque-stretch pairs (`dead_*`) |
+| `1070` | Scene |
+| `1078` | StatusBar (unused), ControlPanel; `FUN_1078_01a6` (dead) |
+| `1080` | Draw lists (live and dead copy) |
+| `1088` | `transrle.cpp`'s 16-bit side: `rle_blit_transparent` (live code, never reached: RLE is never enabled), `dead_rle_blit_transparent_whole`, `dead_rle_encode_dib` |
+| `1090` | JARDIM Game subclass (`jardim_game_*`) |
+| `1098`, `10a8`, `10b0` | The phase scenes (tables `834c`, `91aa`, `92da`): `phaseN_scene_create_new_scene`, `_create`, `_dtor` (never run), `_place_objects`, `_touch`, `_hit`, `_on_life_lost`, the four `_play_*_sound`, `_handle_message` (phase 3 has no `create_new_scene`) |
+| `10a0` | WaveMix |
+| `10b8` | CRT; `2f87–4b37` the FP math library (26 `FUN_`, unused by the game) |
+| `10c0` | Thunks; the SceneObjectVtbl defaults; the Animation/Mover/Object3D/Animated3D/Actor/Player/Exit/Portable/ControlPanel overrides; Game defaults and `game_init`; Backdrop defaults; SceneObject accessors; the ctors and dtors, among them `labyrinth_scene_ctor` `7462`, `phase1/2/3_scene_ctor` `7076`/`8afc`/`920a`, `phaseN_scene_create_screen` `7630`/`8cb0`/`925a`, the LabyrinthScene slot defaults `758c–761a`, `wall_strip_ctor` `8a76`, `sprite_queue_ctor` `4704` |
+
+## The JARDIM game
+
+| `1028:` | Function | Role |
 |---|---|---|
-| `1000` | 32-bit blitters: `0024` (scaled, for `1068:0000`), `0148` (transparent rows, for `dib_copy_transparent*`), `0234` (rows, for `dib_copy*`) | `FUN_`; read with objdump |
-| `1008`, `1010` | 32-bit raycasting loops (`0024` each), called by `1028:0951` | `FUN_` |
-| `1018` | 32-bit scaled sprite copy (`0024`), called by `1068:1336` | `FUN_` |
-| `1020` | App shell (TIRO `1038`) | all named |
-| `1028` | The labyrinth: raycasting backdrop (`4842` table: `2191` create, `2609` slot 23 handler: movement, hits, result), map placement `2034` ("Objeto posicionado fora do labirinto / dentro de parede"), render `0951`/`134f`, the labyrinth scene's handler `5dba` and slot 23 `5ef1` (table `810a`) | `FUN_` (game) |
-| `1030` | Occupancy grid, Backdrop | named |
-| `1038` | SceneObject/Mover/Animation, object list; dead Player2D copy | named but 7: `161c` (empty member, TIRO's `FUN_1028_0e71`), `295c` (`object_list_remove`? 0.54), `2d98` (TIRO's `FUN_1028_1cb7`), and the 3 AnimationVtbl stubs `2362–23c2` |
-| `1040` | DIB load/palette/remap | named |
-| `1048` | Object3D/Moveable/Portable/Player/Exit | named; `2510`, `2aed` (third Portable ctor), `30c3`/`32d6` (pick-up/drop?) `FUN_` |
-| `1050` | Conditions | named |
-| `1058` | `game_handle_message`, `game_take_exit` | named |
-| `1060` | DIB copies; `0960`, `0c49` new (unreferenced) | named but 2 |
-| `1068` | Scaled DIB copies (huge pointers): outer/inner pairs `0000/01f5` (via `1000:0024`), `0583/0702`, `09fc/0c8e`, `1336/16ec` (via `1018:0024`) | `FUN_` (game) |
-| `1070` | Scene | named |
-| `1078` | StatusBar, ControlPanel | named but `01a6`, `086e` |
-| `1080` | Draw lists (live and dead copy) | named but `0717`, `096c` (insert/remove of the live list, < 0.6) |
-| `1088` | `transrle.cpp` 16-bit side (`0000` called from the SceneObject draw code; `0389`, `06ce` unreferenced) | `FUN_` |
-| `1090` | JARDIM Game subclass | named |
-| `1098` | Phase 1 scene (table `834c`): handler `3159`, createNewScene `0000`, create `0078`, slots 16–23 (`2dd3`, `2823`, `0f6e` = the 6 KB tick, `2f3c`, `300b`, `30df`, `3131`, `2f13`), ctor `0dd2` | `FUN_` (game) |
-| `10a0` | WaveMix | named |
-| `10a8` | Phase 2 scene (table `91aa`), the same layout (`3c60` handler, `1103` 8 KB tick, ctor `0f38`) | `FUN_` (game) |
-| `10b0` | Phase 3 scene (table `92da`, 23 slots), the same layout (`29af` handler, `10d0` tick, ctor `0ed6`) | `FUN_` (game) |
-| `10b8` | CRT; `2f87–4b37` the math library | named but 62 |
-| `10c0` | Thunks; SceneObject defaults (`3394–3e59`, all named); Animation/Mover/Object3D/Animated3D/Actor/Player/Exit/Portable/ControlPanel overrides (`17a0–2a79`); Game defaults and `game_init` (`2a7a–3393`); Backdrop defaults (`439a–458a`); SceneObject accessors (`45a4–4c70`, `FUN_`); ctors and dtors (`4cc4–933a`, mostly `FUN_`) | 182 named |
+| `0000`, `067e`, `069b`, `0796` | `labyrinth_wait_ticks`, `labyrinth_set_fixed12`, `labyrinth_minimap_line`, `labyrinth_draw_rect` | dead (a BIOS-tick wait from the DOS prototype, debug helpers) |
+| `003b`, `0077` | `raycast_angle_to_radians`, `raycast_build_tables` | the 7 trigonometric tables (FP emulator) |
+| `04fe`, `056c` | `labyrinth_alloc_map_rows`, `labyrinth_load_map` | the 57×80 map |
+| `075a`, `07d8`, `0851`, `111a`, `257f` | `labyrinth_fill_rect`, `labyrinth_minimap_player`, `labyrinth_minimap_walls`, `labyrinth_present_minimap`, `labyrinth_refresh_map_panel` | the minimap |
+| `0951`, `134f` | `raycast_render_view`, `labyrinth_draw_sky_floor` | the 3D view |
+| `0dfb`, `0ecb` (dead), `0f85`, `2191` | `labyrinth_backdrop_ctor`, `_ctor_default`, `_dtor`, `labyrinth_backdrop_create` | LabyrinthBackdrop (slot 0 create) |
+| `114e`, `11b3`, `12ce`, `438d`, `43e9` | `labyrinth_present_view`, `labyrinth_draw_hud_strip`, `labyrinth_present_hud_strip`, `labyrinth_present_hud`, `labyrinth_draw_hud` | presenting the view and the HUD |
+| `2034`, `214e` | `labyrinth_place_object`, `labyrinth_remove_object` | the object grid |
+| `2406`, `251d` | `labyrinth_paint`, `labyrinth_blit_to_dc` | full redraws |
+| `2609` | `labyrinth_backdrop_handle_message` | **slot 0x17: keys, the tick, the shot, doors, the result** (6 KB) |
+| `3e23`, `4655` | `labyrinth_move_and_render`, `labyrinth_render_frame` | a step with collisions; a frame |
+| `47d6`, `482c–4a4e` | `wall_strip_attach`, `wall_strip_draw_wall_a/b`, `wall_strip_draw_door_a/b` | the wall strip and its four identical column drawers |
+| `4b04`, `4b81`, `4b4d` | `sprite_enqueue_from32`, `object_set_visible_from32`, `dead_object_get_visible_from32` | 16:32 gateways for the 32-bit walks |
+| `4bca`, `4f4d` | `dead_ray_cast_horizontal_lines`, `dead_ray_cast_vertical_lines` | the C ray casters the 32-bit walks replaced |
+| `52a8`, `5ac6`, `5cea`, `5d6d` | `labyrinth_draw_sprite_entry`, `sprite_queue_insert`, `sprite_queue_draw_tree`, `sprite_queue_flush` | the sprites |
+| `5dba`, `5ef1` | `labyrinth_scene_handle_message`, `labyrinth_scene_respawn` | LabyrinthScene slot 0 (the `0x402` carry) and the respawn |
 
-## Unreferenced functions (108)
+## Remaining `FUN_` and `review`
 
-No reference of any kind. Engine dead code is expected (the module linked whole):
-`dead_scene_object_empty_dc_hook`, the `player2d_*` trio, `object_list_erase_all`/`draw_all`,
-the second draw list (`dead_draw_list_*`), `draw_list_invalidate_chain`/`_all`, the
-StatusBar/ControlPanel text helpers, `occupancy_grid_occupy`/`vacate`/`is_rect_occupied`,
-`dib_set_usage`, `dib_create`, `dib_map_to_palette`, `dib_copy_transparent_whole`,
-`wave_play_loop`, `wave_stop`, `compound_condition_new_and`/`_or`, `portable_ctor`, `_halloc`,
-`_cexit`, `_c_exit`, and 23 FP-library entries.
+`FUN_` (31): the 26 FP-library entries in `10b8` (register-argument code, nothing outside the CRT
+calls them) and 5 dead engine functions: `1038:161c` (empty member, TIRO's `FUN_1028_0e71`),
+`1038:2d98` (huge-pointer arithmetic, TIRO's `FUN_1028_1cb7`), `1060:0960`/`0c49` (a row-table
+copy and its inner loop, new in JARDIM, no caller), `1078:01a6` (an Animation-like ctor body,
+no caller).
 
-Not dead, reached only through an immediate: `APPABOUT` (dialog procedure),
-`init_static_conditions_entry` (a CRT init table), the three phase scene ctors `1098:0dd2`,
-`10a8:0f38`, `10b0:0ed6` (no direct call; how the phases are constructed is a phase-4 question).
+`review` (53), each with its reason in the plate: those 5; 30 in the CRT (`10b8`: the FP
+library, among them `_ctrandisp1/2` and `_trandisp1/2`); the dead ray casters (signatures not
+pinned: they call the 32-bit gateways with the wrong frame); the dead Player2D copy (3); the
+slot-0x24 and restore overrides `1038:00b1`, `0260`, `0435` (TIRO names, score 7);
+`animation_slot1f` (no NOITE name); and the SceneObjectVtbl defaults NOITE leaves unnamed
+(`slot11`, `slot43`, `slot5b`, `slot5c`, `slot61–65`).
 
-Game code without a reference, to check in phase 4: `1028:0000`, `067e`, `069b`, `0796`, `0ecb`,
-`0f85`, `4b4d`, `4bca` (899 bytes), `4f4d` (859 bytes); `1048:2aed`; `1060:0960`, `0c49`;
-`1068:0583`, `09fc` (two of the scaled-copy pairs); `1078:01a6`; `1088:0389`, `06ce`;
-`10c0:003e`, `1e8e–2212` (19 small functions after the Mover getters), `5994`, `6442–68ca`.
+## Dead code
+
+No caller, slot or data reference (the engine modules are linked whole): the DOS and debug
+helpers of `1028` above, the C ray casters, `dead_object_get_visible_from32`, the 16-bit scaled
+copies of `1068`, the RLE whole blit and encoder, `labyrinth_backdrop_ctor_default`,
+`dead_scene_object_empty_dc_hook`, the `player2d_*` trio and the `actor2d_*` overrides
+`10c0:1e8e–2212`, the dead Player methods `10c0:6442–684a` (`player_move_to_edge_h` `65ae` is
+called by `game_handle_message`'s dead key branch), `frame_vector_dtor`, `object_list_erase_all`/`draw_all`,
+the second draw list, `draw_list_invalidate_chain`/`_all`, the StatusBar text helpers,
+`occupancy_grid_occupy`/`vacate`/`is_rect_occupied`, `dib_set_usage`, `dib_create`,
+`dib_map_to_palette`, `dib_copy_transparent_whole`, `wave_play_loop`, `wave_stop`,
+`compound_condition_new_and`/`_or`, `portable_ctor`, `portable_ctor_hitbox`, `_halloc`, `_cexit`,
+`_c_exit`, the FP library, and the phase scenes' destructors (`BUGS.md`, JARDIM harmless). Most of
+`game_handle_message` and the control panel's slide and inventory code are reachable in TIRO but
+not here (`GAME.md`).
+
+Reached only through an immediate: `APPABOUT`, `APPWNDPROC`, `init_static_conditions_entry`,
+`frame_cell_ctor` (`crt_array_construct`), `sprite_queue_entry_ctor`. Reached only from 32-bit code
+(a 16:32 far call Ghidra does not see): `sprite_enqueue_from32`, `object_set_visible_from32`.
 
 ## Phase-4 groups
 
@@ -191,6 +224,75 @@ read as slot names.
 | 30 | `10a8` | 12 (16 KB) | Phase 2 scene (compare with 29; mostly the same source) | game, high |
 | 31 | `10b0` | 11 (11 KB) | Phase 3 scene (compare with 29) | game, high |
 
+## Phase 4 results
+
+All 31 groups are done. The game is described in `GAME.md`, its bugs in `BUGS.md` (section
+JARDIM, J1–J6). What phase 4 corrected in the earlier picture:
+- **The 32-bit routines** are the two ray walks (`1008`, `1010`), the wall column blit with depth
+  shading (`1000:0024`) and the scaled transparent sprite blit (`1018:0024`); `1000:0148`/`0234`
+  are NOITE's two row copies. All six were checked against the original code in `tools/oracle`.
+- **The walks call back into 16-bit code** with 32-bit far calls: `1028:4b04` and `4b81` are not
+  dead but the gateways `sprite_enqueue_from32` and `object_set_visible_from32`; their prologue
+  moves the frame 4 bytes to turn the 16:32 return address into a 16:16 one. The C ray casters
+  `4bca`/`4f4d`, which call them with a normal far call, are the dead ones.
+- **The sprite queue** is a binary tree of 100 nodes keyed by depth (`SpriteQueueEntry` +0xc/+0x10
+  are the children), drawn farthest first; it is the painter's algorithm of the sprites.
+- **`1028:134f` is the sky and floor** (`labyrinth_draw_sky_floor`), not a second renderer; the
+  4 "sprite drawers" `482c–4a4e` are the wall and door column drawers.
+- **The phase scenes' slot 0x12 is `placeObjects`**, not a per-phase tick: 72/97/42 placements of
+  one object per type in many cells, run again at every respawn. The other new LabyrinthScene
+  slots: 0x10 `hit`, 0x11 `touch`, 0x13/0x14 the enemy attack/step waves, 0x15 the fire wave,
+  0x16 the door wave, 0x17 `onLifeLost` (the base table's 0x17 is `labyrinth_scene_respawn`).
+- **The phase scenes' destructors** (`1098:0dd2`, `10a8:0f38`, `10b0:0ed6`) never run; the scenes
+  are built by `phaseN_scene_create_new_scene` from the exit index of the SPACE door.
+- **The variant** only picks the final enemy's picture (`espanf` for 1, `vamanf` for 0).
+- **`g_startX/g_startY`** are set by the exit doors to the next phase's start: (1744, 48) for phase
+  2, (48, 112) for phase 3; the `g_carry*` globals (`00a2–00aa`) carry health, lives, ammo, level
+  and score + 500.
+- **`LabyrinthBackdrop.prevX/prevY` are `startX/startY`** (the respawn point); `hudCounter2/3` are
+  `level`/`ammo`; `state738` is `shotInFlight`.
+- **`SceneObject` +0x496/+0x498** hold the labyrinth world position (NOITE's `rleBits`, copied
+  from x/y by the state initialiser), +0x49a is the enemy flag (NOITE's `playOnceRewinds`), +0x49c
+  the wall strip's texture height.
+
+## Cleanup
+
+- **Virtual calls:** `FarSlotSignatures.java 10c0 defs large` rewrote the 224 slot definitions
+  from their first targets (`SceneVtbl.handleMessage` has none: slot 0 is `_purecall`), then
+  `10c0 calls large` wrote 390 of the 421 `CALLF [BX+k]` call-site overrides. The 31 left were read
+  and applied with `site large` (MoverVtbl `placeAt` on a Mover reached through its vbase,
+  AnimationVtbl `isLocked`/`playOnce`, Object3DVtbl `findSupport`/`isInFrontOf`, BackdropVtbl
+  `create`/`setView`/`setAxis`/`queryRect`, SceneVtbl `createNewScene`, ControlPanelVtbl
+  `drawInventory`, ConditionVtbl `evaluate`, SceneObjectVtbl `getSceneName`/`setElevation`). Once
+  the Condition and Mover types were on the callers, `calls` resolved 410 by itself; all 421 sites
+  have an override. Three `__stdcall16far_pop<n>` models were installed for odd argument counts.
+- **Names:** `sprite_enqueue_from32`, `object_set_visible_from32`,
+  `dead_object_get_visible_from32` (1028:4b04/4b81/4b4d); `game_scalar_dtor` (10c0:0000),
+  `frame_vector_dtor` (003e), `backdrop_blit_to_dc` (1794, the WinGBitBlt of the whole surface);
+  `sprite_queue_ctor`/`sprite_queue_entry_ctor` (4704/47d6); `animation_lock`/`animation_is_locked`
+  (7102/7122, AnimationVtbl slots 0/1); `player_move_to_edge_h` (65ae, NOITE's
+  `directional_player_move_to_edge_h`, the callee group 6 named in `game_handle_message`) and the
+  dead Player methods `dead_player_*` (6442–684a); the LabyrinthScene slot defaults
+  `labyrinth_scene_hit_default` … `play_door_sound_default` (758c–761a); the two HUD pairs that
+  shared names are `labyrinth_draw_hud_strip`/`present_hud_strip` (11b3/12ce, the whole strip with
+  the control panel) and `labyrinth_draw_hud`/`present_hud` (43e9/438d, the numbers and the face).
+  The other callees group 6 named (`update_list_is_empty`, `update_list_flush`,
+  `update_list_discard`) were already applied.
+- **Structs:** `SpriteQueueEntry` {object far, dist, angle, col, row, left far, right far} and
+  `SpriteQueue.root`/`nextFree`; `SceneObject.slot00Flag` (+0x48e, the word the slot00/01 defaults
+  set and read, over NOITE's wave pointer), `worldX`/`worldY` (+0x496/+0x498), `isEnemy` (+0x49a);
+  the LabyrinthBackdrop fields above; `Animation.locked` (+0x14); the new `ObjectList` fields,
+  `OccupancyGrid`, `UpdateList` (30 entries), `Condition`/`FlagCondition`/`CompoundCondition`,
+  typed on their functions. `DrawList` and `StatusBar` are left as `void *` (the draw list's node
+  layout differs from NOITE's; the status bar is never built).
+- **Tags:** 27 `review` tags resolved (the gateways, the renamed `FUN_`, the dead Player methods,
+  the AnimationVtbl stubs, `backdrop_autoscroll`, the slot00/01 defaults, the CRT string twins);
+  53 left with a note (§Remaining `FUN_` and `review`).
+- **Plates:** `raycast_render_view` (which parity is see-through in which walk),
+  `sprite_queue_insert` (its callers), the plates naming the renamed fields and functions.
+- `NearAdjustorThunks.java 10c0 00e2 17a0 far` rerun: 276 thunks (53 fixed, 223 vtordisp), every
+  name matching its target.
+
 ## Scripts
 
 `ghidra/scripts/`:
@@ -206,8 +308,12 @@ read as slot names.
 | `NearSignatures.java` | all 16-bit code segments, `regargs=10b8:0000-4b37` |
 | `ExportFunctionOps.java` | op dumps for the matchers |
 | `RenameFunctions.java` | the name TSVs |
+| `FarSlotSignatures.java` (`large`) | `10c0 defs large`, `10c0 calls large`, `10c0 site large <addr>=<Vtbl> …` |
 
 Inline (`zig-out/jardim/gs/`, not committed): `JardimStats` (counts and coverage),
 `JardimSweepAll` (the gap sweep over all segments), `JardimVtScan` (read-only store scan),
 `JardimVtDump`/`JardimExportRawOps`/`JardimCensus` (dumps), `JardimImports` (the 9 hand-typed
-imports), `JardimSpec` (the spec extensions and the call-fixup).
+imports), `JardimSpec` (the spec extensions and the call-fixup). The cleanup's, in
+`zig-out/jardim/cleanup/`: `JardimClStructFix` (the struct fixes), `JardimClApply` (renames,
+prototypes, parameter types, plates and tags from the `edits*.txt` lists), `JardimClDump` (the
+plate dump).
