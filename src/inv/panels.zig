@@ -91,3 +91,21 @@ pub fn drawInventoryItem(g: *Game, obj: *Object, bd: *Backdrop, item: ?*Object, 
     _ = index;
     stub.unported("inv.panels.drawInventoryItem");
 }
+
+/// ControlPanel draw (`control_panel_draw`): called by render's draw
+/// dispatcher for the panel.
+pub fn draw(g: *Game, obj: *Object, bd: *Backdrop) void {
+    _ = g;
+    _ = obj;
+    _ = bd;
+    stub.unported("inv.panels.draw");
+}
+
+/// ControlPanel tick (`control_panel_tick`): called by animation's tick
+/// dispatcher for the panel.
+pub fn tick(g: *Game, obj: *Object, bd: *Backdrop) void {
+    _ = g;
+    _ = obj;
+    _ = bd;
+    stub.unported("inv.panels.tick");
+}
