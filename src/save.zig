@@ -266,7 +266,7 @@ fn resetItems(g: *Game) void {
         movement.cancelWalk(p);
         p.x = p.portable.homeX;
         p.y = p.portable.homeY;
-        p.o3d.worldElev = 0;
+        p.o3d.worldElev = p.portable.homeElev;
         p.portable.restElev = null;
         cstr.copy(&p.sceneName, &p.portable.homeSceneName);
         cstr.copy(&p.portable.prevSceneName, &p.portable.homeSceneName);

@@ -291,6 +291,7 @@ fn createPortable(g: *Game, zoom: bool) void {
     _ = space3d.setAnchor(g, obj, r.originX3d, r.originY3d);
     _ = space3d.setSize(g, obj, r.w3d, r.h3d, r.d3d);
     _ = space3d.setWorldElev(g, obj, r.elevation);
+    obj.portable.homeElev = r.elevation;
     _ = portable.setIcon(g, obj, icon, 40, 40) catch |e| die(e);
 }
 

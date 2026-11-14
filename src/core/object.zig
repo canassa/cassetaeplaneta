@@ -283,6 +283,9 @@ pub const PortablePart = struct {
     homeX: i16 = 0,
     // @orig Portable+0x7a
     homeY: i16 = 0,
+    /// Not in the original (B47's fix): the INI elevation, which a new
+    /// game puts back with the home position (the gift on the table: 90).
+    homeElev: i16 = 0,
     /// Not in the original (B30's fix): the height the item rests at when
     /// the fall started by its drop ends (its support's top, 0 on the
     /// floor); null when no such fall is under way.
