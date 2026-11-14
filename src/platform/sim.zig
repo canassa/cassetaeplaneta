@@ -1181,6 +1181,9 @@ test "MCI sequencer: notify at the song's length, pause aborts it" {
     try std.testing.expectEqual(@as(u32, 0), s.mciString(50_001, "close musica"));
     try std.testing.expectEqual(@as(u32, 263), s.mciString(50_002, "play musica"));
     try std.testing.expectEqual(@as(u32, 275), s.mciString(0, "open \\fase4\\4fboydj\\maeemae.wav type waveaudio alias dancacasseta"));
+    // The B2 fix's path (the copy at the disc root) opens and plays.
+    try std.testing.expectEqual(@as(u32, 0), s.mciString(0, "open \\maeemae.wav type waveaudio alias dancacasseta"));
+    try std.testing.expectEqual(@as(u32, 0), s.mciString(0, "play dancacasseta notify"));
 }
 
 test "AVI frames are drawn onto the screen as they fall due" {

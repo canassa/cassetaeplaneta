@@ -5,7 +5,8 @@
 //! the disc (BUGS.md B2: `FASE4\4FBOYDJ\MAEEMAE.WAV` exists only at the root
 //! and in `PAN\WAV\`), so the open fails and the scene is silent; the
 //! activate pause/resume and the notify loop act on a device that does not
-//! exist. A right click on the top-right area (or on the dancers) is
+//! exist (fix `dance_music_path`: open the copy at the disc root, which
+//! then loops). A right click on the top-right area (or on the dancers) is
 //! handled; a right click on the exit area closes the device, resumes the
 //! `musica` sequencer and goes to the bar (`4fbar`).
 
@@ -95,9 +96,11 @@ pub fn handle(g: *Game, m: Msg) i16 {
             const bd = must(Backdrop, must(Scene, g.scene).backdrop);
             tick.play(g, must(Object, must(Object, s.dancers).as(.animation)), bd);
             // "open " ++ g_driveCD ++ path ++ " type waveaudio alias dancacasseta";
-            // 1018:c598 "%s%s%s%s", 1020:d534, 1020:d510. The open fails (B2).
+            // 1018:c598 "%s%s%s%s", 1020:d534, 1020:d510. The open fails (B2);
+            // the fix opens the copy at the disc root.
+            const wav = if (g.fixes.dance_music_path) "maeemae.wav" else "fase4\\4fboydj\\maeemae.wav";
             var cmd: [260]u8 = undefined;
-            const c = cstr.print(&cmd, "{s}{s}{s}{s}", .{ "open ", cstr.slice(&g.driveCD), "fase4\\4fboydj\\maeemae.wav", " type waveaudio alias dancacasseta" });
+            const c = cstr.print(&cmd, "{s}{s}{s}{s}", .{ "open ", cstr.slice(&g.driveCD), wav, " type waveaudio alias dancacasseta" });
             _ = g.plat.mciString(c);
             _ = g.plat.mciString("play dancacasseta notify");
             return 1;
