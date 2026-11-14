@@ -384,7 +384,7 @@ fn rightUp(g: *Game, m: Msg) i32 {
     g.unk001A = 0;
     if (g.fixes.drop_falls_onto_support) {
         // B30: fall straight down onto a real support, or to the floor.
-        fallToRest(g, sel, sx, offered);
+        fallToRest(g, sel, offered);
     } else if (support) |sup| {
         if (!position.hitboxOverlaps(g, sel, sup)) {
             // Rest on the top of the support, halfway between its near and
@@ -394,11 +394,11 @@ fn rightUp(g: *Game, m: Msg) i32 {
             var y: i16 = @divTrunc(frames.height(sel), 2) +% @divTrunc(front.y +% back.y, 2);
             const limit: i16 = bdOf(g).viewHeight -% 100;
             if (limit < y) y = limit;
-            movement.moveTo(g, sel, sx, y, bdOf(g));
+            dropWalk(g, sel, sx, y);
             g.unk001A = @bitCast(space3d.getSizeH(g, sup));
         }
     } else {
-        movement.moveTo(g, sel, sx, bdOf(g).viewHeight -% 100, bdOf(g));
+        dropWalk(g, sel, sx, bdOf(g).viewHeight -% 100);
     }
     movement.smoothFallStart(g, sel);
     render.draw(g, panel, bdOf(g));
@@ -407,6 +407,17 @@ fn rightUp(g: *Game, m: Msg) i32 {
     render.draw(g, sel, bdOf(g));
     _ = visibility.invalidate(g, sel);
     return 1;
+}
+
+/// The walk of a dropped item to its resting place, bottom row `y` (window
+/// rows). `sx` is the original's x (1018:0ee3-0ef7: the release point less
+/// half the item's width), which moveTo (1010:c3ba) takes as the bottom
+/// centre: the target is half the item to its left, and with the item's
+/// horizontal step 0 (portable_ctor 1010:6e2c) a line wider than high
+/// never arrives (B36). With the fix it falls straight down.
+fn dropWalk(g: *Game, sel: *Object, sx: i16, y: i16) void {
+    if (!g.fixes.drop_walk_straight) return movement.moveTo(g, sel, sx, y, bdOf(g));
+    movement.fallTo(g, sel, y -% frames.height(sel) +% bdOf(g).originY, bdOf(g));
 }
 
 /// Whether the object under (`x`, `y`) (scrolled; the handlers' 16x16
@@ -505,7 +516,7 @@ fn restFace(g: *Game, sel: *Object, other: *Object) ?RestFace {
 /// none, it falls to the floor row. It never moves up: released on or
 /// below its rest row, it stays. An `offered` item stays where it was
 /// released (no support).
-fn fallToRest(g: *Game, sel: *Object, sx: i16, offered: bool) void {
+fn fallToRest(g: *Game, sel: *Object, offered: bool) void {
     const bd = bdOf(g);
     const half: i16 = @divTrunc(frames.height(sel), 2);
     const released: i16 = sel.y -% bd.originY +% half;
@@ -542,8 +553,8 @@ fn fallToRest(g: *Game, sel: *Object, sx: i16, offered: bool) void {
     }
     // The walk's steps put it on the floor again; its stop restores this.
     sel.portable.restElev = elev;
-    // moveTo takes the bottom row.
-    movement.moveTo(g, sel, sx, rest +% frames.height(sel) -% half, bd);
+    // Straight down its own column (as B36's fix), so the walk ends there.
+    movement.fallTo(g, sel, rest -% half +% bd.originY, bd);
 }
 
 /// `Fixes.drag_shows_item` and the one-button mode (not in the original):

@@ -520,6 +520,22 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   `Fixes.player_strip_redraws` redraws the player whole (and what stands in front of it) on its strip change.
 - **Confidence:** 8 (code, port repro).
 
+### B36. A dropped item released just above its resting place never stops falling
+- **Where:** `game_handle_message` 1018:0000, WM_RBUTTONUP: the walk's x is the release point less half the
+  item's width and the view origin (1018:0ee3–0ef7), and the walk (slot 37, 1018:1073/10ce →
+  `mover_move_to` 1010:c3ba) takes x as the bottom centre and subtracts half the width again, so the target
+  is half the item to the left. `portable_ctor` 1010:6e2c gives items a horizontal step of 0 (step 0,10).
+- **What the code does:** when the fall is shorter than half the item's width, the Bresenham line is
+  x-major: `mover_at_target` 1010:c1ea compares x, which never moves, so the walk never ends; y moves on the
+  diagonal steps only, past the target, down off the view (up, when released below its rest row).
+- **Effect:** in the sitting room the stool released over the cat (320,280) sinks through the cat and the
+  control panel and is gone (it stays in the scene, off screen; it can't be picked up again). Any item
+  released less than half its width above its resting row does it, in any scene; the fall stutters too
+  (every other step only moves sideways).
+- **Port:** reproduced (`game_input.rightUp`); `Fixes.drop_walk_straight` walks the item down its own
+  column (`movement.fallTo`). B30's fall (`fallToRest`, not in the original) always does.
+- **Confidence:** 9 (code, port repro).
+
 ## Harmless: wrong paths rescued by the wave fallback
 
 `wave_open` retries `<root>pan\wav\<file name>.wav`, and `PAN\WAV\` holds a copy of almost every wave, so these

@@ -102,6 +102,12 @@ pub const Fixes = struct {
     /// idle pose) redraws it whole at once, so another animation's tick
     /// does not draw the new frame's overlapping pieces over the old one.
     player_strip_redraws: bool = false,
+    /// B36: a dropped item's walk to its resting place aims at its own
+    /// column, so the line is vertical and the walk ends there; the
+    /// original aims half its width to the left and, released less than
+    /// that above (or below) the rest row, it walks on forever, off the
+    /// screen.
+    drop_walk_straight: bool = false,
     /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"):
     /// while an inventory item is dragged out of the control panel (right
     /// button held), its panel icon follows the pointer. The original shows

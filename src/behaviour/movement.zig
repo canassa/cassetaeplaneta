@@ -332,6 +332,20 @@ fn moveableMoveTick(g: *Game, obj: *Object, bd: *Backdrop) void {
     moveTickBody(g, obj, bd, false);
 }
 
+/// Not in the original (B30's and B36's fixes): starts `obj` walking
+/// straight down (or up) its own column to world row `top` (its top-left
+/// corner's row). The item's horizontal step is 0, so a target in another
+/// column makes a line that never arrives when it is wider than high;
+/// `allowOffscreen` takes the target as it is (no bottom-centre
+/// conversion, no clamp to the background's right edge) for this call.
+pub fn fallTo(g: *Game, obj: *Object, top: i16, bd: *Backdrop) void {
+    const m = &obj.mover;
+    const keep = m.allowOffscreen;
+    m.allowOffscreen = 1;
+    moveTo(g, obj, obj.x, top, bd);
+    m.allowOffscreen = keep;
+}
+
 /// Not in the original (`Fixes.smooth_item_fall`): the system timer that
 /// draws a dropped item between the steps of its fall. The INI objects'
 /// timers are 1-10, and the scene's WM_SYSTIMER loop only ticks 5-10.
