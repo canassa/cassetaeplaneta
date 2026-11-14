@@ -2,8 +2,8 @@
 //!
 //!     noite [--headless] [--ms N] [--assets DIR] [--save DIR] [--trace FILE]
 //!           [--input FILE] [--dump DIR] [--dump-every MS] [--bmp]
-//!           [--scene NAME [--take ID,ID…]] [--minigame win|lose]
-//!           [--minigame-startup MS] [--minigame-reply MS] [--quiet]
+//!           [--scene NAME [--take ID,ID…]] [--minigame win|lose|encaixe]
+//!           [--minigame-stub] [--minigame-startup MS] [--minigame-reply MS] [--quiet]
 //!           [--fix NAME,…|all[,-NAME…]] [--skip-videos] [--one-button]
 //!
 //! The test harness (`platform/harness.zig`): `--input` plays a script of
@@ -11,6 +11,10 @@
 //! frames of the screen (PNG, or BMP with `--bmp`) every `--dump-every` ms
 //! and on `dump` commands, `--scene` starts in an INI scene instead of the
 //! opening. A panic prints the scene and the last messages first.
+//!
+//! `--minigame encaixe` runs ENCAIXE.EXE alone (`runAlone`); `--minigame
+//! win|lose` is the result of the stubbed minigames, and `--minigame-stub`
+//! stubs the ported ones too (`platform/host.zig`).
 //!
 //! The loop is the original's `app_message_loop` (PeekMessage/WaitMessage)
 //! around the emulated Win16 queue: platform events become queued input or
@@ -46,7 +50,13 @@ pub const platform = struct {
     pub const script = @import("platform/script.zig");
     pub const harness = @import("platform/harness.zig");
     pub const report = @import("platform/report.zig");
+    pub const host = @import("platform/host.zig");
 };
+/// ENCAIXE.EXE's port (src/encaixe/, docs/encaixe/DESIGN.md).
+pub const encaixe = @import("encaixe/root.zig");
+/// The minigames ported: NOITE's WinExec runs them as tasks once `ready`,
+/// `--minigame NAME` runs one alone.
+pub const minigames = [_]*const platform.host.Program{&encaixe.program};
 pub const units = @import("units.zig");
 const one_button = @import("one_button.zig");
 const Game = core.game.Game;
@@ -64,7 +74,16 @@ const Args = struct {
     /// `--one-button`: the left button does what the right one did
     /// (`src/one_button.zig`).
     one_button: bool = false,
+    /// `--minigame NAME`: run that minigame alone instead of NOITE.
+    alone: ?*const platform.host.Program = null,
+    /// `--minigame-stub`: NOITE's WinExec stubs the ported minigames too.
+    stub_minigames: bool = false,
 };
+
+fn findMinigame(name: []const u8) ?*const platform.host.Program {
+    for (minigames) |prog| if (std.ascii.eqlIgnoreCase(prog.name, name)) return prog;
+    return null;
+}
 
 /// The running game, for the panic report.
 var current_game: ?*Game = null;
@@ -138,7 +157,16 @@ pub fn main(init: std.process.Init) !void {
             args.harness.verbose = false;
         } else if (std.mem.eql(u8, a, "--minigame")) {
             const v = it.next() orelse return error.MissingValue;
-            args.opts.minigame.won = !std.mem.eql(u8, v, "lose");
+            if (std.mem.eql(u8, v, "win") or std.mem.eql(u8, v, "lose")) {
+                args.opts.minigame.won = std.mem.eql(u8, v, "win");
+            } else if (findMinigame(v)) |prog| {
+                args.alone = prog;
+            } else {
+                std.log.err("--minigame {s}: want win, lose or a ported minigame (encaixe)", .{v});
+                return error.BadArgument;
+            }
+        } else if (std.mem.eql(u8, a, "--minigame-stub")) {
+            args.stub_minigames = true;
         } else if (std.mem.eql(u8, a, "--minigame-startup")) {
             args.opts.minigame.startup_ms = try std.fmt.parseInt(u32, it.next() orelse return error.MissingValue, 10);
         } else if (std.mem.eql(u8, a, "--minigame-reply")) {
@@ -155,12 +183,23 @@ pub fn main(init: std.process.Init) !void {
     var hn = try platform.harness.Harness.init(gpa, io, args.harness, args.opts.assets_dir);
     defer hn.deinit();
 
+    const host_opts: platform.host.Options = .{
+        .real = if (args.stub_minigames) &.{} else &minigames,
+        .startup_ms = args.opts.minigame.startup_ms,
+        .fixes = args.fixes,
+    };
+    const title = if (args.alone) |prog| prog.title else "Noite Animal";
     if (args.headless) {
         // Frame dumps need the AVI frames on the screen.
         if (args.harness.dump_dir != null) args.opts.decode_video = true;
         var h = platform.headless.Headless.init(gpa, io, args.opts);
         defer h.deinit();
-        const g = try Game.create(gpa, h.platform());
+        var hs: platform.host.Host = undefined;
+        hs.init(gpa, h.platform(), &h.sim, host_opts, title, args.alone);
+        defer hs.deinit();
+        hn.host = &hs;
+        if (args.alone) |prog| return runAlone(gpa, prog, &hs, &hn, args.ms);
+        const g = try Game.create(gpa, hs.primary());
         g.fixes = args.fixes;
         if (args.one_button) one_button.enable(g);
         defer g.destroy();
@@ -171,7 +210,12 @@ pub fn main(init: std.process.Init) !void {
         try s.init(gpa, io, args.opts);
         defer s.deinit();
         hn.sdl = &s;
-        const g = try Game.create(gpa, s.platform());
+        var hs: platform.host.Host = undefined;
+        hs.init(gpa, s.platform(), &s.sim, host_opts, title, args.alone);
+        defer hs.deinit();
+        hn.host = &hs;
+        if (args.alone) |prog| return runAlone(gpa, prog, &hs, &hn, null);
+        const g = try Game.create(gpa, hs.primary());
         g.fixes = args.fixes;
         if (args.one_button) one_button.enable(g);
         defer g.destroy();
@@ -237,6 +281,45 @@ fn run(g: *Game, hn: *platform.harness.Harness, stop_at: ?u32) !void {
     }
 }
 
+/// A minigame alone (`--minigame NAME`): its WinMain and message loop on
+/// task 0, the harness's program-neutral commands, then app_exit. The
+/// minigame's result (0x40a to a NOITE that is not there) is printed.
+fn runAlone(gpa: std.mem.Allocator, prog: *const platform.host.Program, hs: *platform.host.Host, hn: *platform.harness.Harness, stop_at: ?u32) !void {
+    if (!prog.ready) {
+        std.log.err("{s} is not ported yet (src/{s}/root.zig `ready`; docs/{s}/DESIGN.md)", .{ prog.name, prog.name, prog.name });
+        std.process.exit(1);
+    }
+    const plat = hs.primary();
+    const ctx = try prog.start(gpa, plat, hs.opts.fixes);
+    var quit = false;
+    var storm_tick: u32 = 0;
+    var storm_count: u32 = 0;
+    while (!quit and !prog.quit(ctx)) {
+        if (plat.ticks() != storm_tick) {
+            storm_tick = plat.ticks();
+            storm_count = 0;
+        } else if (storm_count > 50_000) {
+            @panic("message storm: 50000 messages without the clock moving (a hang)");
+        }
+        storm_count += 1;
+        while (plat.poll()) |ev| prog.deliver(ctx, ev);
+        if (prog.step(ctx)) continue;
+        plat.present();
+        if (hn.stepAlone(hs, &quit)) continue;
+        if (stop_at) |limit| if (plat.ticks() >= limit) break;
+        var due = prog.nextDue(ctx);
+        if (hn.nextDue()) |t| due = if (due) |d| @min(d, t) else t;
+        if (stop_at) |limit| due = if (due) |d| @min(d, limit) else limit;
+        plat.wait(due);
+    }
+    prog.exit(ctx);
+    for (hs.results.items) |r| std.debug.print("[{d}] {s}: {s}, score {d}\n", .{ r.at, prog.name, if (r.won) "won" else "lost", r.score });
+    if (hn.failed or hn.script.timed_out) {
+        std.log.err("an expect of the input script failed", .{});
+        std.process.exit(1);
+    }
+}
+
 /// A platform event, as Windows would hand it to the game.
 fn deliver(g: *Game, ev: platform.api.Event) void {
     switch (ev) {
@@ -253,6 +336,7 @@ fn deliver(g: *Game, ev: platform.api.Event) void {
 test {
     // Pulls in every port unit's tests (the index is generated) and the core.
     _ = @import("units.zig");
+    _ = encaixe;
     _ = one_button;
     std.testing.refAllDecls(core);
     std.testing.refAllDecls(platform.sim);
@@ -264,4 +348,5 @@ test {
     std.testing.refAllDecls(platform.png);
     std.testing.refAllDecls(platform.script);
     std.testing.refAllDecls(platform.report);
+    std.testing.refAllDecls(platform.host);
 }

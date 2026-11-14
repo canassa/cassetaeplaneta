@@ -177,6 +177,35 @@ pub const Fixes = struct {
     /// a dropped item's fall is drawn in 2-row frames between its 10-row
     /// steps (same steps, same end, same timing).
     smooth_item_fall: bool = false,
+    // ---- ENCAIXE.EXE (BUGS.md E1–E9). The src/encaixe/ units port each
+    // bug as it is and keep the fix only behind its flag. ----
+    /// E1: the O piece moving left writes its new left column into the
+    /// board (the cells match the sprite).
+    encaixe_o_piece_moves_left_whole: bool = false,
+    /// E2: a rotation near the floor is refused when the new shape's bottom
+    /// would pass row 13 (no hidden cells in the next column's top row).
+    encaixe_rotation_stays_on_board: bool = false,
+    /// E3: the line clear scans no rows for an unknown piece kind (latent:
+    /// the kind is always 0-5).
+    encaixe_clear_lines_unknown_kind: bool = false,
+    /// E4: the status bar's frame gets one cell per frame (the original sizes
+    /// it from an uninitialised local; nothing reads it).
+    encaixe_status_frame_cells: bool = false,
+    /// E5: the down key sets its own flag, so a key repeat does not restart
+    /// the 55 ms fall timer (holding the key always speeds the fall up).
+    encaixe_down_key_guard: bool = false,
+    /// E6: after the top-rows loss the landing stops (no line clear, sound,
+    /// redraw or next piece after the result).
+    encaixe_loss_stops_landing: bool = false,
+    /// E7: the speed-up also happens when one landing takes the line count
+    /// past a multiple of 5.
+    encaixe_speed_up_on_crossing: bool = false,
+    /// E8: each piece strip gets one FrameCell per frame, not per pixel of
+    /// width (6 KB of local heap; nothing visible).
+    encaixe_strip_cells_by_count: bool = false,
+    /// E9: the occupancy-grid walls close the 11×14 board's box (nothing
+    /// visible: the moves test the board).
+    encaixe_grid_walls_match_board: bool = false,
     /// U1: draw the status-bar text.
     status_bar_text: bool = false,
     /// `ini_fatal_error` ("Erro Fatal!") quits (`error.Fatal`) instead of
