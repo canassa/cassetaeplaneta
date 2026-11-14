@@ -24,6 +24,7 @@ src/core/                shared types and Win16 replacements (skeleton, not unit
 src/platform/            the platform layer (not units)
   platform.zig           the Platform interface
   sim.zig                files over assets/, font, WaveMix, MCI, video, minigame stub
+  host.zig               several programs (tasks): NOITE + a ported minigame, or one alone
   font.zig flic.zig      VGASYS.FON reader/renderer; AVI (Autodesk FLIC) decoder
   midi.zig mixer.zig     TinySoundFont wrapper (vendor/); the PCM/MIDI mixer
   headless.zig sdl.zig   backends
@@ -438,7 +439,11 @@ the frames `sim.videoUpdate` draws.
 - **Audio**: one mixer (8 WaveMix channels, the MCI wave device, the AVI
   track, MIDI) at 44.1 kHz stereo into an SDL audio stream.
 - **Minigames** (separate EXEs): stubbed by `sim.zig` — the handshake is
-  answered and a configurable result is reported.
+  answered and a configurable result is reported. A ported minigame
+  (`src/encaixe/`, docs/encaixe/DESIGN.md) runs instead as a second task of
+  `host.zig`, which gives every program its own `Platform`, queue, window
+  and screen and routes input, notifications and cross-program messages;
+  alone (no other task), NOITE's platform is the backend's call for call.
 
 Verified: SDL3 3.4 (nixpkgs, via pkg-config) links and runs with Zig
 0.17.0 Debug, **self-hosted x86_64 backend and Zig's own linker**

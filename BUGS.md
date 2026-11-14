@@ -1024,6 +1024,9 @@ Addresses are Ghidra `seg:off` in `/ENCAIXE.EXE`; the game is described in `docs
   two left moves in a row until the next fall step). Other pieces can then fall into the visible square, and its
   row is not seen as full, so a line that looks complete is not cleared.
 - **Confidence:** 9 (code, emulated); 8 (effect).
+- **Port:** reproduced (unit `piece_sideways`, src/encaixe/); the fix is
+  `Fixes.encaixe_o_piece_moves_left_whole` (`--fix encaixe_o_piece_moves_left_whole`, on in the Corrigida
+  version).
 
 ### E2. A rotation near the floor writes one cell past the column (row 14)
 - **Where:** `te_piece_rotate` 1008:e392, the bottom tests of the cases where the shape grows downwards
@@ -1039,6 +1042,8 @@ Addresses are Ghidra `seg:off` in `/ENCAIXE.EXE`; the game is described in `docs
   three rows, which is a loss. Reachable: the rotate key works while the piece rests on the floor before the
   landing tick.
 - **Confidence:** 9 (code, emulated); 7 (that players hit it).
+- **Port:** reproduced (unit `piece_vertical`, src/encaixe/); the fix is `Fixes.encaixe_rotation_stays_on_board`
+  (`--fix encaixe_rotation_stays_on_board`, on in the Corrigida version).
 
 ### E3. `te_piece_clear_full_lines` leaves `bottomRow` uninitialised for an unknown kind
 - **Where:** `te_piece_clear_full_lines` 1008:eed8, the `switch (kind)` that sets `bottomRow`.
@@ -1046,6 +1051,8 @@ Addresses are Ghidra `seg:off` in `/ENCAIXE.EXE`; the game is described in `docs
   garbage value.
 - **Effect:** none: the kind is always `rand() % 6`. Latent.
 - **Confidence:** 9.
+- **Port:** reproduced (unit `piece`, src/encaixe/); the fix is `Fixes.encaixe_clear_lines_unknown_kind` (`--fix
+  encaixe_clear_lines_unknown_kind`, on in the Corrigida version).
 
 ### E4. `frame_init` sizes the cell array from an uninitialised local
 - **Where:** `frame_init` 1008:a49a; caller `te_game_create_status_bar` 1008:9fb2.
@@ -1055,6 +1062,9 @@ Addresses are Ghidra `seg:off` in `/ENCAIXE.EXE`; the game is described in `docs
   fails). The cells are read only by `frame_get_cell`, and the status bar is never shown in the Tetris scene, so
   nothing visible follows; a large garbage size can still exhaust the local heap.
 - **Confidence:** 9 (code); 6 (effect).
+- **Port:** reproduced (unit `object_create`, src/encaixe/); the fix is `Fixes.encaixe_status_frame_cells`
+  (`--fix encaixe_status_frame_cells`, on in the Corrigida version). The stack word's value is unknowable: the
+  port takes it as 0 (no cells).
 
 ### E5. The down key sets the left-key flag
 - **Where:** `te_scene_handle_message` 1008:f2a2, `WM_KEYDOWN` `VK_DOWN`.
@@ -1064,6 +1074,8 @@ Addresses are Ghidra `seg:off` in `/ENCAIXE.EXE`; the game is described in `docs
   never closes, so every key repeat restarts the 55 ms timer. With a key repeat faster than 55 ms, holding the
   key can delay the fall instead of speeding it up.
 - **Confidence:** 9 (code); 5 (the hold effect, which depends on the keyboard repeat rate).
+- **Port:** reproduced (unit `tetris`, src/encaixe/); the fix is `Fixes.encaixe_down_key_guard` (`--fix
+  encaixe_down_key_guard`, on in the Corrigida version).
 
 ### E6. After a loss the landing code still clears lines and spawns a piece
 - **Where:** `te_piece_on_landed` 1008:ba20.
@@ -1073,6 +1085,8 @@ Addresses are Ghidra `seg:off` in `/ENCAIXE.EXE`; the game is described in `docs
 - **Effect:** after the loss the game still plays the line sound and redraws; the extra score is never reported.
   A second result cannot follow: after the −500 the score cannot reach exactly 1000 with at most 4 lines.
 - **Confidence:** 9.
+- **Port:** reproduced (unit `piece`, src/encaixe/); the fix is `Fixes.encaixe_loss_stops_landing` (`--fix
+  encaixe_loss_stops_landing`, on in the Corrigida version).
 
 ### E7. The speed-up is skipped when a multi-line clear jumps over 5 lines
 - **Where:** `te_piece_on_landed` 1008:ba20, after `te_piece_clear_full_lines`.
@@ -1081,6 +1095,8 @@ Addresses are Ghidra `seg:off` in `/ENCAIXE.EXE`; the game is described in `docs
   level, 10 lines, is the win). The 100 ms and 55 ms levels (10, 15 lines) are unreachable, and for a multiple of
   5 above 15 the period would be an uninitialised local.
 - **Confidence:** 9.
+- **Port:** reproduced (unit `piece`, src/encaixe/); the fix is `Fixes.encaixe_speed_up_on_crossing` (`--fix
+  encaixe_speed_up_on_crossing`, on in the Corrigida version).
 
 ### E8. `actor2d_ctor_strips` sizes each strip's FrameCell array by the frame width
 - **Where:** `actor2d_ctor_strips` 1008:aa92 (the Piece's strips, via `player2d_ctor`).
@@ -1088,6 +1104,8 @@ Addresses are Ghidra `seg:off` in `/ENCAIXE.EXE`; the game is described in `docs
   1008:ae7a uses the frame count (4).
 - **Effect:** 6 × 1 KB of unused local heap; harmless.
 - **Confidence:** 8.
+- **Port:** reproduced (unit `object_create`, src/encaixe/); the fix is `Fixes.encaixe_strip_cells_by_count`
+  (`--fix encaixe_strip_cells_by_count`, on in the Corrigida version).
 
 ### E9. The occupancy-grid walls are asymmetric
 - **Where:** `te_grid_backdrop_create_with_walls` 1008:b766 (loop at 1008:b812).
@@ -1095,3 +1113,5 @@ Addresses are Ghidra `seg:off` in `/ENCAIXE.EXE`; the game is described in `docs
   for columns 0–13: the box is not closed and does not match the 11×14 board.
 - **Effect:** none: the Tetris moves test `Piece.board`, not the occupancy grid.
 - **Confidence:** 7.
+- **Port:** reproduced (unit `backdrop`, src/encaixe/); the fix is `Fixes.encaixe_grid_walls_match_board`
+  (`--fix encaixe_grid_walls_match_board`, on in the Corrigida version).

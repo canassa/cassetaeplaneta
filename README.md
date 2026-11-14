@@ -32,17 +32,24 @@ item is tapped then placed with the next click, or dragged. The minigames
 (separate EXEs) are stubbed: they report a win, or a loss with
 `--minigame lose`; their window shows 1.5 s after `WinExec` and answers the
 game's hello after 100 ms (`--minigame-startup MS`, `--minigame-reply MS`).
+ENCAIXE (3ffarao's Tetris) is being ported (`src/encaixe/`,
+`docs/encaixe/DESIGN.md`): once done, NOITE runs it as a second program
+(`src/platform/host.zig`; `--minigame-stub` keeps the stub) and
+`--minigame encaixe` plays it alone.
 Saves go to `save/` (`--save DIR`).
 
 ## Testing the port
 
-- `zig build test` — unit tests; `uv run noite check|initdata` — the tracker.
+- `zig build test` — unit tests; `uv run noite check|initdata` — the tracker
+  (`noite -p encaixe …` for ENCAIXE).
 - **Harness** (`src/platform/harness.zig`), for either backend:
   `--input FILE` plays timed input (`src/platform/script.zig`: `click`,
   `rclick`, `hold`, `offer`, `wait SCENE`, `expect SCENE`, `drawn ID 0|1`, `where ID`, `dump`, `state`,
   `report FILE` (the state as JSON, as the web page's Relatório),
   `focus 0|1`, `freeze MS` (a time jump: the clock runs on while nothing is
-  dispatched, as in a hidden web page), `quit`…), `--dump DIR [--dump-every MS]` writes PNG frames of the screen
+  dispatched, as in a hidden web page), `result won|lost|none [SCORE]` (the
+  last real minigame's 0x40a), `quit`…; input goes to the active window's
+  program), `--dump DIR [--dump-every MS]` writes PNG frames of the screen
   (and of the SDL window), `--scene NAME [--take ID,…]` starts in any INI
   scene carrying those items, `--trace FILE` logs every message. A panic or
   segfault prints the scene and the last 64 messages; a message loop that
@@ -82,4 +89,6 @@ The page downloads the disc files the game opens (once; later visits load
 them from Cache Storage) while the player picks the version (Original, or
 Corrigida = `--fix all`), whether videos can be skipped (on by
 default) and the one-button control (on by default on touch screens), then
-runs the game; saves go to localStorage, apart per version.
+runs the game; saves go to localStorage, apart per version. "Jogo" picks
+the whole game or one ported minigame alone (Encaixe Perfeito, disabled
+until its port is done).

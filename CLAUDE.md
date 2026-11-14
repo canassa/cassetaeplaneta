@@ -24,7 +24,8 @@ Reverse-engineering the 1995 ATR Multimedia point-and-click adventure
   0.17.0, uv, sqlite, SDL3 + pkg-config. Python is uv-managed
   (`.python-version`).
 - `build.zig`, `src/` — the Zig port; its architecture is `docs/DESIGN.md`.
-  `src/units.zig` is generated.
+  `src/units.zig` is generated. `src/encaixe/` — ENCAIXE.EXE's port
+  (`docs/encaixe/DESIGN.md`); `src/platform/host.zig` runs it as a second program.
 - `tools/cli/` — the `noite` port tracker (uv workspace member);
   `db/port.sqlite` — its database (local, not in git; `noite import` builds it).
 
@@ -38,6 +39,11 @@ plate, decompile, disassembly, callees) plus tracking: `kind`, `status`
 (`pending`, `in_progress`, `ported`, `failed`; `absorbed` = thunk/default
 stub/type test, `replaced` = CRT/API, `dead`), `unit`, `tested`. A **unit** is
 one Zig file (module, behaviour or scene handler) owning a set of functions.
+
+A minigame is a second program: `noite -p encaixe …` (or `NOITE_PROGRAM=encaixe`)
+works on `db/encaixe.sqlite`, `db/encaixe-plan.tsv`, `src/encaixe/` and worktrees
+`work/encaixe-<unit>/` (`docs/encaixe/DESIGN.md` "Tracker"); every command below
+takes it.
 
 ```
 noite import                 # refresh from Ghidra (needs the MCP bridge; keeps tracking)

@@ -155,7 +155,10 @@ map $arg_h $noite_cache {
   Jogar button starts the game (and the AudioContext: it is a user
   gesture) once the files are loaded; the choice is kept in localStorage
   (`noite:prefs`, the page works without it) and passed to
-  `noite_start(fixes, skip_videos, one_button)`. A line under the canvas names the
+  `noite_start(fixes, skip_videos, one_button, minigame)`; "Jogo" sets
+  `minigame` (0 the whole game, 1 Encaixe Perfeito alone: `MINIGAMES` in
+  noite.js, disabled until its `ready`; `noite_start` returns 3 for an
+  unported one). A line under the canvas names the
   version and reloads into the other one (`?versao=corrigida|original`,
   after a confirm); the game itself never sees it. `noite_options` reports
   what the wasm got (`window.noite.fixes`, `.skipVideos`, `.oneButton`,
@@ -232,6 +235,9 @@ map $arg_h $noite_cache {
   only the fixes reach), so the versions never load each other's.
 - **Minigames.** Stubbed as in the native port (a win after a few
   seconds); while one "runs" the page shows a note instead of the canvas.
+  A ported one (`src/platform/host.zig`, docs/encaixe/DESIGN.md) runs in
+  the same wasm as a second task and the canvas shows its window; its
+  files join the manifest when it is done.
 - **Message boxes** are logged to the console and answered with their
   first button, like the SDL backend.
 
