@@ -11,6 +11,7 @@ const msg = @import("../core/msg.zig");
 const object = @import("../core/object.zig");
 const Object = object.Object;
 const Frame = object.Frame;
+const Rect = object.Rect;
 const world = @import("../core/world.zig");
 const Backdrop = world.Backdrop;
 const avi = @import("../avi.zig");
@@ -304,10 +305,28 @@ pub fn setStrip(g: *Game, obj: *Object, strip: i16, bd: *Backdrop) *Frame {
         obj.curFrame = 0;
         // B35: the player's new frame goes on screen whole at once, so another
         // animation's tick cannot patch it piecewise over the old one.
+        // The overlap pass sets each overlapped object's dirty and clip
+        // rects to the overlap; they are put back after it, or the next
+        // draw of such an object (the bedroom's boom box) shows only that.
         if (g.fixes.player_strip_redraws and obj.kind == .player and obj.visible != 0) {
+            const Saved = struct { obj: *Object, dirty: Rect, clip: Rect };
+            var saved: [128]Saved = undefined;
+            var n: usize = 0;
+            var node = g.drawList.head;
+            while (node) |nd| : (node = nd.next) {
+                const other = nd.item.?;
+                if (n == saved.len) break;
+                saved[n] = .{ .obj = other, .dirty = other.dirty, .clip = other.clip };
+                n += 1;
+            }
             frames.resetRects(obj);
             visibility.redraw(g, obj, bd);
             visibility.redrawOverlapping(g, obj, bd, 1);
+            for (saved[0..n]) |s| {
+                if (s.obj == obj) continue;
+                s.obj.dirty = s.dirty;
+                s.obj.clip = s.clip;
+            }
         }
     } else {
         visibility.hide(g, obj, bd);
