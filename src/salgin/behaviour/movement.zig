@@ -6,88 +6,377 @@
 //! signature (other units already call it). Each implementation function
 //! carries `// @orig <seg:xxxx> <name>` with the SALGIN address.
 
-const std = @import("std");
-const stub = @import("../../core/stub.zig");
 const msg = @import("../../core/msg.zig");
-const Msg = msg.Msg;
 const Game = @import("../core/game.zig").Game;
 const object = @import("../core/object.zig");
 const Object = object.Object;
-const ObjectList = object.ObjectList;
-const Frame = object.Frame;
-const FrameCell = object.FrameCell;
-const BitmapInfoHeader = object.BitmapInfoHeader;
 const world = @import("../core/world.zig");
 const Backdrop = world.Backdrop;
-const Scene = world.Scene;
-const Condition = world.Condition;
-const RectQuery = world.RectQuery;
+const backdrop = @import("../backdrop.zig");
+const animation = @import("animation.zig");
+const occupancy = @import("occupancy.zig");
+const position = @import("position.zig");
+const render = @import("render.zig");
+const visibility = @import("visibility.zig");
+
+fn abs16(v: i16) i16 {
+    return if (v < 0) 0 -% v else v;
+}
 
 /// SceneObject slot 2F moveTo (hwnd dropped): mover_move_to (fighter, opponent, banner, energy_bar) / default.
 pub fn moveTo(g: *Game, obj: *Object, x: i16, y: i16, bd: *Backdrop) void {
-    _ = g;
-    _ = obj;
-    _ = x;
-    _ = y;
-    _ = bd;
-    stub.unported("salgin.movement.moveTo");
+    switch (obj.kind) {
+        .fighter, .opponent, .banner, .energy_bar => moverMoveTo(g, obj, x, y, bd),
+        // scene_object_move_to_default (absorbed)
+        .control_panel, .status_bar => {},
+    }
 }
 
 /// SceneObject slot 30 moveToEdgeH: mover_move_to_edge_h (fighter, opponent, banner, energy_bar) / default.
 pub fn moveToEdgeH(g: *Game, obj: *Object, bd: *Backdrop, dir: i16) void {
-    _ = g;
-    _ = obj;
-    _ = bd;
-    _ = dir;
-    stub.unported("salgin.movement.moveToEdgeH");
+    switch (obj.kind) {
+        .fighter, .opponent, .banner, .energy_bar => moverMoveToEdgeH(g, obj, bd, dir),
+        // scene_object_move_to_edge_h_default (absorbed)
+        .control_panel, .status_bar => {},
+    }
 }
 
 /// SceneObject slot 31 moveToEdgeV: mover_move_to_edge_v (fighter, opponent, banner, energy_bar) / default.
 pub fn moveToEdgeV(g: *Game, obj: *Object, bd: *Backdrop, dir: i16) void {
-    _ = g;
-    _ = obj;
-    _ = bd;
-    _ = dir;
-    stub.unported("salgin.movement.moveToEdgeV");
+    switch (obj.kind) {
+        .fighter, .opponent, .banner, .energy_bar => moverMoveToEdgeV(g, obj, bd, dir),
+        // scene_object_move_to_edge_v_default (absorbed)
+        .control_panel, .status_bar => {},
+    }
 }
 
 /// SceneObject slot 32 stopMovingDc: fighter_stop_moving_dc (fighter), opponent_stop_moving_dc (opponent), actor2d_stop_moving_dc (banner, energy_bar) / default.
 pub fn stopMovingDc(g: *Game, obj: *Object, bd: *Backdrop) void {
-    _ = g;
-    _ = obj;
-    _ = bd;
-    stub.unported("salgin.movement.stopMovingDc");
+    switch (obj.kind) {
+        .fighter => fighterStopMovingDc(obj),
+        .opponent => opponentStopMovingDc(obj),
+        .banner, .energy_bar => actor2dStopMovingDc(g, obj, bd),
+        // scene_object_stop_moving_dc_default (absorbed)
+        .control_panel, .status_bar => {},
+    }
 }
 
 /// SceneObject slot 33 stopMoving: fighter_stop_moving (fighter), opponent_stop_moving (opponent), actor2d_stop_moving (banner, energy_bar) / default.
 pub fn stopMoving(g: *Game, obj: *Object, bd: *Backdrop) void {
-    _ = g;
-    _ = obj;
-    _ = bd;
-    stub.unported("salgin.movement.stopMoving");
+    switch (obj.kind) {
+        // @orig 1068:07f8 fighter_stop_moving
+        // @orig 1068:0b47 opponent_stop_moving
+        .fighter, .opponent => stopMovingDc(g, obj, bd),
+        .banner, .energy_bar => actor2dStopMoving(g, obj, bd),
+        // scene_object_stop_moving_default (absorbed)
+        .control_panel, .status_bar => {},
+    }
 }
 
 /// SceneObject slot 34 moveTick: fighter_move_tick (fighter), opponent_move_tick (opponent), actor2d_move_tick (banner, energy_bar) / default.
 pub fn moveTick(g: *Game, obj: *Object, bd: *Backdrop) void {
-    _ = g;
-    _ = obj;
-    _ = bd;
-    stub.unported("salgin.movement.moveTick");
+    switch (obj.kind) {
+        .fighter, .opponent => fighterMoveTick(g, obj, bd),
+        .banner, .energy_bar => actor2dMoveTick(g, obj, bd),
+        // scene_object_move_tick_default (absorbed)
+        .control_panel, .status_bar => {},
+    }
 }
 
 /// SceneObject slot 36 isMoving: actor2d_is_moving (fighter, opponent, banner, energy_bar) / default.
 pub fn isMoving(g: *Game, obj: *Object) bool {
     _ = g;
-    _ = obj;
-    stub.unported("salgin.movement.isMoving");
+    return switch (obj.kind) {
+        // @orig 1088:2bb4 actor2d_is_moving
+        .fighter, .opponent, .banner, .energy_bar => moverIsMoving(obj),
+        // scene_object_is_moving_default (absorbed)
+        .control_panel, .status_bar => false,
+    };
+}
+
+// @orig 1088:27bc mover_is_moving
+fn moverIsMoving(obj: *Object) bool {
+    return obj.mover.moving != 0;
 }
 
 /// MoverVtbl / FighterVtbl / OpponentVtbl slot 00 placeAt (mover_place_at).
 pub fn placeAt(g: *Game, obj: *Object, x: i16, y: i16, bd: *Backdrop) void {
-    _ = g;
-    _ = obj;
-    _ = x;
-    _ = y;
-    _ = bd;
-    stub.unported("salgin.movement.placeAt");
+    switch (obj.kind) {
+        .fighter, .opponent, .banner, .energy_bar => moverPlaceAt(g, obj, x, y, bd),
+        else => unreachable,
+    }
+}
+
+// @orig 1028:0738 mover_place_at
+fn moverPlaceAt(g: *Game, obj: *Object, x: i16, y: i16, bd: *Backdrop) void {
+    _ = occupancy.vacate(g, obj, bd);
+    position.setPosition(g, obj, x, y);
+    render.restoreBackground(g, obj, bd, 1);
+    _ = occupancy.occupy(g, obj, bd);
+    // scene_object_dc_hook (1028:02ec): an empty hook (render's).
+    render.draw(g, obj, bd);
+}
+
+// @orig 1028:0e8a mover_step
+/// Advances the next position one Bresenham step towards the target.
+pub fn moverStep(obj: *Object) void {
+    const m = &obj.mover;
+    var e = m.lineErr;
+    if (m.errIncX == 0) {
+        if (e < 1) {
+            obj.nextX +%= m.stepX;
+            obj.nextY +%= m.stepY;
+            e +%= m.errIncDiag;
+        } else {
+            e +%= m.errIncY;
+            obj.nextY +%= m.stepY;
+        }
+    } else if (e < 1) {
+        e +%= m.errIncX;
+        obj.nextX +%= m.stepX;
+    } else {
+        e +%= m.errIncDiag;
+        obj.nextX +%= m.stepX;
+        obj.nextY +%= m.stepY;
+    }
+    m.lineErr = e;
+}
+
+// @orig 1028:0f2a mover_at_target
+/// True when the next position is within one step of the target along the
+/// major axis (y when errIncX is 0, else x).
+pub fn moverAtTarget(obj: *Object) bool {
+    const m = &obj.mover;
+    if (m.errIncX == 0) {
+        return !(abs16(m.stepY) < abs16(obj.nextY -% m.targetY));
+    }
+    return !(abs16(m.stepX) < abs16(obj.nextX -% m.targetX));
+}
+
+// @orig 1028:0fb5 mover_move_tick
+fn moverMoveTick(g: *Game, obj: *Object, bd: *Backdrop) void {
+    if (obj.mover.moving == 0) return;
+    moverStep(obj);
+    if (occupancy.canStep(g, obj, bd)) {
+        render.resetRects(obj);
+        placeAt(g, obj, obj.nextX, obj.nextY, bd);
+        visibility.redrawOverlapping(g, obj, bd, 1);
+        visibility.invalidate(g, obj);
+        _ = backdrop.autoscroll(g, bd, obj, obj.nextX, obj.nextY);
+        if (!moverAtTarget(obj)) return;
+    }
+    stopMovingDc(g, obj, bd);
+}
+
+// @orig 1028:113b mover_move_to
+/// Starts moving towards screen point (x, y): the target puts the sprite's
+/// bottom centre on it, clamped to the background; sets up the Bresenham
+/// line and starts the movement system timer. A zero-length move leaves
+/// `moving` 0.
+fn moverMoveTo(g: *Game, obj: *Object, x: i16, y: i16, bd: *Backdrop) void {
+    const m = &obj.mover;
+    m.stepX = abs16(m.stepX);
+    m.stepY = abs16(m.stepY);
+    m.moving = 1;
+    const w = position.width(obj);
+    const h = position.height(obj);
+    const half = @divTrunc(w, 2);
+    if (0 -% (half -% bd.bgWidth) < bd.originX +% x) {
+        m.targetX = 0 -% (w -% bd.bgWidth);
+    } else {
+        m.targetX = x -% (half -% bd.originX);
+    }
+    if (bd.bgHeight < bd.originY +% y) {
+        m.targetY = 0 -% (h -% bd.bgHeight);
+    } else {
+        m.targetY = y -% (h -% bd.originY);
+    }
+    obj.nextX = obj.x;
+    obj.nextY = obj.y;
+    m.lineDx = m.targetX -% obj.nextX;
+    m.lineDy = m.targetY -% obj.nextY;
+    if (m.lineDx < 0) {
+        m.stepX = 0 -% m.stepX;
+        m.lineDx = 0 -% m.lineDx;
+    }
+    if (m.lineDy < 0) {
+        m.stepY = 0 -% m.stepY;
+        m.lineDy = 0 -% m.lineDy;
+    } else if (m.lineDy == 0) {
+        m.lineDy = 1;
+    }
+    if (m.lineDx == 0 and m.lineDy == 1) {
+        m.moving = 0;
+        return;
+    }
+    if (m.lineDy < m.lineDx) {
+        m.errIncX = m.lineDy << 1;
+        m.lineErr = m.errIncX -% m.lineDx;
+        m.errIncDiag = m.lineErr -% m.lineDx;
+        m.errIncY = 0;
+    } else {
+        m.errIncY = m.lineDx *% -2;
+        m.lineErr = m.errIncY +% m.lineDy;
+        m.errIncDiag = m.lineErr +% m.lineDy;
+        m.errIncX = 0;
+    }
+    g.setSystemTimer(@bitCast(m.timerId), @bitCast(m.timerPeriod));
+}
+
+// @orig 1028:131e mover_move_to_edge_v
+/// Vertical move to the bottom edge of the background (dir 8) or half off
+/// the top (dir 4); any other dir, or no distance, stops.
+fn moverMoveToEdgeV(g: *Game, obj: *Object, bd: *Backdrop, dir: i16) void {
+    const m = &obj.mover;
+    m.stepX = abs16(m.stepX);
+    m.stepY = abs16(m.stepY);
+    m.moving = 1;
+    m.targetX = obj.x;
+    const h = position.height(obj);
+    if (dir == 8) {
+        m.targetY = 0 -% (h -% bd.bgHeight);
+    } else if (dir == 4) {
+        m.targetY = 0 -% @divTrunc(h, 2);
+    } else {
+        m.moving = 0;
+        return;
+    }
+    obj.nextX = obj.x;
+    obj.nextY = obj.y;
+    m.lineDx = 0;
+    m.lineDy = m.targetY -% obj.nextY;
+    if (m.lineDy < 0) {
+        m.stepY = 0 -% m.stepY;
+        m.lineDy = 0 -% m.lineDy;
+    } else if (m.lineDy == 0) {
+        m.moving = 0;
+        return;
+    }
+    m.errIncY = m.lineDx *% -2;
+    m.lineErr = m.errIncY +% m.lineDy;
+    m.errIncDiag = m.lineErr +% m.lineDy;
+    m.errIncX = 0;
+    g.setSystemTimer(@bitCast(m.timerId), @bitCast(m.timerPeriod));
+}
+
+// @orig 1028:1447 mover_move_to_edge_h
+/// Horizontal move to the right edge of the background (dir 2) or half off
+/// the left (dir 1); any other dir, or no distance, stops.
+fn moverMoveToEdgeH(g: *Game, obj: *Object, bd: *Backdrop, dir: i16) void {
+    const m = &obj.mover;
+    m.stepX = abs16(m.stepX);
+    m.stepY = abs16(m.stepY);
+    m.moving = 1;
+    const w = position.width(obj);
+    if (dir == 2) {
+        m.targetX = 0 -% (w -% bd.bgWidth);
+    } else if (dir == 1) {
+        m.targetX = 0 -% @divTrunc(w, 2);
+    } else {
+        m.moving = 0;
+        return;
+    }
+    m.targetY = obj.y;
+    obj.nextX = obj.x;
+    obj.nextY = obj.y;
+    m.lineDx = m.targetX -% obj.nextX;
+    m.lineDy = 1;
+    if (m.lineDx < 0) {
+        m.stepX = 0 -% m.stepX;
+        m.lineDx = 0 -% m.lineDx;
+    } else if (m.lineDx == 0) {
+        m.moving = 0;
+        return;
+    }
+    m.errIncX = m.lineDy << 1;
+    m.lineErr = m.errIncX -% m.lineDx;
+    m.errIncDiag = m.lineErr -% m.lineDx;
+    m.errIncY = 0;
+    g.setSystemTimer(@bitCast(m.timerId), @bitCast(m.timerPeriod));
+}
+
+// @orig 1028:156e mover_stop_moving
+/// Mover's stopMoving (GetDC, the virtual stopMovingDc, ReleaseDC).
+fn moverStopMoving(g: *Game, obj: *Object, bd: *Backdrop) void {
+    stopMovingDc(g, obj, bd);
+}
+
+// @orig 1028:15bf mover_stop_moving_dc
+/// moving = 0, kills the movement timer, steps lose their sign, target and
+/// previous position become the current one, posts 0x404 with the id.
+pub fn moverStopMovingDc(g: *Game, obj: *Object) void {
+    const m = &obj.mover;
+    m.moving = 0;
+    g.killSystemTimer(@bitCast(m.timerId));
+    m.stepX = abs16(m.stepX);
+    m.stepY = abs16(m.stepY);
+    m.prevX = obj.x;
+    m.targetX = obj.x;
+    m.prevY = obj.y;
+    m.targetY = obj.y;
+    _ = g.post(.{ .id = msg.noite.movement_finished, .wparam = @bitCast(obj.id) });
+}
+
+// @orig 1088:2946 actor2d_move_tick
+fn actor2dMoveTick(g: *Game, obj: *Object, bd: *Backdrop) void {
+    if (obj.mover.moving != 0) {
+        _ = animation.nextFrame(g, obj);
+        moverMoveTick(g, obj, bd);
+    }
+}
+
+// @orig 1088:297c actor2d_stop_moving
+fn actor2dStopMoving(g: *Game, obj: *Object, bd: *Backdrop) void {
+    _ = animation.setStrip(g, obj, 0, bd);
+    moverStopMoving(g, obj, bd);
+}
+
+// @orig 1088:29b6 actor2d_stop_moving_dc
+fn actor2dStopMovingDc(g: *Game, obj: *Object, bd: *Backdrop) void {
+    _ = animation.setStrip(g, obj, 0, bd);
+    moverStopMovingDc(g, obj);
+}
+
+// @orig 1068:05ac fighter_move_tick
+// @orig 1068:0942 opponent_move_tick
+/// Fighter's and Opponent's tick (identical bar offsets): one step; canStep
+/// (true for both) then the next frame, vacate, setPosition(nextX, nextY),
+/// occupy. No redraw, invalidate, autoscroll or at-target test.
+fn fighterMoveTick(g: *Game, obj: *Object, bd: *Backdrop) void {
+    if (obj.mover.moving == 0) return;
+    moverStep(obj);
+    if (!occupancy.canStep(g, obj, bd)) {
+        obj.mover.moving = 0;
+        return;
+    }
+    _ = animation.nextFrame(g, obj);
+    _ = occupancy.vacate(g, obj, bd);
+    position.setPosition(g, obj, obj.nextX, obj.nextY);
+    _ = occupancy.occupy(g, obj, bd);
+}
+
+// @orig 1068:07a0 fighter_stop_moving_dc
+/// moving = 0, both steps lose their sign, target and previous position
+/// become the current one (no timer kill, no 0x404).
+fn fighterStopMovingDc(obj: *Object) void {
+    const m = &obj.mover;
+    m.moving = 0;
+    m.stepX = abs16(m.stepX);
+    m.stepY = abs16(m.stepY);
+    m.prevX = obj.x;
+    m.targetX = obj.x;
+    m.prevY = obj.y;
+    m.targetY = obj.y;
+}
+
+// @orig 1068:0afd opponent_stop_moving_dc
+/// As the Fighter's, but only stepY loses its sign (stepX stays -32).
+fn opponentStopMovingDc(obj: *Object) void {
+    const m = &obj.mover;
+    m.moving = 0;
+    m.stepY = abs16(m.stepY);
+    m.prevX = obj.x;
+    m.targetX = obj.x;
+    m.prevY = obj.y;
+    m.targetY = obj.y;
 }
