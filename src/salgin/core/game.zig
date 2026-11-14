@@ -225,6 +225,9 @@ pub const Game = struct {
     // @orig g_crtHoldRand (srand(time(NULL)) before every attack choice:
     // BUGS.md S5)
     rand: Rand = .{},
+    // No counterpart: set once `opponent_choose_attack` has seeded `rand`
+    // (only `salgin_seed_once` reads it).
+    randSeeded: bool = false,
     // No counterpart: g_setSystemTimer / g_killSystemTimer (`setSystemTimer`),
     // g_instance, g_moduleHandle, g_modulePath(Buf) (the EXE's directory is
     // the host's `Program.dir`), g_game / g_salginGame (this Game), the
