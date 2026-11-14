@@ -648,6 +648,26 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   handler sees it created (before the bushes enter the draw list).
 - **Confidence:** 9 (INI, code, port repro).
 
+### B42. The bad cop's arrest video plays with garbage on the mugshots (damaged file on the disc)
+- **Where:** `[2apremau]` `Exit=41,…,fase2\2fcopmau\2aprema2` (the arrest after the bad-cop roadblock 2fcopmau);
+  `animation_open_avi` 1010:c9f6 tries `<HD>2aprema2.avi` (INSTALAR.EXE copies a fixed list of big clips
+  there, not this one), then `<CD>fase2\2fcopmau\2aprema2.avi` (absent), then `<CD>pan\avi\2aprema2.avi`
+  (sprintf 1010:cbee, open 1010:cc11).
+- **What the code does:** it plays `PAN\AVI\2APREMA2.AVI`, which carries the disc's recurring ~68-byte damage
+  block (`… c0 c0 df df 00 40 33 2d 11 83 00 04 f0 f1 …` then spaces) three times: in audio chunk 9
+  (0x1274d) and inside video frames 5 (0x186c9) and 16 (0x4d60e), FLC delta frames whose later deltas build on
+  them. The disc root's `2APREMA2.AVI` is the same clip without the damage (the only bytes that differ are
+  those three blocks); nothing opens it.
+- **Effect:** the mugshot cutscene shows a stray orange speck left of the photo and, in the profile shots, rows
+  of white/grey stripes along the bottom by the number board until the clip ends (plus a click in the audio).
+  The good cop's arrest (2afotbom) and the policewoman's (2apremu2) are clean copies.
+  (`PAN\AVI\2APREBO2.AVI` is damaged too, frame 8, but no INI line plays it.)
+- **Evidence:** byte comparison of the two copies; the frames decoded by the port and by ffmpeg (garbage in
+  both from frame 5 on with the `PAN` copy, none with the root copy).
+- **Port:** reproduced (the decoder stops a damaged frame at the bad packet and keeps playing);
+  `Fixes.clean_arrest_video` opens the root copy before the `pan\avi\` one.
+- **Confidence:** 9 (file contents); 7 (how the period AFLC codec drew the damaged frames).
+
 ## Harmless: wrong paths rescued by the wave fallback
 
 `wave_open` retries `<root>pan\wav\<file name>.wav`, and `PAN\WAV\` holds a copy of almost every wave, so these

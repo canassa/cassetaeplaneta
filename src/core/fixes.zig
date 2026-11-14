@@ -130,6 +130,10 @@ pub const Fixes = struct {
     /// its bitmap) show the pristine background picture, so the player
     /// standing behind the open panel no longer shows, and animates, in them.
     panel_slots_show_background: bool = false,
+    /// B42: the bad cop's arrest video (2aprema2) plays from the disc
+    /// root's undamaged copy, not the `PAN\AVI\` one whose two damaged
+    /// frames leave specks and stripes of garbage on the mugshots.
+    clean_arrest_video: bool = false,
     /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"):
     /// while an inventory item is dragged out of the control panel (right
     /// button held), its panel icon follows the pointer. The original shows

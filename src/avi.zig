@@ -56,6 +56,11 @@ fn splitFname(path: []const u8) []const u8 {
     return p;
 }
 
+/// BUGS.md B42: the disc root's undamaged copy of the bad cop's arrest
+/// video, played instead of its damaged `PAN\AVI\` copy (the original
+/// never opens it).
+const clean_arrest_video = "2APREMA2.AVI";
+
 /// Animation slot 03: for an AVI animation opens the clip, trying the HD
 /// directory (`driveHD` + base name + `.avi`), then `driveCD` + the given
 /// name + `.avi`, then `driveCD` + `pan\avi\` + base name + `.avi`; records it
@@ -74,6 +79,13 @@ pub fn openAvi(g: *Game, obj: *Object, name: []const u8) u16 {
     if (err != 0) {
         _ = cstr.print(&path, "{s}{s}.avi", .{ cstr.slice(&g.driveCD), cstr.slice(name) });
         err = g.plat.aviOpen(cstr.slice(&path), &dev);
+        // BUGS.md B42: the bad cop's arrest video from the disc root.
+        if (err != 0 and g.fixes.clean_arrest_video and
+            std.ascii.eqlIgnoreCase(cstr.slice(&base), clean_arrest_video[0 .. clean_arrest_video.len - 4]))
+        {
+            _ = cstr.print(&path, "{s}{s}", .{ cstr.slice(&g.driveCD), clean_arrest_video });
+            err = g.plat.aviOpen(cstr.slice(&path), &dev);
+        }
         if (err != 0) {
             _ = cstr.print(&path, "{s}pan\\avi\\{s}.avi", .{ cstr.slice(&g.driveCD), cstr.slice(&base) });
             err = g.plat.aviOpen(cstr.slice(&path), &dev);

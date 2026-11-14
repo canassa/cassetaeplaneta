@@ -426,7 +426,8 @@ the frames `sim.videoUpdate` draws.
   8-bit mono PCM. Frames go to the screen at (0,0) as they fall due; the
   screen palette is restored on stop/close. Seven files on the disc have
   damaged frames (2ACOPSEX, CARNIBOY, 2ACOPMAU, 2ACOPMU, PAN\AVI\
-  2APREBO2/2APREMA2): the decoder reports the frame and playback goes on.
+  2APREBO2/2APREMA2): the decoder reports the frame and playback goes on
+  (BUGS.md B42: the root's clean 2APREMA2 with the fix).
   `SAMPLE.AVI` (Cinepak) is a disc extra, unsupported.
 - **Music**: MCI `sequencer` through TinySoundFont (`vendor/tinysoundfont`,
   MIT) with the GeneralUser GS SoundFont (`$NOITE_SOUNDFONT`, set by the
