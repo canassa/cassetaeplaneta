@@ -42,10 +42,12 @@ a tap on the door walks the player over and out to the corridor
 (touch-corridor.png), a tap on the wallet's slot selects it and a tap in
 the scene drops it (touch-drop.png), and a tap on it on the floor takes it
 back.
-Last, a simulated deploy (a copy of the
+Then a simulated deploy (a copy of the
 site with noite.js and one disc file changed, restamped by
 tools/web/stamp.py, served at the same origin): the reload downloads
 only that file, runs the new noite.js and drops the stale cache entry.
+Then "Jogo" = Encaixe Perfeito: the minigame starts alone and a left
+arrow moves its falling piece one column (encaixe.png, encaixe-left.png).
 Exits non-zero on the first failed check or on a page error.
 """
 
@@ -482,6 +484,45 @@ def main():
             check(not terrors, "touch: no page errors")
             tctx.close()
 
+        def piece_left():
+            """The leftmost column of the playfield (x 32-383, above the
+            floor's bricks) that is not ENCAIXE's background, or None."""
+            return page.evaluate("""() => {
+                const d = document.getElementById("screen").getContext("2d").getImageData(32, 0, 352, 400).data;
+                let left = null;
+                for (let i = 0; i < d.length; i += 4) {
+                    if (Math.abs(d[i] - 16) + Math.abs(d[i + 1] - 16) + Math.abs(d[i + 2] - 16) > 24) {
+                        const x = 32 + (i / 4) % 352;
+                        if (left === null || x < left) left = x;
+                    }
+                }
+                return left;
+            }""")
+
+        def minigame_alone():
+            """Jogo: Encaixe Perfeito alone. It starts, a left arrow moves the
+            falling piece one 32-px column, no page errors."""
+            if not args.url:
+                Handler.site = site  # back from the deploy copy
+            page.goto(url)
+            load()
+            check(not page.is_disabled("#jogo option[value=encaixe]"), "the loader offers Encaixe Perfeito alone")
+            page.select_option("#jogo", "encaixe")
+            page.check('input[name="versao"][value="original"]')
+            play()
+            end = time.time() + 5
+            while (piece_left() or 0) <= 40 and time.time() < end:  # the first piece (x 160)
+                time.sleep(0.05)
+            shot("encaixe.png")
+            before = piece_left()
+            page.keyboard.press("ArrowLeft")
+            time.sleep(0.3)
+            after = piece_left()
+            shot("encaixe-left.png")
+            check(before is not None and after is not None and after <= before - 32,
+                  f"Encaixe Perfeito runs: the left arrow moves the piece (left edge {before} -> {after})")
+            check(not errors, "Encaixe Perfeito: no page errors")
+
         def manifest():
             return page.evaluate("""async () => {
                 const html = await (await fetch("./", { cache: "no-cache" })).text();
@@ -649,6 +690,7 @@ def main():
             check(wait_scene("abert", 10), "the new build starts (abert)")
             check(not errors, "no page errors after the deploy")
             shutil.rmtree(new_site)
+        minigame_alone()
         browser.close()
     if not args.url:
         httpd.shutdown()
