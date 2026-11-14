@@ -413,6 +413,35 @@ pub const Fixes = struct {
     /// H7: a landing in the scroll zone clears the stomp latch too, so every
     /// stomp of a small hero scores +150.
     inferno_scroll_landing_clears_stomp: bool = false,
+    // ---- JARDIM.EXE (BUGS.md J1–J7). The src/jardim/ units port each bug
+    // as it is and keep the fix only behind its flag
+    // (docs/jardim/DESIGN.md "Fixes"). ----
+    /// J1: the win's bonus subtracts the whole 32-bit start tick from the
+    /// whole 32-bit tick, so it is 10⁹ / the milliseconds played (a bonus
+    /// for speed) instead of a penalty that depends on Windows' uptime.
+    jardim_time_bonus: bool = false,
+    /// J2: a shot that stops on phase 3's Chato clears his cell, as every
+    /// other kill does: he can be scored once per copy.
+    jardim_chato_removed: bool = false,
+    /// J3: a weapon (crossbow, bra, bazooka) touched while a shot flies
+    /// stays in its cell, as a refused pickup does, instead of vanishing.
+    jardim_weapon_waits_for_shot: bool = false,
+    /// J4: a wall's texture column comes from the ray's hit coordinate, as
+    /// a door's does, so the texture stays on the wall when the player
+    /// turns or walks.
+    jardim_wall_texture_on_wall: bool = false,
+    /// J5: the magnified sprite copy draws the one or two rows left on the
+    /// surface when its top is on row 478 or 479 (the original's row loop
+    /// counts down from -1 and faults; the Original port panics naming J5).
+    jardim_sprite_last_rows: bool = false,
+    /// J6: a step an enemy blocks ends the held key's walk: the timer does
+    /// not repeat it, so each contact costs one press (one life, or 5
+    /// health). A choice until the owner says (`choices`).
+    jardim_enemy_blocks_walk: bool = false,
+    /// J7: JARDIM posts 0x40c only once NOITE's 0x40b has come (no 0x40c to
+    /// a NOITE found by FindWindow before), so NOITE sends the hello and
+    /// its variant arrives: espquete's final enemy is espanf.
+    jardim_variant_hello: bool = false,
     /// U1: draw the status-bar text.
     status_bar_text: bool = false,
     /// `ini_fatal_error` ("Erro Fatal!") quits (`error.Fatal`) instead of
@@ -421,7 +450,7 @@ pub const Fixes = struct {
 
     /// Flags left out of `all` (`--fix all`, the web build's "Corrigida"
     /// version), e.g. the hall-door reshuffle.
-    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit", "serial_lane2_own_timer", "sauna_eat_on_arrival", "salgin_opponent_damage_table", "salgin_block_holds", "salgin_insert_locked", "salgin_weak_reaction_by_energy", "salgin_banner_shown", "xilindro_block_holds", "xilindro_insert_locked", "xilindro_banner_shown", "inferno_loss_reports", "inferno_close_forfeits" };
+    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit", "serial_lane2_own_timer", "sauna_eat_on_arrival", "salgin_opponent_damage_table", "salgin_block_holds", "salgin_insert_locked", "salgin_weak_reaction_by_energy", "salgin_banner_shown", "xilindro_block_holds", "xilindro_insert_locked", "xilindro_banner_shown", "inferno_loss_reports", "inferno_close_forfeits", "jardim_enemy_blocks_walk" };
 
     /// `--fix all`: every flag but the `choices`.
     pub fn all() Fixes {

@@ -1,0 +1,22 @@
+# JARDIM: owners of the non-SceneObject vtable slots (docs/jardim/DESIGN.md "Other vtables"),
+# read by `noite -p jardim unit dep infer`. vtable <TAB> slots (hex, * = all, a-b, a,b) <TAB> unit;
+# a later row overrides an earlier one. The SceneObjectVtbl owners are DESIGN.md's table.
+Object3DVtbl	*	space3d
+MoverVtbl	*	movement
+AnimationVtbl	*	animation
+ControlPanelVtbl	0-5	animation
+ControlPanelVtbl	6-d	panels
+GameVtbl	*	game
+GameVtbl	0	game_input
+SceneVtbl	*	scene
+SceneVtbl	0,5,7	labyrinth_scene
+LabyrinthSceneVtbl	*	scene
+LabyrinthSceneVtbl	0,5,7,10-17	labyrinth_scene
+BackdropVtbl	*	backdrop
+BackdropVtbl	0	labyrinth
+LabyrinthBackdropVtbl	*	backdrop
+LabyrinthBackdropVtbl	0	labyrinth
+LabyrinthBackdropVtbl	17	labyrinth_input
+FrameVtbl	*	object_create
+ConditionVtbl	*	game
+type_test	41-52,58,59

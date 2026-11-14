@@ -61,6 +61,8 @@ pub const platform = struct {
 pub const encaixe = @import("encaixe/root.zig");
 /// TIRO.EXE's port (src/tiro/, docs/tiro/DESIGN.md).
 pub const tiro = @import("tiro/root.zig");
+/// JARDIM.EXE's port (src/jardim/, docs/jardim/DESIGN.md).
+pub const jardim = @import("jardim/root.zig");
 /// SERIAL.EXE's port (src/serial/, docs/serial/DESIGN.md).
 pub const serial = @import("serial/root.zig");
 /// INFERNO.EXE's port (src/inferno/, docs/inferno/DESIGN.md).
@@ -75,7 +77,7 @@ pub const xilindro = @import("xilindro/root.zig");
 pub const sauna = @import("sauna/root.zig");
 /// The minigames ported: NOITE's WinExec runs them as tasks once `ready`,
 /// `--minigame NAME` runs one alone.
-pub const minigames = [_]*const platform.host.Program{ &encaixe.program, &tiro.program, &serial.program, &inv.program, &salgin.program, &xilindro.program, &sauna.program, &inferno.program };
+pub const minigames = [_]*const platform.host.Program{ &encaixe.program, &tiro.program, &serial.program, &inv.program, &salgin.program, &xilindro.program, &sauna.program, &inferno.program, &jardim.program };
 pub const units = @import("units.zig");
 const one_button = @import("one_button.zig");
 const Game = core.game.Game;
@@ -378,6 +380,7 @@ test {
     _ = @import("units.zig");
     _ = encaixe;
     _ = tiro;
+    _ = jardim;
     _ = sauna;
     _ = xilindro;
     _ = salgin;
