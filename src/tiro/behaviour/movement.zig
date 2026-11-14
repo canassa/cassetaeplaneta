@@ -307,7 +307,7 @@ fn moverStopMoving(g: *Game, obj: *Object, bd: *Backdrop) void {
 // @orig 1028:15cb mover_stop_moving_dc
 /// moving = 0, kills the movement timer, steps lose their sign, target and
 /// previous position become the current one, posts 0x404 with the id.
-fn moverStopMovingDc(g: *Game, obj: *Object) void {
+pub fn moverStopMovingDc(g: *Game, obj: *Object) void {
     const m = &obj.mover;
     m.moving = 0;
     g.killSystemTimer(@bitCast(m.timerId));

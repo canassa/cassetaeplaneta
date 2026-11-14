@@ -4,7 +4,6 @@
 //! The hwnd and hdc parameters are dropped (the platform's screen).
 
 const std = @import("std");
-const msg = @import("../core/msg.zig");
 const platform = @import("../platform/platform.zig");
 const Game = @import("core/game.zig").Game;
 const object = @import("core/object.zig");
@@ -92,22 +91,6 @@ fn newTarget(g: *Game, timer_id: i16, y: i16, x: i16) Error!*Object {
     return t;
 }
 
-/// `mover_stop_moving_dc` (1028:15cb; `movement`'s copy is private): the
-/// base stop that `target_hit` calls directly, without the Target
-/// override's hide / place / blit. Not tagged: movement owns it.
-fn moverStopMovingDc(g: *Game, obj: *Object) void {
-    const m = &obj.mover;
-    m.moving = 0;
-    g.killSystemTimer(@bitCast(m.timerId));
-    m.stepX = absI16(m.stepX);
-    m.stepY = absI16(m.stepY);
-    m.prevX = obj.x;
-    m.targetX = obj.x;
-    m.prevY = obj.y;
-    m.targetY = obj.y;
-    _ = g.post(.{ .id = msg.noite.movement_finished, .wparam = @bitCast(obj.id) });
-}
-
 // @orig 1068:08ab target_hit
 /// A target was hit (`obj` = `this`, the one the handler found; `index` its
 /// number: the original reads the stop, the timers and the hit counter
@@ -119,7 +102,7 @@ fn moverStopMovingDc(g: *Game, obj: *Object) void {
 /// Nothing guards a target already in its hit animation.
 pub fn hit(g: *Game, obj: *Object, bd: *Backdrop, index: i16) void {
     const t = targetAt(g, index);
-    moverStopMovingDc(g, t);
+    movement.moverStopMovingDc(g, t);
     t.anim.framesLeft = 8;
     t.anim.timerPeriod = 0x37;
     g.setSystemTimer(@bitCast(t.anim.timerId), 0x37);
