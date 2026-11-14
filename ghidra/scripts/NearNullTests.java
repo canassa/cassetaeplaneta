@@ -4,9 +4,9 @@ import ghidra.program.model.listing.*;
 import ghidra.program.model.scalar.Scalar;
 import java.util.*;
 
-// Small-model MSVC 1.5 null tests of an adjusted `this`: `CMP BX|SI|DI,imm; JNZ; XOR r,r` where imm
-// is a sub-object offset (0x18, 0x34, 0x42...). The decompiler prints such a pointer constant as
-// the DGROUP symbol at that offset (`this == (word *)&g_keyDown`); no reference exists to remove,
+// Near-data MSVC 1.5 null tests of an adjusted `this`: `CMP BX|SI|DI,imm; JNZ; XOR r,r` (`MOV r,0x0`
+// in /Od builds such as TIRO) where imm is a sub-object offset (0x18, 0x34, 0x42...). The decompiler
+// prints such a pointer constant as the DGROUP symbol at that offset (`this == (word *)&g_keyDown`); no reference exists to remove,
 // so this script puts a PRE comment on each compare saying what the constant is.
 // Args: <seg> [maxImm (hex, default 800)] [dry]
 public class NearNullTests extends GhidraScript {
@@ -34,7 +34,9 @@ public class NearNullTests extends GhidraScript {
 			boolean xor = x.getMnemonicString().equals("XOR") && x.getNumOperands() == 2
 					&& x.getDefaultOperandRepresentation(0).equals(x.getDefaultOperandRepresentation(1));
 			boolean mov0 = x.getMnemonicString().equals("MOV") && x.toString().matches("MOV word ptr \\[BP \\+ -0x[0-9a-f]+\\],0x0");
-			if (!xor && !mov0) continue;
+			// /Od (TIRO): MOV AX,0x0 instead of XOR AX,AX
+			boolean movr0 = x.toString().matches("MOV (AX|BX|CX|DX|SI|DI),0x0");
+			if (!xor && !mov0 && !movr0) continue;
 			Function f = getFunctionContaining(in.getAddress());
 			String c = String.format("null test: 0x%x is the sub-object offset of a NULL object, not a DGROUP address", v);
 			println(in.getAddress() + " " + (f == null ? "" : f.getName()) + " " + in);
