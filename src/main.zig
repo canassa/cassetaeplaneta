@@ -61,9 +61,11 @@ pub const platform = struct {
 pub const encaixe = @import("encaixe/root.zig");
 /// TIRO.EXE's port (src/tiro/, docs/tiro/DESIGN.md).
 pub const tiro = @import("tiro/root.zig");
+/// SERIAL.EXE's port (src/serial/, docs/serial/DESIGN.md).
+pub const serial = @import("serial/root.zig");
 /// The minigames ported: NOITE's WinExec runs them as tasks once `ready`,
 /// `--minigame NAME` runs one alone.
-pub const minigames = [_]*const platform.host.Program{ &encaixe.program, &tiro.program };
+pub const minigames = [_]*const platform.host.Program{ &encaixe.program, &tiro.program, &serial.program };
 pub const units = @import("units.zig");
 const one_button = @import("one_button.zig");
 const Game = core.game.Game;
@@ -366,6 +368,7 @@ test {
     _ = @import("units.zig");
     _ = encaixe;
     _ = tiro;
+    _ = serial;
     _ = one_button;
     std.testing.refAllDecls(core);
     std.testing.refAllDecls(platform.sim);

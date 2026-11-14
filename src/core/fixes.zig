@@ -243,6 +243,27 @@ pub const Fixes = struct {
     /// T6: `target_restore_background` widens the restored strip by |stepX|
     /// once, as `mover_restore_background`.
     tiro_target_restore_one_step: bool = false,
+    // ---- SERIAL.EXE (BUGS.md K1–K5). The src/serial/ units port each bug
+    // as it is and keep the fix only behind its flag. ----
+    /// K1: the 0x40a result's wParam says whether the player survived
+    /// (`g_lives > 0`) instead of carrying SERIAL's window handle, so a
+    /// game that loses every life reports a loss.
+    serial_result_won_by_lives: bool = false,
+    /// K2: the 0x40a lParam is the score alone, sign-extended (500 for a
+    /// survived game, `g_score` otherwise), instead of `MAKELONG(lives,
+    /// score)`.
+    serial_score_in_low_word: bool = false,
+    /// K3: the second hit stage also needs the figure's row (y ranges
+    /// overlap) and takes the bullet's real width (47, `bala.bmp`) with
+    /// touching edges counted, so a hit scores for the figure the bullet
+    /// reached.
+    serial_hit_needs_row: bool = false,
+    /// K4: SPACE sets its latch on key-down, so a held SPACE fires once.
+    serial_space_latch: bool = false,
+    /// K5: lane 2's spawn timer gets an id of its own (9, the unused
+    /// `g_timerIds[6]`), so its 5-s branch runs besides the 10-s toggle.
+    /// A choice until the owner says (`choices`).
+    serial_lane2_own_timer: bool = false,
     /// U1: draw the status-bar text.
     status_bar_text: bool = false,
     /// `ini_fatal_error` ("Erro Fatal!") quits (`error.Fatal`) instead of
@@ -251,7 +272,7 @@ pub const Fixes = struct {
 
     /// Flags left out of `all` (`--fix all`, the web build's "Corrigida"
     /// version), e.g. the hall-door reshuffle.
-    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit" };
+    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit", "serial_lane2_own_timer" };
 
     /// `--fix all`: every flag but the `choices`.
     pub fn all() Fixes {
