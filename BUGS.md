@@ -1916,7 +1916,8 @@ object, and a message after that would reach a freed object; no path to one is k
   powered Pacman cannot eat a ghost he chases rightward or downward. A head-on meeting is caught by
   whichever of the two moves left or up.
 - **Confidence:** 9 (code); 8 (effect).
-- **Port:** not ported yet.
+- **Port:** unit `occupancy` (src/sauna/, docs/sauna/DESIGN.md), not ported yet; the fix is
+  `Fixes.sauna_meet_any_direction` (`--fix sauna_meet_any_direction`, on in the Corrigida version).
 
 ### P2. An actor that moves clears the cells of any other actor on them
 - **Where:** `pacman_vacate` 1080:01c1, `ghost_vacate` 1080:157f; `pacman_occupy`,
@@ -1929,7 +1930,8 @@ object, and a message after that would reach a freed object; no path to one is k
 - **Effect:** for that tick the other actor is invisible to the collision test: a step into it
   passes through. Occasional missed catches or missed ghost eats.
 - **Confidence:** 9 (code); 5 (how often it shows).
-- **Port:** not ported yet.
+- **Port:** unit `occupancy` (src/sauna/, docs/sauna/DESIGN.md), not ported yet; the fix is
+  `Fixes.sauna_vacate_own_cells` (`--fix sauna_vacate_own_cells`, on in the Corrigida version).
 
 ### P3. A dot is eaten after Pacman has left it, so the win waits for a move
 - **Where:** `pacman_restore_background` 1080:0d05 (the dot test and the `SendMessage(WM_DESTROY,
@@ -1941,7 +1943,8 @@ object, and a message after that would reach a freed object; no path to one is k
   he stops (against a wall) stays until he moves off, and when it is the last one the game is won
   only then.
 - **Confidence:** 9 (code); 7 (that the old position was not meant).
-- **Port:** not ported yet.
+- **Port:** unit `render` (src/sauna/, docs/sauna/DESIGN.md), not ported yet; the fix is
+  `Fixes.sauna_eat_on_arrival` (`--fix sauna_eat_on_arrival`, a choice: left out of the Corrigida version (`Fixes.choices`) until the owner decides).
 
 ### P4. The power mode's start and end turn Pacman to face right
 - **Where:** `sauna_scene_handle_message`, the power start (1080:3324) and end (1080:3ee4), which
@@ -1952,7 +1955,8 @@ object, and a message after that would reach a freed object; no path to one is k
 - **Effect:** when a cork is eaten and when the 5 s end, Pacman faces right (powered or normal
   picture) while he runs left, up or down, until the next arrow.
 - **Confidence:** 9 (code); 8 (effect).
-- **Port:** not ported yet.
+- **Port:** unit `animation` (src/sauna/, docs/sauna/DESIGN.md), not ported yet; the fix is
+  `Fixes.sauna_power_keeps_heading` (`--fix sauna_power_keeps_heading`, on in the Corrigida version).
 
 ### P5. A click shows Pacman facing up or right instead of the way he walks
 - **Where:** `pacman_move_to` 1080:074a (reached from `game_handle_message`'s `WM_LBUTTONDOWN`).
@@ -1962,7 +1966,8 @@ object, and a message after that would reach a freed object; no path to one is k
 - **Effect:** a click to the left walks Pacman left showing the up picture; any other click, up and
   down included, shows the right picture.
 - **Confidence:** 9 (code); 8 (effect).
-- **Port:** not ported yet.
+- **Port:** unit `movement` (src/sauna/, docs/sauna/DESIGN.md), not ported yet; the fix is
+  `Fixes.sauna_click_faces_walk` (`--fix sauna_click_faces_walk`, on in the Corrigida version).
 
 ### P6. The ghosts keep moving while Pacman dies, and can take another life
 - **Where:** `sauna_scene_handle_message`, the ghosts' timer arm (1080:3b1c, no `g_pacmanDying`
@@ -1976,7 +1981,8 @@ object, and a message after that would reach a freed object; no path to one is k
   death.
 - **Confidence:** 9 (code); 6 (how often: the ghosts walk back along their old lines, toward the
   spot).
-- **Port:** not ported yet.
+- **Port:** unit `occupancy` (src/sauna/, docs/sauna/DESIGN.md), not ported yet; the fix is
+  `Fixes.sauna_no_catch_while_dying` (`--fix sauna_no_catch_while_dying`, on in the Corrigida version).
 
 ### P7. An arrow during the death restarts it, and Pacman reappears running
 - **Where:** `sauna_scene_handle_message`, `WM_KEYDOWN` (1080:35b8, no `g_pacmanDying` test) and
@@ -1988,7 +1994,8 @@ object, and a message after that would reach a freed object; no path to one is k
 - **Effect:** each new arrow press while dying restarts the 0.7-s death strip, which leaves the
   ghosts more time (P6); at the respawn Pacman runs off in that direction at once.
 - **Confidence:** 9 (code); 8 (effect).
-- **Port:** not ported yet.
+- **Port:** unit `maze` (src/sauna/, docs/sauna/DESIGN.md), not ported yet; the fix is
+  `Fixes.sauna_no_arrows_while_dying` (`--fix sauna_no_arrows_while_dying`, on in the Corrigida version).
 
 ### P8. A score of 10000 or more shows a tenth of its value
 - **Where:** `sauna_draw_score` 1080:426e, `sauna_blit_score_box` 1080:4221.
@@ -1999,7 +2006,8 @@ object, and a message after that would reach a freed object; no path to one is k
   only when the window is repainted, and stays in the backdrop after the score drops below 10000.
   One ghost eaten and no life lost reach it with 95 peanuts.
 - **Confidence:** 9 (code); 7 (effect).
-- **Port:** not ported yet.
+- **Port:** unit `score` (src/sauna/, docs/sauna/DESIGN.md), not ported yet; the fix is
+  `Fixes.sauna_score_fits_box` (`--fix sauna_score_fits_box`, on in the Corrigida version).
 
 ### Harmless (SAUNA)
 
