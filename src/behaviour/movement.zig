@@ -310,6 +310,8 @@ fn moverAtTarget(obj: *Object) bool {
 /// also invalidates the redrawn rectangle).
 fn moveTickBody(g: *Game, obj: *Object, bd: *Backdrop, invalidate: bool) void {
     if (obj.mover.moving == 0) return;
+    // `Fixes.smooth_item_fall` draws a falling item between its steps.
+    if (obj.kind == .portable) obj.portable.stepAt = g.plat.ticks();
     moverStep(obj);
     if (occupancy.canStep(g, obj, bd)) {
         frames.resetRects(obj);
@@ -356,15 +358,19 @@ pub const smooth_fall_timer: u16 = 0xfa11;
 /// 10 rows, so the in-between frames move 2).
 pub fn smoothFallStart(g: *Game, obj: *Object) void {
     if (!g.fixes.smooth_item_fall or obj.kind != .portable or !isMoving(g, obj)) return;
+    obj.portable.stepAt = g.plat.ticks();
     g.setSystemTimer(smooth_fall_timer, @bitCast(@divTrunc(obj.mover.timerPeriod, 5)));
 }
 
 /// One `smooth_fall_timer` tick: puts the falling item `obj` (the selected
 /// one) between its last step and the next, in proportion to the time since
-/// its own timer last fired. The steps still come from that timer
-/// (`moveTick`, as in the original) from the next position this does not
-/// touch, so the fall's path, end and timing do not change, and the item's
-/// timer (shared with other objects) keeps its period. The timer stops
+/// that step. The steps still come from `moveTick`, as in the original,
+/// from the next position this does not touch, so the fall's path, end and
+/// timing do not change, and the item's timer (shared with other objects)
+/// keeps its period. The next step is the item's own timer or, sooner, any
+/// scene timer 5-10: the scene's WM_SYSTIMER loop (`ini_scene_handle_message`
+/// 1018:915e) steps every moving object of the scene whatever the id (the
+/// sitting room's cat, timer 5 at 100 ms, while it plays). The timer stops
 /// with the fall, or when the item's timer is gone.
 pub fn smoothFallTick(g: *Game, obj: ?*Object, bd: *Backdrop) void {
     const o = obj orelse return g.killSystemTimer(smooth_fall_timer);
@@ -372,12 +378,18 @@ pub fn smoothFallTick(g: *Game, obj: ?*Object, bd: *Backdrop) void {
     const t = g.queue.findTimer(.system, @bitCast(o.mover.timerId)) orelse
         return g.killSystemTimer(smooth_fall_timer);
     if (o.visible == 0) return;
-    const period: i32 = @intCast(t.period);
-    const left: i32 = @bitCast(t.due -% g.plat.ticks());
-    if (left <= 0 or left >= period) return;
+    var due = t.due;
+    var id: u16 = 5;
+    while (id <= 10) : (id += 1) {
+        const other = g.queue.findTimer(.system, id) orelse continue;
+        if (@as(i32, @bitCast(other.due -% due)) < 0) due = other.due;
+    }
+    const span: i32 = @bitCast(due -% o.portable.stepAt);
+    const since: i32 = @bitCast(g.plat.ticks() -% o.portable.stepAt);
+    if (since <= 0 or since >= span) return;
     const s = stepFrom(o);
-    const x = between(o.nextX, s.x, period - left, period);
-    const y = between(o.nextY, s.y, period - left, period);
+    const x = between(o.nextX, s.x, since, span);
+    const y = between(o.nextY, s.y, since, span);
     if (x == o.x and y == o.y) return;
     frames.resetRects(o);
     placeAt(g, o, x, y, bd);

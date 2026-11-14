@@ -284,6 +284,9 @@ pub const PortablePart = struct {
     /// the fall started by its drop ends (its support's top, 0 on the
     /// floor); null when no such fall is under way.
     restElev: ?i16 = null,
+    /// Not in the original (`Fixes.smooth_item_fall`): the time of the
+    /// last step of its walk (or of the drop that started it).
+    stepAt: u32 = 0,
 };
 
 /// ControlPanel part (struct `ControlPanel`, own fields from 0x114).

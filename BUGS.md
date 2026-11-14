@@ -615,10 +615,12 @@ Usability changes the "Corrigida" version (`Fixes.all()`) turns on; the original
 - **A dropped item falls smoothly** (`Fixes.smooth_item_fall`). The original moves a falling item 10 rows per tick
   of its own timer (`portableCtor` step 0,10; timer 4 at 200 ms for most items, 100 ms for some), 5–10 frames a
   second. With the flag a system timer (id 0xfa11, a fifth of the item's period; `movement.smoothFallTick`)
-  draws the item between its last step and the next, in proportion to the time since the item's timer last
-  fired (2 rows a frame). The steps still come from the item's timer, unchanged, so the path, the end, the 3D
-  place and the time the fall ends are the original's, and that timer (shared with other objects) keeps its
-  period.
+  draws the item between its last step and the next, in proportion to the time since the last step (2 rows a
+  frame). The steps still come from `moveTick`, unchanged, so the path, the end, the 3D place and the time the
+  fall ends are the original's, and the item's timer (shared with other objects) keeps its period. Any running
+  scene timer 5–10 also steps it (`ini_scene_handle_message` 1018:915e moves every moving object of the scene
+  whatever the id: the sitting room's cat, 100 ms, while it plays), so the next step is the first of those
+  timers and the item's.
 
 ---
 
