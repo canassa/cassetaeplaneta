@@ -17,7 +17,7 @@ as a copy of TIRO's `/tiro` (`SalginCopyFromTwin.java … types`), with TIRO's o
 | Vtable structs | 15 (13 from TIRO + `FighterVtbl` 3, `OpponentVtbl` 2) |
 | Class structs new to SALGIN (`NearStructs.java`) | 5: `Fighter`, `Opponent`, `Banner`, `EnergyBar`, `SalginScene` |
 | Globals typed (`NearGlobals.java`, non-string, non-table) | 142, 136 named |
-| Virtual-call overrides (`FarSlotSignatures.java`) | 335 of 359 sites (24 left, below) |
+| Call-site overrides (`FarSlotSignatures.java`) | 369: 335 resolved (`calls`), 21 virtual calls and 13 timer-pointer calls by hand (`site`); 11 CRT function-pointer calls left |
 | NULL-test comments (`NearNullTests.java`) | 14 (the same sites as TIRO) |
 | Undefined bytes left in DGROUP | 86 |
 
@@ -61,10 +61,10 @@ The game's flags and clocks (`0362–0397`, all initialised data):
 
 | Addr | Name | Init | Use |
 |---|---|---|---|
-| `0362` … `0370` | `g_keyRightHeld`, `g_keyLeftHeld`, `g_keyUpHeld`, `g_keyDownHeld`, `g_keyPgUpHeld`, `g_keyHomeHeld`, `g_keyEndHeld`, `g_keyInsertHeld` | 0 | One latch per move key. A key starts its move only while its latch is 0; starting **any** move sets **all** of them (one move at a time); they clear when the move's animation ends. |
-| `0378` | `g_keyLeftUp` | 1 | 0 while LEFT is held |
+| `0362` … `0370` | `g_keyRightHeld`, `g_keyLeftHeld`, `g_keyUpHeld`, `g_keyDownHeld`, `g_keyPgUpHeld`, `g_keyHomeHeld`, `g_keyEndHeld`, `g_keyInsertHeld` | 0 | One latch per move key. A key starts its move only while its own latch is 0 and sets it. An attack or the block also sets the other six, never Insert's; Insert sets all 8; Left/Right set only their own, and their key-up clears it. All 8 clear when the player's move ends (or the opponent's, both energies > 0); a hit reaction of the player and the KO set all 8. |
+| `0378` | `g_keyLeftUp` | 1 | 0 on a Left press, 1 on its key-up; never read |
 | `0380`, `0382` | `g_playerMarkLevel`, `g_opponentMarkLevel` | 91 | The energy at which the next energy-bar mark is drawn: each 7 points lost adds a mark and lowers the level by 7 |
-| `0384`, `0388`, `038c` | `g_lastClockTick`, `g_lastAnimTick`, `g_lastPumpTick` | 0 | GetTickCount stamps: the 1 s round clock, the 100 ms end-of-round animation, the 200 ms WaveMix pump / fight beat |
+| `0384`, `0388`, `038c` | `g_lastClockTick`, `g_lastAnimTick`, `g_lastPumpTick` | 0 | GetTickCount stamps, tested on every message: the > 1000 ms round clock, the > 100 ms end tick, the ≥ 200 ms beat (WaveMix pump and the fight step). Nothing reads a timer id |
 | `0390` | `g_roundOver` | 0 | Set when the clock or an energy reaches 0 |
 | `0392` | `g_endTicks` | 0 | 100 ms ticks since the round ended |
 | `0394` | `g_endReady` | 0 | The end may post WM_DESTROY |
@@ -101,8 +101,10 @@ the guard sway, *defesa* block, *tombo* fall):
 | 8, 9 | `vbtomb`, `vbbmup` | `matomb`, `matoup` | hit reactions (from `g_reactionStrips`) |
 | 10 | `vbbmen` (11 frames) | `macofi` (22 frames) | the round winner's animation |
 
-**Damage** (energy lost by the one who is hit, by the attacker's strip):
-`g_fighterDamage` = {1, 2, 1, 2, 0…} and `g_opponentDamage` = {2, 1, 1, 3, 0…}.
+**Damage**, by the attacker's strip: `g_fighterDamage` = {1, 2, 1, 2, 0…} is what **both** sides'
+blows take off the energy bar (the player's by the player's strip, the opponent's by the
+opponent's strip, 1068:27c4); `g_opponentDamage` = {2, 1, 1, 3, 0…} only lowers `Fighter.health`
+in a trade (1068:1b77; BUGS S1).
 
 **Sounds.** MIDI `porrada.mid` through MCI (alias `musica`, looped on MM_MCINOTIFY). Seven
 WaveMix waves: `soco2`, `soco` (punches), `chute3` (kick), `dor2`, `dor4` (pain), `vaias` (the
@@ -160,8 +162,8 @@ offsets (Fighter −0x56, Opponent −0x4c), so they stay untyped.
 
 | Struct | Size | Fields | Confidence |
 |---|---|---|---|
-| `Fighter` | 0x56 | `player2d` (`Player2D`), `unk46`, `hitLock` +0x48 (1 while a hit reaction plays; blocks the next hit), `frameCount` +0x4a (frames shown of the current move; the move ends when it reaches `animation.framesLeft`), `unk4c`, `timerId` +0x4e (`fighter_start_timer`, 10), `health` +0x50 (91; lowered when the fighter trades blows, chooses the weak/strong reaction below 10), `unk52` byte (`'0'`), `vtordisp` +0x54 | medium |
-| `Opponent` | 0x4c | `actor2d`, `unk40` (1 from the ctor), `hitLock` +0x42, `frameCount` +0x44, `health` +0x46 (91; weak/strong reaction below 6), `unk48` byte (`'0'`), `vtordisp` +0x4a | medium |
+| `Fighter` | 0x56 | `player2d` (`Player2D`), `unk46`, `hitLock` +0x48 (1 when a hit reaction starts; skips one beat of its frame step and is cleared by the opponent's step), `frameCount` +0x4a (frames shown of the current move; the move ends when it reaches `animation.framesLeft`), `unk4c`, `timerId` +0x4e (`fighter_start_timer`, 10), `health` +0x50 (91; lowered only in a trade, by `g_opponentDamage`; below 10 picks the weak reaction), `contactMark` +0x52 byte (`'0'`, `'2'` on contact with the opponent; never read), `vtordisp` +0x54 | medium |
+| `Opponent` | 0x4c | `actor2d`, `unk40` (1 from the ctor), `hitLock` +0x42, `frameCount` +0x44, `health` +0x46 (91; lowered by the player's blows except the sweep; below 6 picks the weak reaction), `contactMark` +0x48 byte (`'0'`, `'1'` on contact; never read), `vtordisp` +0x4a | medium |
 | `Banner` | 0x42 | `actor2d`, `vtordisp` | high |
 | `EnergyBar` | 0x4a | `actor2d`, `leftEdge` +0x40 (0x122), `rightEdge` +0x42 (0x14d), **`playerEnergy`** +0x44, **`opponentEnergy`** +0x46 (both 91), `vtordisp` +0x48 | high |
 | `SalginScene` | 0x46 | `scene` (`Scene`), **`clock`** +0x44 (90 seconds) | high |
@@ -175,74 +177,26 @@ right), `Mover.stepX` (+0x1a), `Mover.targetX` (+0x16), `Mover.moving` (+0x30),
 `Animation.framesLeft` (+0x3a, set from the strip's frame count) and the SceneObject's
 `curStrip`/`curFrame` (+0x1a/+0x1c of the SceneObject) and x (+0xc).
 
-## The game rules, as far as the data and the handler show
+## The game rules
 
-*Porrada na Sala de Ginástica*: a **one-round fight against the clock**. The player's Fighter
-stands on the left (x 0), the Opponent to its right (created at x 200), both
-at y 0x8c; the PORRADA banner and the energy bar sit above. Each side has **91 energy**; the
-round lasts **90 seconds** (`SalginScene.clock`, drawn "%2.2d" at (0x136, 0x16)).
-
-Controls (WM_KEYDOWN in `salgin_scene_handle_message`; the mouse does nothing):
-
-| Key | Move (fighter strip) |
-|---|---|
-| PgUp | strip 0 attack (damage 1) |
-| Up | strip 1 attack (damage 2) |
-| Down | strip 2 attack (damage 1; plays `soco2`) |
-| Home | strip 3 attack (damage 2) |
-| End | strip 7, block |
-| Insert | strip 5 (plays kick + pain2 at once; deals no damage) |
-| Left / Right | walk (strip 4), 32 px a step; never closer than 100 px to the opponent, never right of x 400 |
-
-- A move locks every move key until its animation ends; then the fighter returns to the guard
-  stance (strip 6).
-- **Hitting**: an attack within 0x79 (121) px takes `g_fighterDamage[strip]` off the opponent's
-  energy (and its own `health`) and plays the blow waves. If the opponent is walking, in its
-  strip 5 or in guard (4–6; 4–7 for the Down sweep) it plays a reaction from `g_reactionStrips`
-  (weak or strong by its health); otherwise (it was attacking) the fighter's `health` loses
-  `g_opponentDamage[the opponent's strip]` (a trade).
-- **The opponent** (on the 200 ms beat): farther than 100 px it walks toward the fighter; within
-  100 px and idle it **counterattacks**: `opponent_choose_attack` picks strip `rand() % 4`, the
-  waves play, and the fighter's energy loses `g_opponentDamage[strip]`, **whether or not the
-  fighter blocks** (a blocking or walking fighter only gets a reaction animation instead).
-  After its attack ends the opponent steps back 100 px (at most to x 500).
-- Every 7 energy lost adds an `energia.bmp` mark to the loser's side of the bar.
-- **End**: at 0 seconds, or as soon as either energy is below 1. **The player wins unless their
-  energy is below the opponent's** (a tie is a win). The winner plays strip 10; a player win
-  also plays the boos, a loss plays `mane.WAV`. The game closes 3 s later on a win; on a loss
-  when `mane.WAV` ends (MM_WOM_DONE 0x3bd posts WM_DESTROY).
-- **Result** (WM_DESTROY): `PostMessage(noite, 0x40a, won, won ? playerEnergy * 100 : -1000)`.
-  So a win scores 100 to 9,100 points; NOITE adds the score, takes a life on a loss, and on a
-  win goes to the `espquete` cutscene (`src/handlers/4fsalgin.zig`).
-
-## Candidate original bugs (for later, not in `BUGS.md`)
-
-1. **`opponent_choose_attack` reseeds `srand(time(NULL))` on every call**, so every counterattack
-   within the same second gets the same "random" strip.
-2. **A stale DC is released**: WM_KEYUP LEFT calls `ReleaseDC(local_c, hwnd)` where `local_c` is
-   only assigned by the 1-second clock branch of the same call (otherwise it is whatever the
-   stack holds).
-3. **Blocking does not reduce damage**: the counterattack takes the same energy from a fighter
-   in strip 4–7 (walk, Insert move, guard, block) as from one that is attacking; only the
-   reaction animation differs.
-4. `Fighter.health`/`Opponent.health` and the EnergyBar energies are separate counters that do
-   not always move together (a trade lowers only `Fighter.health`); only the EnergyBar decides
-   the result.
-5. The unreferenced word `64a4` sits where TIRO keeps `g_score`: SALGIN reports the energy instead
-   and never uses it. (0x401, which restarts the clock stamp, is the engine's "scene started" post from
-   `game_init` and `game_take_exit`.)
-6. `backdrop_autoscroll` returns 0 before its body (`QUALITY.md` §3): compiled out, not a bug in
-   play.
+`GAME.md` has them in full; the bugs are `BUGS.md` S1–S11. In short: one round of 90 s, 91 energy
+a side; the player's blows land at the key press within |dx| ≤ 120; the opponent walks in to
+69–100 px and attacks on the 200 ms beat, `rand() % 4` reseeded from `time()`, taking
+`g_fighterDamage[its strip]` whether the player blocks or not, then jumps back 100 px; a KO or the
+clock ends the round, the player wins unless its energy is below the opponent's, and
+`0x40a(won, won ? energy·100 : −1000)` goes to NOITE.
 
 ## Decompiler residue
 
-- **24 virtual calls without an override** (`FarSlotSignatures.java 1090 calls` leaves them):
-  the Object3D/Backdrop-range slots `[BX+0x4…0x4c]` in `1018` (`moveable_can_step`,
-  `*_drop_to_support`, `*_move_to_and_drop`, `*_move_to_at_elev`, `object3d_redraw_overlapping`,
-  `animated3d_tick`, `exit_tick`), `mover_restore_background` (3), `mover_move_tick`,
-  `moveable_move_tick` (`[BX]`), `game_handle_message` (3), `control_panel_draw`,
-  `exit_is_enabled`, and the 3 CRT function-pointer calls. TIRO typed its 28 by hand (`site`
-  mode); phase 4 can do the same from TIRO's listing.
+- **The 21 virtual calls `calls` mode cannot resolve** (the Object3D/Backdrop-range slots
+  `[BX+0x4…0x4c]` in `1018`, `mover_restore_background` ×3, the `[BX]` placeAt of
+  `mover_move_tick`/`moveable_move_tick`, `game_handle_message` ×3, `control_panel_draw`,
+  `exit_is_enabled`) have `site` overrides, each slot's table read from TIRO's override of the
+  same call: `Object3DVtbl` 7, `SceneObjectVtbl` 9, `MoverVtbl` 2, `AnimationVtbl`,
+  `ControlPanelVtbl`, `ConditionVtbl`. The 13 calls through `g_setSystemTimer`/`g_killSystemTimer`
+  have `/SetSystemTimerFn`/`/KillSystemTimerFn` (TIRO types only `APPWNDPROC`'s two). Left: the
+  11 CRT function-pointer calls (`crt_array_construct`/`destruct`, `crt_call_fptr_table`, the
+  `_cinit`/`_output`/`_nmalloc` hooks).
 - The 216 SceneObjectVtbl calls (`[BX+k]`, k ≥ 0x50) were given their override with `site`
   mode: no other far vtable is that long.
 - SceneObject fields through the virtual base keep TIRO's shape

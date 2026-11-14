@@ -51,8 +51,13 @@ By segment (code functions other than the adjustor thunks):
 
 Conventions (non-thunk): 503 `__stdcall16far` (far pascal, parameters listed reversed), 111 far
 cdecl (`__cdecl16far` 103, `__cdecl16far_dx_ax` 4, `__cdecl16far_dxax_ptr` 4), 24 CRT near
-helpers, 2 register-argument CRT entries left unknown. Tags copied from TIRO: 9 `sig?`, 5
-`review` (on the TIRO unknowns).
+helpers, 2 register-argument CRT entries left unknown. Tags: 0 `sig?` (the 9 copied from TIRO
+were resolved in phase 4), 5 `review` (the 5 `FUN_`, below).
+
+**Final state** (after phase 4 and the cleanup): 639 code functions, **634 named, 5 `FUN_`**,
+5 `review`, 0 `sig?`; 451 adjustor thunks, every name matching its target's final name
+(`NearAdjustorThunks.java` rerun); 369 call-site overrides, every indirect call typed but the 11
+CRT function-pointer calls (`DATA.md`).
 
 ## Function discovery
 
@@ -136,7 +141,9 @@ answer 0 for every SALGIN class. Their defaults are renamed `scene_object_is_fig
   functions, the Portable ctors, `status_bar_draw_text`, …): their plates say so.
 - The 5 `FUN_`: `1028:0e71` (empty member, `RETF 0xa`), `1028:1c89` (huge-pointer arithmetic,
   no caller), `1088:3dcc`/`3de6` (empty `(this, backdrop)` methods), `1088:3e48` (empty
-  `(this)` method); the same 5 TIRO leaves unnamed (tag `review`); and none else.
+  `(this)` method); the same 5 TIRO leaves unnamed (tag `review`); and none else. Phase 4 left
+  them as they are: no caller, slot or data reference settles a role. Each plate ends with that
+  note.
 
 ## Phase 4: function groups
 
@@ -178,3 +185,27 @@ terms where they cite TIRO addresses, and fix the `sig?` ones. "Game" groups nee
 Order: 1–4 and 10 first (CRT, DIB, app), then the verify groups, then 25 → 26 → 28 → 27. The
 `1088` groups gain from phase 3's vtable typing and `FarSlotSignatures.java` (phase 3,
 `DATA.md`).
+
+## Phase 4 results
+
+All 28 groups are done: every function is named or noted, plated and typed. The game is described
+in `GAME.md`, its bugs in `BUGS.md` (section SALGIN). What phase 4 corrected in the earlier picture:
+- **Timers:** nothing dispatches a timer id. Timer 1 (50 ms) only makes messages; every message
+  runs the handler's `GetTickCount` block first: the 200 ms beat (`g_lastPumpTick`: WaveMix pump and
+  the fight step), the 1000 ms clock, the 100 ms end tick. The id-10 object timers (1100 ms) and the
+  end timer 0x14 are swallowed with every other `WM_SYSTIMER`.
+- **Latches:** a key starts its move only while its own latch is 0. Attacks and the block set the
+  other six latches but never Insert's; Insert sets all 8; Left and Right only their own, which
+  their key-up clears (whatever move is playing).
+- **Damage:** the player's blow takes `g_fighterDamage[player strip]`; the opponent's attack takes
+  `g_fighterDamage[opponent strip]` too (1068:27c4); `g_opponentDamage` only lowers
+  `Fighter.health` in a trade.
+- **Gap:** the opponent's approach stops 69–100 px away (`opponent_walk`'s clamp is never reached);
+  the player's Right press within 100 px puts it exactly 68 px away (`fighter_walk` clamps before
+  the step).
+- **Hit range:** |dx| ≤ 120.
+- **Display:** `salgin_redraw_arena` overwrites the PORRADA banner on the first beat.
+
+Cleanup: the 21 untyped virtual calls got their overrides by hand (`FarSlotSignatures.java 1090
+site …`, the slots read from TIRO's overrides of the same functions), and so did the 13 calls through
+`g_setSystemTimer`/`g_killSystemTimer` (`/SetSystemTimerFn`, `/KillSystemTimerFn`).

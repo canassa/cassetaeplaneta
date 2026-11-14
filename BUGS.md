@@ -1271,3 +1271,137 @@ Addresses are Ghidra `seg:off` in `/TIRO.EXE`; the game is described in `docs/ti
 
 - **`WinMain` 1038:0202 returns an uninitialised word:** `[BP-0xe]` is 0 on the two early exits (second instance,
   failed `app_init`) and never written after a normal run. Nothing reads TIRO's exit code. Confidence 9.
+
+---
+
+## SALGIN.EXE (the "Porrada" gym-fight minigame)
+
+Addresses are Ghidra `seg:off` in `/SALGIN.EXE`; the game is described in `docs/salgin/GAME.md`.
+`salgin_scene_handle_message` is 1068:0d73.
+
+### S1. The opponent's attacks take energy by the player's damage table
+- **Where:** `salgin_scene_handle_message`, the beat's attack branch: `MOV AX,[BX+0x1d4]` at 1068:27c9 (player
+  in strip 4–7) and 1068:2811 (any other strip), indexed by the opponent's `curStrip` (1068:27c4, 280c).
+- **What the code does:** the player's energy loses `g_fighterDamage[opponent strip]` (1090:01d4, {1, 2, 1, 2}),
+  the table the player's own blows use by the player's strip. `g_opponentDamage` (1090:02bc, {2, 1, 1, 3}), indexed
+  by the opponent's strip, is read only in a trade (1068:1b77), where it lowers `Fighter.health`, which no score
+  uses.
+- **Effect:** the opponent's punch takes 1 instead of 2, its flying kick 2 instead of 1, its jump kick 2 instead of
+  3 (the sweep 1 either way): 1.5 per attack on average instead of 1.75, and the two sides hit equally hard.
+- **Confidence:** 9 (code); 6 (that it is a bug: a second per-strip table exists for the opponent and is indexed
+  the same way, but the designers could have balanced the fight by ear).
+- **Port:** not ported yet.
+
+### S2. Blocking takes the full damage
+- **Where:** `salgin_scene_handle_message`, the beat's attack branch (1068:26a5–27fb); End key 1068:1ec1.
+- **What the code does:** a player in strip 4–7 (walk, jump, guard, block) gets a reaction strip, then loses the same
+  `g_fighterDamage[opponent strip]` as an attacking player. End only sets strip 7, which only selects the row of
+  the reaction.
+- **Effect:** the block (End) and the jump (Insert) protect nothing. `g_reactionStrips` shows the block holding
+  (strip 7 again) against the punch and both kicks, so the player sees a parry and loses the energy anyway.
+- **Confidence:** 9 (code); 7 (that it is a bug).
+- **Port:** not ported yet.
+
+### S3. Releasing Left or Right cuts short whatever move is playing
+- **Where:** `salgin_scene_handle_message`, `WM_KEYUP` `VK_LEFT` 1068:1fc4 and `VK_RIGHT` 1068:209d.
+- **What the code does:** each key-up clears its own latch, stops the walk and sets strip 6 frame 0 (guard),
+  whatever the current strip. An attack, a block, a jump or a hit reaction sets the Left/Right latches, so a press
+  is ignored during them, but a key held from before still produces its key-up.
+- **Effect:** walking, then attacking while the arrow is still held, and releasing the arrow mid-attack drops the
+  attack (or a reaction) into the guard pose at once; the blow was dealt at the key press, so only the animation
+  is lost, but the player now stands in guard, and the arrow's latch is free again before the move ends.
+- **Confidence:** 9 (code); 8 (effect).
+- **Port:** not ported yet.
+
+### S4. Insert is not locked by the other moves
+- **Where:** `salgin_scene_handle_message`, the latch stores after each move key (Down 1068:14df–1503, Up 1739–1757,
+  PgUp 19ab–19c9, Home 1c1d–1c3b, End 1f46–1f64; `g_keyInsertHeld` is 1090:0370).
+- **What the code does:** an attack or the block sets 7 of the 8 latches, never `g_keyInsertHeld`; Insert itself and
+  every other path that locks the keys (a hit reaction, the KO) set all 8. Down has one store more than the others,
+  a second `g_keyPgUpHeld`.
+- **Effect:** Insert starts the jump in the middle of an attack or a block, replacing it (and playing its two
+  waves); every other key waits for the move to end.
+- **Confidence:** 9 (code); 6 (that it is a bug).
+- **Port:** not ported yet.
+
+### S5. The opponent's attack is reseeded from the clock second on every choice
+- **Where:** `opponent_choose_attack` 1068:0b85 (`time(NULL)` 1068:0b97, `srand` 0ba0, `rand` 0bae).
+- **What the code does:** `srand((unsigned)time(NULL))` before every `rand() % 4`. The CRT `rand` is the LCG
+  `x·0x343fd + 0x269ec3`, whose first value after a seed t is bits 16–30 of `t·0x343fd + 0x269ec3`; its two low
+  bits advance by 3 (mod 4) per second, with an extra carry about every fourth second.
+- **Effect:** the attack is not random: it is a function of the clock second, and runs through the four attacks
+  in a fixed descending order (3, 2, 1, 0, …), with a repeat about every 4 s. Two attacks in the same second are the
+  same attack.
+- **Confidence:** 9.
+- **Port:** not ported yet.
+
+### S6. A loss closes only when `mane.WAV` reports its end
+- **Where:** `salgin_scene_handle_message`, the end tick (`g_endReady` set only on a player win, 1068:0fe9) and
+  `MM_WOM_DONE` 1068:115a.
+- **What the code does:** after an opponent win the handler waits for `g_endReady`, which only the `MM_WOM_DONE`
+  (0x3bd) of `mane.WAV`, the one wave played with a notify window, sets (it also posts `WM_DESTROY`). The 3-s end
+  count never closes a loss by itself.
+- **Effect:** when `mane.WAV` does not play to its end (no wave device, WaveMix failing to open or play it), the end
+  screen stays forever with every key ignored; no result reaches NOITE, whose poll waits for the window to go away.
+  The window has no system menu, so only the Windows task list can close it (S7).
+- **Confidence:** 9 (code); 6 (effect, needs a failing sound setup).
+- **Port:** not ported yet.
+
+### S7. Closing the window mid-fight reports a win
+- **Where:** `salgin_scene_handle_message`, `WM_DESTROY` 1068:10dd–114c.
+- **What the code does:** the result is computed and posted whenever `WM_DESTROY` arrives, with no `g_roundOver`
+  test: won = !(playerEnergy < opponentEnergy), score = playerEnergy·100.
+- **Effect:** ending SALGIN from the task list (End Task: `WM_CLOSE` → `DestroyWindow`) before the opponent has
+  landed more than the player is a win; at the start, 91–91, it is worth 9,100 points, the best score.
+- **Confidence:** 9 (code); 7 (that a player finds it).
+- **Port:** not ported yet.
+
+### S8. The hit-reaction health counters drift from the energy bar
+- **Where:** `Fighter.health` (+0x50) and `Opponent.health` (+0x46) in `salgin_scene_handle_message`: the
+  opponent's is lowered by PgUp/Up/Home hits (not by the sweep, 1068:145a), the player's only in a trade
+  (1068:1b77); the reaction picks at 1068:1a93 (`health < 6`) and 1068:26ee (`health < 10`).
+- **What the code does:** both start at 91 like the energies, but the opponent's attacks lower only
+  `playerEnergy`, the sweep only `opponentEnergy`, and a trade only `Fighter.health` (by `g_opponentDamage`). The
+  weak column of `g_reactionStrips` (always the fall, strip 8) is chosen by `health`, not by energy.
+- **Effect:** the player's fall-when-weak needs 82 points lost in trades, which no normal fight gives, so the
+  player never shows it; the opponent shows it only in its last 5 energy points, and never once five sweeps have
+  landed.
+- **Confidence:** 9 (code); 6 (that it is a bug).
+- **Port:** not ported yet.
+
+### S9. The PORRADA banner never stays on screen
+- **Where:** `salgin_create_banner` 1068:0119 (`mover_blit_to_dc` to `GetDC(hwnd)`), `salgin_redraw_arena` 1068:0c81.
+- **What the code does:** the banner (232×42 at (200, 200)) is blitted once, from `salgin_game_on_create`, i.e.
+  during `WM_CREATE`, before `ShowWindow`. It is never drawn again: `salgin_redraw_arena` restores the band
+  y 140–434, which contains it, from the background and redraws only the two fighters, on the first beat and after.
+- **Effect:** "PORRADA" is not seen (at most for one beat).
+- **Confidence:** 9 (code); 7 (effect: the blit goes to a window that is not visible yet).
+- **Port:** not ported yet.
+
+### S10. The fighter's 100-px stand-off is 68 px
+- **Where:** `fighter_walk` 1068:0672, the Right branch (1068:072f–0780).
+- **What the code does:** when nextX is not left of opponent.x − 100 it sets nextX = opponent.x − 100 and then takes
+  the normal 32-px step (`fighter_move_tick` → `mover_step`), instead of stopping there.
+- **Effect:** a Right press within 100 px of the opponent puts the fighter exactly 68 px from it (moving it by less
+  than a step, or back if closer). The same clamp in `opponent_walk` 1068:0a08 is never reached.
+- **Confidence:** 9 (code); 7 (that 100 px was the intent).
+- **Port:** not ported yet.
+
+### S11. The wall tests use the position before the step
+- **Where:** `fighter_walk` 1068:0672 (`x < 1` at 1068:069c, `x >= 400` at 06fd).
+- **What the code does:** the walls test the current x and then take a full 32-px step.
+- **Effect:** after a Right clamp (S10) leaves x off the 32-px grid, walking left ends at x −31…−1, the fighter's left
+  edge off the screen; on the right x can reach 431. (The same tests in `opponent_walk` are never reached.)
+- **Confidence:** 9 (code); 6 (effect).
+- **Port:** not ported yet.
+
+### Harmless (SALGIN)
+
+- **`WM_KEYUP` `VK_LEFT` releases a DC it never got:** `ReleaseDC(hwnd, [BP-0xa])` at 1068:2051; `[BP-0xa]` is
+  written only by the clock tick (which already released it) and `0x401`, so it is a stale or garbage handle and
+  `ReleaseDC` fails. Confidence 9.
+- **The player's hit reaction reads `g_opponentStripFrames`** (1068:27a2) for its `framesLeft`; every strip but 10
+  has 3 frames in both tables. Confidence 9.
+- **Write-only state:** `g_keyLeftUp` (1090:0378) and the two `contactMark` bytes (`fighter_can_step`,
+  `opponent_can_step`). Confidence 9.
+- **`WinMain` 1038:0202 returns an uninitialised word,** as TIRO's. Confidence 9.
