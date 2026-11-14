@@ -332,7 +332,7 @@ and PostMessage fails.
 | E3 unknown kind | `encaixe_clear_lines_unknown_kind` | piece |
 | E4 frame cells | `encaixe_status_frame_cells` | object_create |
 | E5 down-key flag | `encaixe_down_key_guard` | tetris |
-| E6 landing after a loss | `encaixe_loss_stops_landing` | piece |
+| E6 landing after the result | `encaixe_result_stops_landing` | piece |
 | E7 skipped speed-up | `encaixe_speed_up_on_crossing` | piece |
 | E8 strip cells | `encaixe_strip_cells_by_count` | object_create |
 | E9 grid walls | `encaixe_grid_walls_match_board` | backdrop |

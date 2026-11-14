@@ -198,9 +198,10 @@ pub const Fixes = struct {
     /// E5: the down key sets its own flag, so a key repeat does not restart
     /// the 55 ms fall timer (holding the key always speeds the fall up).
     encaixe_down_key_guard: bool = false,
-    /// E6: after the top-rows loss the landing stops (no line clear, sound,
-    /// redraw or next piece after the result).
-    encaixe_loss_stops_landing: bool = false,
+    /// E6: the landing stops once it has sent the result: after the top-rows
+    /// loss (no line clear) and after the winning row (no row shift, no
+    /// further rows, no next piece).
+    encaixe_result_stops_landing: bool = false,
     /// E7: the speed-up also happens when one landing takes the line count
     /// past a multiple of 5.
     encaixe_speed_up_on_crossing: bool = false,

@@ -6,8 +6,8 @@
 //! (the same object); the port keeps whichever the original used.
 //! GetDC/ReleaseDC pairs are the platform screen's, `hwnd` is dropped.
 //!
-//! BUGS.md: E3 (an unknown kind leaves `bottomRow` uninitialised), E6 (a
-//! loss does not stop the landing), E7 (the speed-up is only tested after
+//! BUGS.md: E3 (an unknown kind leaves `bottomRow` uninitialised), E6 (the
+//! result does not stop the landing), E7 (the speed-up is only tested after
 //! the whole landing), E11 (the next piece keeps the landed one's previous
 //! position); fixes behind `g.fixes.encaixe_*`. One more quirk not
 //! in BUGS.md: `te_piece_clear_row` stops its shift at row 1, so row 0 is
@@ -151,10 +151,12 @@ pub fn onLanded(g: *Game, obj: *Object, bd: *Backdrop, kind: i16, rotation: i16)
     if (g.piece.?.piece.row < 3) {
         _ = g.send(Msg.make(msg.wm.destroy, 0, 0, 0));
         // E6: the original carries on.
-        if (g.fixes.encaixe_loss_stops_landing) return;
+        if (g.fixes.encaixe_result_stops_landing) return;
     }
     const linesBefore = g.piece.?.piece.linesCleared;
-    clearFullLines(g, g.piece.?, bd, kind, rotation);
+    // E6: the win (wParam 0xffff) is sent from the row's scoring; the
+    // original carries on here too.
+    if (clearFullLines(g, g.piece.?, bd, kind, rotation)) return;
     const lines = g.piece.?.piece.linesCleared;
     // E7: the original tests only the count after the whole landing.
     const speedUp = if (g.fixes.encaixe_speed_up_on_crossing)
@@ -237,8 +239,9 @@ pub fn calcRightCol(g: *Game, obj: *Object, kind: i16, rotation: i16) void {
 }
 
 /// Removes the full rows among the rows the landed piece covers, bottom up.
+/// True when the landing must stop (E6's fix, after the win).
 // @orig 1008:eed8 te_piece_clear_full_lines
-pub fn clearFullLines(g: *Game, obj: *Object, bd: *Backdrop, kind: i16, rotation: i16) void {
+pub fn clearFullLines(g: *Game, obj: *Object, bd: *Backdrop, kind: i16, rotation: i16) bool {
     const p = &obj.piece;
     const topRow = p.row;
     // E3: no default in the original's switch, `bottomRow` is stack garbage
@@ -291,11 +294,12 @@ pub fn clearFullLines(g: *Game, obj: *Object, bd: *Backdrop, kind: i16, rotation
     while (i >= 0) : (i -= 1) {
         if (rowFull[@intCast(i)] != 0) {
             g.piece.?.piece.linesCleared +%= 1;
-            clearRow(g, obj, bd, topRow + count + i);
+            if (clearRow(g, obj, bd, topRow + count + i)) return true;
             p.row += 1;
             count += 1;
         }
     }
+    return false;
 }
 
 /// BitBlt(dc, 0x20, destY, 0x160, 0x20, dc, 0x20, srcY, SRCCOPY) on one of
@@ -324,12 +328,14 @@ fn shiftStrip(s: platform.Surface, src_y: i16, dest_y: i16) void {
 
 /// Scores the row (`te_score_cleared_row`), then moves every row from `row`
 /// down to row 1 one down, on the board and in both backdrop bitmaps, and
-/// repaints the window after each. BUGS.md E10: row 0 is never rewritten
-/// (the top-row branches are dead); no visible effect, no flag.
+/// repaints the window after each. True when E6's fix stops after the win.
+/// BUGS.md E10: row 0 is never rewritten (the top-row branches are dead);
+/// no flag.
 // @orig 1008:f042 te_piece_clear_row
-pub fn clearRow(g: *Game, obj: *Object, bd: *Backdrop, row: i16) void {
-    scoreClearedRow(g, bd);
-    if (!(0 < row)) return;
+pub fn clearRow(g: *Game, obj: *Object, bd: *Backdrop, row: i16) bool {
+    // E6: the original goes on shifting after the win.
+    if (scoreClearedRow(g, bd) and g.fixes.encaixe_result_stops_landing) return true;
+    if (!(0 < row)) return false;
     const p = &obj.piece;
     var srcY: i16 = (row - 1) *% 0x20;
     var r: i16 = row;
@@ -358,16 +364,20 @@ pub fn clearRow(g: *Game, obj: *Object, bd: *Backdrop, row: i16) void {
         srcY -%= 0x20;
         if (srcY == -0x20) break;
     }
+    return false;
 }
 
-/// One cleared row: the sound, +100, the box; 1000 is a win (wParam 0xffff).
+/// One cleared row: the sound, +100, the box; 1000 is a win (wParam 0xffff,
+/// true).
 // @orig 1008:f67a te_score_cleared_row
-pub fn scoreClearedRow(g: *Game, bd: *Backdrop) void {
+pub fn scoreClearedRow(g: *Game, bd: *Backdrop) bool {
     _ = sound.play(g, 0, g.tetrisWave);
     g.score +%= 100;
     drawScore(g, bd);
     blitScoreBox(g, bd);
-    if (g.score == 1000) _ = g.send(Msg.make(msg.wm.destroy, 0xffff, 0, 0));
+    if (g.score != 1000) return false;
+    _ = g.send(Msg.make(msg.wm.destroy, 0xffff, 0, 0));
+    return true;
 }
 
 /// WinGBitBlt of the 192x32 score box at (0x1a0, 0x160) from the second
@@ -433,7 +443,7 @@ test "clearRow shifts the board like the original (row 0 is never rewritten)" {
     var h: u32 = 2166136261;
     for (0..500) |i| {
         randomBoard(&x, &obj.piece);
-        clearRow(g, &obj, &bd, @intCast(i % 14));
+        _ = clearRow(g, &obj, &bd, @intCast(i % 14));
         h = fnv(h, std.mem.asBytes(&obj.piece.board));
     }
     try std.testing.expectEqual(@as(u32, 192922056), h);
@@ -456,7 +466,7 @@ test "clearFullLines matches the original for every kind, rotation and row" {
         randomBoard(&x, &obj.piece);
         obj.piece.row = @intCast((i / 24) % 11);
         obj.piece.linesCleared = 0;
-        clearFullLines(g, &obj, &bd, @intCast(i % 6), @intCast((i / 6) % 4));
+        _ = clearFullLines(g, &obj, &bd, @intCast(i % 6), @intCast((i / 6) % 4));
         h = fnv(h, std.mem.asBytes(&obj.piece.board));
         h = fnv(h, std.mem.asBytes(&obj.piece.row));
         h = fnv(h, std.mem.asBytes(&obj.piece.linesCleared));
@@ -474,12 +484,33 @@ test "ten cleared rows win (WM_DESTROY wParam 0xffff), each row is +100" {
     defer log.deinit(g.gpa);
     g.trace = &log;
     var i: usize = 0;
-    while (i < 9) : (i += 1) scoreClearedRow(g, &bd);
+    while (i < 9) : (i += 1) try std.testing.expect(!scoreClearedRow(g, &bd));
     try std.testing.expectEqual(@as(i16, 900), g.score);
     try std.testing.expectEqual(@as(usize, 0), log.items.len);
-    scoreClearedRow(g, &bd);
+    try std.testing.expect(scoreClearedRow(g, &bd));
     try std.testing.expectEqual(@as(i16, 1000), g.score);
     try std.testing.expect(std.mem.indexOf(u8, log.items, " S 0002 ffff 00000000") != null);
+}
+
+// @orig 1008:f042 te_piece_clear_row oracle=documented
+test "E6: the winning row is still shifted down unless fixed" {
+    var t = try TestGame.init(std.testing.allocator);
+    defer t.deinit();
+    const g = t.game;
+    var obj: Object = .{ .kind = .piece };
+    g.piece = &obj;
+    var bd: Backdrop = .{};
+    obj.piece.board = @splat(@splat('0'));
+    obj.piece.cell(3, 4).* = '1';
+    g.score = 900;
+    try std.testing.expect(!clearRow(g, &obj, &bd, 5));
+    try std.testing.expectEqual(@as(u8, '1'), obj.piece.cell(3, 5).*);
+    g.fixes.encaixe_result_stops_landing = true;
+    g.score = 900;
+    obj.piece.board = @splat(@splat('0'));
+    obj.piece.cell(3, 4).* = '1';
+    try std.testing.expect(clearRow(g, &obj, &bd, 5));
+    try std.testing.expectEqual(@as(u8, '0'), obj.piece.cell(3, 5).*);
 }
 
 // @orig 1008:ba20 te_piece_on_landed oracle=documented
@@ -503,7 +534,7 @@ test "landing in the top rows sends a loss; E6 carries on unless fixed" {
     try std.testing.expectEqual(@as(i16, 8), obj.mover.direction);
     // E6 fixed: nothing else happens after the loss.
     log.clearRetainingCapacity();
-    g.fixes.encaixe_loss_stops_landing = true;
+    g.fixes.encaixe_result_stops_landing = true;
     obj.mover.direction = 0;
     obj.piece.row = 2;
     onLandedNoMove(g, &obj, &bd);

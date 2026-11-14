@@ -1095,16 +1095,19 @@ Addresses are Ghidra `seg:off` in `/ENCAIXE.EXE`; the game is described in `docs
 - **Port:** reproduced (unit `tetris`, src/encaixe/); the fix is `Fixes.encaixe_down_key_guard` (`--fix
   encaixe_down_key_guard`, on in the Corrigida version).
 
-### E6. After a loss the landing code still clears lines and spawns a piece
-- **Where:** `te_piece_on_landed` 1008:ba20.
-- **What the code does:** `SendMessage(hwnd, WM_DESTROY, 0, 0)` when `row < 3`, then goes on: line clear (with
-  scoring, sound and the win test), speed check, next piece. The result (`0x40a`, score − 500) has already been
-  posted and `WM_QUIT` queued.
-- **Effect:** after the loss the game still plays the line sound and redraws; the extra score is never reported.
-  A second result cannot follow: after the −500 the score cannot reach exactly 1000 with at most 4 lines.
+### E6. After the result the landing code still clears lines and spawns a piece
+- **Where:** `te_piece_on_landed` 1008:ba20 (the loss); `te_score_cleared_row` 1008:f67a, 1008:f6be–f6ca (the win).
+- **What the code does:** a loss is `SendMessage(hwnd, WM_DESTROY, 0, 0)` when `row < 3`; the function then goes
+  on: line clear (with scoring and the win test), speed check, next piece. A win is `SendMessage(hwnd,
+  WM_DESTROY, 0xffff, 0)` when the score reaches 1000; `te_score_cleared_row` returns and the landing carries on
+  the same way: the row is shifted down, the other full rows are cleared and scored, the speed check runs and
+  the next piece spawns. In both cases the result (`0x40a`) has already been posted and `WM_QUIT` queued.
+- **Effect:** after the result the game still redraws the board (no line sound: the `WM_DESTROY` handler has
+  already freed the waves); the extra score is never reported. A second result cannot follow: after a loss the
+  −500 keeps the score from reaching exactly 1000 with at most 4 lines, and after the win the score is past it.
 - **Confidence:** 9.
-- **Port:** reproduced (unit `piece`, src/encaixe/); the fix is `Fixes.encaixe_loss_stops_landing` (`--fix
-  encaixe_loss_stops_landing`, on in the Corrigida version).
+- **Port:** reproduced (unit `piece`, src/encaixe/); the fix is `Fixes.encaixe_result_stops_landing` (`--fix
+  encaixe_result_stops_landing`, on in the Corrigida version): the landing stops right after either result.
 
 ### E7. The speed-up is skipped when a multi-line clear jumps over 5 lines
 - **Where:** `te_piece_on_landed` 1008:ba20, after `te_piece_clear_full_lines`.

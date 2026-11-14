@@ -127,7 +127,8 @@ win, so only 150 ms is reached (and only when the count lands exactly on 5, BUGS
    `row + height − 1`), each row with no `'0'` in its 11 columns is full. They are removed from
    the bottom up: `linesCleared++` and `te_piece_clear_row` (`f042`) for each, which calls
    `te_score_cleared_row` (`f67a`: plays `tetris2.wav`, `g_score += 100`, redraws the score;
-   `g_score == 1000` → `SendMessage(hwnd, WM_DESTROY, 0xffff, 0)`, a win) and then moves every
+   `g_score == 1000` → `SendMessage(hwnd, WM_DESTROY, 0xffff, 0)`, a win, after which the landing
+   carries on, BUGS E6) and then moves every
    row above down by one, shifting the pixels on both backdrop DCs and blitting the backdrop to
    the window. Row 0 is never rewritten: it keeps its cells and row 1 gets a copy (BUGS E10).
 3. The speed-up check above.
