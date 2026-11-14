@@ -730,6 +730,19 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   list, which the reply's end consumes as before (`tools/play/taxi-wine.input`).
 - **Confidence:** 9 (code, port repro).
 
+### B46. After the party street the player walks off the bottom of the screen
+- **Where:** `handler_2ffesta` 1020:771a (0x401, the walk-in) and `handler_2ffesta3` 1020:7452 (the arrivals by
+  car or taxi from 2fshardi, 2fportd2, 2fgaydir, 2fasspap) set the player's Mover+0x36 (`allowOffscreen`).
+  Only the mover constructors (1010:27ce, 2836, 292c, 2a20, 2d7a) write it, and the player is built once.
+- **What the code does:** with the flag on, `mover_move_to` 1010:c3ba takes the click as the sprite's
+  top-left corner, not its bottom centre, and does not clamp it to the background.
+- **Effect:** for the rest of the game every click-walk aims the player's top-left at the click: he walks down,
+  past the floor and off the screen (a door tapped from afar in one-button mode, any floor click). The
+  2ffesta4 (bribe) route never sets it.
+- **Port:** reproduced (`--scene 2ffesta`, then 3fhall: a door tap walks him to (-125,450));
+  `Fixes.player_offscreen_per_scene` clears the flag on every scene change.
+- **Confidence:** 9 (code, port repro).
+
 ---
 
 ## Harmless: wrong paths rescued by the wave fallback

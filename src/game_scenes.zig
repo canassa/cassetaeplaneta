@@ -115,6 +115,13 @@ fn enterScene(g: *Game, x: i16, y: i16) void {
 /// current one): the remaining steps run as the timer would have run them
 /// (a fall that never arrives, B36, is stopped after them), then the
 /// update list is dropped, as the switch does.
+/// B46: the party-street arrivals (2ffesta, 2ffesta3) let the player walk
+/// off screen and nothing clears it; with the fix a scene change does.
+fn keepPlayerOnScreen(g: *Game) void {
+    if (!g.fixes.player_offscreen_per_scene) return;
+    if (g.player) |p| p.mover.allowOffscreen = 0;
+}
+
 fn landFallingItem(g: *Game) void {
     if (!g.fixes.scene_change_lands_item) return;
     const sel = g.selectedItem orelse return;
@@ -135,6 +142,7 @@ fn landFallingItem(g: *Game) void {
 /// the game.
 pub fn takeExit(g: *Game, exit_index: i16) *Game {
     landFallingItem(g);
+    keepPlayerOnScreen(g);
     const old = must(Scene, g.scene);
     // An index the scene has no exit for (a 0x402 another scene posted,
     // BUGS.md B37): the original reads the exit through NULL, a GPF.
@@ -166,6 +174,7 @@ pub fn takeExit(g: *Game, exit_index: i16) *Game {
 /// the game.
 pub fn switchScene(g: *Game, name: []const u8, x: i16, y: i16, has_player: i16, has_control_panel: i16, has_status_bar: i16, is_1animation: i16, is_click_exit: i16) *Game {
     landFallingItem(g);
+    keepPlayerOnScreen(g);
     update_list.discard(&g.updateList);
     sound.stopAll(&g.sound, g.plat);
     sound.freeAll(&g.sound, g.plat);
