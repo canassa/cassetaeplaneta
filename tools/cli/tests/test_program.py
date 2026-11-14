@@ -206,3 +206,93 @@ def test_noite_does_not_scan_tiro(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     assert [t.name for t in tags.scan(tmp_path)] == ["noite_fn"]
     monkeypatch.setenv(program.ENV, "tiro")
     assert [t.name for t in tags.scan(tmp_path)] == ["tiro_fn"]
+
+
+MINIGAMES = ("encaixe", "tiro", "salgin", "xilindro", "serial", "inv", "inferno", "sauna", "jardim")
+
+
+def test_every_program_owns_its_own_tree() -> None:
+    # NOITE's tree is `src/` minus every minigame's; a minigame's tree has nothing excluded.
+    assert program.NOITE.exclude == tuple(sorted(f"src/{n}" for n in MINIGAMES))
+    for n in MINIGAMES:
+        p = program.get(n)
+        assert p.exclude == ()
+        assert p.src == f"src/{n}" and p.db == f"db/{n}.sqlite" and p.plan == f"db/{n}-plan.tsv"
+        assert p.worktree_name("x") == f"{n}-x" and p.design == f"docs/{n}/DESIGN.md"
+    assert len({program.get(n).src for n in ("noite", *MINIGAMES)}) == len(MINIGAMES) + 1
+
+
+def test_noite_does_not_scan_any_minigame(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src/a.zig").write_text("// @orig 1008:0100 noite_fn\nfn a() void {}\n")
+    for n in MINIGAMES:
+        (tmp_path / f"src/{n}").mkdir()
+        (tmp_path / f"src/{n}/b.zig").write_text(f"// @orig 1068:0100 {n}_fn\nfn b() void {{}}\n")
+    assert [t.name for t in tags.scan(tmp_path)] == ["noite_fn"]
+    for n in MINIGAMES:
+        monkeypatch.setenv(program.ENV, n)
+        assert [t.name for t in tags.scan(tmp_path)] == [f"{n}_fn"]
+
+
+# (crt, imports, dgroup) of each new minigame, from docs/<name>/QUALITY.md §1.
+LAYOUT = {
+    "salgin": ("1080", "10a8", 0x1090),
+    "xilindro": ("1080", "10a8", 0x1090),
+    "serial": ("1080", "10a8", 0x1090),
+    "inv": ("1080", "10a8", 0x1090),
+    "inferno": ("1078", "10a8", 0x1090),
+    "sauna": ("1098", "10c8", 0x10B0),
+    "jardim": ("10b8", "10e8", 0x10D0),
+}
+
+
+@pytest.mark.parametrize("name", LAYOUT)
+def test_minigame_layout(name: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    crt, api, dgroup = LAYOUT[name]
+    monkeypatch.setenv(program.ENV, name)
+    p = program.current()
+    assert (p.dgroup, p.slot_size, p.ghidra) == (dgroup, 4, f"{name.upper()}.EXE")
+    assert p.type_categories == ("/", f"/{name}")
+
+    def kind(addr: str, fn: str) -> Kind:
+        return classify(addr, fn, ghidra_thunk=False, callees=(), classes=frozenset())[0]
+
+    assert kind(f"{api}:0010", "POSTMESSAGE") is Kind.API
+    assert kind(f"{crt}:02ae", "_purecall") is Kind.CRT
+    assert kind("1068:1790", "game_scene_handle_message") is Kind.METHOD
+    # Near and far virtual calls: the large model's ES-based call lists as `CALLF [BX + off]`.
+    layouts = {"SceneObjectVtbl": {f"slot{i:02x}": i for i in range(0x5B)}}
+    asm = "1068:08a0  LES BX, ES:[BX]\n1068:08a3  CALLF [BX + 0xb4]\n1068:08a7  CALLF [BP + 0x6]"
+    assert deps.slots_called("SceneObjectVtbl *v;", asm, layouts).pairs == {
+        ("SceneObjectVtbl", 0x2D)
+    }
+    # The vtable test that skips DGROUP's hook arrays follows the program's DGROUP.
+    arr = "VFunc *32[4]"
+    assert ghidra.is_vtable("g_hooks", arr, f"{dgroup:04x}:0100") is False
+    assert ghidra.is_vtable("g_tbl", arr, "1080:4790") is True
+
+
+def test_slots_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(program.ENV, "inferno")
+    design = tmp_path / "DESIGN.md"
+    design.write_text("### SceneObject slots\n\n| slot | behaviour | unit |\n|---|---|---|\n")
+    with pytest.raises(deps.DepError, match=r"SLOTS\.tsv"):
+        deps.slot_tables(design)
+    (tmp_path / "SLOTS.tsv").write_text(
+        "# vtable\tslots\tunit\n"
+        "Object3DVtbl\t0-7\tspace3d\n"
+        "SceneVtbl\t*\tscene\n"
+        "SceneVtbl\t0,5,0a\tplatforms\n"
+        "type_test\t3a-3c,52\n"
+    )
+    other, tests = deps.slot_tables(design)
+    assert other["Object3DVtbl"] == dict.fromkeys(range(8), "space3d")
+    assert other["SceneVtbl"][0] == other["SceneVtbl"][10] == "platforms"
+    assert other["SceneVtbl"][1] == "scene" and len(other["SceneVtbl"]) == 256
+    assert tests == {0x3A, 0x3B, 0x3C, 0x52}
+    (tmp_path / "SLOTS.tsv").write_text("SceneVtbl\tzz\tx\n")
+    with pytest.raises(deps.DepError, match=r"SLOTS\.tsv:1"):
+        deps.slot_tables(design)
+    # NOITE, ENCAIXE and TIRO keep their transcribed tables (no file needed).
+    monkeypatch.setenv(program.ENV, "tiro")
+    assert deps.slot_tables(tmp_path / "none.md")[0]["ProjectileVtbl"][3] == "arrow"

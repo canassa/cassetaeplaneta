@@ -67,10 +67,13 @@ _VFUNC_ARRAY = re.compile(r"VFunc \*32\[\d+\]")
 def is_vtable(label: str, type_: str | None, addr: str) -> bool:
     """A vtable labelled in Ghidra: ``...Vtbl`` label, a ``...Vtbl`` struct type, or a
     ``VFunc *32[n]`` array in a code segment (DGROUP holds plain hook pointers)."""
+    from noite import program
+
     t = type_ or ""
     if label.endswith("Vtbl") or re.fullmatch(r"\w+Vtbl", t):
         return True
-    return bool(_VFUNC_ARRAY.fullmatch(t)) and not addr.startswith("1050:")
+    dgroup = f"{program.current().dgroup:04x}:"
+    return bool(_VFUNC_ARRAY.fullmatch(t)) and not addr.lower().startswith(dgroup)
 
 
 def far_pointers(data: Sequence[int]) -> tuple[str, ...]:

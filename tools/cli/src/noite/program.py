@@ -8,15 +8,37 @@ their own program. The active one comes from ``noite --program NAME`` or the
 sets it); the default is ``noite``.
 
 What differs in the binary is here too: where the CRT and the import thunks
-are, DGROUP, the pointer size of a vtable slot (far 4 bytes in NOITE, near 2
-in the small-model minigames) and the shape of a virtual call.
+are, DGROUP, the pointer size of a vtable slot (far 4 bytes in NOITE and the medium- and
+large-model minigames, near 2 in the small-model ENCAIXE) and the shape of a virtual call.
+The program trees never overlap: ``exclude`` is every other program's tree under this one.
 """
 
 from __future__ import annotations
 
 import os
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+
+# `CALLF [BX+off]`: a virtual call through a far vtable slot, as Ghidra prints it. The large
+# model's `LES BX,[obj]; LES BX,ES:[BX]; CALLF ES:[BX+off]` lists the same way (no `ES:`
+# in the operand), so one pattern serves every program.
+_VCALL = re.compile(r"\bCALLF (?:ES:)?\[(?:BX|SI|DI)(?: \+ (0x[0-9a-fA-F]+|\d+))?\]")
+
+# Type tests (`<class>_is_<x>` / `_as_<x>`) of classes the minigames' Ghidra programs have no
+# struct for (TIRO's set, plus the engine classes a program may leave untyped).
+_TYPE_TEST_CLASSES = frozenset(
+    {
+        "player",
+        "directional_player",
+        "exit",
+        "portable",
+        "object3d",
+        "status_bar",
+        "control_panel",
+        "actor2d",
+        "invader",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -31,8 +53,6 @@ class Program:
     design: str  # the design doc (its SceneObject slot table feeds `dep infer`)
     # The program's root as seen from `src/main.zig`'s module (`noite initdata`'s dump).
     zig_module: str = "noite"
-    # Source directories under `src` that belong to another program.
-    exclude: tuple[str, ...] = ()
     # Worktree / branch name prefix (`work/<prefix><unit>`, `port/<prefix><unit>`).
     prefix: str = ""
     api_segments: frozenset[str] = frozenset()
@@ -48,15 +68,20 @@ class Program:
     # Data type categories holding the program's own structs (not archives).
     type_categories: tuple[str, ...] = ("/",)
     # A virtual call in the listing: group 1 = the slot's byte offset (or none).
-    vcall: re.Pattern[str] = field(
-        default=re.compile(r"\bCALLF \[(?:BX|SI|DI)(?: \+ (0x[0-9a-fA-F]+|\d+))?\]")
-    )
+    vcall: re.Pattern[str] = _VCALL
     dead_prefixes: tuple[str, ...] = ()
     dead_addrs: frozenset[str] = frozenset()
     platform_names: frozenset[str] = frozenset()
     platform_prefixes: tuple[str, ...] = ()
     # Type-test targets with no struct of their own (classes the program dropped).
     type_test_classes: frozenset[str] = frozenset()
+
+    @property
+    def exclude(self) -> tuple[str, ...]:
+        """Source directories inside this program's tree that belong to another program
+        (NOITE owns ``src/`` except every minigame's ``src/<name>/``)."""
+        prefix = self.src + "/"
+        return tuple(sorted(q.src for q in PROGRAMS.values() if q.src.startswith(prefix)))
 
     def in_crt(self, addr: str) -> bool:
         if addr[:4] in self.crt_segments:
@@ -76,7 +101,6 @@ NOITE = Program(
     src="src",
     index="src/units.zig",
     design="docs/DESIGN.md",
-    exclude=("src/encaixe", "src/tiro"),
     api_segments=frozenset({"1108"}),
     crt_segments=frozenset({"1008"}),
     dgroup=0x1050,
@@ -142,7 +166,50 @@ TIRO = Program(
     platform_names=frozenset({"WinMain", "APPWNDPROC", "APPABOUT"}),
 )
 
-PROGRAMS = {p.name: p for p in (NOITE, ENCAIXE, TIRO)}
+
+def _minigame(name: str, *, crt: str, api: str, dgroup: int, data: tuple[int, ...] = ()) -> Program:
+    """A TIRO-family minigame: `/Od` build of the same engine sources, far code, 4-byte far
+    vtable slots, `docs/<name>/DESIGN.md` for the slot table, own DB / plan / tree / worktrees.
+    Medium and large model share everything the tracker reads (see the entries below)."""
+    return Program(
+        name=name,
+        ghidra=f"{name.upper()}.EXE",
+        exe=f"assets/{name.upper()}/{name.upper()}.EXE",
+        db=f"db/{name}.sqlite",
+        plan=f"db/{name}-plan.tsv",
+        src=f"src/{name}",
+        index=f"src/{name}/units.zig",
+        design=f"docs/{name}/DESIGN.md",
+        zig_module=f"noite.{name}",
+        prefix=f"{name}-",
+        api_segments=frozenset({api}),
+        crt_segments=frozenset({crt}),
+        dgroup=dgroup,
+        data_segments=(dgroup, *data),
+        slot_size=4,
+        type_categories=("/", f"/{name}"),
+        type_test_classes=_TYPE_TEST_CLASSES,
+        platform_names=frozenset({"WinMain", "APPWNDPROC", "APPABOUT"}),
+    )
+
+
+# The medium-model twins of TIRO (docs/<name>/QUALITY.md §0): CRT 1080, imports 10a8,
+# DGROUP 1090, vtables in DGROUP.
+SALGIN = _minigame("salgin", crt="1080", api="10a8", dgroup=0x1090)
+XILINDRO = _minigame("xilindro", crt="1080", api="10a8", dgroup=0x1090)
+SERIAL = _minigame("serial", crt="1080", api="10a8", dgroup=0x1090)
+INV = _minigame("inv", crt="1080", api="10a8", dgroup=0x1090)
+
+# The large-model builds (far code and far data, the large-model CRT, `this` and every data
+# pointer 4 bytes). The vtables are in a code segment: INFERNO 1080, SAUNA 10a0, JARDIM 10c0.
+# INFERNO also has a far BSS segment 1088 (two static FlagConditions).
+INFERNO = _minigame("inferno", crt="1078", api="10a8", dgroup=0x1090, data=(0x1088,))
+SAUNA = _minigame("sauna", crt="1098", api="10c8", dgroup=0x10B0)
+JARDIM = _minigame("jardim", crt="10b8", api="10e8", dgroup=0x10D0)
+
+PROGRAMS = {
+    p.name: p for p in (NOITE, ENCAIXE, TIRO, SALGIN, XILINDRO, SERIAL, INV, INFERNO, SAUNA, JARDIM)
+}
 ENV = "NOITE_PROGRAM"
 
 

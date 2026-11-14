@@ -12,9 +12,10 @@ caller compiles and its own tests run before the slot's owner exists. ``manual``
 deps and direct calls into unported functions are *hard*: they block, and only
 they can form a cycle that stops units from ever becoming ready (:func:`cycles`).
 
-Slot ownership comes from the "SceneObject slots" table in ``docs/DESIGN.md``
-(parsed at run time) and :data:`OTHER_VTABLES` below, which transcribes the
-design's "Other vtables" table. Vtable layouts come from the ``structs`` table.
+Slot ownership comes from the "SceneObject slots" table in the program's DESIGN.md
+(parsed at run time) and its "Other vtables": :data:`OTHER_VTABLES` below transcribes
+NOITE's, ENCAIXE's and TIRO's, the other minigames list theirs in ``SLOTS.tsv``.
+Vtable layouts come from the ``structs`` table.
 """
 
 from __future__ import annotations
@@ -118,6 +119,64 @@ _OTHER = {"encaixe": ENCAIXE_OTHER_VTABLES, "tiro": TIRO_OTHER_VTABLES}
 _TYPE_TESTS = {"encaixe": ENCAIXE_TYPE_TEST_SLOTS, "tiro": TIRO_TYPE_TEST_SLOTS}
 
 
+# The other minigames keep their tables in ``docs/<name>/SLOTS.tsv`` (next to the DESIGN.md
+# whose "SceneObject slots" table owns the SceneObjectVtbl slots), written by the design pass:
+#
+#   # vtable <TAB> slots <TAB> unit      (slots: hex, `*` = all, `a-b` range, `a,b` list)
+#   Object3DVtbl    0-7     space3d
+#   SceneVtbl       *       scene
+#   SceneVtbl       0,5,7   gallery      (a later row overrides an earlier one)
+#   type_test       3a-4b,52,53          (SceneObject slots with no owner: Object.is/as)
+SLOTS_FILE = "SLOTS.tsv"
+TYPE_TEST = "type_test"
+
+
+def _slot_set(spec: str, width: int) -> set[int]:
+    out: set[int] = set()
+    for part in spec.split(","):
+        part = part.strip()
+        if part == "*":
+            out |= set(range(width))
+        elif "-" in part:
+            lo, hi = part.split("-", 1)
+            out |= set(range(int(lo, 16), int(hi, 16) + 1))
+        elif part:
+            out.add(int(part, 16))
+    return out
+
+
+def parse_slots_file(text: str) -> tuple[dict[str, dict[int, str]], set[int]]:
+    """``SLOTS.tsv`` -> (vtable -> {slot: unit}, type-test slots)."""
+    other: dict[str, dict[int, str]] = {}
+    tests: set[int] = set()
+    for n, line in enumerate(text.splitlines(), 1):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        cols = line.split("\t")
+        try:
+            if cols[0] == TYPE_TEST:
+                tests |= _slot_set(cols[1], 0x100)
+            else:
+                other.setdefault(cols[0], {}).update(
+                    dict.fromkeys(_slot_set(cols[1], 0x100), cols[2].strip())
+                )
+        except (IndexError, ValueError) as e:
+            raise DepError(f"{SLOTS_FILE}:{n}: bad row {line!r}") from e
+    return other, tests
+
+
+def slot_tables(design: Path) -> tuple[dict[str, dict[int, str]], set[int]]:
+    """The "other vtables" owners and the type-test slots of the active program:
+    the tables above for NOITE, ENCAIXE and TIRO, ``SLOTS.tsv`` beside ``design`` for the rest."""
+    name = program.current().name
+    if name == "noite" or name in _OTHER:
+        return other_vtables(), type_test_slots()
+    path = design.with_name(SLOTS_FILE)
+    if not path.exists():
+        raise DepError(f"{path} not found: it lists the owners of the non-SceneObject vtable slots")
+    return parse_slots_file(path.read_text())
+
+
 def other_vtables() -> dict[str, dict[int, str]]:
     return _OTHER.get(program.current().name, OTHER_VTABLES)
 
@@ -147,7 +206,7 @@ def parse_scene_object_table(text: str) -> dict[int, str]:
 
 
 def slot_owners(design: Path) -> dict[str, dict[int, str]]:
-    owners = {k: dict(v) for k, v in other_vtables().items()}
+    owners = {k: dict(v) for k, v in slot_tables(design)[0].items()}
     owners[SCENE_OBJECT] = parse_scene_object_table(design.read_text())
     return owners
 
@@ -238,6 +297,7 @@ def infer(conn: sqlite3.Connection, design: Path) -> InferResult:
     """Replace every ``auto`` dep with the ones derived from the slots called.
     Runs inside the caller's transaction."""
     owners = slot_owners(design)
+    type_tests = slot_tables(design)[1]
     layouts = vtable_layouts(conn)
     names = {v: {i: n for n, i in f.items()} for v, f in layouts.items()}
     units_ = {r["name"] for r in conn.execute("SELECT name FROM units")}
@@ -271,7 +331,7 @@ def infer(conn: sqlite3.Connection, design: Path) -> InferResult:
             if owner is None:
                 reason = (
                     "type test (Object.is/as)"
-                    if vt == SCENE_OBJECT and idx in type_test_slots()
+                    if vt == SCENE_OBJECT and idx in type_tests
                     else "no owner in the design"
                 )
                 res.unmapped.setdefault(label, reason)

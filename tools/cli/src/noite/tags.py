@@ -122,7 +122,7 @@ def _make(m: re.Match[str], path: str, line: int, is_test: bool) -> Tag:
 
 def zig_files(root: Path) -> Iterator[Path]:
     """The active program's Zig files: NOITE's ``src/`` (minus the minigames' trees)
-    and ``tests/``; a minigame's own tree (``src/encaixe/``)."""
+    and ``tests/``; a minigame's own tree (``src/<name>/``)."""
     prog = program.current()
     subs = (prog.src, "tests") if prog.src == "src" else (prog.src,)
     for sub in subs:

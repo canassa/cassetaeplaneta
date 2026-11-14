@@ -51,7 +51,7 @@ def _program(
         typer.Option(
             "--program",
             "-p",
-            help="Which program: noite (default), encaixe or tiro. Also NOITE_PROGRAM.",
+            help=f"Which program ({', '.join(program.PROGRAMS)}). Also NOITE_PROGRAM.",
         ),
     ] = None,
 ) -> None:
@@ -851,7 +851,8 @@ def dep_show(unit: str) -> None:
 @dep_app.command("infer")
 def dep_infer() -> None:
     """Derive `auto` deps from the virtual slots each function calls (replaces
-    `auto`, keeps `manual`). Slot owners: docs/DESIGN.md + noite/deps.py."""
+    `auto`, keeps `manual`). Slot owners: the program's DESIGN.md (SceneObject table) +
+    noite/deps.py (NOITE, ENCAIXE, TIRO) or docs/<name>/SLOTS.tsv (the other minigames)."""
     conn = _db()
     design = paths.repo_root() / program.current().design
     try:

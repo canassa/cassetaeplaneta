@@ -44,7 +44,11 @@ one Zig file (module, behaviour or scene handler) owning a set of functions.
 A minigame is a second program: `noite -p encaixe …` (or `NOITE_PROGRAM=encaixe`)
 works on `db/encaixe.sqlite`, `db/encaixe-plan.tsv`, `src/encaixe/` and worktrees
 `work/encaixe-<unit>/` (`docs/encaixe/DESIGN.md` "Tracker"); every command below
-takes it.
+takes it. The programs: `encaixe`, `tiro`, `salgin`, `xilindro`, `serial`, `inv`,
+`inferno`, `sauna`, `jardim` (`noite/program.py`: segments, DGROUP, vcall shape; NOITE's
+tree is `src/` minus all of theirs). For `salgin`…`jardim`, `noite -p <name> unit dep
+infer` reads the non-SceneObject slot owners from `docs/<name>/SLOTS.tsv` (format in
+`noite/deps.py`) beside the `### SceneObject slots` table of `docs/<name>/DESIGN.md`.
 
 ```
 noite import                 # refresh from Ghidra (needs the MCP bridge; keeps tracking)

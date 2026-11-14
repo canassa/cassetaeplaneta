@@ -407,8 +407,9 @@ def check_ownership(conn: sqlite3.Connection, unit: str, files: list[str]) -> li
 
 def _in_tree(f: str, prog: program.Program) -> bool:
     """Is ``f`` in the program's own source tree (another program's subtree excluded)?
-    NOITE owns ``src/`` but ``src/encaixe/``; ENCAIXE owns ``src/encaixe/`` only. Shared
-    code (``src/core``, ``src/platform``) is NOITE's tree: a minigame unit leaves it alone."""
+    NOITE owns ``src/`` but every minigame's ``src/<name>/``; a minigame owns its own tree
+    only. Shared code (``src/core``, ``src/platform``) is NOITE's tree: a minigame unit
+    leaves it alone."""
     if not f.startswith(prog.src + "/"):
         return False
     return not any(f.startswith(x + "/") for x in prog.exclude)
