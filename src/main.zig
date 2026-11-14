@@ -2,8 +2,8 @@
 //!
 //!     noite [--headless] [--ms N] [--assets DIR] [--save DIR] [--trace FILE]
 //!           [--input FILE] [--dump DIR] [--dump-every MS] [--bmp]
-//!           [--scene NAME [--take ID,ID…]] [--minigame win|lose|encaixe|tiro]
-//!           [--minigame-stub] [--minigame-startup MS] [--minigame-reply MS] [--quiet]
+//!           [--scene NAME [--take ID,ID…]] [--minigame encaixe|tiro]
+//!           [--minigame-stub] [--minigame-result win|lose] [--minigame-startup MS] [--minigame-reply MS] [--quiet]
 //!           [--fix NAME,…|all[,-NAME…]] [--skip-videos] [--one-button]
 //!           [--key-repeat DELAY,PERIOD|off]
 //!
@@ -13,9 +13,9 @@
 //! and on `dump` commands, `--scene` starts in an INI scene instead of the
 //! opening. A panic prints the scene and the last messages first.
 //!
-//! `--minigame encaixe|tiro` runs ENCAIXE.EXE or TIRO.EXE alone (`runAlone`); `--minigame
-//! win|lose` is the result of the stubbed minigames, and `--minigame-stub`
-//! stubs the ported ones too (`platform/host.zig`).
+//! `--minigame encaixe|tiro` runs ENCAIXE.EXE or TIRO.EXE alone (`runAlone`);
+//! `--minigame-result win|lose` is the result of the stubbed minigames, and
+//! `--minigame-stub` stubs the ported ones too (`platform/host.zig`).
 //!
 //! `--key-repeat` sets the auto-repeat of a held key (`Sim`, on the game's
 //! clock; ms): on by default (`sim.KeyRepeat`'s `interactive_default` /
@@ -166,14 +166,19 @@ pub fn main(init: std.process.Init) !void {
             args.harness.verbose = false;
         } else if (std.mem.eql(u8, a, "--minigame")) {
             const v = it.next() orelse return error.MissingValue;
-            if (std.mem.eql(u8, v, "win") or std.mem.eql(u8, v, "lose")) {
-                args.opts.minigame.won = std.mem.eql(u8, v, "win");
-            } else if (findMinigame(v)) |prog| {
+            if (findMinigame(v)) |prog| {
                 args.alone = prog;
             } else {
-                std.log.err("--minigame {s}: want win, lose or a ported minigame (encaixe, tiro)", .{v});
+                std.log.err("--minigame {s}: want a ported minigame (encaixe, tiro)", .{v});
                 return error.BadArgument;
             }
+        } else if (std.mem.eql(u8, a, "--minigame-result")) {
+            const v = it.next() orelse return error.MissingValue;
+            if (!std.mem.eql(u8, v, "win") and !std.mem.eql(u8, v, "lose")) {
+                std.log.err("--minigame-result {s}: want win or lose", .{v});
+                return error.BadArgument;
+            }
+            args.opts.minigame.won = std.mem.eql(u8, v, "win");
         } else if (std.mem.eql(u8, a, "--key-repeat")) {
             const v = it.next() orelse return error.MissingValue;
             args.opts.key_repeat = platform.sim.KeyRepeat.parse(v) catch {

@@ -139,7 +139,7 @@ map $arg_h $noite_cache {
   HD\JOGO*.INI, MSSVGA\VGASYS.FON). `--trace` merges `strace -f -e
   trace=openat` logs of native runs and `--check` fails if one opened a
   file the static rules missed — run over the playthrough and six smoke
-  runs (plain, `--offers`, `--lose`, `--monkey 1-3`), none was missing.
+  runs (plain, `--offers`, `--minigame-result lose`, `--monkey 1-3`), none was missing.
   A ported minigame's names (`src/encaixe/`, `src/tiro/`) are looked for
   at the disc root, then in its EXE's directory, as the host does
   (`ENCAIXE/TETRFUN.BMP`, `PECA*.BMP`, `TIRO/FUNDTIRO.BMP`, `TIRO/*.WAV`…;

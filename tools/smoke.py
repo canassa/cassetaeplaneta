@@ -245,7 +245,7 @@ def main():
     ap.add_argument("--keep", default=str(ROOT / "zig-out" / "smoke"))
     ap.add_argument("--exe", default=str(ROOT / "zig-out" / "bin" / "noite"))
     ap.add_argument("--offers", action="store_true", help="give the key items to every object instead of clicking")
-    ap.add_argument("--lose", action="store_true", help="the stub minigames report a loss")
+    ap.add_argument("--minigame-result", choices=["win", "lose"], help="what the stub minigames report (default win)")
     ap.add_argument("--monkey", type=int, metavar="SEED", help="random clicks, drags and walks (seeded)")
     ap.add_argument("--freeze", action="store_true", help="with --monkey: random time jumps (focus lost, the game stalls)")
     ap.add_argument("--fix", help="BUGS.md fixes to turn on (noite --fix)")
@@ -291,8 +291,8 @@ def main():
             cmd += ["--fix", args.fix]
         if args.one_button:
             cmd += ["--one-button"]
-        if args.lose:
-            cmd += ["--minigame", "lose"]
+        if args.minigame_result:
+            cmd += ["--minigame-result", args.minigame_result]
         try:
             r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=120, errors="replace")
             code, out = r.returncode, r.stdout + r.stderr

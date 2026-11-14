@@ -34,7 +34,7 @@ item is tapped then placed with the next click, or dragged. ENCAIXE
 ported: NOITE runs them as second programs (`src/platform/host.zig`), and
 `--minigame encaixe|tiro` plays one alone. The other minigames (separate
 EXEs) are stubbed, and the ported ones too with `--minigame-stub`: they
-report a win, or a loss with `--minigame lose`; their window shows 1.5 s
+report a win, or a loss with `--minigame-result lose`; their window shows 1.5 s
 after `WinExec` and answers the game's hello after 100 ms
 (`--minigame-startup MS`, `--minigame-reply MS`). A held key repeats as on
 Windows (500 ms, then every 33 ms; `--key-repeat DELAY,PERIOD|off`), in
@@ -60,7 +60,7 @@ Saves go to `save/` (`--save DIR`).
   segfault prints the scene and the last 64 messages; a message loop that
   stops the clock is reported as a hang (`timeout -s SEGV` gives the stack
   of any other hang).
-- **Smoke test**: `nix develop -c python3 tools/smoke.py [--offers|--monkey SEED [--freeze]|--lose] [SCENE…]`
+- **Smoke test**: `nix develop -c python3 tools/smoke.py [--offers|--monkey SEED [--freeze]|--minigame-result lose] [SCENE…]`
   starts every INI scene and clicks around (`--freeze`: with random time jumps); failures keep their log in
   `zig-out/smoke/`. `--offers` gives the key items to every object (in the one-button mode by dragging and
   by tap-tap); the harness fails a run when an item a handler takes back had moved from where it was
