@@ -50,6 +50,10 @@ const question_wav = "fase4\\4fbarboy\\barman1.wav";
 const refuse_wav = "fase4\\4fbarboy\\barcaido.wav";
 const served_wav = "fase4\\4fbarboy\\barmr06.wav";
 
+/// Not in the original: an item released here that reaches the engine was
+/// offered to a character (`game.handlerAnswersOffers`, B30's fix).
+pub const answers_offers = true;
+
 pub const State = struct {
     // @orig g_s4fbarboyQuestionPlaying
     questionPlaying: i16 = 0,

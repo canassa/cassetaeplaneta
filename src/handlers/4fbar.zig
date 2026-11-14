@@ -64,6 +64,10 @@ const sportsman_wrong_wav = wave_dir ++ "esporr28.wav"; // 1028:1242
 const vampire_ok_wav = wave_dir ++ "okvamp.wav"; // 1028:1212
 const vampire_wrong_wav = wave_dir ++ "vampr38.wav"; // 1028:122a
 
+/// Not in the original: an item released here that reaches the engine was
+/// offered to a character (`game.handlerAnswersOffers`, B30's fix).
+pub const answers_offers = true;
+
 pub const State = struct {
     // @orig g_s4fbarUnk0C56 (the barman was clicked: his wave is playing)
     unk0C56: i16 = 0,

@@ -35,6 +35,10 @@ const GIFT_ID: i16 = 0x6b;
 /// Timer id of the "empty inventory" time-out.
 const TIMER_ID: u16 = 0x15;
 
+/// Not in the original: an item released here that reaches the engine was
+/// offered to a character (`game.handlerAnswersOffers`, B30's fix).
+pub const answers_offers = true;
+
 pub const State = struct {
     // @orig g_s2fcopmuHasGift
     hasGift: i16 = 0,

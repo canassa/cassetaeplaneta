@@ -52,6 +52,10 @@ const wav_pede = "fase4\\4fboydj\\djpede.wav";
 const wav_right = "fase4\\4fboydj\\djrespb2.wav";
 const wav_wrong = "fase4\\4fboydj\\djrespr.wav";
 
+/// Not in the original: an item released here that reaches the engine was
+/// offered to a character (`game.handlerAnswersOffers`, B30's fix).
+pub const answers_offers = true;
+
 pub const State = struct {
     // @orig g_s4fdjGreetingPlaying
     greetingPlaying: i16 = 0,

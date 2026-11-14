@@ -35,6 +35,10 @@ const WALLET_ID: i16 = 0x47;
 /// Timer (WM_TIMER) that fires when the player arrives with nothing.
 const TIMEOUT_TIMER: u16 = 0x15;
 
+/// Not in the original: an item released here that reaches the engine was
+/// offered to a character (`game.handlerAnswersOffers`, B30's fix).
+pub const answers_offers = true;
+
 pub const State = struct {
     // @orig g_s2fcopmauHasGift
     hasGift: i16 = 0,

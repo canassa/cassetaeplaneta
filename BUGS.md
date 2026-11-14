@@ -444,9 +444,14 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   place, on the support's top with its anchor on its bottom row (the `ZoomPort=` items' anchor is their
   top-left corner, which put them behind the bed they lie on); the fall's steps reset that place
   (`portable_move_to_and_drop`), so its stop restores it. With B25's fix, the previous position stays synced
-  (the drop sets it, the fall's stop resets it). An offer is left alone: an item released on an object that a
-  `WAVE=` line of the scene names (the handler has started its reply and takes the item back at the end) stays
-  where it was released, as in the original, instead of falling to the floor while the reply plays.
+  (the drop sets it, the fall's stop resets it). An offer is left alone: it stays where it was released, in the
+  character's hands, while the reply plays. An offer is any drop in a scene whose handler answers offers (the
+  eleven of B23's list, `pub const answers_offers`): each takes WM_RBUTTONUP with an item, clears the
+  selection unless it was released on one of its characters, and there starts the reply and returns 0
+  (2fportdi 1020:4306: the driver's head, mouth, hands and the passing bushes, of which only the mouth has
+  `WAVE=` lines). The original's own drop may move an offer too (2fportdi, the bible released on the mouth
+  walks 100 rows down to a support's top). `tools/smoke.py --offers` checks that with the fix an offered item
+  stays put until it is taken back and leaves no image behind.
 - **Confidence:** 9 (code, port repro).
 
 ### B31. The sitting room's package is cut in half by the table when the player walks by

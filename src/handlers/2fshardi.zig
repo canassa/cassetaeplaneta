@@ -54,6 +54,10 @@ const wav_gift = "fase2\\2shardi\\STONES04.wav";
 /// Sic: no directory (the wave fallback finds it).
 const wav_enough = "STONES07.wav";
 
+/// Not in the original: an item released here that reaches the engine was
+/// offered to a character (`game.handlerAnswersOffers`, B30's fix).
+pub const answers_offers = true;
+
 pub const State = struct {
     // @orig g_s2fshardiOfferCount
     offerCount: i16 = 0,

@@ -57,6 +57,10 @@ const wav_boiolr02 = "fase2\\2fgaytdir\\boiolr02.wav";
 const wav_boiolr05 = "fase2\\2fgaytdir\\boiolr05.wav";
 const wav_boiols03 = "fase2\\2fgaytdir\\boiols03.wav";
 
+/// Not in the original: an item released here that reaches the engine was
+/// offered to a character (`game.handlerAnswersOffers`, B30's fix).
+pub const answers_offers = true;
+
 pub const State = struct {
     // @orig g_s2fgaydirWaveVariant
     waveVariant: i16 = 0,

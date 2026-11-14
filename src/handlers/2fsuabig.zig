@@ -39,6 +39,10 @@ const TIMER_ID: u16 = 0x15;
 
 const shot_wav = "fase2\\2apolit\\tiro.wav";
 
+/// Not in the original: an item released here that reaches the engine was
+/// offered to a character (`game.handlerAnswersOffers`, B30's fix).
+pub const answers_offers = true;
+
 pub const State = struct {
     // @orig g_s2fsuabigOfferCount
     offerCount: i16 = 0,

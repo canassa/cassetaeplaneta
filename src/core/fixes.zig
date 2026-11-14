@@ -79,8 +79,8 @@ pub const Fixes = struct {
     /// B30: a dropped item falls straight down onto the first real support
     /// (a 3D box under it whose top is below the release point) or to the
     /// floor row; it never rises, and a door or picture never holds it up.
-    /// An item offered to a character (released on an object a `WAVE=`
-    /// reply of the scene names) stays where it was released, as before.
+    /// An item offered to a character (a drop in a scene whose handler
+    /// answers offers) stays where it was released, in the character's hands.
     drop_falls_onto_support: bool = false,
     /// B31: an object whose elevation is the top of another's 3D box, with
     /// overlapping hit boxes, is in front of it in the draw order (the

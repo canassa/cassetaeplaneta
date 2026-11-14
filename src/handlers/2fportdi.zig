@@ -43,6 +43,10 @@ const RIGHT_ITEM_ID: i16 = 0x56;
 const loop_wav = "fase2\\2fportdi\\TERRIN5.WAV";
 const angry_wav = "fase2\\2fportdi\\PORTGR01.WAV";
 
+/// Not in the original: an item released here that reaches the engine was
+/// offered to a character (`game.handlerAnswersOffers`, B30's fix).
+pub const answers_offers = true;
+
 pub const State = struct {
     // @orig g_s2fportdiOfferCount
     offerCount: i16 = 0,

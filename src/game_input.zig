@@ -31,6 +31,7 @@ const vk = msg_mod.vk;
 const scene_mod = @import("scene.zig");
 const game_hook = @import("game_hook.zig");
 const game_scenes = @import("game_scenes.zig");
+const game_mod = @import("game.zig");
 const panels = @import("panels.zig");
 const portable = @import("portable.zig");
 const exit_mod = @import("exit.zig");
@@ -361,10 +362,9 @@ fn rightUp(g: *Game, m: Msg) i32 {
     const panel = must(Object, g.controlPanel);
     if (!panels.isOutside(g, panel, sx0, sy)) return 1;
     const sel = g.selectedItem orelse return 1;
-    // B30's fix: an offer (the scene's handler has started the reply) is
-    // not a drop; the item stays in the character's hands, as it does in
-    // the original. Asked before the item enters the grid.
-    const offered = g.fixes.drop_falls_onto_support and isOfferTarget(g, sx0, sy);
+    // B30's fix: an offer (the scene's handler has started the reply and
+    // returned 0) is not a drop; the item stays in the character's hands.
+    const offered = g.fixes.drop_falls_onto_support and isOffer(g);
 
     render.erase(g, panel, bdOf(g));
     visibility.redrawOverlapping(g, panel, bdOf(g), 1);
@@ -425,54 +425,22 @@ fn dropWalk(g: *Game, sel: *Object, sx: i16, y: i16) void {
     movement.fallTo(g, sel, y -% frames.height(sel) +% bdOf(g).originY, bdOf(g));
 }
 
-/// Whether the object under (`x`, `y`) (scrolled; the handlers' 16x16
-/// query) takes offers: a `WAVE=` line of the current scene (the replies
-/// to items given, `WAVE=<object>,<variant>,<item>,…`) names it. Not in
-/// the original (B30's fix). Leaves the INI file anywhere: its readers seek
-/// their section first.
-fn isOfferTarget(g: *Game, x: i16, y: i16) bool {
-    const q = backdrop_mod.queryRect(g, bdOf(g), x, y, 16, 16);
-    if (q.result <= 0) return false;
-    const obj = q.obj orelse return false;
-    const fd = g.iniFile;
-    const found = ini.seekSection(&g.ini, g.plat, g.fixes, fd, cstr.slice(&g.curSceneName), true) catch return false;
-    if (found == 0) return false;
-    // The section's lines, up to the next header: is one `WAVE=<id>,`?
-    var line: [16]u8 = undefined;
-    var n: usize = 0;
-    var buf: [512]u8 = undefined;
-    while (true) {
-        const got = g.plat.read(fd, &buf);
-        if (got == 0) return false;
-        for (buf[0..got]) |c| {
-            if (c == '\r' or c == '\n') {
-                if (waveLineNames(line[0..n], obj.id)) return true;
-                n = 0;
-            } else if (n == 0 and (c == ' ' or c == '\t')) {
-                continue;
-            } else if (n == 0 and c == '[') {
-                return false;
-            } else if (n < line.len) {
-                line[n] = c;
-                n += 1;
-            }
-        }
-    }
+/// Whether this drop is an item offered to a character: the scene's
+/// handler, one that answers offers, saw the WM_RBUTTONUP and returned 0
+/// (it clears the selection on anything else). Not in the original (B30's
+/// fix). The `WAVE=` lines do not tell: the handlers also answer objects
+/// no line names (2fportdi: the driver's head, his hands, the passing
+/// bushes) and some replies are in code.
+fn isOffer(g: *Game) bool {
+    const scene = sceneOf(g);
+    if (scene.handlerEnabled == 0 or scene.sceneNumber < 0) return false;
+    if (g.handlers[@intCast(scene.sceneNumber)] == null) return false;
+    return game_mod.handlerAnswersOffers(scene.sceneNumber);
 }
 
-/// `WAVE=<id>,…` (case-insensitive key, blanks around the number).
-fn waveLineNames(line: []const u8, id: i16) bool {
-    if (line.len < 5 or !std.ascii.eqlIgnoreCase(line[0..5], "WAVE=")) return false;
-    const end = std.mem.indexOfScalar(u8, line, ',') orelse return false;
-    const v = std.fmt.parseInt(i16, std.mem.trim(u8, line[5..end], " \t"), 10) catch return false;
-    return v == id;
-}
-
-test "waveLineNames" {
-    try std.testing.expect(waveLineNames("WAVE=6,0,68,fase2", 6));
-    try std.testing.expect(waveLineNames("wave= 13 ,0,66", 13));
-    try std.testing.expect(!waveLineNames("WAVE=6,0,68", 68));
-    try std.testing.expect(!waveLineNames("Local=6,0,22", 6));
+test "the give-item handlers answer offers" {
+    for ([_]i16{ 5, 16, 18, 21, 11, 12, 23, 13, 89, 91, 87 }) |n| try std.testing.expect(game_mod.handlerAnswersOffers(n));
+    for ([_]i16{ 47, 103, 88, 49, 1 }) |n| try std.testing.expect(!game_mod.handlerAnswersOffers(n));
 }
 
 /// The window rows (back, front) of `other`'s top face, where a dropped

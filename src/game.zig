@@ -313,6 +313,19 @@ fn handlerOf(comptime unit: []const u8) ?handler.Handler {
     return if (@hasDecl(U, "handle")) U.handle else null;
 }
 
+/// Not in the original (B30's fix): whether the handler of scene `number`
+/// answers items offered to its characters. Those handlers (the give-item
+/// scenes, `pub const answers_offers` in their unit) take WM_RBUTTONUP
+/// with an item selected and clear the selection unless it was released
+/// on one of their characters; there they start the reply and return 0,
+/// so every drop that reaches the engine in such a scene is an offer.
+pub fn handlerAnswersOffers(number: i16) bool {
+    inline for (handler_table) |e| {
+        if (e[0] == number) return @hasDecl(@field(units, e[1]), "answers_offers");
+    }
+    return false;
+}
+
 // @orig 1018:570e register_scene_handlers
 /// Clears the 400-entry handler table and fills the entries of the scenes
 /// that have a hand-written handler (indexed by scene number).

@@ -39,6 +39,10 @@ const GIFT_RIGHT_FRAME: i16 = 2;
 const TIMER_ID: u16 = 0x15;
 const TIMER_MS: u16 = 5000;
 
+/// Not in the original: an item released here that reaches the engine was
+/// offered to a character (`game.handlerAnswersOffers`, B30's fix).
+pub const answers_offers = true;
+
 pub const State = struct {
     // @orig g_s2fblitgOfferCount
     offerCount: i16 = 0,
