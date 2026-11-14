@@ -324,147 +324,120 @@ no flag.
 
 ## Integration
 
-### The launch from NOITE (done on NOITE's side)
+TIRO is ported and on (`src/tiro/root.zig` `ready`): NOITE's WinExec runs
+it, `--minigame tiro` plays it alone, the web page offers it.
 
-`handler_3fhall` (`src/handlers/3fhall.zig`, ported) right-click on the
-door shuffled to 1: `WinExec("<CD>tiro\tiro.exe")` and timer 0x14. The
-host matches `tiro` to `tiro.program` (`main.minigames`); while
-`tiro.ready` is false it keeps the stub (`Sim.winExec`, a win after the
-hello), as now. Once ready: TIRO's task starts `--minigame-startup` ms
-later (its WinMain: `app.start`), FindWindow("Tiro ao Alvaro") succeeds on
-NOITE's next 0x14 tick, NOITE posts **0x40b** (lParam = NOITE's window);
-TIRO's AppWndProc stores `g_noiteWnd` (after the game declines it) and,
-on its first message after `g_started` with `g_handshakePending`, posts
-**0x40c** (wParam = its window); NOITE hides itself. TIRO's WM_DESTROY
-(the handler: waves stopped and freed, WaveMix and MCI closed) posts
-**0x40a** (wParam `g_score > 0`, lParam the sign-extended score) to
-`g_noiteWnd` and returns 0, so AppWndProc kills timer 1 and posts WM_QUIT;
-the host runs `app.exit`, destroys the window and activates NOITE, which
-shows itself, adds the score (a negative one lowers it), and goes to
-`3fprisao` (won) or back to `3fhall` with a life less (or `6fsaida`).
-NOITE's WM_SYSTIMER check (window gone without a result → 0x40a loss) is
-covered by the host's window lifetime, as for ENCAIXE. Nothing changes in
-NOITE.
+### The launch from NOITE
+
+`handler_3fhall` (`src/handlers/3fhall.zig`) right-click on the door
+shuffled to 1: `WinExec("<CD>tiro\tiro.exe")` and timer 0x14. The host
+matches `tiro` to `tiro.program` (`main.minigames`): TIRO's task starts
+`--minigame-startup` ms later (1500; its WinMain: `app.start`, which first
+runs the static initialiser `initStaticConditions`, as `_cinit` does before
+WinMain), FindWindow("Tiro ao Alvaro")
+succeeds on NOITE's next 0x14 tick, NOITE posts **0x40b** (lParam =
+NOITE's window); AppWndProc stores `g_noiteWnd` and, on its next message,
+posts **0x40c**; NOITE hides itself. The end test sends TIRO's own
+WM_DESTROY (nested, as SendMessage, while the target tick is still
+running; the tick then goes on, as the original's): the handler stops and
+frees the waves, closes WaveMix and MCI and posts **0x40a** (wParam
+`g_score > 0`, lParam the sign-extended score) to `g_noiteWnd`;
+AppWndProc kills timer 1 and posts WM_QUIT, which comes after the posted
+messages and before any timer (`core/queue.zig`), so no target tick runs
+again and one result is posted. The host then runs `app.exit`, destroys
+the window and activates NOITE, which shows itself, adds the score (a
+negative one lowers it) and goes to `3fprisao` (won) or back to `3fhall`
+with a life less (or `6fsaida`). NOITE's 0x40a handler, as the original,
+has no guard: it would act on a second result too; TIRO cannot post one
+before its WM_QUIT. NOITE's WM_SYSTIMER check (window gone without a
+result → 0x40a loss) is covered by the host's window lifetime. Nothing
+changed in NOITE. `--minigame-stub` keeps the stub (a win after the
+hello) instead.
 
 ### Standalone
 
 - `noite --minigame tiro [--headless …]`: TIRO alone (task 0, its title,
-  `\TIRO` directory), refused while `ready` is false; prints its result
-  (0x40a to hwnd 0 goes nowhere; the host records it). Wired in the
-  skeleton (`main.minigames`).
-- Web: `web_main.minigames` has TIRO as `noite_start`'s minigame 2
-  (returns 3 while not ready; wired). Left to the finishing step:
-  `MINIGAMES` in `web/noite.js` gets `{ name: "tiro", title: "Tiro ao
-  Álvaro", ready: true }` (second, the same order as `web_main`), and
-  `web/index.html`'s "Jogo" select an option `tiro` ("Jogar só o
-  minijogo: Tiro ao Álvaro"); `tools/web/files.py` `MINIGAMES` gets
-  `"tiro"` (TIRO's files are looked up in `\TIRO`); `tools/web/test.py` a
-  TIRO alone check (it starts; SPACE fires: the crossbow shows `bestse`).
-  On a touch screen the pad shows LEFT, RIGHT and a fire button (key 32)
-  instead of the four arrows when the minigame is TIRO (alone, or while
-  TIRO's window is up from NOITE).
+  `\TIRO` directory); prints its result (0x40a to hwnd 0 goes nowhere; the
+  host records it).
+- Web: `web_main.minigames` has TIRO as `noite_start`'s minigame 2;
+  `MINIGAMES` in `web/noite.js` and the "Jogo" select of `web/index.html`
+  ("Jogar só o minijogo: Tiro ao Álvaro"); `tools/web/files.py` looks a
+  minigame's names up at the disc root, then in its directory (`TIRO\`),
+  as `Sim.open` does. On the on-screen pad (one-button mode, or a
+  minigame alone on a touch screen) the keys follow the program whose
+  window is on top (`noite_top_program`): for TIRO LEFT, a fire button
+  (key 32) and RIGHT instead of the four arrows (`PAD_KEYS` in
+  `web/noite.js`, a proposal: question 6).
 
-## Platform: SPACE and key repeat
+## Platform: every key to a minigame, key repeat
 
-TIRO is played with LEFT, RIGHT and SPACE, and BUGS.md T1 (a held SPACE
-fires on every repeat) depends on WM_KEYDOWN auto-repeat while a key is
-held, as Windows sends it (lParam bit 30 = 1, repeat count 1). What the
-platform does now:
-
-- **SDL** (`sdl.zig`) passes LEFT/UP/RIGHT/DOWN, and Enter/Esc/Space only
-  with `--skip-videos`; it does not read the event's `repeat` flag, so it
-  forwards the OS's key repeats (at the OS's rate) as more WM_KEYDOWNs.
-- **Web** (`web/noite.js`) passes the arrows, and 13/27/32 only when
-  videos can be skipped; the browser's repeated `keydown` events pass
-  through the same way.
-- **Headless / scripts** (`script.zig`): `key K` is down + up 50 ms later,
-  `hold K MS` one down and one up; **no repeats at all**.
-
-So SPACE does not reach TIRO on SDL or the web unless skipping videos is
-on, and the harness cannot reproduce T1. Needed (platform code, one change
-before the `gallery` unit's tests; not a port unit):
-
-1. **Every key to a minigame.** SDL maps SDLK_SPACE (and Enter/Esc) to
-   their virtual keys always, and `noite.js` passes 32 always; `Sim`'s
-   key filter decides instead of the backends: NOITE (task 0 being NOITE)
-   keeps today's rule (Enter/Esc/Space only to skip a video), a minigame
-   task (or a minigame alone) gets every key. NOITE's traces stay as they
-   are.
-2. **One source of repeats, on the virtual clock.** `Sim` generates the
-   repeats itself for every backend: a WM_KEYDOWN of a key not held starts
-   it (`delay` ms to the first repeat, then one every `period` ms, each a
-   WM_KEYDOWN with lParam `0x40000001`); its WM_KEYUP (or a focus loss)
-   ends it; only the last key pressed repeats, as on Windows. The backends
-   drop their own repeats (SDL: the event's `repeat` byte, offset 37 of
-   `SDL_KeyboardEvent`; the web: `e.repeat`), so all three behave alike and
-   a script's `hold space 2000` fires the repeats a real keyboard would.
-   The next repeat is a deadline of `Sim.wait` (like a timer), so the
-   headless clock steps to it.
-3. **Rate:** Windows 3.1's defaults (WIN.INI `KeyboardDelay`/
-   `KeyboardSpeed`), taken as 500 ms and 33 ms (≈30/s) until confirmed;
-   `--key-repeat DELAY,PERIOD` sets them and `--key-repeat off` turns them
-   off (a question for the owner below: whether headless runs repeat by
-   default).
-4. **Existing scripts:** with repeats on, every `hold` longer than the
-   delay sends repeats to NOITE and ENCAIXE too (NOITE latches its arrows,
-   BUGS.md B50, so a repeat should change nothing there, which the reruns
-   check; ENCAIXE's E5 restarts its 55 ms fall timer on each, which is the
-   original's behaviour). The change reruns
-   `full.input`, the one-button scripts, the ENCAIXE win/lose scripts,
-   `b50-arrow-overlap.input`, `tools/smoke.py` and the web test, and
-   re-tunes (`tools/encaixe_plan.py` models E5's restarts) or adds
-   `--key-repeat off` where a script was written for no repeats.
-
-The harness's `key space`, `hold space MS` already exist (`script.zig`
-knows `space`).
+- **Keys.** SDL and the web page pass the arrows, Enter, Esc and Space;
+  `Sim.filterInput` decides: NOITE (task 0 being NOITE) gets Enter, Esc
+  and Space only with `--skip-videos` (to skip a video, as before), a
+  minigame task (or a minigame alone, `Sim.minigame_alone`) gets every
+  key and skips no video.
+- **Repeat.** One generator, in `Sim`, on the program's clock, for every
+  backend: a WM_KEYDOWN that passes the filter starts it (`delay` ms to
+  the first repeat, then one every `period` ms, each a WM_KEYDOWN with
+  lParam `0x40000001`); its WM_KEYUP or a focus loss (SDL, the page, the
+  harness's `focus 0`) ends it; only the last key pressed repeats, and a
+  press the filter swallows ends it. The repeats come from `Sim.poll` (the
+  host routes them to the active window) and their deadline is in
+  `Sim.nextDue`, so the headless clock steps to them. SDL drops the OS's
+  repeats (`SDL_KeyboardEvent.repeat`), the page the browser's
+  (`e.repeat`).
+- **Rate and defaults** (`sim.KeyRepeat`): Windows 3.1's 500 ms delay and
+  33 ms period; `--key-repeat DELAY,PERIOD|off`. On by default in the SDL
+  window and the web page (`interactive_default`), off headless
+  (`headless_default`, one constant to flip: question 4), so the scripts
+  written before the repeats play as they did.
+- **Held keys elsewhere.** NOITE latches its arrows (BUGS.md B50): its
+  scripts play the same with the repeats on (`full.input`,
+  `b50-arrow-overlap.input`). ENCAIXE's DOWN restarts its 55 ms fall
+  timer on every repeat (E5): held, with 33 ms repeats, the piece stops
+  falling, the original's behaviour; `--fix all` closes the guard.
 
 ## Tests
 
-- **Planner** `tools/tiro_plan.py --start MS [--relative-to MS] [--fix
-  all] (--win|--lose)`, written with the `gallery` unit (after `target`
-  and `arrow`): it simulates GAME.md on the virtual clock (TIRO's WM_CREATE
-  at MS: `srand(MS)` and the MSVC `rand` sequence for the identities; the
-  targets' timers, steps, wraps, pair guards and respawns; the crossbow's
-  aim; the arrow's Bresenham flight, 10 px per 55 ms tick, and both hit
-  stages; the end test on the target ticks) and prints `key`/`hold` lines.
-  It picks shots whose outcome is the same with and without `--fix all`
-  (a first-stage and a second-stage target that agree, T5; one press per
-  free arrow and at least 110 ms between presses, so T1–T3 never differ;
-  T4/T2 stay off in `all`), and checks its own result in both modes. As
-  for ENCAIXE, rerun it when the start time moves.
-- **Scripts** (`tools/play/`), each run as written and with `--fix all`:
-  - `tiro-win.input`, `--minigame tiro --ms 60000`: the planner's 15
-    shots, at least one girl and more girls than travecos; `result won
-    <score>`.
-  - `tiro-lose.input`, `--minigame tiro --ms 60000`: 15 shots that hit
-    nothing (or travecos); `result lost 0` (or the negative score). With no
-    input at all TIRO never ends (`lives` stays 16), so a loss needs shots.
-  - `tiro-endless.input`, `--minigame tiro --ms 30000`: `hold space 3000`
-    — original: the repeats take `lives` past 1 between two ticks (T1, T3)
-    and `result none` at 30 s; `--fix all`: one shot, and the game goes on
-    (a second check, with 15 single presses after it, ends it).
-  - `tiro-3fhall-win.input` / `tiro-3fhall-lose.input`, `--scene 3fhall`:
-    a right click on the door this run's shuffle gives TIRO (the shuffle
-    follows from the virtual time), `expect` NOITE hidden (`dump` shows
-    TIRO), the planner's shots relative to TIRO's start (WinExec + 1500
-    ms), then `result won N` / `result lost N`, `expect 3fprisao` with the
-    score added / `expect 3fhall` with a life less (`state`).
-  - `full.input`: its hall door 2 (now the stub's win, "the shooting
-    gallery (stub: won) -> prison") becomes the real TIRO with the
-    planner's winning shots; the rest of the script follows the new
-    clock (re-tune it, README "Running and testing the port").
+- **Planner** `tools/tiro_plan.py --start MS (--win|--lose) [--relative-to
+  MS]` (MS: TIRO's WM_CREATE, 0 alone, WinExec + 1500 from NOITE):
+  simulates the game on the virtual clock, down to what decides a hit
+  (USER's timer table order, every `rand()`, the targets' steps, wraps,
+  pair guards, hit animations and respawns, the arrow's Bresenham flight
+  and the occupancy grid it queries, stale cells included, both hit
+  stages), and plans 15 SPACE presses with the arrow free, 110 ms or more
+  apart, each with the same outcome in the Original and the Corrigida: a
+  win hits girls only, a loss travecos or nothing. `--check FILE` /
+  `--trace FILE` simulate a script; the trace is the port's, tick for
+  tick (checked on random games, Original and Corrigida). Rerun it when
+  the start time moves.
+- **Scripts** (`tools/play/`), each Original and `--fix all`:
+  - `tiro-alone-win.input` (`--minigame tiro --ms 60000`): 14 girls,
+    `result won 2100`;
+  - `tiro-alone-lose.input` (`--ms 60000`): `result lost -750`;
+  - `tiro-endless.input` (`--ms 30000 --key-repeat 500,33`): SPACE held
+    3 s. Original: the repeats take `lives` past 1 between target ticks
+    (T1, T3), no result; `--fix all`: one shot, the game goes on, no
+    result either;
+  - `tiro-3fhall-win.input` / `tiro-3fhall-lose.input` (`--scene 3fhall`):
+    the door this run's shuffle gives TIRO, NOITE hidden (`dump`), the
+    planner's shots (`--start 3500`), `result won 2100` and `3fprisao`
+    with the score added / `result lost -1050`, `3fhall` with a life
+    less and the score lowered;
+  - `full.input` and `onebutton.input`: hall door 2 is the real TIRO with
+    the planner's winning shots (in the one-button run too: TIRO is played
+    with its keys).
 - **Smoke**: `tools/smoke.py --minigame tiro [--monkey SEED]`: random
-  LEFT/RIGHT presses and SPACE presses at least 110 ms apart (no held
-  SPACE, so T3 cannot make a run endless) for 60 s, seeds 1–5; no panic or
-  leak, and a result once 15 SPACE presses are in.
+  LEFT/RIGHT and SPACE presses 110 ms or more apart for 60 s, seeds 1–5;
+  no panic or leak, and a result.
+- **Web**: `tools/web/test.py` plays "Jogo" = Tiro ao Álvaro: TIRO
+  starts and SPACE unloads the crossbow (`bestse`).
 - **Unit tests** (optional, tagged): `oracle=emulated` from tools/oracle
-  (far code, the default mode; DGROUP is 1090; `_aFchkstk` 1080:00e4 is in
-  the EXE and runs as is). Worth it: `target_wrap_at_edge` (each target at
-  the edges and the pair guards), `target_restore_background` (T6's rect),
-  `crossbow_aim` (the wrap), `tiro_backdrop_create`'s wall cells,
-  `projectile_try_step` on a seeded grid, `tiro_draw_score` (the text and
-  positions, `asset` with Fundtiro.bmp). The handler and the app shell are
-  poor targets.
+  (far code, the default mode; DGROUP is 1090; `_aFchkstk` 1080:00e4 is
+  in the EXE and runs as is), as worth it: `target_wrap_at_edge`,
+  `target_restore_background` (T6), `crossbow_aim`,
+  `tiro_backdrop_create`'s wall cells, `projectile_try_step`,
+  `tiro_draw_score` (`asset` with Fundtiro.bmp).
 
 ## Units
 
@@ -574,15 +547,6 @@ noite -p tiro failed <unit> "why" / release <unit>
 8. `noite test`, commit (commit skill), `noite -p tiro finish <unit>` from
    the main checkout.
 
-## Finishing
-
-After the last unit: the Platform change above (SPACE to minigames, key
-repeat); `tools/tiro_plan.py` and the scripts of Tests;
-`tools/smoke.py --minigame tiro`; set `ready` (`src/tiro/root.zig`) and
-the web entries (Standalone); `full.input` re-tuned for the real TIRO;
-README ("Running the port", "Testing the port") and BUGS.md's T "Port:"
-lines updated. Then `--fix all` and the original both play the scripts.
-
 ## Questions for the owner
 
 1. **T2 in Corrigida?** (`tiro_arrow_spent_on_shot`) A SPACE press while
@@ -594,11 +558,10 @@ lines updated. Then `--fix all` and the original both play the scripts.
 3. **T1 in Corrigida** (`tiro_space_latch`, in `all`): auto-fire on a held
    SPACE goes away. The unused latch says it was meant, but players may
    have liked holding the key. Keep it in `all`?
-4. **Key repeat in headless runs.** Windows repeats a held key; the
-   harness never has. On by default everywhere (faithful; old scripts
-   re-tuned once), or off by default in headless runs and on with
-   `--key-repeat`?
+4. **Key repeat in headless runs.** Off by default now
+   (`sim.KeyRepeat.headless_default`); on everywhere would be faithful
+   (the scripts already pass with it on).
 5. **The repeat rate**: 500 ms / 33 ms (Windows 3.1's usual defaults),
    unless you know the machine the game was tuned on.
-6. **Touch screens**: a fire button in place of UP/DOWN on the pad for
-   TIRO — fine?
+6. **Touch screens**: the fire button in place of UP/DOWN on the pad for
+   TIRO (`PAD_KEYS`) — keep it?

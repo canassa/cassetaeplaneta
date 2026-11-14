@@ -38,7 +38,8 @@ flying left / straight / right, 55×27), `panel.bmp` (status bar and panel frame
      `g_pasars01Wave`; `tiro_draw_score` and `tiro_blit_score_box` (" 0000");
    - the status bar and the TiroPanel are created and attached but stay hidden;
    - `tiro_game_create_player` (`1048:0029`): the Crossbow (`g_crossbow`, a Player2D) at x 200,
-     y 0x17c (380), aim 1 (straight), loaded picture, `lives` = 16 (the arrow counter);
+     y 0x17c (380), aim 1 (straight), loaded picture, `lives` = 16 (the arrow counter); `game_init`
+     then attaches and shows it, and `mover_show` sets `curFrame` to 0: the game starts aimed left;
    - `PostMessage(hwnd, 0x401)`, ignored.
 6. Still in `tiro_game_on_create`: `tiro_create_targets` (`1068:0163`) and `tiro_create_arrows`
    (`1068:038a`).
@@ -92,7 +93,8 @@ is `besta` (loaded) or `bestse` (unloaded, from the shot until the arrow stops).
 ## The arrow
 
 There is one arrow object (`g_arrows[0]`, an Arrow; the creator's loop runs `i < 1`): step 10 px,
-timer id 0x10, 55 ms. SPACE (`WM_KEYDOWN` `VK_SPACE`, while `g_keySpaceHeld` is 0, which is
+timer id 0x10, 55 ms. It is shown at its creation, at (0, 0x17c), and the first shot moves it
+without erasing it there, so that picture stays at the bottom left all game. SPACE (`WM_KEYDOWN` `VK_SPACE`, while `g_keySpaceHeld` is 0, which is
 always) first decrements `lives`, then, if the arrow is not moving, fires:
 
 | Aim | Picture | Start (relative to the crossbow) | Destination |

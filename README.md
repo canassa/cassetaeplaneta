@@ -29,13 +29,18 @@ click on a door, an item or a character does what a right click did (the
 player walks over to a door first; a tap on the player walks, even over an
 item he hides), anything else walks; an inventory
 item is tapped then placed with the next click, or dragged. ENCAIXE
-(3ffarao's Tetris, `src/encaixe/`, `docs/encaixe/DESIGN.md`) is ported:
-NOITE runs it as a second program (`src/platform/host.zig`), and
-`--minigame encaixe` plays it alone. The other minigames (separate EXEs)
-are stubbed, and ENCAIXE too with `--minigame-stub`: they report a win, or
-a loss with `--minigame lose`; their window shows 1.5 s after `WinExec`
-and answers the game's hello after 100 ms (`--minigame-startup MS`,
-`--minigame-reply MS`).
+(3ffarao's Tetris, `src/encaixe/`, `docs/encaixe/DESIGN.md`) and TIRO
+(3fhall's shooting gallery, `src/tiro/`, `docs/tiro/DESIGN.md`) are
+ported: NOITE runs them as second programs (`src/platform/host.zig`), and
+`--minigame encaixe|tiro` plays one alone. The other minigames (separate
+EXEs) are stubbed, and the ported ones too with `--minigame-stub`: they
+report a win, or a loss with `--minigame lose`; their window shows 1.5 s
+after `WinExec` and answers the game's hello after 100 ms
+(`--minigame-startup MS`, `--minigame-reply MS`). A held key repeats as on
+Windows (500 ms, then every 33 ms; `--key-repeat DELAY,PERIOD|off`): on in
+the window and the browser, off headless. A minigame gets every key
+(TIRO: LEFT, RIGHT, SPACE); NOITE gets Enter, Esc and Space only to skip
+videos.
 Saves go to `save/` (`--save DIR`).
 
 ## Testing the port
@@ -64,11 +69,11 @@ Saves go to `save/` (`--save DIR`).
   given to the taxi driver is not drawn over his drinking animation (B45).
 - **Playthrough**: `./zig-out/bin/noite --headless --ms 600000 --input tools/play/full.input`
   plays from the title screen to the sportsman ending, checking every scene
-  (the pharaoh's ENCAIXE with a scripted win).
+  (the hall's TIRO and the pharaoh's ENCAIXE with scripted wins).
   With the fixes: add `--fix all,-avi_exit_ignores_timer`
   (the script follows this run's hall doors and the 3fstreet shortcut of BUGS.md B21).
   One-button: `--one-button --ms 480000 --input tools/play/onebutton.input` (the
-  whole game with left clicks only, doors clicked from afar, items dropped and
+  whole game with left clicks only and TIRO's keys, doors clicked from afar, items dropped and
   offered by tap-tap and by dragging) and
   `--one-button --scene 1fquarbo --ms 30000 --input tools/play/onebutton-corridor.input`;
   `tools/smoke.py --one-button` runs the smoke test in that mode.
@@ -80,6 +85,15 @@ Saves go to `save/` (`--save DIR`).
   the same with `--fix all`. The win moves come from `tools/encaixe_plan.py` (the pieces follow
   from the start time: rerun it when that moves). `tools/smoke.py --minigame encaixe
   [--monkey SEED]` presses random arrows for 60 s.
+- **TIRO**: `--minigame tiro --ms 60000 --input tools/play/tiro-alone-win.input` (14 girls,
+  `result won 2100`) and `tools/play/tiro-alone-lose.input` (-750); from NOITE, `--scene 3fhall
+  --ms 40000 --input tools/play/tiro-3fhall-win.input` (NOITE hides, +2100, the prison) and
+  `tools/play/tiro-3fhall-lose.input` (-1050, a life less, the hall); `--minigame tiro --ms 30000
+  --key-repeat 500,33 --input tools/play/tiro-endless.input` holds SPACE (BUGS.md T1, T3: no
+  result). Each the same with `--fix all`. The shots come from `tools/tiro_plan.py --start MS
+  --win|--lose` (it simulates the game; the targets follow from TIRO's start time: rerun it when
+  that moves; `--check FILE` simulates a script). `tools/smoke.py --minigame tiro [--monkey SEED]`
+  presses random aim keys and SPACE for 60 s.
 - **SDL without a display**: `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy`
   (or `disk` with `SDL_AUDIO_DISK_OUTPUT_FILE=out.raw` to capture the mix).
 
@@ -99,4 +113,6 @@ them from Cache Storage) while the player picks the version (Original, or
 Corrigida = `--fix all`), whether videos can be skipped (on by
 default) and the one-button control (on by default on touch screens), then
 runs the game; saves go to localStorage, apart per version. "Jogo" picks
-the whole game or one ported minigame alone (Encaixe Perfeito).
+the whole game or one ported minigame alone (Encaixe Perfeito, Tiro ao
+Álvaro). On a touch screen the on-screen pad shows the keys of the window
+on top: for TIRO ◀, a fire button and ▶.
