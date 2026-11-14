@@ -1405,3 +1405,137 @@ Addresses are Ghidra `seg:off` in `/SALGIN.EXE`; the game is described in `docs/
 - **Write-only state:** `g_keyLeftUp` (1090:0378) and the two `contactMark` bytes (`fighter_can_step`,
   `opponent_can_step`). Confidence 9.
 - **`WinMain` 1038:0202 returns an uninitialised word,** as TIRO's. Confidence 9.
+
+---
+
+## XILINDRO.EXE (the "Xilindro" street-fight minigame)
+
+Addresses are Ghidra `seg:off` in `/XILINDRO.EXE`; the game is described in `docs/xilindro/GAME.md`.
+`xilindro_scene_handle_message` is 1068:0d79. Left out as design: a tie on the clock is a win; Insert plays
+`chute3` + `dor1` with no hit; Down and Home trade blows while PgUp and Up do not; the opponent attacks from up to
+130 px, beyond the fighter's 100-px reach; the fighter's recoil after a hit usually ends the opponent's reaction on
+the next beat. Each is consistent code with a plausible intent, and none is reached by a slip.
+
+### X1. Blocking takes the full damage
+- **Where:** `xilindro_scene_handle_message`, the beat's attack branch (fighter strip 4–7 test 1068:2786, damage
+  1068:28a2–28af); End key 1068:1fbe.
+- **What the code does:** a fighter in strip 4–7 (walk, jump, guard, block) gets a reaction strip, then loses
+  `g_opponentMoveDamage[opponent strip]` (1090:02b2, {4, 2, 2, 6}) like an attacking one. End only sets strip 7,
+  which only selects the column of `g_reactionTable` (1090:0318).
+- **Effect:** the block protects nothing. The table shows the block holding (strip 7 again) against the high kick,
+  the hardest attack (6), so the player sees a parry and loses the most energy.
+- **Confidence:** 9 (code); 7 (that it is a bug).
+- **Port:** not ported yet.
+
+### X2. The fighter never shows its weak-energy reaction
+- **Where:** `xilindro_scene_handle_message` 1068:27cc (`CMP [g_fighter+0x50],0xa`); `Fighter.energy` (+0x50) is
+  written only by `xilindro_game_create_player` 1048:0029 (91).
+- **What the code does:** the fighter's reaction column is chosen by `Fighter.energy < 10`, which never changes; the
+  real energy is `EnergyBar.fighterEnergy`. The opponent's column uses the energy bar (`opponentEnergy < 6`).
+- **Effect:** the second column of `g_reactionTable` (always the fall, strip 8) is never used for the fighter: a
+  fighter close to a KO still reels or blocks instead of falling.
+- **Confidence:** 9 (code); 7 (that it is a bug).
+- **Port:** not ported yet.
+
+### X3. The opponent's attack is reseeded from the clock second on every choice
+- **Where:** `opponent_choose_attack` 1068:0b85 (`time(NULL)` 1068:0b97, `srand` 0ba0, `rand` 0bae/0bcd/0c15).
+- **What the code does:** `srand((unsigned)time(NULL))` before every `rand() % 4`, with the same CRT LCG as SALGIN
+  (BUGS S5).
+- **Effect:** the attack is a function of the clock second, in a fixed descending order (3, 2, 1, 0, …) with a
+  repeat about every 4 s; two attacks in the same second are the same attack.
+- **Confidence:** 9.
+- **Port:** not ported yet.
+
+### X4. Releasing Left or Right cuts short whatever move is playing
+- **Where:** `xilindro_scene_handle_message`, `WM_KEYUP` `VK_LEFT` 1068:20c1 and `VK_RIGHT` 1068:219a.
+- **What the code does:** each key-up clears its own latch, stops the walk and sets strip 6 frame 0 (guard),
+  whatever the current strip. A key held from before an attack, a block, a jump or a hit reaction still produces
+  its key-up.
+- **Effect:** walking, attacking with the arrow still held and releasing it mid-move drops the attack (or a
+  reaction) into the guard pose at once, and frees the arrow's latch before the move ends.
+- **Confidence:** 9 (code); 8 (effect).
+- **Port:** not ported yet.
+
+### X5. Insert is not locked by the other moves
+- **Where:** `xilindro_scene_handle_message`, the latch stores after each move key (PgUp 1068:1a1a–1a38, likewise
+  after Up, Down, Home and End; `g_keyInsertHeld` is 1090:03a6, Insert 1068:1f07).
+- **What the code does:** an attack or the block sets 7 of the 8 latches, never `g_keyInsertHeld`; Insert itself, a
+  hit reaction and the KO set all 8.
+- **Effect:** Insert starts the jump in the middle of an attack or a block, replacing it (and playing its two
+  waves); every other key waits for the move to end.
+- **Confidence:** 9 (code); 6 (that it is a bug).
+- **Port:** not ported yet.
+
+### X6. Closing the window mid-fight reports a win
+- **Where:** `xilindro_scene_handle_message`, `WM_DESTROY` 1068:10ce–1146.
+- **What the code does:** the result is computed and posted whenever `WM_DESTROY` arrives, with no `g_fightOver`
+  test: won = !(fighterEnergy < opponentEnergy), score = fighterEnergy·150.
+- **Effect:** ending XILINDRO from the task list while the fighter is ahead or level is a win; at the start,
+  91–91, it is worth 13,650 points, the best score.
+- **Confidence:** 9 (code); 7 (that a player finds it).
+- **Port:** not ported yet.
+
+### X7. A double KO shows the fighter winning but reports by energy
+- **Where:** `xilindro_scene_handle_message`, the beat's KO test 1068:2363–24f2 (winner test `opponentEnergy > 0`
+  at 23b4), the end tick 1068:0faa, `WM_DESTROY` 1068:1102–1129.
+- **What the code does:** a clash (1068:28dc) or a Down/Home trade lowers both energies at once. When both end
+  ≤ 0, the KO gives the round to the fighter (strip 10, `vaias`), but the end tick animates whichever side has more
+  energy and `WM_DESTROY` compares the energies again.
+- **Effect:** with the fighter further below 0 the victory pose freezes, the opponent's last move animates instead,
+  and NOITE gets a loss (−1000 and a life); otherwise it gets a "win" worth fighterEnergy·150 ≤ 0, which lowers the
+  score.
+- **Confidence:** 9 (code); 6 (effect: a double KO needs a trade or a clash with both energies low).
+- **Port:** not ported yet.
+
+### X8. The energy bar lags behind the energies
+- **Where:** `xilindro_scene_handle_message`: the Down/Home trades (1068:15d1–15ec, 1ded–1e08) lower
+  `fighterEnergy` without checking `g_fighterBarMark` (1090:03b6); the clash (1068:28dc–293f) lowers
+  `opponentEnergy` without checking `g_opponentBarMark` (1090:03b8). Each check adds at most one tile.
+- **What the code does:** a side's tile is added only when the other side's action is checked, and a backlog of
+  14 or more points drains one tile per later check.
+- **Effect:** the bar shows fewer tiles than the energy lost (up to one per 7 points of trade or clash damage) until
+  later events catch up, or for good at the end of the round.
+- **Confidence:** 9 (code); 7 (that it is a bug).
+- **Port:** not ported yet.
+
+### X9. The PORRADA banner never stays on screen
+- **Where:** `xilindro_create_banner` 1068:0119 (`mover_blit_to_dc` to `GetDC(hwnd)`), `xilindro_redraw_arena`
+  1068:0c87.
+- **What the code does:** the banner (232×42 at (200, 200)) is blitted once, from `xilindro_game_on_create`, during
+  `WM_CREATE`, before `ShowWindow`. `xilindro_redraw_arena` restores the band y 140–434, which contains it, from the
+  background and redraws only the two fighters, on the first beat and after.
+- **Effect:** "PORRADA" is not seen (at most for one beat).
+- **Confidence:** 9 (code); 7 (effect: the blit goes to a window that is not visible yet).
+- **Port:** not ported yet.
+
+### X10. The fighter's 100-px stand-off is 68 px
+- **Where:** `fighter_walk` 1068:0672, the Right branch (1068:071e–0792).
+- **What the code does:** when nextX is not left of opponent.x − 100 it sets nextX = opponent.x − 100 and then takes
+  the normal 32-px step (`fighter_move_tick` → `mover_step`), instead of stopping there.
+- **Effect:** a Right press within 100 px of the opponent puts the fighter exactly 68 px from it.
+- **Confidence:** 9 (code); 6 (that 100 px was the intent).
+- **Port:** not ported yet.
+
+### X11. The fighter leaves the screen on the left
+- **Where:** `fighter_walk` 1068:0672 (x test 1068:069c, x ≥ 400 at 06fd); the recoil after a hit (PgUp 1068:1a7f,
+  Up 17d5, Down 143b, Home 1d29).
+- **What the code does:** the walls test the current x and then take a full 32-px step. The recoil moves the fighter
+  100 px back whenever x − 100 > −50, so it can end at x −49.
+- **Effect:** after a recoil or a Right clamp (X10) leaves x off the 32-px grid, the fighter's left edge goes off
+  the screen (to x −49 by a recoil, −31 by walking); on the right x can reach 431.
+- **Confidence:** 9 (code); 6 (effect).
+- **Port:** not ported yet.
+
+### Harmless (XILINDRO)
+
+- **`WM_KEYUP` `VK_LEFT` releases a DC it never got:** `ReleaseDC(hwnd, [BP-0xa])` at 1068:214e; `[BP-0xa]` is
+  written only by the clock tick (which already released it) and `0x401`, so it is a stale or garbage handle and
+  `ReleaseDC` fails. Confidence 9.
+- **Write-only state:** `g_leftReleased` (1090:03ae), `Opponent.energy` (+0x46, lowered by PgUp/Up/Home hits) and
+  the two `contact` bytes (`fighter_can_step`, `opponent_can_step`). Confidence 9.
+- **The `MM_WOM_DONE` case is dead:** 1068:114c calls `wave_stop_all`, but every wave is played with
+  `hWndNotify` 0, so WaveMix never posts 0x3bd. Confidence 9.
+- **The opponent's reaction indexes `g_reactionTable` with any strip:** 1068:15d1 (and after Up, PgUp, Home) has no
+  strip guard, so an opponent in strip 8–10 would read the next row. Not reached: the opponent's reaction ends on
+  the same beat as the fighter's move, or the approach replaces it first. Confidence 7.
+- **`WinMain` 1038:0202 returns an uninitialised word,** as TIRO's. Confidence 9.

@@ -15,7 +15,7 @@ this file gives XILINDRO's addresses and what is new.
 | Vtable structs | 15 (TIRO's 13 + `FighterVtbl`, `OpponentVtbl`) and the 2 vbtable structs |
 | Class and record structs | 30 copied from TIRO (`XilindroCopyCategory.java /TIRO.EXE /tiro /xilindro`, TIRO's game classes excluded) + 5 new (`Fighter`, `Opponent`, `Banner`, `EnergyBar`, `XilindroScene`) |
 | Slot `FunctionDefinition`s | 180 (`FarSlotSignatures.java 1090 defs`) |
-| Virtual-call overrides | 339 resolved + 30 by site + 13 through the timer pointers (`FarSlotSignatures.java 1090 calls` / `site`) |
+| Call-site overrides | 382: 339 resolved (`FarSlotSignatures.java 1090 calls`), 30 virtual calls and 13 timer-pointer calls by hand (`site`); 11 CRT function-pointer calls left |
 | Globals typed (non-string, non-table) | 150: 73 game/app/engine (`NearGlobals.java`, spec in `zig-out/xilindro/glob.txt`) + 75 CRT and engine-handler globals mapped from TIRO's by matched DGROUP bytes (`crtglob.py`) + the 2 timer pointers |
 | NULL-test comments (`NearNullTests.java`) | 14, at TIRO's 14 sites |
 
@@ -104,12 +104,15 @@ Other far pointers: `0766` (7 CRT float hooks → `_fptrap`), `2458` (`g_crtInit
 `init_static_conditions_entry`), `246a` (`g_crtExitTable` → `crt_endstdio`).
 
 **The two new vtable structs** (MoverVtbl extensions, field names by behaviour):
-- `FighterVtbl`: `placeAt` (Mover's), `startTimer` (`fighter_start_timer`, sets +0x4e and calls
-  `g_setSystemTimer`; no call site), `walk` (`fighter_walk`).
+- `FighterVtbl`: `placeAt` (Mover's), `startTimer` (`fighter_start_timer`: stores the timer id in
+  `Fighter.timerId` and calls `g_setSystemTimer`; called by `xilindro_game_on_create` 1048:023e with
+  id 10, 1100 ms), `walk` (`fighter_walk`).
 - `OpponentVtbl`: `placeAt`, `walk` (`opponent_walk`).
 
 **SceneObjectVtbl type tests.** The fields TIRO called `isProjectile`, `slot62`, `isTarget`,
-`isCrossbow` (slots 0x56-0x59) are renamed `isFighter`, `isOpponent`, `slot63`, `slot64`:
+`isCrossbow` (slots 0x56-0x59) are renamed `isFighter`, `isOpponent`, `slot63`, `slot64`, and their
+slot definitions `SceneObjectVtbl_isFighterFn`, `_isOpponentFn`, `_slot63Fn`, `_slot64Fn` (the type is
+XILINDRO's own copy, `/xilindro/SceneObjectVtbl`):
 Fighter answers 1 to 0x56 (`fighter_is_fighter`), Opponent to 0x57 (`opponent_is_opponent`); the
 base answers 0. `opponent_can_step` asks the blocker `isFighter`, `fighter_can_step` asks
 `isOpponent`. Slots 0x58/0x59 have no XILINDRO override.
@@ -144,8 +147,8 @@ The new ones (NearStructs; the SceneObject virtual base follows each, at the vbt
 
 | Struct | Size | Fields (offsets hex) |
 |---|---|---|
-| `Fighter` | 0x56 | `player2d` (Player2D) 0; `reacting` 48 (1 while playing a reaction strip chosen from `g_reactionTable`); `moveFrame` 4a (frames played of the current move); `timerPeriod2` 4e (`fighter_start_timer`); `energy` 50 (= 0x5b at creation, **never decremented**, tested `< 10`); `contact` 52 (char, `'0'`, `'2'` when blocked by the opponent); `vtordisp` 54. `46` and `4c` show no access |
-| `Opponent` | 0x4c | `actor2d` 0; `unk40` 40 (= 1 from the ctor); `reacting` 42; `moveFrame` 44; `energy` 46 (0x5b, decremented in parallel with the energy bar, never read); `contact` 48 (`'0'`, `'1'`); `vtordisp` 4a |
+| `Fighter` | 0x56 | `player2d` (Player2D) 0; `reacting` 48 (1 while playing a reaction strip chosen from `g_reactionTable`); `moveFrame` 4a (frames played of the current move); `timerId` 4e (10, `fighter_start_timer`); `energy` 50 (= 0x5b at creation, **never written again**, tested `< 10` for the reaction column); `contact` 52 (char, `'0'`, `'2'` when blocked by the opponent); `vtordisp` 54. `46` and `4c` show no access |
+| `Opponent` | 0x4c | `actor2d` 0; `unk40` 40 (= 1 from the ctor); `reacting` 42; `moveFrame` 44; `energy` 46 (0x5b, lowered by the PgUp, Up and Home hits, not by Down; never read); `contact` 48 (`'0'`, `'1'`); `vtordisp` 4a |
 | `Banner` | 0x42 | `actor2d` 0; `vtordisp` 40 |
 | `EnergyBar` | 0x4a | `actor2d` 0; `leftX` 40 (0x122), `rightX` 42 (0x14d): the two ends of the marker strip; **`fighterEnergy` 44**, **`opponentEnergy` 46** (both 0x5b = 91); `vtordisp` 48 |
 | `XilindroScene` | 0x46 | `scene` (Scene) 0; **`secondsLeft` 44** (= 90, from `xilindro_scene_ctor`) |
@@ -190,62 +193,19 @@ The strip index is the move, by the order of the file tables:
 | 9 | `sbsego` | `sasego` | the hit reaction |
 | 10 | `sbflut` | `sacome` | the winner's pose (*comemora*) |
 
-## The game, as far as the data and the handler show
+## The game rules
 
-*Xilindró* (jail slang) is the street-fight minigame of `handler_3fstreet` in NOITE: after the
-street-escape video NOITE runs `xilindro\xilindro.exe`. It is a **one-round, keyboard-only fight**
-against a computer opponent, 90 seconds on a clock drawn at (0x136, 0x16).
-
-- **Keys** (WM_KEYDOWN, each latched until its move ends; all are locked while a move plays):
-  PgUp punch (0), Up middle kick (1), Down sweep (2), Home high kick (3), End block (7),
-  Insert jump (5), Left/Right walk (4, `fighter_walk`, 0x20 px per step, the fighter stops 100 px
-  before the opponent and at x 0..400). The mouse is ignored.
-- **The fighter's attacks**: when the fighters are within 100 px (`abs(dx) < 0x65`), the hit plays
-  a punch or kick wave, pushes the fighter 100 px back, takes `g_fighterMoveDamage[move]`
-  (1, 2, 1, 2 for moves 0-3) from `opponentEnergy`, and sets the opponent's reaction strip from
-  `g_reactionTable[fighterMove][opponentMove]`, a {normal, `opponentEnergy < 6`} pair: an
-  opponent in mid-attack (0-3) keeps its move; one that walks, jumps or blocks (4, 5, 7) takes
-  strip 9, or falls (8) when low; one in the guard stance (6) always falls; against the high kick
-  (3) a walking, jumping or blocking opponent blocks (7) instead of 9.
-- **The opponent** walks toward the fighter (`opponent_walk`) and, at the end of each of its
-  moves, `opponent_choose_move` draws a new attack `rand() % 4` (its damage
-  `g_opponentMoveDamage` = 4, 2, 2, 6); the waves of that attack play
-  (`xilindro_play_opponent_move_waves`). If the fighter is attacking (moves 0-3 or 8-10) both
-  energies drop by the two moves' damage; otherwise the fighter takes the opponent's damage and a
-  reaction strip from the same table.
-- **The energy bar**: both energies start at 91. `EnergyBar` stamps `energia.bmp` ticks: every 7
-  points lost by one side (`g_fighterBarMark` / `g_opponentBarMark`) moves that side's end one
-  tick (`energy_bar_shift`).
-- **End**: when an energy drops below 1 (KO) or the clock reaches 0, the one with more energy plays
-  the winner's pose (strip 10) with `vaias.wav` (the fighter won) or `lutamal3.WAV` (the opponent
-  won); 30 frames of 100 ms later the game sends itself WM_DESTROY.
-- **Result** (WM_DESTROY in `xilindro_scene_handle_message`): `PostMessage(g_noiteWnd, 0x40a,
-  won, score)` with **won = `fighterEnergy >= opponentEnergy`** and **score = `fighterEnergy *
-  150`** on a win (at most 13,650), **−1000** on a loss. NOITE adds the score, and goes to
-  `3fstree2` on a win, `3fstree1` (which takes a life) on a loss.
-- **The protocol** is TIRO's: 0x40b from NOITE stores its window (`g_noiteWnd`), the first message
-  after WM_CREATE posts 0x40c (`g_handshakePending`), WM_ACTIVATE pauses/resumes MCI and WaveMix,
-  WM_CREATE starts system timer 1 at 50 ms; the scene also starts timer 0xc at 100 ms at the end.
-
-## Candidate original bugs (for BUGS.md, to confirm in phase 4)
-
-- **X1 — a draw wins.** The result is `fighterEnergy >= opponentEnergy`: with equal energies at
-  the end of the clock the player wins (and gets `energy * 150` points).
-- **X2 — the fighter's low-energy reaction is unreachable.** The fighter's reaction column is
-  chosen by `Fighter.energy < 10`, but `Fighter.energy` (+0x50) is only ever set to 91; the real
-  energy is `EnergyBar.fighterEnergy`. The opponent's test uses the energy bar (`< 6`).
-- **X3 — blocking does not reduce damage.** When the opponent's attack lands while the fighter is
-  walking, jumping, guarding or blocking (moves 4-7), only the reaction strip changes;
-  `fighterEnergy` still loses the full `g_opponentMoveDamage`.
-- **X4 — the opponent is re-seeded at every move.** `opponent_choose_move` calls
-  `srand(time(0))` each time; two choices within the same second repeat the same move.
-- **X5 — Insert plays its sound unconditionally.** The jump key plays `chute3` + `dor1` (kick and
-  pain) even when nothing is hit.
-- **X6 — `ReleaseDC` of an uninitialised DC.** The Left-key release path calls
-  `ReleaseDC(local_c, hwnd)`, where `local_c` is only set by the clock branch of the same call.
-- **X7 — autoscroll disabled.** `backdrop_autoscroll` returns 0 at once (TIRO's body is still
-  compiled in after the `return`). Harmless here (the background never scrolls), noted because the
-  engine differs.
+`GAME.md` has them in full; the bugs are `BUGS.md` X1–X11. In short: *Xilindró* is the street fight
+of NOITE's `handler_3fstreet` (`xilindro\xilindro.exe`, after the street-escape video); one round of
+90 s, 91 energy a side (the energy bar's `fighterEnergy`/`opponentEnergy`); the fighter's blows land
+at the key press within |dx| ≤ 100, take `g_fighterMoveDamage[strip]` {1, 2, 1, 2} and throw the
+fighter 100 px back; Down and Home also cost the fighter `g_opponentMoveDamage[opponent strip]`; the
+opponent walks in to 99–130 px and attacks on the 200 ms beat, `rand() % 4` reseeded from `time()`,
+taking `g_opponentMoveDamage[its strip]` {4, 2, 2, 6} whether the fighter blocks or not (both sides
+lose when the fighter is attacking), then jumps back 100 px; a KO or the clock ends the round, the
+fighter wins unless its energy is below the opponent's, both outcomes close ~3.1 s later, and
+`0x40a(won, won ? energy·150 : −1000)` goes to NOITE (`3fstree2` on a win, `3fstree1` and a life on
+a loss).
 
 ## Undefined and unknown
 
@@ -263,7 +223,7 @@ against a computer opponent, 90 seconds on a clock drawn at (0x136, 0x16).
 | `XilindroCopyCategory.java` (new) | `/TIRO.EXE /tiro /xilindro ^(Crossbow\|Target\|Projectile\|Arrow)(Vtbl)?(_.*)?$` |
 | `XilindroCopyPrototypes.java` (new) | `/TIRO.EXE <pairs.tsv> /tiro /xilindro` |
 | `FarVtables.java` | the 2 new vtable structs and the 77 tables (`zig-out/xilindro/vt.spec.txt`) |
-| `FarSlotSignatures.java` | `1090 defs`, `1090 calls`, `1090 site …` (30 engine sites mapped from TIRO's hand-checked ones, 13 timer-pointer calls) |
+| `FarSlotSignatures.java` | `1090 defs`, `1090 calls`, `1090 site …` (30 engine sites mapped from TIRO's hand-checked ones, 13 timer-pointer calls; `1048:023e=FighterVtbl`, the startTimer call, which `calls` mode reads as MoverVtbl.placeAt) |
 | `NearStructs.java` | the 5 new structs |
 | `NearGlobals.java` | `glob.arg`, `crtglob.arg` |
 | `DefineStrings.java` | `strings.arg` |

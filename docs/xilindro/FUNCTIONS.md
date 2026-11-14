@@ -38,9 +38,15 @@ By segment (code functions other than the adjustor thunks):
 | `1038` | 10 | 10 | `1080` | 91 | 91 |
 | `1040` | 2 | 2 | `1088` | 318 | 315 |
 
-Conventions of the 638 non-thunk code functions: 502 `__stdcall16far` (far pascal, parameters
-listed reversed, `this` first), 110 far cdecl (`__cdecl16far`, `_dx_ax`, `_dxax_ptr`), 24 CRT near
-helpers, the 2 untyped blitters. `atol` carries `sig?` (only reached through the `atoi` `JMP`).
+Conventions of the 639 code functions: 502 `__stdcall16far` (far pascal, parameters listed
+reversed, `this` first), 111 far cdecl (`__cdecl16far` 102, `__cdecl16far_dx_ax` 5,
+`__cdecl16far_dxax_ptr` 4), 24 CRT near helpers, the 2 untyped blitters.
+
+**Final state** (after phase 4 and the cleanup): 639 code functions, **634 named, 5 `FUN_`**,
+**0 `sig?`, 0 `review`** (the 8 `sig?` and the 1 `review` copied from TIRO were checked against
+their callers and resolved, below); 357 adjustor thunks, every name matching its target's final
+name (`NearAdjustorThunks.java` rerun, `far`); 382 call-site overrides, every indirect call typed
+but the 11 CRT function-pointer calls (`DATA.md`).
 
 ## Function discovery
 
@@ -91,7 +97,7 @@ game functions.
 `DATA.md`). The 6 whose TIRO prototype uses a TIRO game class (crossbow/target/arrow/projectile
 ctors and type tests) were typed by hand with the XILINDRO class. The new CRT functions and the
 main game functions (ctors, scene handler and create, creators, walks, energy-bar shift,
-`opponent_choose_move`, the ring redraw, the clock, the sound switch) are typed by hand;
+`opponent_choose_attack`, the arena redraw, the clock, the sound switch) are typed by hand;
 `NearSignatures.java` set the mechanical conventions of the rest.
 
 ## The game functions
@@ -114,7 +120,7 @@ main game functions (ctors, scene handler and create, creators, walks, energy-ba
 | `0000` | `xilindro_create_opponent` | new 0x4b8 **Opponent** (`sa*.bmp`), curStrip 4 (walk), energy 0x5b |
 | `0119` | `xilindro_create_banner` | new 0x4ae **Banner** (`porrada.bmp`), blitted once |
 | `01ea` | `xilindro_create_energy_bar` | new 0x4b6 **EnergyBar** (`energia.bmp`), both energies 0x5b (91) |
-| `02d1` | `energy_bar_shift` | stamps the marker one picture further left/right |
+| `02d1` | `energy_bar_add_mark` | one more `energia.bmp` tile on a side (fighter left of x 290, opponent right of 333) |
 | `044a` | `xilindro_backdrop_create` | GridBackdropVtbl.create: `grid_backdrop_create_with_grid(this, 5)` |
 | `0470` | `fighter_can_step` | Fighter SO canStep; contact `'2'` against the opponent |
 | `051e` | `fighter_redraw_overlapping` | Fighter SO redrawOverlapping (draws the opponent) |
@@ -130,8 +136,8 @@ main game functions (ctors, scene handler and create, creators, walks, energy-ba
 | `0a08` | `opponent_walk` | OpponentVtbl slot 1 (`walk`) |
 | `0afd` | `opponent_stop_moving_dc` | Opponent SO stopMovingDc |
 | `0b47` | `opponent_stop_moving` | Opponent SO stopMoving |
-| `0b85` | `opponent_choose_move` | `srand(time(0))`, next move `rand() % 4` |
-| `0c87` | `xilindro_redraw_ring` | redraws the band y 0x8c..0x127 with both fighters |
+| `0b85` | `opponent_choose_attack` | `srand(time(0))`, next attack `rand() % 4` (a sweep becomes the high kick against a jump) |
+| `0c87` | `xilindro_redraw_arena` | redraws the band y 0x8c, 295 high, with both fighters |
 | `0d79` | `xilindro_scene_handle_message` | SceneVtbl.handleMessage (7,482 bytes) |
 | `2ae7` | `xilindro_scene_create` | SceneVtbl.create: MCI `porrada.mid`, WaveMix, 8 waves |
 | `2bc9` | `xilindro_blit_clock` | blits the clock box |
@@ -145,7 +151,7 @@ main game functions (ctors, scene handler and create, creators, walks, energy-ba
 |---|---|---|
 | `4c7c` | `xilindro_panel_ctor` | ControlPanel subclass, no own fields (TIRO's `tiro_panel_ctor`) |
 | `4e4e` | `fighter_ctor` | Fighter (derives Player2D) |
-| `4ee6` | `fighter_start_timer` | FighterVtbl slot 1; no caller |
+| `4ee6` | `fighter_start_timer` | FighterVtbl slot 1: timer 10, 1100 ms; called virtually by `xilindro_game_on_create` |
 | `4f18` | `fighter_is_fighter` | SO slot 0x56 → 1 |
 | `4f34` | `fighter_invalidate` | SO slot 0x1e, empty |
 | `4f4e` | `xilindro_scene_ctor` | Scene subclass; `secondsLeft` = 90 |
@@ -169,7 +175,6 @@ other tables: same build, other classes. TIRO's Arrow-derives-Projectile link ha
 - TIRO's dead-but-named engine functions are dead here as well (the second draw-list copy,
   `draw_list_invalidate_chain/_all`, the PerspectiveBackdrop functions, the Portable ctors, …).
 - `backdrop_autoscroll`'s tail (unreachable after `return 0`).
-- `fighter_start_timer` (FighterVtbl slot 1): no call site.
 - `xilindro_play_soco2_2` duplicates `xilindro_play_soco2`.
 
 ## Phase 4: function groups
@@ -205,8 +210,40 @@ lists as changed). The game groups need real reading. Counts exclude adjustor th
 | 23 | `1088:4c7e-52ff` | 24 | XilindroPanel, Fighter, XilindroScene ctors and slots, game ctor, status bar, Player2D | medium (game) |
 | 24 | `1088:5300-5f87` | 41 | ControlPanel, Scene, GridBackdrop/XilindroBackdrop, Actor2D/Animated3D ctors, Conditions | low |
 | 25 | `1088:5f88-6179` | 4 | Opponent, Banner, EnergyBar ctors; draw-list node | medium (game) |
-| 26 | `1068:0000-0c86` | 22 | Creators, energy bar, Fighter and Opponent methods, `opponent_choose_move` | high |
+| 26 | `1068:0000-0c86` | 22 | Creators, energy bar, Fighter and Opponent methods, `opponent_choose_attack` | high |
 | 27 | `1068:0c87-2e94` | 12 | Scene handler (7.5 KB: keys, hits, energies, clock, end, 0x40a), scene create, clock, sounds | high, alone |
 
 Order: 1-13 and 14-25 can run in parallel (they only verify); 26 before 27, which needs the
 Fighter/Opponent/EnergyBar fields settled.
+
+## Phase 4 results
+
+All 27 groups are done: every function is named or noted, plated and typed. The game is described
+in `GAME.md`, its bugs in `BUGS.md` (section XILINDRO). What phase 4 corrected in the earlier picture:
+- **Names:** `energy_bar_shift` → `energy_bar_add_mark`, `opponent_choose_move` →
+  `opponent_choose_attack`, `xilindro_redraw_ring` → `xilindro_redraw_arena` (SALGIN's names).
+- **`fighter_start_timer`** has a caller: `xilindro_game_on_create` calls it through FighterVtbl
+  slot 1 (timer 10, 1100 ms). `Fighter` +0x4e is `timerId`.
+- **Timers:** as SALGIN, nothing dispatches a timer id; every message runs the handler's
+  `GetTickCount` block (200 ms beat, 1000 ms clock, 100 ms end tick). The end timer is 0xc.
+- **The fight:** hit range 100, approach threshold 130, the fighter's 100-px recoil after a landed
+  hit, Down and Home trading blows, a reaction on every hit, the clash of the counterattack against
+  an attacking fighter, the opponent back in the walk strip 4 after each move, both outcomes closing
+  after ~3.1 s, the score ×150 (`GAME.md`).
+- **`wave_play`** (`1078:01e6`): flags = 5 | (hWndNotify == 0 ? 2 : 0); every call here passes 0,
+  so every wave gets 7 (`USELRUCHANNEL`). The handler's `MM_WOM_DONE` case is unreachable.
+- **SceneObject slot 0x1e** (`invalidate`) takes only `this`.
+- **The clock** is drawn in yellow (`SetTextColor(0x0000FFFF)`), not white.
+
+Cleanup:
+- **Tags:** `message_box_printf` is far cdecl `(caption, format, int arg)`, not varargs (all 14
+  callers push 3 words and pop 6); `perspective_project_point`/`_unproject_point` keep 7 words
+  (every caller pops 0xe); the 4 unreferenced DIB functions keep TIRO's prototypes (their bodies
+  equal SALGIN's apart from relocated words); `FUN_1028_1c6f` is `(ulong, ulong) -> DX:AX`;
+  `portable_set_world_elev` returns `SceneObject *`. The 5 `FUN_` plates end with a one-line note:
+  no caller, slot or data reference settles a role.
+- **Overrides:** the FighterVtbl.startTimer call at 1048:023e, which `calls` mode reads as
+  MoverVtbl.placeAt, has `FighterVtbl_startTimerFn` (`FarSlotSignatures.java 1090 site
+  1048:023e=FighterVtbl`); the other 368 virtual and 13 timer-pointer calls are phase 3's.
+- **Types:** the slot definitions of SceneObjectVtbl 0x56-0x59 are `SceneObjectVtbl_isFighterFn`,
+  `_isOpponentFn`, `_slot63Fn`, `_slot64Fn` (XILINDRO's own `/xilindro` copy; TIRO's names gone).

@@ -44,12 +44,15 @@ What differs from TIRO:
   - `backdrop_autoscroll` (`1030:0691`) starts with `return 0`: the 576 bytes of TIRO's body are
     still there, unreachable (`/Od` keeps them). Autoscroll is disabled.
   - `mover_move_tick`, `scene_object_redraw_overlapping`, `animation_stop_and_redraw_dc` and
-    `animation_tick` call SceneObject slot 0x1e (`invalidate`, two more arguments) where TIRO calls
-    slot 0x1d (`blitToDc`).
-  - `wave_play` (`1078:01e6`) computes its WaveMix flags: channel 0 gets
-    `CLEARQUEUE|USELRUCHANNEL|HIGHPRIORITY` (7), others 5; TIRO always passes 5.
-  - `mover_step`, `game_take_exit`, `WinMain` and `APPWNDPROC` (WM_PAINT plays no wave here)
-    differ by a few instructions; phase 4 reads them.
+    `animation_tick` call SceneObject slot 0x1e (`invalidate`, `this` only) where TIRO calls slot
+    0x1d (`blitToDc`, `this`, backdrop, hdc).
+  - `wave_play` (`1078:01e6`) computes its WaveMix flags: `5 | (hWndNotify == 0 ? 2 : 0)`, i.e.
+    `CLEARQUEUE|HIGHPRIORITY` (5) with a notify window and `CLEARQUEUE|USELRUCHANNEL|HIGHPRIORITY`
+    (7) without one; every call in XILINDRO passes `hWndNotify` 0, so every wave gets 7. TIRO always
+    passes 5.
+  - `mover_step` takes the same Bresenham step as TIRO's with a shorter body; `WinMain` resolves the
+    timer ordinals before `GetModuleFileName` (TIRO the other way round); `APPWNDPROC` plays no wave
+    on WM_PAINT; `game_take_exit` differs by a few instructions.
 - **Three switch jump tables** in `1068` (`2d0c` in a sound helper, `208a` and `22ac` in the scene
   handler, for the dense key-code switches `0x21-0x2d`). Ghidra resolved them by itself. TIRO had
   none besides the CRT's `_output` (its switches compiled as compare chains).
@@ -163,3 +166,8 @@ build of the same engine, **the shared code maps 1:1 to TIRO's fully typed progr
 and 584 prototypes copied by in-order alignment, the engine structs copied unchanged. The only
 real reading is the game (`1048`, `1068`, 13 functions in `1088`): about 53 functions, one of them
 the 7.5 KB scene handler.
+
+Final state (after phase 4 and the cleanup): 1,090 functions (94 imports, 357 adjustor thunks, 639
+code functions, 634 named, 5 dead `FUN_`), 0 `sig?`/`review` tags, 382 call-site overrides (every
+indirect call but the 11 CRT function-pointer calls), uncovered code only data and padding
+(`FUNCTIONS.md`). `_output` (`1080:09be`) still fails to decompile.
