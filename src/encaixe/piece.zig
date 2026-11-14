@@ -37,11 +37,11 @@ pub fn tryStep(g: *Game, obj: *Object, bd: *Backdrop, kind: i16, rotation: i16) 
     switch (obj.mover.direction) {
         1 => {
             calcRightCol(g, obj, kind, rotation);
-            return piece_sideways.moveLeft(g, obj, rotation, kind);
+            return piece_sideways.moveLeft(g, obj, kind, rotation);
         },
         2 => {
             calcRightCol(g, obj, kind, rotation);
-            return piece_sideways.moveRight(g, obj, rotation, kind);
+            return piece_sideways.moveRight(g, obj, kind, rotation);
         },
         4 => return piece_vertical.rotate(g, obj, kind, rotation),
         8 => return piece_vertical.moveDown(obj, kind, rotation),
@@ -49,36 +49,11 @@ pub fn tryStep(g: *Game, obj: *Object, bd: *Backdrop, kind: i16, rotation: i16) 
     }
 }
 
-/// mover_step (1008:76f0), private to unit `movement` (which is not mine to
-/// edit): one Bresenham step of the next position towards the target.
-fn moverStep(obj: *Object) void {
-    const m = &obj.mover;
-    var e = m.lineErr;
-    if (m.errIncX == 0) {
-        if (e < 1) {
-            obj.nextX +%= m.stepX;
-            obj.nextY +%= m.stepY;
-            e +%= m.errIncDiag;
-        } else {
-            e +%= m.errIncY;
-            obj.nextY +%= m.stepY;
-        }
-    } else if (e < 1) {
-        e +%= m.errIncX;
-        obj.nextX +%= m.stepX;
-    } else {
-        e +%= m.errIncDiag;
-        obj.nextX +%= m.stepX;
-        obj.nextY +%= m.stepY;
-    }
-    m.lineErr = e;
-}
-
 /// PieceVtbl slot 02 moveTick (te_piece_step_move, hwnd dropped).
 // @orig 1008:f1fe te_piece_step_move
 pub fn moveTick(g: *Game, obj: *Object, bd: *Backdrop, kind: i16, rotation: i16) void {
     if (obj.mover.moving == 0) return;
-    moverStep(obj);
+    movement.moverStep(obj);
     if (tryStep(g, obj, bd, kind, rotation) == 0) {
         movement.stopMovingDc(g, obj, bd);
         obj.mover.moving = 0;
@@ -341,7 +316,8 @@ fn shiftStrip(s: platform.Surface, src_y: i16, dest_y: i16) void {
 
 /// Scores the row (`te_score_cleared_row`), then moves every row from `row`
 /// down to row 1 one down, on the board and in both backdrop bitmaps, and
-/// repaints the window after each.
+/// repaints the window after each. BUGS.md E10: row 0 is never rewritten
+/// (the top-row branches are dead); no visible effect, no flag.
 // @orig 1008:f042 te_piece_clear_row
 pub fn clearRow(g: *Game, obj: *Object, bd: *Backdrop, row: i16) void {
     scoreClearedRow(g, bd);

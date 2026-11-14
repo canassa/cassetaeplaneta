@@ -149,7 +149,9 @@ pub fn create(g: *Game, scene: *Scene) *Scene {
 /// The base Scene's destructor: removes each object from the game's draw
 /// list and deletes it, then destroys the backdrop (its GDI objects have no
 /// counterpart; both bitmaps and the background picture are freed). The
-/// scene itself is freed by the caller.
+/// scene itself is freed by the caller. The original never frees the
+/// occupancy grid (its local heap goes with the task); the port frees it
+/// so the allocator sees no leak.
 // @orig 1008:b5dc scene_dtor
 pub fn dtor(g: *Game, scene: *Scene) void {
     var cur = scene.objects.head;
@@ -165,6 +167,7 @@ pub fn dtor(g: *Game, scene: *Scene) void {
             g.gpa.free(bg.bits);
             g.gpa.destroy(bg);
         }
+        if (bd.grid) |grid| g.gpa.destroy(grid);
         g.gpa.destroy(bd);
     }
 }

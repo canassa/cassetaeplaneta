@@ -119,7 +119,7 @@ fn keyDown(g: *Game, scene: *Scene, key: u16) i16 {
     switch (key) {
         VK_LEFT => {
             g.pieceKeyLeft = 1;
-            movement.stopMovingDc(g, p, bd);
+            movement.moverStopMoving(g, p, bd);
             p.mover.direction = 1;
             if (p.piece.column >= 0) p.mover.targetX +%= 0x20;
             movement.moveToEdgeH(g, p, bd, 1);
@@ -137,7 +137,7 @@ fn keyDown(g: *Game, scene: *Scene, key: u16) i16 {
         VK_RIGHT => {
             g.pieceKeyRight = 1;
             piece.calcRightCol(g, p, p.curStrip, p.curFrame);
-            movement.stopMovingDc(g, p, bd);
+            movement.moverStopMoving(g, p, bd);
             p.mover.direction = 2;
             if (p.piece.rightCol > 10) return 1;
             p.mover.targetX -%= 0x20;

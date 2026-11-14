@@ -24,7 +24,7 @@ fn put(p: *PiecePart, c: i16, r: i16, v: u8) void {
 /// `row` through `this`). 0 = blocked, the board untouched; an unknown kind
 /// or rotation returns 1 without touching anything.
 // @orig 1008:c41a te_piece_move_right
-pub fn moveRight(g: *Game, obj: *Object, rotation: i16, kind: i16) i16 {
+pub fn moveRight(g: *Game, obj: *Object, kind: i16, rotation: i16) i16 {
     _ = g;
     const p = &obj.piece;
     const c = p.column;
@@ -252,7 +252,7 @@ pub fn moveRight(g: *Game, obj: *Object, rotation: i16, kind: i16) i16 {
 /// writes its new left column; `g.fixes.encaixe_o_piece_moves_left_whole`
 /// writes it. 0 = blocked.
 // @orig 1008:ce8c te_piece_move_left
-pub fn moveLeft(g: *Game, obj: *Object, rotation: i16, kind: i16) i16 {
+pub fn moveLeft(g: *Game, obj: *Object, kind: i16, rotation: i16) i16 {
     const p = &obj.piece;
     const c = p.column;
     const r = p.row;
@@ -514,7 +514,7 @@ test "the sideways workers match the original on every kind and rotation" {
                             @memcpy(std.mem.asBytes(&o.piece.board), &b);
                             o.piece.column = col;
                             o.piece.row = row;
-                            const ret = if (left) moveLeft(g, &o, rot, kind) else moveRight(g, &o, rot, kind);
+                            const ret = if (left) moveLeft(g, &o, kind, rot) else moveRight(g, &o, kind, rot);
                             hash.update(&.{ @as(u8, @intCast(ret)), @as(u8, @truncate(@as(u16, @bitCast(o.piece.column)))) });
                             hash.update(std.mem.asBytes(&o.piece.board));
                         }
@@ -539,7 +539,7 @@ test "the O piece moving left loses its left column (E1), the flag keeps it" {
         o.piece.column = 4;
         o.piece.row = 5;
         for ([_][2]i16{ .{ 4, 5 }, .{ 4, 6 }, .{ 5, 5 }, .{ 5, 6 } }) |c| o.piece.cell(c[0], c[1]).* = '1';
-        try std.testing.expectEqual(@as(i16, 1), moveLeft(g, &o, 0, 5));
+        try std.testing.expectEqual(@as(i16, 1), moveLeft(g, &o, 5, 0));
         try std.testing.expectEqual(@as(i16, 3), o.piece.column);
         try std.testing.expectEqual(@as(u8, '1'), o.piece.cell(4, 5).*);
         try std.testing.expectEqual(@as(u8, '1'), o.piece.cell(4, 6).*);

@@ -79,7 +79,10 @@ pub fn ctor(g: *Game) *Game {
 // @orig 1008:8caa game_dtor
 /// Deletes the scene (its destructor body, then the block), the old scene
 /// if set, the player, the control panel, the status bar, then every
-/// global object.
+/// global object. The original only resets each object's vtable and frees
+/// the block, leaking the strips and pictures (the task's heap goes at
+/// exit); the port frees them too (`destroyObject`), for memory hygiene:
+/// nothing observable changes.
 pub fn dtor(g: *Game) void {
     if (g.scene) |s| destroyScene(g, s);
     if (g.oldScene) |s| destroyScene(g, s);
@@ -166,7 +169,7 @@ pub fn createInitScene(g: *Game, name: []const u8) ?*Scene {
 
 /// GameVtbl slot 03 createControlPanel: a TetrisPanel (`panel.bmp`).
 ///
-/// ENCAIXE bug (not in BUGS.md): the call pushes 11 words but `te_panel_ctor`
+/// BUGS.md E11: the call pushes 11 words but `te_panel_ctor`
 /// (RET 0x18) takes 12; the missing one is `unk10`, so every later argument
 /// is read one word off. As the callee sees them: unk10 = hasControlPanel,
 /// visible = 0x37, timerPeriod = 10, timerId = 0xf5, height = 0x78,

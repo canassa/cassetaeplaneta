@@ -110,8 +110,9 @@ fn moverPlaceAt(g: *Game, obj: *Object, x: i16, y: i16, bd: *Backdrop) void {
 }
 
 // @orig 1008:76f0 mover_step
-/// Advances the next position one Bresenham step towards the target.
-fn moverStep(obj: *Object) void {
+/// Advances the next position one Bresenham step towards the target (also
+/// called directly by `piece.moveTick`).
+pub fn moverStep(obj: *Object) void {
     const m = &obj.mover;
     var e = m.lineErr;
     if (m.errIncX == 0) {
@@ -299,8 +300,9 @@ fn moverMoveToEdgeH(g: *Game, obj: *Object, bd: *Backdrop, dir: i16) void {
 
 // @orig 1008:7c50 mover_stop_moving
 /// Mover's stopMoving (GetDC, stopMovingDc, ReleaseDC). The piece overrides
-/// slot 35, so nothing reaches this; kept for the unit's completeness.
-fn moverStopMoving(g: *Game, obj: *Object, bd: *Backdrop) void {
+/// slot 35, but te_scene_handle_message calls this one directly (the
+/// left/right keys).
+pub fn moverStopMoving(g: *Game, obj: *Object, bd: *Backdrop) void {
     stopMovingDc(g, obj, bd);
 }
 

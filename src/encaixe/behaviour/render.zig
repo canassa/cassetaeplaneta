@@ -200,7 +200,7 @@ fn moverDrawDirtyTo(g: *Game, obj: *Object, dst_hdr: *const BitmapInfoHeader, ds
 pub fn draw(g: *Game, obj: *Object, bd: *Backdrop) void {
     switch (obj.kind) {
         .piece => tePieceDraw(g, obj, bd),
-        .control_panel => if (@hasDecl(panels, "draw")) panels.draw(g, obj, bd) else @panic("encaixe.panels.draw missing"),
+        .control_panel => panels.draw(g, obj, bd),
         .status_bar => soDraw(g, obj, bd),
     }
 }
