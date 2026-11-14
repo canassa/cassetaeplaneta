@@ -46,7 +46,8 @@
 //!
 //! A minigame run alone (`--minigame encaixe`) takes the input, `dump`,
 //! `log`, `focus`, `freeze`, `result` and `quit` commands; the others need
-//! NOITE.
+//! NOITE. Once it has quit, its remaining `result` and `log` lines still
+//! run.
 //!
 //! Mouse commands keep track of the buttons held, as `wParam` (MK_*).
 

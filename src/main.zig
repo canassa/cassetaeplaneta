@@ -312,7 +312,9 @@ fn runAlone(gpa: std.mem.Allocator, prog: *const platform.host.Program, hs: *pla
         if (stop_at) |limit| due = if (due) |d| @min(d, limit) else limit;
         plat.wait(due);
     }
+    const ended = prog.quit(ctx);
     prog.exit(ctx);
+    if (ended and !quit) hn.finishAlone(hs);
     for (hs.results.items) |r| std.debug.print("[{d}] {s}: {s}, score {d}\n", .{ r.at, prog.name, if (r.won) "won" else "lost", r.score });
     if (hn.failed or hn.script.timed_out) {
         std.log.err("an expect of the input script failed", .{});

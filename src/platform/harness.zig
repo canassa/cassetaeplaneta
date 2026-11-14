@@ -225,6 +225,19 @@ pub const Harness = struct {
         return did;
     }
 
+    /// After a minigame run alone has quit: the script's remaining
+    /// `result`, `log` and `quit` lines still run (their time is not
+    /// waited for); input, dumps and the rest have no window left.
+    pub fn finishAlone(h: *Harness, hs: *Host) void {
+        const now = hs.machine.ticks();
+        while (h.script.due(std.math.maxInt(u32) / 2, "")) |a| switch (a) {
+            .log => |text| std.debug.print("[{d}] log: {s}\n", .{ now, text }),
+            .result => |r| h.checkResult(now, r),
+            .quit => return,
+            else => {},
+        };
+    }
+
     pub fn noteScene(h: *Harness, g: *Game) void {
         const s = g.scene orelse return;
         if (std.mem.eql(u8, &s.name, &h.last_scene)) return;
