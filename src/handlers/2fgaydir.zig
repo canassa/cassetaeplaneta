@@ -1,7 +1,8 @@
 //! Port unit `handler_2fgaydir` (handler). scene handler 1020:5a90.
 //!
-//! The gay club. The host (`sgayf`) makes a speech when the scene starts;
-//! the club people (`sgayc`/`sgayd`, the waiter `suaboy`, the shaver `sshav`)
+//! A car ride in the same Beetle as 2fshardi (the "gay driver", by the
+//! `-dir` naming of the car routes). The driver (`sgayf`) makes a speech when
+//! the scene starts; the other figures (`sgayc`/`sgayd`, `suaboy`, `sshav`)
 //! are the drop targets for inventory items. Items dropped on them get a
 //! WAVE reply from the INI and come back to the inventory; the third wrong
 //! offer plays a special reaction, the fourth (or five seconds with an empty
@@ -36,8 +37,8 @@ const sound = @import("../sound.zig");
 const update_list = @import("../update_list.zig");
 
 // INI object numbers (`[2fgaydir]` Number=).
-const SGAYC_ID: u16 = 0x0e; // club people: reaction animation
-const SGAYD_ID: u16 = 0x0f; // club people: frame holder (0 / 1 / 2)
+const SGAYC_ID: u16 = 0x0e; // passengers: reaction animation
+const SGAYD_ID: u16 = 0x0f; // passengers: frame holder (0 / 1 / 2)
 const SGAYF_ID: u16 = 0x10; // host
 const SGAYA_ID: u16 = 0x22;
 const MOVS_ID: u16 = 0x23;
