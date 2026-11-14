@@ -167,6 +167,10 @@ pub const Fixes = struct {
     /// prison's hammer, the one item `jogo0` does not name, is back in the
     /// prison and not still carried, consumed or dropped elsewhere.
     new_game_resets_items: bool = false,
+    /// B51: the bible (`Portable=48`) is drawn in the scenes with the disc's
+    /// `1obibli0` picture; the one its INI line names does not exist, so a
+    /// dropped bible is invisible.
+    bible_scene_image: bool = false,
     /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"):
     /// while an inventory item is dragged out of the control panel (right
     /// button held), its panel icon follows the pointer. The original shows

@@ -267,6 +267,13 @@ fn lowerInPlace(s: []u8) void {
     }
 }
 
+/// BUGS.md B51: `Portable=48` names `p\1pbibli`, so its scene picture is
+/// `p\1pbibli0.bmp`, which is not on the disc (only the icon,
+/// `1pbibli2.bmp`, is); the 58x21 picture its line describes is
+/// `p\1obibli0.bmp`, which nothing loads.
+const bible_ini_name = "p\\1pbibli";
+const bible_scene_image = "p\\1obibli0.bmp";
+
 /// One `Portable=` / `ZoomPort=` item of the game INI (the record is
 /// already parsed): constructs the portable (added to the global objects
 /// by its constructor), sets its scores, 3D box and elevation, and its
@@ -275,7 +282,12 @@ fn createPortable(g: *Game, zoom: bool) void {
     const r = &g.ini.rec;
     var small_path: [256]u8 = @splat(0);
     if (zoom) cstr.copy(&small_path, ini.assetPath(&g.ini, &g.driveCD, &g.driveHD, &r.smallBmpName, 2));
-    const bmp = ini.assetPath(&g.ini, &g.driveCD, &g.driveHD, &r.bmpName, 0);
+    var bmp = ini.assetPath(&g.ini, &g.driveCD, &g.driveHD, &r.bmpName, 0);
+    // BUGS.md B51: the bible's scene picture is `1obibli0`, not the missing `1pbibli0`.
+    var bible_path: [256]u8 = undefined;
+    if (g.fixes.bible_scene_image and std.ascii.eqlIgnoreCase(cstr.slice(&r.bmpName), bible_ini_name)) {
+        bmp = cstr.print(&bible_path, "{s}{s}", .{ cstr.slice(&g.driveCD), bible_scene_image });
+    }
     const obj = g.gpa.create(Object) catch @panic("game_scenes: out of memory");
     g.livePortables.append(g.gpa, obj) catch {}; // port bookkeeping (Game.livePortables)
     lowerInPlace(&r.portScene);

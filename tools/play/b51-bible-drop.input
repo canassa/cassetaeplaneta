@@ -1,0 +1,17 @@
+# BUGS.md B51: the bible (Portable=48) has no scene picture on the disc, so
+# once dropped it is invisible. In the kitchen it is dragged out of the panel
+# and released over the floor; it falls to (491,350), the panel closes and
+# the bible must show there, then a tap picks it up again.
+#
+#   zig-out/bin/noite --headless --ms 20000 --one-button --scene 1fcozin0 --take 48 --fix all --input tools/play/b51-bible-drop.input
+#
+# Passes with `--fix all` (or `--fix bible_scene_image`); the Original fails
+# the first `drawn` (the bible lies there undrawn, still clickable).
+1000 offer 0 520 250
+4000 move 300 100
+6000 where 48
++0 drawn 48 1
++0 click 515 360
++3000 where 48
++0 drawn 48 0
++0 quit

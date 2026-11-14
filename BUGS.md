@@ -802,6 +802,24 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   on towards an arrow still held after the release.
 - **Confidence:** 9 (code, port repro).
 
+### B51. The bible is invisible wherever it lies (its scene picture is not on the disc)
+- **Where:** `CASSETA.INI` `Portable=48,1fcorred ,314,319,p\1pbibli ,58,21,…`; `ini_game_init` 1018:3e46 builds
+  the scene picture's path with `ini_asset_path(name, 0)` 1018:9d4e (`p\1pbibli0.bmp`) and the icon's with
+  kind 2 (`p\1pbibli2.bmp`); `portable_ctor` 1010:6e2c → `moveable_ctor_bitmap` 1010:384a → `mover_ctor_strips`
+  1010:2836 → `scene_object_init_strips` loads it with `load_dib` 1010:041c (then `pan\bmp\1pbibli0.bmp`), with
+  no error box when both fail; `mover_draw_dirty_to` 1010:b8a0 skips a strip whose DIB is null (b8d0).
+- **What the code does:** neither `P\1PBIBLI0.BMP` nor `PAN\BMP\1PBIBLI0.BMP` exists (the only portable picture
+  of the INI that is missing), so the bible's strip has no bitmap: it is placed, falls, is hit-tested and drawn
+  as usual, but nothing is drawn. The disc's `P\1OBIBLI0.BMP` (and its twin `1OBIBLI2.BMP`) is the 58×21
+  picture the line describes, a bible lying flat with "Bíblia" on its spine; nothing loads it.
+- **Effect:** the bible never shows in a scene: not at home on the corridor table's shelf, and not where it is
+  dropped or offered. Dropped, it disappears; a click on the empty spot still picks it up.
+- **Port:** reproduced; `Fixes.bible_scene_image` loads `p\1obibli0.bmp` as its scene picture
+  (`game_scenes.createPortable`), so it also shows on the corridor shelf, on top of the books.
+  `tools/play/b51-bible-drop.input` (`--one-button --scene 1fcozin0 --take 48`) drops it in the kitchen and
+  checks it is drawn.
+- **Confidence:** 9 (disc listing, code, port repro).
+
 ---
 
 ## Harmless: wrong paths rescued by the wave fallback
