@@ -167,22 +167,16 @@ pub fn createInitScene(g: *Game, name: []const u8) ?*Scene {
     return s;
 }
 
-/// GameVtbl slot 03 createControlPanel: a TetrisPanel (`panel.bmp`).
-///
-/// BUGS.md E11: the call pushes 11 words but `te_panel_ctor`
-/// (RET 0x18) takes 12; the missing one is `unk10`, so every later argument
-/// is read one word off. As the callee sees them: unk10 = hasControlPanel,
-/// visible = 0x37, timerPeriod = 10, timerId = 0xf5, height = 0x78,
-/// width = 1, count = 0x940, bmpName = DGROUP:0x20 ("eito", the tail of
-/// the window title: no such file, so no picture), y = 4, x = the caller's
-/// saved SI (not reproducible: 0). The panel is never shown (the scene has
-/// none), so none of it is visible; reproduced as the original runs it.
+/// GameVtbl slot 03 createControlPanel: a TetrisPanel at (4, 32), one
+/// 120 x 245 strip from `panel.bmp`, timer id 10 with a 55 ms period,
+/// `unk10` 0, visible as the scene says (never: the Tetris scene has no
+/// panel, so it is never shown or drawn).
 // @orig 1008:9f64 te_game_create_control_panel
 pub fn createControlPanel(g: *Game) ?*Object {
     const obj = g.gpa.create(Object) catch return null;
     obj.* = .{ .kind = .control_panel };
-    const has: u16 = @intFromBool(g.scene.?.hasControlPanel != 0);
-    object_create.tePanelCtor(g, obj, 0, 4, "eito", 0x940, 1, 0x78, 0xf5, 0x0a, 0x37, has, true) catch |e| @panic(@errorName(e));
+    const visible: i16 = @intFromBool(g.scene.?.hasControlPanel != 0);
+    object_create.tePanelCtor(g, obj, 4, 0x20, "panel.bmp", 1, 0x78, 0xf5, 0x0a, 0x37, visible, 0, true) catch |e| @panic(@errorName(e));
     return obj;
 }
 
@@ -376,7 +370,9 @@ test "createStatusBar and createPlayer load their pictures from the disc" {
     try testing.expect(p.curStrip >= 0 and p.curStrip < 6);
     try testing.expectEqual(@as(i16, 8), p.mover.direction);
     const cp = createControlPanel(g).?;
-    try testing.expect(cp.frames[0].dib == null);
+    try testing.expect(cp.frames[0].dib != null);
+    try testing.expectEqual(@as(i16, 4), cp.x);
+    try testing.expectEqual(@as(i16, 0x20), cp.y);
     g.controlPanel = cp;
     dtor(g);
 }

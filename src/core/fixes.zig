@@ -181,7 +181,7 @@ pub const Fixes = struct {
     /// a dropped item's fall is drawn in 2-row frames between its 10-row
     /// steps (same steps, same end, same timing).
     smooth_item_fall: bool = false,
-    // ---- ENCAIXE.EXE (BUGS.md E1–E12). The src/encaixe/ units port each
+    // ---- ENCAIXE.EXE (BUGS.md E1–E11). The src/encaixe/ units port each
     // bug as it is and keep the fix only behind its flag. ----
     /// E1: the O piece moving left writes its new left column into the
     /// board (the cells match the sprite).
@@ -210,7 +210,7 @@ pub const Fixes = struct {
     /// E9: the occupancy-grid walls close the 11×14 board's box (nothing
     /// visible: the moves test the board).
     encaixe_grid_walls_match_board: bool = false,
-    /// E12: a new piece starts with its previous position at its spawn
+    /// E11: a new piece starts with its previous position at its spawn
     /// point, so rotations before its first fall step erase its whole frame
     /// (no leftover rotations drawn at the top; drawing only).
     encaixe_spawn_syncs_previous_position: bool = false,

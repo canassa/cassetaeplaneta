@@ -1148,20 +1148,7 @@ Addresses are Ghidra `seg:off` in `/ENCAIXE.EXE`; the game is described in `docs
 - **Port:** reproduced (unit `piece`, src/encaixe/), with the dead branches kept; no flag (nothing to fix once E2
   is fixed).
 
-### E11. `te_game_create_control_panel` passes one argument too few to `te_panel_ctor`
-- **Where:** `te_game_create_control_panel` 1008:9f64, calling `te_panel_ctor` 1008:a59e.
-- **What the code does:** it pushes 11 words but the constructor (`RET 0x18`) takes 12: `unk10` is missing, so
-  every later parameter is read one word off. The constructor sees `unk10` = the scene's `hasControlPanel` (0),
-  `visible` = 0x37, timer period 10, timer id 0xf5, height 0x78, width 1, frame count 0x940, `bmpName` =
-  DGROUP 0x20 (`"eito"`, the tail of the window title: no such file, no picture), y = 4 and x = the caller's
-  saved SI. The constructor pops the extra word; the caller's `LEAVE` restores its stack.
-- **Effect:** none visible. The panel is created and attached but never shown or drawn: `game_init` shows it and
-  the paint draws it only when the scene has a control panel (the Tetris scene has none), and nothing links it to
-  the piece. Its frame-cell array takes 0x940 × 8 bytes of the local heap instead of 8.
-- **Confidence:** 9 (code); 8 (effect).
-- **Port:** reproduced (unit `game`, src/encaixe/; x is taken as 0); no flag, nothing to fix.
-
-### E12. Rotations of a new piece before its first fall step leave the earlier rotations drawn
+### E11. Rotations of a new piece before its first fall step leave the earlier rotations drawn
 - **Where:** `te_piece_on_landed` 1008:ba20 (the next piece), with `te_piece_restore_background` 1008:c304.
 - **What the code does:** the landing's `te_piece_stop_moving_dc` 1008:bbd8 sets `Mover.prevX/prevY` (+0x12/+0x14)
   to where the piece landed; `te_piece_on_landed` then puts the next piece at x 160, y 0 without touching them.

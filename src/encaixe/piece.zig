@@ -8,7 +8,7 @@
 //!
 //! BUGS.md: E3 (an unknown kind leaves `bottomRow` uninitialised), E6 (a
 //! loss does not stop the landing), E7 (the speed-up is only tested after
-//! the whole landing), E12 (the next piece keeps the landed one's previous
+//! the whole landing), E11 (the next piece keeps the landed one's previous
 //! position); fixes behind `g.fixes.encaixe_*`. One more quirk not
 //! in BUGS.md: `te_piece_clear_row` stops its shift at row 1, so row 0 is
 //! never rewritten (its '0' branch and the `dib_copy_transparent` one are
@@ -192,7 +192,7 @@ pub fn onLanded(g: *Game, obj: *Object, bd: *Backdrop, kind: i16, rotation: i16)
     movement.moveToEdgeV(g, p, bd, 8);
     g.piece.?.y = 0;
     g.piece.?.mover.targetY = 0;
-    // E12: the original leaves the previous position where the last piece
+    // E11: the original leaves the previous position where the last piece
     // landed, and the erase of the rotations before the first fall step
     // starts there (te_piece_restore_background).
     if (g.fixes.encaixe_spawn_syncs_previous_position) {
@@ -552,7 +552,7 @@ fn spawnEraseLeftovers(g: *Game) !usize {
 }
 
 // @orig 1008:ba20 te_piece_on_landed oracle=documented
-test "E12: the next piece's first erase misses its frame right of x 192 unless fixed" {
+test "E11: the next piece's first erase misses its frame right of x 192 unless fixed" {
     var t = try TestGame.init(std.testing.allocator);
     defer t.deinit();
     const g = t.game;

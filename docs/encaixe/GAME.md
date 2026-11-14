@@ -33,8 +33,7 @@ the disc). `WAVEMIX.DLL` sits next to the EXE.
      `open doom2.mid type sequencer alias musica` and `play musica notify`; `wave_mix_init`;
      `tetris2.wav` into `g_tetrisWave`; `te_draw_score` and `te_blit_score_box`;
    - the status bar and the TetrisPanel are created and attached but stay hidden (the
-     panel's attach is where `AddFontResource("arialbd.fot")` runs; the panel's constructor
-     gets its arguments one word off, BUGS E11);
+     panel's attach is where `AddFontResource("arialbd.fot")` runs);
    - `te_game_create_player`: the Piece (`g_piece`, a Player2D: step 32×32 px, timer id 12,
      period 200 ms, start x 160), `srand(time(NULL))`, first kind `rand() % 6`;
    - `PostMessage(hwnd, 0x401)`, ignored.
