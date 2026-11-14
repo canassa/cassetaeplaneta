@@ -1692,7 +1692,8 @@ Harmless, the last kill's speed-up) and `WM_QUIT` comes first.
 - **Effect:** holding SPACE fires again as soon as the shot has landed, on every auto-repeat: a held
   key is an automatic gun.
 - **Confidence:** 9 (code); 8 (effect, depends on the keyboard repeat rate).
-- **Port:** not ported yet.
+- **Port:** not ported yet (`src/inv/`); the fix will be `Fixes.inv_space_latch` (`--fix
+  inv_space_latch`, on in the Corrigida version).
 
 ### I2. A direction key during the cannon's explosion cuts it short and lets the cannon fire
 - **Where:** `inv_scene_handle_message`, the cannon branch of `WM_SYSTIMER` (isRunning 1068:220b,
@@ -1705,7 +1706,9 @@ Harmless, the last kill's speed-up) and `WM_QUIT` comes first.
 - **Effect:** the cannon drives on showing the frozen explosion frame, and with `hitFrame` −1 the
   fire gate lets it shoot; the explosion resumes from its start only when the cannon stops.
 - **Confidence:** 9 (code); 7 (that the explosion was meant to hold the cannon).
-- **Port:** not ported yet.
+- **Port:** not ported yet (`src/inv/`); the fix will be `Fixes.inv_explosion_holds_cannon`
+  (`--fix inv_explosion_holds_cannon`, on in the Corrigida version: the cannon stays put for the
+  whole explosion).
 
 ### Harmless (INV)
 
