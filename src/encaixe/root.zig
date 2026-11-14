@@ -19,7 +19,7 @@ const Game = core.game.Game;
 /// Every unit ported and the game checked (the last step of the port,
 /// docs/encaixe/DESIGN.md "Finishing"): only then does NOITE's WinExec run
 /// it instead of the stub, and `--minigame encaixe` play it.
-pub const ready = false;
+pub const ready = true;
 
 /// The window class and caption FindWindow looks for (DGROUP 1018:0014).
 pub const title = "Encaixe Perfeito";

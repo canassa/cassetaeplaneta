@@ -21,6 +21,8 @@ sources, merged:
 
 Plus the files the engine opens by fixed name (CASSETA.INI, CASSETUP.INI,
 JOGO0-5.INI and the save slots HD\\JOGO0-5.INI, MSSVGA\\VGASYS.FON).
+A ported minigame's names (src/encaixe/) are also looked for in its EXE's
+directory (ENCAIXE\\), as the host does.
 """
 
 import argparse
@@ -32,6 +34,8 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 ASSETS = ROOT / "assets"
 OUT = ROOT / "tools" / "web" / "files.txt"
 FIXED = ["CASSETA.INI", "CASSETUP.INI", "MSSVGA/VGASYS.FON"] + [f"{d}JOGO{i}.INI" for d in ("", "HD/") for i in range(6)]
+# The ported minigames: src/<name>/, their EXE in <NAME>/ on the disc.
+MINIGAMES = {"encaixe"}
 # Sprite and icon frames: `<name><N>.bmp`.
 MAX_FRAME = 200
 
@@ -80,7 +84,7 @@ def chains(token):
         out.append([t, f"pan/wav/{f}.wav"])
     elif ext == "avi":
         out.append([f"hd/{f}.avi", t, f"pan/avi/{f}.avi"])
-    elif ext not in ("exe", "dll"):  # WinExec: the minigames are stubbed
+    elif ext not in ("exe", "dll"):  # WinExec: a stub, or a ported minigame's code
         out.append([t])
     return out
 
@@ -101,13 +105,22 @@ def ini_tokens():
 
 
 def source_tokens():
+    """(name, program directory) for each path literal of the port. A
+    ported minigame's names (src/<name>/) are relative to its EXE's
+    directory, which the host searches after the disc root."""
     lit = re.compile(r'"((?:[^"\\]|\\.)*)"')
     for p in (ROOT / "src").rglob("*.zig"):
+        rel = p.relative_to(ROOT / "src").parts
+        prog = rel[0] if rel[0] in MINIGAMES else None
         for m in lit.finditer(p.read_text(encoding="utf-8")):
             s = m.group(1).replace("\\\\", "\\")
+            # An MCI command's file (`open doom2.mid type sequencer …`).
+            mci = re.match(r"open (\S+\.[A-Za-z0-9]{3}) ", s)
+            if mci:
+                yield mci.group(1), prog
             # A path the engine opens: has a directory or a file extension.
-            if re.fullmatch(r"[A-Za-z0-9_\\.: ]+", s) and ("\\" in s or re.search(r"\.[A-Za-z0-9]{3}$", s)):
-                yield s
+            elif re.fullmatch(r"[A-Za-z0-9_\\.: ]+", s) and ("\\" in s or re.search(r"\.[A-Za-z0-9]{3}$", s)):
+                yield s, prog
 
 
 def traced(paths):
@@ -138,8 +151,10 @@ def main():
     args = ap.parse_args()
     idx = disc_index()
     static = set()
-    for tok in list(ini_tokens()) + list(source_tokens()):
+    for tok, prog in [(t, None) for t in ini_tokens()] + list(source_tokens()):
         for chain in chains(tok):
+            if prog:
+                chain = chain + [f"{prog}/{c}" for c in chain]
             for cand in chain:
                 if cand in idx:
                     static.add(cand)
