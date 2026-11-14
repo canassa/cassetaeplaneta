@@ -1,20 +1,39 @@
-// Far-model vtable slot signatures and virtual-call overrides (TIRO, medium model).
+// Far-model vtable slot signatures and virtual-call overrides: the medium-model builds (TIRO and
+// its twins, the default) and the large-model builds (INFERNO, JARDIM, SAUNA) with `large`.
 //
 // defs  : rewrite every slot FunctionDefinition (<Vtbl>_<field>Fn) from the current prototype
 //         of the slot's target: the first table of that vtable struct (address order) whose
-//         target is not _purecall; adjustor thunks are followed to their JMPF target.
-// calls : for every indirect CALLF [reg+k] that the decompiler resolves to a vtable slot, write
-//         a call-site signature override with the slot's FunctionDefinition. The far slot is
-//         read as two 16-bit loads, so the decompiler never applies the field's prototype by
-//         itself ("Load size is inaccurate") and falls back to the near default model, which
-//         takes the pushed CS for an extra first argument. The slot is found from the type of
-//         the loaded address, of the vptr, or (vbase calls) from the vbtable entry that adjusts
-//         `this`: +2 = SceneObjectVtbl, +4 = Object3DVtbl.
+//         target is not _purecall; adjustor thunks are followed to their JMPF target. `this` is
+//         the vtable's own class: a 2-byte pointer, 4 bytes with `large`.
+// calls : for every indirect CALLF [reg+k] that resolves to a vtable slot, write a call-site
+//         signature override with the slot's FunctionDefinition. The far slot is read as two
+//         16-bit loads, so the decompiler never applies the field's prototype by itself ("Load
+//         size is inaccurate") and falls back to the near default model, which takes the pushed
+//         CS for an extra first argument.
+//         Medium model (near `this`, near vbptr): the slot is found from the type of the loaded
+//         address, of the vptr, or (vbase calls) from the vbtable entry that adjusts `this`:
+//         +2 = SceneObjectVtbl, +4 = Object3DVtbl.
+//         Large model (`large`: far `this`, far vptr and vbptr; a call is LES BX,[obj];
+//         LES BX,ES:[BX+d]; CALLF ES:[BX+k], `this` pushed last as two words; only CALLF [BX+k]
+//         sites are taken): a vbase call is read from the listing, LES BX,ES:[BX+SI+d] after
+//         MOV SI,ES:[BX+e], or LES BX,ES:[BX+d] after MOV BX,ES:[BX+e]; ADD BX,<this> (e = 2
+//         SceneObjectVtbl, 4 Object3DVtbl); a direct call from the
+//         decompiler's type of the vptr, of its 4-byte load, or of the object it is read from (a
+//         class whose offset-0 field is the vptr); failing those, a slot at or past the end of
+//         every other Vtbl struct can only be SceneObjectVtbl's. (Ghidra drops the ES: prefix
+//         of the CALLF, so the slot load reads as DS:[BX+k]; the override does not care.)
+//         Calls on untyped objects are left for `site`.
 // An override with an odd number of argument words goes on __stdcall16far_pop<n> (exact
 // extrapop; see override()).
 // site  : the same override for listed sites (<addr>=<Vtbl>, the slot from the CALLF operand; or
 //         <addr>=/path/FnDef for a call through a function-pointer global).
-// Args: <vtblSegment> defs|calls [dry], or <vtblSegment> site <addr>=<Vtbl> ...
+// Args: <vtblSegment> defs|calls [dry] [large], or <vtblSegment> site [large] <addr>=<Vtbl> ...
+//   TIRO, SALGIN, XILINDRO, SERIAL, INV (tables in DGROUP 1090): 1090 defs, then 1090 calls.
+//   INFERNO (tables in the code segment 1080): 1080 defs large, then 1080 calls large, then
+//   1080 site large <addr>=<Vtbl> ... for the calls left unresolved (read each one first).
+//   JARDIM, SAUNA: the same with their table segments (10c0, 10a0).
+//   `dry` changes nothing: defs prints the new prototypes, calls each unresolved site and the
+//   counts. Run defs before calls (an override copies the definition as it is then).
 //@category Noite
 import ghidra.app.script.GhidraScript;
 import ghidra.app.decompiler.*;
@@ -28,6 +47,10 @@ import java.util.*;
 
 public class FarSlotSignatures extends GhidraScript {
 	boolean dry;
+	// large model: far `this`, vptr and vbptr
+	boolean large;
+	// large: a slot offset at or past this is SceneObjectVtbl's (set in calls())
+	int soOnly = Integer.MAX_VALUE;
 	DataTypeManager dtm;
 	// category of the class and vtable structs: /tiro, or (another twin built from TIRO's sources)
 	// the category that holds SceneObjectVtbl
@@ -37,7 +60,10 @@ public class FarSlotSignatures extends GhidraScript {
 		String[] a = getScriptArgs();
 		String seg = a[0];
 		String mode = a[1];
-		dry = a.length > 2 && a[2].equals("dry");
+		for (int i = 2; i < a.length; i++) {
+			if (a[i].equals("dry")) dry = true;
+			if (a[i].equals("large")) large = true;
+		}
 		dtm = currentProgram.getDataTypeManager();
 		if (dtm.getCategory(new CategoryPath("/tiro")) == null) {
 			List<DataType> l = new ArrayList<>();
@@ -52,6 +78,7 @@ public class FarSlotSignatures extends GhidraScript {
 	// site <addr>=<Vtbl> ...: overrides for the calls the decompiler cannot type, checked by hand
 	void sites(String[] a) throws Exception {
 		for (int i = 2; i < a.length; i++) {
+			if (!a[i].contains("=")) continue;
 			String[] kv = a[i].split("=");
 			Instruction in = getInstructionAt(toAddr(kv[0]));
 			int k = 0;
@@ -150,7 +177,7 @@ public class FarSlotSignatures extends GhidraScript {
 			// `this` is the vtable's own class
 			DataType cls = dtm.getDataType(cat + owner.get(fd));
 			if (ps.length > 0 && cls != null && !owner.get(fd).equals("Object3D"))
-				pd[0] = new ParameterDefinitionImpl("this", new PointerDataType(cls, 2, dtm), null);
+				pd[0] = new ParameterDefinitionImpl("this", new PointerDataType(cls, large ? 4 : 2, dtm), null);
 			String before = fd.getPrototypeString(true);
 			if (!dry) {
 				fd.setArguments(pd);
@@ -264,7 +291,152 @@ public class FarSlotSignatures extends GhidraScript {
 		return k >= 0x50 ? fieldOf("SceneObjectVtbl", k) : null;
 	}
 
+	// ---- large model ----
+
+	// the Vtbl struct a type leads to: a vptr, a pointer to a vptr field, or a pointer to a class
+	// whose offset-0 field is (or starts with) the vptr
+	Structure vtblOf(DataType t) {
+		if (t instanceof TypeDef td) t = td.getBaseDataType();
+		if (!(t instanceof Pointer p)) return null;
+		DataType s = p.getDataType();
+		if (s instanceof TypeDef td) s = td.getBaseDataType();
+		if (s instanceof Structure st && st.getName().endsWith("Vtbl")) return st;
+		if (s instanceof Pointer) return vtblOf(s);
+		for (int depth = 0; depth < 8 && s instanceof Structure st; depth++) {
+			DataTypeComponent c = st.getComponentAt(0);
+			if (c == null || c.getLength() == 0) return null;
+			DataType ct = c.getDataType();
+			if (ct instanceof TypeDef td) ct = td.getBaseDataType();
+			if (ct instanceof Pointer) return vtblOf(ct);
+			s = ct;
+		}
+		return null;
+	}
+
+	FunctionDefinition slotIn(Structure st, int k) {
+		if (st == null) return null;
+		DataTypeComponent c = st.getComponentAt(k);
+		if (c == null || c.getOffset() != k) return null;
+		if (c.getDataType() instanceof Pointer q && q.getDataType() instanceof FunctionDefinition fd) return fd;
+		return null;
+	}
+
+	// the type of v, else of what v is a copy, cast or seg:off of (the same address)
+	Structure typedVtbl(Varnode v) {
+		for (int i = 0; i < 6 && v != null; i++) {
+			if (v.getHigh() != null) {
+				Structure st = vtblOf(v.getHigh().getDataType());
+				if (st != null) return st;
+			}
+			PcodeOp op = v.getDef();
+			if (op == null) return null;
+			int oc = op.getOpcode();
+			if (oc == PcodeOp.COPY || oc == PcodeOp.CAST) v = op.getInput(0);
+			else if (oc == PcodeOp.SEGMENTOP) v = op.getInput(op.getNumInputs() - 1);
+			else if (oc == PcodeOp.PTRSUB && op.getInput(1).isConstant() && op.getInput(1).getOffset() == 0) v = op.getInput(0);
+			else return null;
+		}
+		return null;
+	}
+
+	// through copies, casts, seg:off and the offset half of a far pointer
+	Varnode strip(Varnode v) {
+		for (int i = 0; i < 8 && v != null; i++) {
+			PcodeOp op = v.getDef();
+			if (op == null) return v;
+			int oc = op.getOpcode();
+			if (oc == PcodeOp.COPY || oc == PcodeOp.CAST) v = op.getInput(0);
+			else if (oc == PcodeOp.SUBPIECE && op.getInput(1).getOffset() == 0) v = op.getInput(0);
+			else if (oc == PcodeOp.SEGMENTOP) v = op.getInput(op.getNumInputs() - 1);
+			else if ((oc == PcodeOp.PTRADD || oc == PcodeOp.PTRSUB) && op.getInput(1).isConstant() && op.getInput(1).getOffset() == 0) v = op.getInput(0);
+			else return v;
+		}
+		return v;
+	}
+
+	boolean writes(Instruction in, String reg) {
+		for (Object o : in.getResultObjects())
+			if (o instanceof ghidra.program.model.lang.Register r && r.getName().equals(reg)) return true;
+		return false;
+	}
+
+	boolean uses(Instruction in, int op, String reg) {
+		for (Object o : in.getOpObjects(op))
+			if (o instanceof ghidra.program.model.lang.Register r && r.getName().equals(reg)) return true;
+		return false;
+	}
+
+	// vbase call: BX was last set by LES BX,ES:[BX+SI+d] with SI from MOV SI,ES:[BX+e], or by
+	// LES BX,ES:[BX+d] after ADD BX,<this> and MOV BX,ES:[BX+e]; e is the vbtable entry of the
+	// virtual base
+	FunctionDefinition vbaseLarge(Instruction call, int k) {
+		Instruction p = lastWrite(call, "BX", 6);
+		if (p == null || !p.getMnemonicString().equals("LES") || !uses(p, 1, "BX")) return null;
+		Instruction q;
+		if (uses(p, 1, "SI")) q = lastWrite(p, "SI", 8);
+		else {
+			Instruction add = lastWrite(p, "BX", 4);
+			if (add == null || !add.getMnemonicString().equals("ADD")) return null;
+			q = lastWrite(add, "BX", 4);
+		}
+		if (q == null || !q.getMnemonicString().equals("MOV") || !uses(q, 1, "BX")) return null;
+		long e = 0;
+		for (Object x : q.getOpObjects(1)) if (x instanceof Scalar s) e = s.getSignedValue();
+		if (e == 2) return fieldOf("SceneObjectVtbl", k);
+		if (e == 4) return fieldOf("Object3DVtbl", k);
+		return null;
+	}
+
+	// the closest instruction before `in` (at most n back) that writes reg
+	Instruction lastWrite(Instruction in, String reg, int n) {
+		Instruction p = in.getPrevious();
+		for (int i = 0; i < n && p != null; i++, p = p.getPrevious()) if (writes(p, reg)) return p;
+		return null;
+	}
+
+	FunctionDefinition findLarge(Instruction in, PcodeOp call, int k) {
+		FunctionDefinition fd = vbaseLarge(in, k);
+		if (fd != null) return fd;
+		if (call == null) return null;
+		// target = SEGMENTOP(LOAD(slot+2), LOAD(slot)), slot = SEGMENTOP(ES, vptr+k)
+		PcodeOp t = call.getInput(0).getDef();
+		if (t == null || t.getOpcode() != PcodeOp.SEGMENTOP) return null;
+		PcodeOp offLoad = strip(t.getInput(t.getNumInputs() - 1)).getDef();
+		if (offLoad == null || offLoad.getOpcode() != PcodeOp.LOAD) return null;
+		Varnode slot = offLoad.getInput(1);
+		if (slot.getHigh() != null && slot.getHigh().getDataType() instanceof Pointer p
+				&& p.getDataType() instanceof Pointer pp && pp.getDataType() instanceof FunctionDefinition f) return f;
+		Varnode a = strip(slot);
+		PcodeOp ad = a.getDef();
+		Varnode vptr = a;
+		if (ad != null && (ad.getOpcode() == PcodeOp.INT_ADD || ad.getOpcode() == PcodeOp.PTRADD || ad.getOpcode() == PcodeOp.PTRSUB)) {
+			long c = -1;
+			Varnode base = null;
+			for (Varnode x : ad.getInputs()) if (x.isConstant()) c = x.getOffset(); else base = x;
+			if (base == null || (c != k && ad.getOpcode() != PcodeOp.PTRSUB)) return null;
+			vptr = base;
+		} else if (k != 0) return null;
+		Structure st = typedVtbl(vptr);
+		if (st == null) {
+			PcodeOp vl = strip(vptr).getDef();
+			if (vl != null && vl.getOpcode() == PcodeOp.LOAD) {
+				st = typedVtbl(vl.getOutput());
+				if (st == null) st = typedVtbl(vl.getInput(1));
+			}
+		}
+		if (st != null) return slotIn(st, k);
+		return k >= soOnly ? fieldOf("SceneObjectVtbl", k) : null;
+	}
+
 	void calls() throws Exception {
+		if (large) {
+			int end = 0;
+			for (Iterator<Structure> it = dtm.getAllStructures(); it.hasNext();) {
+				Structure st = it.next();
+				if (st.getName().endsWith("Vtbl") && !st.getName().equals("SceneObjectVtbl") && (st.getCategoryPath().getPath() + "/").equals(cat)) end = Math.max(end, st.getLength());
+			}
+			soOnly = end;
+		}
 		DecompInterface di = new DecompInterface();
 		di.openProgram(currentProgram);
 		Listing L = currentProgram.getListing();
@@ -273,7 +445,7 @@ public class FarSlotSignatures extends GhidraScript {
 			if (!in.getMnemonicString().equals("CALLF")) continue;
 			Object[] o = in.getOpObjects(0);
 			boolean reg = false;
-			for (Object x : o) if (x instanceof ghidra.program.model.lang.Register) reg = true;
+			for (Object x : o) if (x instanceof ghidra.program.model.lang.Register r && (!large || r.getName().equals("BX"))) reg = true;
 			if (!reg) continue;
 			Function f = getFunctionContaining(in.getAddress());
 			if (f != null) sites.computeIfAbsent(f, z -> new ArrayList<>()).add(in);
@@ -294,7 +466,7 @@ public class FarSlotSignatures extends GhidraScript {
 				int k = 0;
 				for (Object x : in.getOpObjects(0)) if (x instanceof Scalar s) k = (int) s.getUnsignedValue();
 				PcodeOp call = ops.get(in.getAddress());
-				FunctionDefinition fd = call == null ? null : find(call, k);
+				FunctionDefinition fd = large ? findLarge(in, call, k) : call == null ? null : find(call, k);
 				if (fd == null) { miss++; println("unresolved " + f.getName() + " " + in.getAddress() + " " + in + "  this=" + (f.getParameterCount() > 0 ? f.getParameter(0).getDataType().getName() : "-")); continue; }
 				ok++;
 				if (!dry) override(f, in.getAddress(), fd);
