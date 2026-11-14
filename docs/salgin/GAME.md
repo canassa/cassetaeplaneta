@@ -119,7 +119,8 @@ it walking).
 
 `SalginScene.clock` starts at 90 and loses 1 on each clock tick (a little over a second each).
 `salgin_draw_clock` restores the 20×15 box at (310, 22) from the background and draws "%2.2d" in
-white; `salgin_blit_clock` copies it to the window.
+yellow (`SetTextColor(0x0000FFFF)` at 1068:2b63; COLORREF is 0x00BBGGRR); `salgin_blit_clock`
+copies it to the window.
 
 ## The energy bar
 
