@@ -18,6 +18,7 @@ import java.util.*;
 //                         evidence, a BP-framed body that reads no [BP+x>=4] gets 0 parameters, and
 //                         so does a frameless body with no BP/SS operand outside the regargs ranges.
 //   all returns RETF   -> __cdecl16far, same rule (args start at [BP+6]).
+// A frame may follow a Windows far prologue (MOV AX,DS; NOP; INC BP / INC BP / MOV AX,SS).
 // Anything else (mixed returns, no return, callers disagreeing = varargs, body reading past the
 // callers' count, no evidence) gets the tag "sig?" and a plate line saying why.
 // Parameters are undefined2; the return type is left as it is. Source: ANALYSIS.
@@ -74,6 +75,11 @@ public class NearSignatures extends GhidraScript {
 		Instruction in = getInstructionAt(f.getEntryPoint());
 		if (in == null) return false;
 		if (in.getMnemonicString().equals("ENTER")) return true;
+		// Windows far prologues: MOV AX,DS; NOP; INC BP (exported/CRT), INC BP (CRT), MOV AX,SS (/GA)
+		for (int k = 0; k < 3 && in != null && (in.toString().equals("MOV AX,DS") || in.toString().equals("NOP")
+				|| in.toString().equals("INC BP") || in.toString().equals("MOV AX,SS")); k++)
+			in = in.getNext();
+		if (in == null) return false;
 		Instruction n = in.getNext();
 		return in.toString().equals("PUSH BP") && n != null && n.toString().equals("MOV BP,SP");
 	}

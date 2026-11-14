@@ -12,6 +12,7 @@ import java.util.*;
 // undefined) and the prologue hits inside it. With `create`, makes a function at each hit:
 //   PUSH BP; MOV BP,SP (55 8B EC)          ENTER n,0 (C8 xx xx 00)
 //   far exported prologue (1E 58 90 45 55 8B EC, 8C D8 90 45 55 8B EC)
+//   /GA callback prologue (8C D0 55 8B EC: MOV AX,SS; PUSH BP; MOV BP,SP)
 //   a gap start that has a CALL or DATA reference to it
 // and repeats until nothing new appears.
 public class CodeGapSweep extends GhidraScript {
@@ -28,7 +29,8 @@ public class CodeGapSweep extends GhidraScript {
 		try {
 			return match(a, 0x55, 0x8b, 0xec) || match(a, 0xc8, -1, -1, 0x00)
 				|| match(a, 0x1e, 0x58, 0x90, 0x45, 0x55, 0x8b, 0xec)
-				|| match(a, 0x8c, 0xd8, 0x90, 0x45, 0x55, 0x8b, 0xec);
+				|| match(a, 0x8c, 0xd8, 0x90, 0x45, 0x55, 0x8b, 0xec)
+				|| match(a, 0x8c, 0xd0, 0x55, 0x8b, 0xec);
 		}
 		catch (MemoryAccessException e) {
 			return false;
