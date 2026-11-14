@@ -15,6 +15,10 @@ const avi = @import("../avi.zig");
 const sound = @import("../sound.zig");
 const portable = @import("../portable.zig");
 const game_input = @import("../game_input.zig");
+const Object = @import("../core/object.zig").Object;
+const frames = @import("../frames.zig");
+const dib = @import("../dib.zig");
+const occupancy = @import("../behaviour/occupancy.zig");
 
 pub const Options = struct {
     input: ?[]const u8 = null,
@@ -46,6 +50,8 @@ pub const Harness = struct {
     /// The SDL backend: each dump also writes what the window shows, read
     /// back from the renderer (`<name>-window.png`).
     sdl: ?*@import("sdl.zig").Sdl = null,
+    /// The offer check (`watchOffers`).
+    offer: OfferWatch = .{},
 
     pub fn init(gpa: std.mem.Allocator, io: std.Io, opts: Options, assets_dir: []const u8) !Harness {
         var h: Harness = .{ .gpa = gpa, .io = io, .opts = opts, .assets_dir = assets_dir };
@@ -99,11 +105,15 @@ pub const Harness = struct {
             while (h.next_dump <= now) h.next_dump += h.opts.dump_every;
         }
         h.now = now;
+        h.watchOffers(g, now);
         const scene_name = if (g.scene) |sc| cstr.slice(&sc.name) else "";
         while (h.script.due(now, scene_name)) |a| {
             did = true;
             switch (a) {
-                .input => |m| if (g.plat.filterInput(m)) |in| g.queue.postInput(in),
+                .input => |m| {
+                    if (m.id == msg.wm.rbuttondown or m.id == msg.wm.lbuttondown) h.offer.clicked = true;
+                    if (g.plat.filterInput(m)) |in| g.queue.postInput(in);
+                },
                 .dump => |name| h.dump(g, name),
                 .scene => |j| h.jump(g, j),
                 .log => |text| std.debug.print("[{d}] log: {s}\n", .{ now, text }),
@@ -260,6 +270,7 @@ pub const Harness = struct {
             if (!std.mem.endsWith(u8, e.name, ".zig")) continue;
             const text = dir.readFileAlloc(h.io, e.name, h.gpa, .limited(1 << 20)) catch continue;
             defer h.gpa.free(text);
+            if (tableFlags(text, name)) |f| return f;
             const at = std.mem.indexOf(u8, text, needle) orelse continue;
             const rest = text[at + needle.len ..];
             const end = std.mem.indexOfScalar(u8, rest, ')') orelse continue;
@@ -275,6 +286,141 @@ pub const Harness = struct {
         }
         return null;
     }
+
+    /// Watches each dropped item until a handler takes it back (to the
+    /// inventory, or consumed): with B30's fix it must not have moved from
+    /// where it was released (an offer stays in the character's hands), and
+    /// its image must be gone from the screen a second later. A drop picked
+    /// up again by a click is not checked. Either failure fails the run.
+    fn watchOffers(h: *Harness, g: *Game, now: u32) void {
+        const w = &h.offer;
+        const scene = g.scene orelse {
+            w.item = null;
+            return;
+        };
+        if (w.item) |it| watch: {
+            if (!std.mem.eql(u8, &scene.name, &w.scene)) {
+                w.item = null;
+                break :watch;
+            }
+            const bd = scene.backdrop orelse break :watch;
+            if (w.back_at == null) {
+                if (isOut(g, it)) {
+                    if (it.visible != 0) {
+                        if (it.x != w.x0 or it.y != w.y0) w.moved = true;
+                        w.last = .of(it, bd);
+                    }
+                    break :watch;
+                }
+                w.back_at = now;
+                if (h.opts.verbose) std.debug.print("[{d}] offer check: item {d} taken back{s}\n", .{ now, it.id, if (w.clicked) " after a click" else if (w.moved) "" else " where it was released" });
+                // Without B30's fix the original's drop may walk it to a
+                // support's top (or the floor) while the reply plays.
+                if (w.moved and !w.clicked and g.fixes.drop_falls_onto_support) {
+                    std.debug.print("[{d}] offer check: item {d} moved from ({d},{d}) to ({d},{d}) before it was taken back\n", .{ now, it.id, w.x0, w.y0, it.x, it.y });
+                    h.failed = true;
+                }
+            } else if (now -% w.back_at.? >= 1000) {
+                if (!w.clicked) h.checkLeftover(g, it);
+                w.item = null;
+            }
+        }
+        if (w.held) |held| if (g.itemSelected == 0 and isOut(g, held) and held.visible != 0 and w.item != held) {
+            w.* = .{ .item = held, .x0 = held.x, .y0 = held.y, .scene = scene.name };
+            if (scene.backdrop) |bd| w.last = .of(held, bd);
+        };
+        w.held = if (g.itemSelected != 0) g.selectedItem else null;
+    }
+
+    /// An item lying in the scene (not in an inventory or consumed).
+    fn isOut(g: *const Game, it: *const Object) bool {
+        return it.is(.portable) and it.portable.owner == null and it.ownerList == &g.globalObjects;
+    }
+
+    /// Fails the run when most of the taken-back item's last image is still
+    /// on the screen.
+    fn checkLeftover(h: *Harness, g: *Game, it: *Object) void {
+        const last = h.offer.last;
+        const d = last.dib orelse return;
+        const buf = h.gpa.alloc(u8, p.screen_width * p.screen_height) catch return;
+        defer h.gpa.free(buf);
+        const key = g.unk001C;
+        @memset(buf, key);
+        const hdr: dib.BitmapInfoHeader = .{ .biWidth = p.screen_width, .biHeight = -p.screen_height };
+        _ = dib.copyTransparent(&hdr, buf, last.x, last.y, d.bits, &d.header, last.src_x, last.src_y, last.w, last.orient *% last.h, key) catch return;
+        const scr = g.plat.screen();
+        var total: u32 = 0;
+        var same: u32 = 0;
+        for (0..p.client_height) |y| for (0..p.client_width) |x| {
+            const c = buf[y * p.screen_width + x];
+            if (c == key) continue;
+            total += 1;
+            if (scr.pixels[y * p.screen_width + x] == c) same += 1;
+        };
+        if (total >= 20 and same * 10 >= total * 6) {
+            std.debug.print("[{d}] offer check: item {d} taken back but {d} of its {d} pixels are still on the screen at ({d},{d})\n", .{ g.plat.ticks(), it.id, same, total, last.x, last.y });
+            h.failed = true;
+        }
+    }
+
+    /// 2fpontoc's destination table, `N => .{ "name", panel, anim },`
+    /// (the switch after it enters at (0,0) without the player).
+    fn tableFlags(text: []const u8, name: []const u8) ?script.SceneJump.Flags {
+        var needle_buf: [64]u8 = undefined;
+        const needle = std.fmt.bufPrint(&needle_buf, "=> .{{ \"{s}\", ", .{name}) catch return null;
+        const at = std.mem.indexOf(u8, text, needle) orelse return null;
+        const rest = text[at + needle.len ..];
+        const end = std.mem.indexOfScalar(u8, rest, '}') orelse return null;
+        var words = std.mem.tokenizeAny(u8, rest[0..end], ", ");
+        const panel = std.fmt.parseInt(i16, words.next() orelse return null, 0) catch return null;
+        const anim = std.fmt.parseInt(i16, words.next() orelse return null, 0) catch return null;
+        return .{ .panel = panel, .anim = anim };
+    }
+};
+
+/// `Harness.watchOffers`' state.
+const OfferWatch = struct {
+    /// The item selected at the last step.
+    held: ?*Object = null,
+    /// The dropped item being watched, where it was released and the
+    /// scene it was dropped in.
+    item: ?*Object = null,
+    x0: i16 = 0,
+    y0: i16 = 0,
+    scene: [20]u8 = @splat(0),
+    /// Its last image seen.
+    last: Image = .{},
+    moved: bool = false,
+    /// A click came after the drop (the player may have picked it up).
+    clicked: bool = false,
+    /// When a handler took it back.
+    back_at: ?u32 = null,
+
+    /// Where and what an object's frame was on the screen (its pick-up
+    /// changes its strip and clears its DIB orientation).
+    const Image = struct {
+        dib: ?*const dib.Dib = null,
+        x: i16 = 0,
+        y: i16 = 0,
+        src_x: i16 = 0,
+        src_y: i16 = 0,
+        w: i16 = 0,
+        h: i16 = 0,
+        orient: i16 = 0,
+
+        fn of(o: *const Object, bd: *const @import("../core/world.zig").Backdrop) Image {
+            return .{
+                .dib = frames.dib(o),
+                .x = o.x -% bd.originX,
+                .y = o.y -% bd.originY,
+                .src_x = frames.frameSrcX(o),
+                .src_y = frames.frameSrcY(o),
+                .w = frames.width(o),
+                .h = frames.height(o),
+                .orient = @truncate(o.dibFormatOk),
+            };
+        }
+    };
 };
 
 pub fn writeScreen(gpa: std.mem.Allocator, io: std.Io, scr: *const p.Screen, path: []const u8, bmp: bool) !void {
@@ -296,6 +442,12 @@ fn take(g: *Game, id: i16) void {
             return;
         };
         _ = portable.pickUp(g, o, player);
+        // Its scene's attach (on a visit) binds it to the backdrop format;
+        // without it the item is drawn 0 rows high wherever it is dropped.
+        if (o.attached == 0) if (g.scene) |s| if (s.backdrop) |bd| {
+            o.attached = 1;
+            occupancy.bindToBackdrop(o, bd);
+        };
         return;
     }
     std.debug.print("take {d}: no such portable in the global objects\n", .{id});

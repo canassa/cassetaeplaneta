@@ -72,7 +72,7 @@ pub fn attach(g: *Game, obj: *Object, bd: *Backdrop) ?*Object {
 /// backdrop's and size it to the current strip. The object keeps only the
 /// header (`Object` has no colour table or palette handle: the original's
 /// copies are never read).
-fn bindToBackdrop(obj: *Object, bd: *const Backdrop) void {
+pub fn bindToBackdrop(obj: *Object, bd: *const Backdrop) void {
     obj.bmiHeader = bd.bmiHeader;
     obj.dibFormatOk = @intFromBool(platform.wingRecommendDibFormat(&obj.bmiHeader));
     obj.bmiHeader.biWidth = frames.width(obj);
