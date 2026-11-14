@@ -327,6 +327,10 @@ pub fn setStrip(g: *Game, obj: *Object, strip: i16, bd: *Backdrop) *Frame {
                 s.obj.dirty = s.dirty;
                 s.obj.clip = s.clip;
             }
+            // The overlap pass drew objects that reach under the bars (the
+            // sitting room's gift over the panel's strip): the bars go back
+            // on top, as the engine's next timer would draw them.
+            @import("../scene.zig").drawBars(g, bd);
         }
     } else {
         visibility.hide(g, obj, bd);

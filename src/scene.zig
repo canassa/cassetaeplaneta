@@ -397,8 +397,9 @@ fn systimer(g: *Game, scene: *Scene, m: Msg) i16 {
 }
 
 /// The control panel and the status bar drawn into the backdrop bitmap, as
-/// the engine's WM_SYSTIMER default does after every timer (B32 fix).
-fn drawBars(g: *Game, bd: *Backdrop) void {
+/// the engine's WM_SYSTIMER default does after every timer (B32 fix, and
+/// B35's after its overlap redraw).
+pub fn drawBars(g: *Game, bd: *Backdrop) void {
     const scene = g.scene orelse return;
     if (getHasControlPanel(g, scene)) render.draw(g, g.controlPanel.?, bd);
     if (getHasStatusBar(g, scene)) render.draw(g, g.statusBar.?, bd);
