@@ -58,6 +58,7 @@ const c = struct {
     extern "c" fn SDL_ShowWindow(w: *Window) bool;
     extern "c" fn SDL_HideWindow(w: *Window) bool;
     extern "c" fn SDL_GetTicks() u64;
+    extern "c" fn SDL_Delay(ms: u32) void;
     extern "c" fn SDL_PollEvent(e: *Event) bool;
     extern "c" fn SDL_WaitEventTimeout(e: *Event, timeout_ms: i32) bool;
     extern "c" fn SDL_OpenAudioDeviceStream(dev: u32, spec: *const AudioSpec, callback: ?*const anyopaque, userdata: ?*anyopaque) ?*AudioStream;
@@ -372,6 +373,11 @@ pub const Sdl = struct {
         return self(ptr).sim.filterInput(ticks(ptr), m);
     }
 
+    /// A real stall: the clock (SDL_GetTicks) runs on.
+    fn freeze(_: *anyopaque, ms: u32) void {
+        c.SDL_Delay(ms);
+    }
+
     const vtable: p.Platform.VTable = .{
         .ticks = ticks,
         .unixTime = unixTime,
@@ -407,5 +413,6 @@ pub const Sdl = struct {
         .showMain = showMain,
         .messageBox = messageBox,
         .filterInput = filterInput,
+        .freeze = freeze,
     };
 };

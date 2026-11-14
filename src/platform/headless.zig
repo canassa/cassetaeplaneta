@@ -171,6 +171,10 @@ pub const Headless = struct {
         return h.sim.filterInput(h.now, m);
     }
 
+    fn freeze(ptr: *anyopaque, ms: u32) void {
+        self(ptr).now +%= ms;
+    }
+
     const vtable: p.Platform.VTable = .{
         .ticks = ticks,
         .unixTime = unixTime,
@@ -206,6 +210,7 @@ pub const Headless = struct {
         .showMain = showMain,
         .messageBox = messageBox,
         .filterInput = filterInput,
+        .freeze = freeze,
     };
 };
 

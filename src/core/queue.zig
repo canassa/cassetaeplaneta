@@ -191,3 +191,11 @@ test "WM_QUIT comes after the posted messages, before input" {
     try std.testing.expectEqual(wm.quit, q.next(0).?.id);
     try std.testing.expectEqual(wm.mousemove, q.next(0).?.id);
 }
+
+test "a timer missed for a long time fires once (Windows coalesces WM_TIMER)" {
+    var q: Queue = .{};
+    try std.testing.expect(q.setTimer(.normal, 0x14, 100, 0));
+    try std.testing.expectEqual(wm.timer, q.next(10_000).?.id);
+    try std.testing.expectEqual(@as(?Msg, null), q.next(10_000));
+    try std.testing.expectEqual(@as(?u32, 10_100), q.nextDue());
+}

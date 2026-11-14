@@ -120,6 +120,12 @@ pub const Harness = struct {
                 .wait => {},
                 .take => |id| take(g, id),
                 .focus => |on| _ = g.send(.{ .id = msg.wm.activate, .wparam = @intFromBool(on) }),
+                .freeze => |ms| {
+                    std.debug.print("[{d}] freeze {d} ms\n", .{ now, ms });
+                    g.plat.freeze(ms);
+                    // Back to the loop: what fell due is polled at once.
+                    return true;
+                },
                 .quit => {
                     g.quit = true;
                     return true;

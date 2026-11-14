@@ -295,6 +295,9 @@ pub const Web = struct {
         return self(ptr).sim.filterInput(ticks(ptr), m);
     }
 
+    /// The page's hidden tab is the real thing: nothing to simulate.
+    fn freeze(_: *anyopaque, _: u32) void {}
+
     const vtable: p.Platform.VTable = .{
         .ticks = ticks,
         .unixTime = unixTime,
@@ -330,5 +333,6 @@ pub const Web = struct {
         .showMain = showMain,
         .messageBox = messageBox,
         .filterInput = filterInput,
+        .freeze = freeze,
     };
 };

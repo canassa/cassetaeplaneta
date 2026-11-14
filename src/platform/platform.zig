@@ -350,6 +350,10 @@ pub const Platform = struct {
         /// Not Windows: the backend's look at input before the game queues
         /// it (`Sim.filterInput`: skipping videos). Null = swallowed.
         filterInput: *const fn (*anyopaque, m: Msg) ?Msg,
+        /// Not Windows (the harness's `freeze`): the clock runs on `ms`
+        /// while the game dispatches nothing, as on the web while the page
+        /// is hidden; what fell due meanwhile comes all at once after it.
+        freeze: *const fn (*anyopaque, ms: u32) void,
     };
 
     pub fn ticks(p: Platform) u32 {
@@ -488,6 +492,9 @@ pub const Platform = struct {
     }
     pub fn messageBox(p: Platform, caption: []const u8, text: []const u8, style: u16) i16 {
         return p.vtable.messageBox(p.ptr, caption, text, style);
+    }
+    pub fn freeze(p: Platform, ms: u32) void {
+        p.vtable.freeze(p.ptr, ms);
     }
     pub fn filterInput(p: Platform, m: Msg) ?Msg {
         return p.vtable.filterInput(p.ptr, m);

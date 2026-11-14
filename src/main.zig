@@ -245,7 +245,7 @@ fn deliver(g: *Game, ev: platform.api.Event) void {
         // WM_ACTIVATE is sent, not posted.
         .activate => |on| _ = g.send(.{ .id = wm.activate, .wparam = @intFromBool(on) }),
         .input => |m| if (g.plat.filterInput(m)) |in| g.queue.postInput(in),
-        .message => |m| _ = g.post(m),
+        .message => |m| if (!g.post(m)) std.log.warn("posted queue full: message {x} lost", .{m.id}),
     }
 }
 

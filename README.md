@@ -39,14 +39,15 @@ Saves go to `save/` (`--save DIR`).
 - **Harness** (`src/platform/harness.zig`), for either backend:
   `--input FILE` plays timed input (`src/platform/script.zig`: `click`,
   `rclick`, `hold`, `offer`, `wait SCENE`, `expect SCENE`, `dump`, `state`,
-  `quit`…), `--dump DIR [--dump-every MS]` writes PNG frames of the screen
+  `focus 0|1`, `freeze MS` (a time jump: the clock runs on while nothing is
+  dispatched, as in a hidden web page), `quit`…), `--dump DIR [--dump-every MS]` writes PNG frames of the screen
   (and of the SDL window), `--scene NAME [--take ID,…]` starts in any INI
   scene carrying those items, `--trace FILE` logs every message. A panic or
   segfault prints the scene and the last 64 messages; a message loop that
   stops the clock is reported as a hang (`timeout -s SEGV` gives the stack
   of any other hang).
-- **Smoke test**: `nix develop -c python3 tools/smoke.py [--offers|--monkey SEED|--lose] [SCENE…]`
-  starts every INI scene and clicks around; failures keep their log in
+- **Smoke test**: `nix develop -c python3 tools/smoke.py [--offers|--monkey SEED [--freeze]|--lose] [SCENE…]`
+  starts every INI scene and clicks around (`--freeze`: with random time jumps); failures keep their log in
   `zig-out/smoke/`.
 - **Playthrough**: `./zig-out/bin/noite --headless --ms 560000 --input tools/play/full.input`
   plays from the title screen to the sportsman ending, checking every scene.

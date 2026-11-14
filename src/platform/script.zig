@@ -27,6 +27,10 @@
 //!     offer SLOT X Y    open the panel, drag inventory slot SLOT (0-7) to
 //!                       X Y and release it there (takes 2 s)
 //!     focus 0|1         the window loses or regains focus (WM_ACTIVATE)
+//!     freeze MS         a time jump: the clock runs on MS while the game
+//!                       dispatches nothing (the web page hidden, its frame
+//!                       loop stopped), then everything due fires at once;
+//!                       later relative times count from the end of it
 //!     quit              end the run
 //!
 //! Mouse commands keep track of the buttons held, as `wParam` (MK_*).
@@ -45,6 +49,7 @@ pub const Action = union(enum) {
     wait: Wait,
     take: i16,
     focus: bool,
+    freeze: u32,
     quit,
 };
 
@@ -223,6 +228,10 @@ pub fn parse(gpa: std.mem.Allocator, text: []u8) ParseError!Script {
             try s.steps.append(gpa, .{ .at = t, .action = .state });
         } else if (eq(u8, cmd, "focus")) {
             try s.steps.append(gpa, .{ .at = t, .action = .{ .focus = try num(u16, words.next(), line_no) != 0 } });
+        } else if (eq(u8, cmd, "freeze")) {
+            const ms = try num(u32, words.next(), line_no);
+            try s.steps.append(gpa, .{ .at = t, .action = .{ .freeze = ms } });
+            t += ms;
         } else if (eq(u8, cmd, "quit")) {
             try s.steps.append(gpa, .{ .at = t, .action = .quit });
         } else return bad(line_no, "unknown command");
