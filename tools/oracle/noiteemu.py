@@ -70,6 +70,7 @@ class Emu:
         self.handlers = {}       # 'MODULE.ord' -> (argbytes, fn(emu) -> (ax, dx))
         self.imports = {}        # 'MODULE.ord' -> thunk offset
         self.trace = []
+        self.near_halts = set()
         uc.mem_map(0, 0x10000)                        # GDT lives here
         uc.mem_map(SEG_BASE, 0x10000 * 0x40)          # all segments
         self.desc = {}
@@ -244,10 +245,15 @@ class Emu:
 
     # ---- calls ----------------------------------------------------------
     def call(self, sel, off, args=(), conv='pascal', regs=None, max_insn=1_000_000):
-        """args: list of ('w', v) | ('d', v) | ('p', sel, off) in C order."""
+        """args: list of ('w', v) | ('d', v) | ('p', sel, off) in C order.
+        conv: 'pascal' / 'cdecl' (far), 'near' / 'near-cdecl' (a small-model
+        minigame: near return to a HLT at offset 0 of the function's own
+        segment, the 16-byte zero prefix of ENCAIXE's 1008; a near pointer
+        is ('w', off) in DGROUP)."""
         uc = self.uc
+        near = conv.startswith('near')
         words = []                       # in push order
-        seq = list(args) if conv == 'pascal' else list(reversed(args))
+        seq = list(args) if conv in ('pascal', 'near') else list(reversed(args))
         for a in seq:
             if a[0] == 'w':
                 words.append(a[1] & 0xffff)
@@ -255,7 +261,15 @@ class Emu:
                 words += [(a[1] >> 16) & 0xffff, a[1] & 0xffff]
             elif a[0] == 'p':
                 words += [a[1], a[2]]
-        words += [HALT_SEL, 0]           # far return address
+        if near:
+            words += [0]                 # near return address: sel:0000
+            self.write(sel, 0, b'\xf4')
+            lin = self.lin(sel, 0)
+            if lin not in self.near_halts:
+                self.near_halts.add(lin)
+                uc.hook_add(UC_HOOK_CODE, self._on_halt, begin=lin, end=lin)
+        else:
+            words += [HALT_SEL, 0]       # far return address
         sp = 0xf000
         for w in words:
             sp -= 2
@@ -290,7 +304,7 @@ class Emu:
             self.error = (f'stopped at {uc.reg_read(UC_X86_REG_CS):04x}:{uc.reg_read(UC_X86_REG_IP):04x}'
                           ' (HLT or instruction limit)')
         return dict(ax=uc.reg_read(UC_X86_REG_AX), dx=uc.reg_read(UC_X86_REG_DX),
-                    sp_delta=uc.reg_read(UC_X86_REG_SP) - (sp + 4),
+                    sp_delta=uc.reg_read(UC_X86_REG_SP) - (sp + (2 if near else 4)),
                     ds=uc.reg_read(UC_X86_REG_DS), error=self.error, imports=list(self.trace))
 
 

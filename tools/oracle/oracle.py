@@ -1,7 +1,10 @@
 """noite oracle -- run one original NOITE.EXE function and print its outputs as JSON.
 
   oracle.py ADDR [ARG...] [--cdecl] [--mem SEL:OFF=HEX]... [--read SEL:OFF:LEN]...
-            [--stub MOD.ORD:ARGBYTES[:AX[:DX]]]... [--exe PATH]
+            [--stub MOD.ORD:ARGBYTES[:AX[:DX]]]... [--exe PATH] [--near]
+
+--near: a small-model minigame's near pascal function (with --cdecl: near
+cdecl), e.g. --exe assets/ENCAIXE/ENCAIXE.EXE --near 1008:bb2e w:0x5f00
 
 ARG (C order): w:N  word      d:N  dword      p:SEL:OFF  far pointer
                s:TEXT  NUL-terminated string in scratch memory, passed as far pointer
@@ -20,6 +23,7 @@ def segoff(t):
 ap = argparse.ArgumentParser()
 ap.add_argument('addr'); ap.add_argument('args', nargs='*')
 ap.add_argument('--cdecl', action='store_true')
+ap.add_argument('--near', action='store_true')
 ap.add_argument('--mem', action='append', default=[])
 ap.add_argument('--read', action='append', default=[])
 ap.add_argument('--stub', action='append', default=[])
@@ -50,7 +54,8 @@ for t in a.args:
         scratch += (len(data) + 15) & ~15
     else:
         sys.exit(f'bad arg {t}')
-r = e.call(*segoff(a.addr), args, conv='cdecl' if a.cdecl else 'pascal', max_insn=a.max_insn)
+conv = ('near-cdecl' if a.cdecl else 'near') if a.near else ('cdecl' if a.cdecl else 'pascal')
+r = e.call(*segoff(a.addr), args, conv=conv, max_insn=a.max_insn)
 r['dxax'] = (r['dx'] << 16) | r['ax']
 r['read'] = {spec: e.read(*segoff(spec.rsplit(':', 1)[0]), num(spec.rsplit(':', 1)[1])).hex() for spec in a.read}
 print(json.dumps(r))
