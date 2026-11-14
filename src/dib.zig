@@ -17,6 +17,7 @@ const cstr = @import("core/cstr.zig");
 const Fixes = @import("core/fixes.zig").Fixes;
 const platform = @import("platform/platform.zig");
 const Platform = platform.Platform;
+const key_specks = @import("key_specks.zig");
 
 pub const Dib = object.Dib;
 pub const BitmapInfoHeader = object.BitmapInfoHeader;
@@ -394,6 +395,7 @@ pub fn readDibInfo(plat: Platform, fh: ?platform.File) ?Dib {
 /// the original, unchecked: a longer path is `error.LimitExceeded`).
 pub fn loadDib(gpa: std.mem.Allocator, plat: Platform, fixes: Fixes, path_buf: []u8, drive_cd: []const u8, name: []const u8) Error!?*Dib {
     const nm = cstr.slice(name);
+    var opened = nm;
     var fh = plat.open(nm, .read);
     if (fh == null) {
         const cd = cstr.slice(drive_cd);
@@ -402,6 +404,7 @@ pub fn loadDib(gpa: std.mem.Allocator, plat: Platform, fixes: Fixes, path_buf: [
         const path = cstr.print(path_buf, "{s}pan\\bmp\\{s}.bmp", .{ cd, fname });
         fh = plat.open(path, .read);
         if (fh == null) return null;
+        opened = path;
     }
     const f = fh.?;
     var info = readDibInfo(plat, f) orelse {
@@ -418,6 +421,8 @@ pub fn loadDib(gpa: std.mem.Allocator, plat: Platform, fixes: Fixes, path_buf: [
         return null;
     };
     _ = plat.read(f, bits);
+    // B53: the reviewed colour-11 holes inside sprite art are filled.
+    if (fixes.sprite_key_specks) _ = key_specks.apply(opened, &info.header, bits);
     info.bits = bits;
     dib.* = info;
     cstr.copy(&dib.name, splitFname(nm));
@@ -665,6 +670,10 @@ test "loadDib reads a bmp from the disc" {
     try testing.expectEqualSlices(u8, file[off..][0..dib.bits.len], dib.bits);
     // The pan\bmp fallback finds the same bitmap by name.
     try testing.expect(try loadDib(testing.allocator, plat, .{}, &path_buf, "\\", "nosuch.bmp") == null);
+}
+
+test {
+    _ = key_specks;
 }
 
 // @orig 1010:09d0 hmemmove_backward oracle=documented

@@ -1,0 +1,16 @@
+# BUGS.md B53: sprite art has pixels of the transparent index inside it, which
+# show the scene through the picture. The living room's coffee table (Local=104
+# at 470,264, 1OMESA.BMP) has 26: four of them, where the background
+# (1FSALA.BMP) has index 249.
+#
+#   zig-out/bin/noite --headless --ms 3000 --fix all --input tools/play/b53-sala-table-specks.input
+#
+# Passes with `--fix all` (or `--fix sprite_key_specks`): the pixels hold the
+# fills of src/data/key_specks.tsv. The Original shows the background there
+# (tools/play/b53-sala-table-specks-orig.input).
+0 scene 1fsala 60 300 1 1 0 0 0
+1000 pixel 621 364 89
++0 pixel 542 375 244
++0 pixel 507 408 103
++0 pixel 628 395 68
++0 quit

@@ -1,0 +1,10 @@
+# BUGS.md B53 in the Original: the coffee table's holes (the pixels
+# tools/play/b53-sala-table-specks.input checks) show the background's index 249.
+#
+#   zig-out/bin/noite --headless --ms 3000 --input tools/play/b53-sala-table-specks-orig.input
+0 scene 1fsala 60 300 1 1 0 0 0
+1000 pixel 621 364 249
++0 pixel 542 375 249
++0 pixel 507 408 249
++0 pixel 628 395 249
++0 quit

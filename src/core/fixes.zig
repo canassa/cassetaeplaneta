@@ -176,6 +176,11 @@ pub const Fixes = struct {
     /// dithered edge of them), so the player passing in front of it no
     /// longer leaves a column of his pixels there.
     restore_copies_key_pixels: bool = false,
+    /// B53: the stray pixels of the transparent index inside sprite art
+    /// (holes showing the scene through a plate, a face, a letter) are
+    /// filled when the bitmap is loaded, from the hand-reviewed list
+    /// `src/data/key_specks.tsv` (`src/key_specks.zig`).
+    sprite_key_specks: bool = false,
     /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"):
     /// the living room's exit to the street (`Exit=114`) is clickable over
     /// the whole door frame in the background (y 73-390), not only below
