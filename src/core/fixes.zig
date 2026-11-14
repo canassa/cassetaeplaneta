@@ -101,6 +101,9 @@ pub const Fixes = struct {
     /// (it would select another item, or clear the handler's hit object),
     /// so the reply's end takes back, or consumes, the offered item.
     reply_keeps_offer: bool = false,
+    /// B45: the wine given to 2fportdi's driver is not drawn again over the
+    /// drinking animation, which shows the bottle in his hand.
+    drinker_takes_bottle: bool = false,
     /// B40: 2fportdi's driver is drawn in front of the passing bushes, not
     /// behind them (they showed through his face).
     driver_in_front_of_scenery: bool = false,

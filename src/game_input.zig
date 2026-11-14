@@ -365,6 +365,8 @@ pub fn exitInReach(g: *Game, obj: *Object) bool {
 /// Releasing the right button over the scene drops the carried item there,
 /// on top of whatever it lands on.
 fn rightUp(g: *Game, m: Msg) i32 {
+    const hide_asked = g.hideOffered; // B45's fix, set by the handler
+    g.hideOffered = false;
     if (g.itemSelected == 0) return 1;
     g.itemSelected = 0;
     const sx0 = scrolled(m.lo(), bdOf(g).originX);
@@ -377,6 +379,7 @@ fn rightUp(g: *Game, m: Msg) i32 {
     // the selected item until the reply ends.
     const offered = isOffer(g);
     if (offered) g.offered = sel;
+    const hide = offered and hide_asked;
 
     render.erase(g, panel, bdOf(g));
     visibility.redrawOverlapping(g, panel, bdOf(g), 1);
@@ -423,6 +426,14 @@ fn rightUp(g: *Game, m: Msg) i32 {
     frames.resetRects(sel);
     render.draw(g, sel, bdOf(g));
     _ = visibility.invalidate(g, sel);
+    // B45: the handler's accepting animation shows the item itself; it
+    // stays dropped (the reply's end consumes it) but not drawn.
+    if (hide) {
+        movement.cancelWalk(sel);
+        frames.resetRects(sel);
+        visibility.hideAndInvalidate(g, sel, 0, bdOf(g));
+        visibility.redrawOverlapping(g, sel, bdOf(g), 0);
+    }
     return 1;
 }
 

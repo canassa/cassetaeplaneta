@@ -231,6 +231,8 @@ pub fn handle(g: *Game, m: Msg) i16 {
                 playAnim(g, s.drinking);
                 playAnim(g, s.sspob);
                 _ = sound.play(g, msg.main_window, must(Object, s.drinking).wave);
+                // B45: the drinking animation has the bottle in his hand.
+                if (g.fixes.drinker_takes_bottle) g.hideOffered = true;
             } else if (s.offerCount < 4) {
                 _ = ini.seekSection(&g.ini, g.plat, g.fixes, fd, name, true) catch |e| die(e);
                 _ = ini.findWave(&g.ini, g.plat, g.fixes, fd, DOORMAN_ID, s.waveVariant, item.id, &g.sound.cache, &g.ini.rec.nomeWave, &g.ini.rec.waveObject) catch |e| die(e);

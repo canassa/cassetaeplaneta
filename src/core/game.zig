@@ -52,6 +52,10 @@ pub const Game = struct {
     /// Not in the original: the item last offered to a character, until the
     /// next MM_WOM_DONE (the reply's end), for `Fixes.reply_keeps_offer`.
     offered: ?*Object = null,
+    /// Not in the original: set by a handler accepting an offer with an
+    /// animation that shows the item; the engine's drop then hides it
+    /// (`Fixes.drinker_takes_bottle`).
+    hideOffered: bool = false,
     /// Not in the original: the one-button control mode (`src/one_button.zig`),
     /// a front-end option. Its `filter` sees every queued message before the
     /// window procedure; null = off (input is dispatched unchanged).

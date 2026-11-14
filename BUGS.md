@@ -704,6 +704,23 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   `Fixes.closet_places_new_pick_once` places the last pick only when `pickAdded` says it is new.
 - **Confidence:** 9 (code, port repro).
 
+### B45. The wine given to the taxi driver is drawn twice while he drinks it
+- **Where:** `handler_2fportdi` 1020:4306, WM_RBUTTONUP with the wine (item 0x56): it hides the talking mouth,
+  the hands and the head (`hideAndInvalidate`), shows and plays the drinking animation (`Animated=22`,
+  `2sporb`, 286×182 at 223,86) and its hands (`Animated=290`), starts its wave and returns 0, without touching
+  `Game.selectedItem`. `game_handle_message` 1018:0000 WM_RBUTTONUP then drops the wine where it was released
+  and draws it; the reply's end (MM_WOM_DONE, 1020:4306) hides it and moves it to the used list.
+- **What the code does:** the drinking animation's frames hold the bottle themselves, and the dropped wine
+  (anchored at its bottom row, in front of the animation) is drawn over them for the whole animation.
+- **Effect:** two bottles: the one at his mouth in the animation and the offered one where it was released
+  (over his face when given on the mouth), until the scene changes to `2abarbei`. The right items of 2fsuabig,
+  2fblitg, 2fcopmau, 2fshardi, 2fgaydir, 4fbarboy and 4fbar stay drawn too, but no accepting animation there
+  shows the item (port frames); 2fportd2 consumes it at once.
+- **Port:** reproduced; `Fixes.drinker_takes_bottle`: the handler asks the engine's drop
+  (`Game.hideOffered`) to hide the wine as soon as it is dropped; it stays the selected item in the scene's
+  list, which the reply's end consumes as before (`tools/play/taxi-wine.input`).
+- **Confidence:** 9 (code, port repro).
+
 ---
 
 ## Harmless: wrong paths rescued by the wave fallback

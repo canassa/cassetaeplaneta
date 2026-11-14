@@ -24,6 +24,9 @@
 //!                       moves by the time waited
 //!     take ID           put portable ID (INI Number) in the player's
 //!                       inventory (testing; not from the current scene)
+//!     drawn ID 0|1      fail the run unless portable ID is (1) or is not
+//!                       (0) on the screen: visible and most of its frame
+//!                       showing where it stands
 //!     offer SLOT X Y    open the panel, drag inventory slot SLOT (0-7) to
 //!                       X Y and release it there (takes 2 s)
 //!     focus 0|1         the window loses or regains focus (WM_ACTIVATE)
@@ -48,12 +51,16 @@ pub const Action = union(enum) {
     expect: []const u8,
     wait: Wait,
     take: i16,
+    drawn: Drawn,
     focus: bool,
     freeze: u32,
     quit,
 };
 
 pub const Wait = struct { name: []const u8, max_ms: u32 };
+
+/// `drawn ID 0|1`: whether portable ID must be on the screen.
+pub const Drawn = struct { id: i16, on: bool };
 
 pub const SceneJump = struct {
     name: []const u8,
@@ -207,6 +214,10 @@ pub fn parse(gpa: std.mem.Allocator, text: []u8) ParseError!Script {
             try s.steps.append(gpa, .{ .at = t, .action = .{ .log = std.mem.trim(u8, words.rest(), " \t") } });
         } else if (eq(u8, cmd, "take")) {
             try s.steps.append(gpa, .{ .at = t, .action = .{ .take = try num(i16, words.next(), line_no) } });
+        } else if (eq(u8, cmd, "drawn")) {
+            const id = try num(i16, words.next(), line_no);
+            const on = try num(u16, words.next(), line_no) != 0;
+            try s.steps.append(gpa, .{ .at = t, .action = .{ .drawn = .{ .id = id, .on = on } } });
         } else if (eq(u8, cmd, "offer")) {
             const slot = try num(u16, words.next(), line_no);
             const x = try num(u16, words.next(), line_no);

@@ -38,7 +38,7 @@ Saves go to `save/` (`--save DIR`).
 - `zig build test` — unit tests; `uv run noite check|initdata` — the tracker.
 - **Harness** (`src/platform/harness.zig`), for either backend:
   `--input FILE` plays timed input (`src/platform/script.zig`: `click`,
-  `rclick`, `hold`, `offer`, `wait SCENE`, `expect SCENE`, `dump`, `state`,
+  `rclick`, `hold`, `offer`, `wait SCENE`, `expect SCENE`, `drawn ID 0|1`, `dump`, `state`,
   `focus 0|1`, `freeze MS` (a time jump: the clock runs on while nothing is
   dispatched, as in a hidden web page), `quit`…), `--dump DIR [--dump-every MS]` writes PNG frames of the screen
   (and of the SDL window), `--scene NAME [--take ID,…]` starts in any INI
@@ -51,6 +51,8 @@ Saves go to `save/` (`--save DIR`).
   `zig-out/smoke/`. `--offers` gives the key items to every object (in the one-button mode by dragging and
   by tap-tap); the harness fails a run when an item a handler takes back had moved from where it was
   released (with B30's fix) or left its image on the screen (with B25's).
+  `--scene 2fportdi --take 86 --fix all --ms 6000 --input tools/play/taxi-wine.input` checks that the wine
+  given to the taxi driver is not drawn over his drinking animation (B45).
 - **Playthrough**: `./zig-out/bin/noite --headless --ms 560000 --input tools/play/full.input`
   plays from the title screen to the sportsman ending, checking every scene.
   With the fixes: add `--fix all,-avi_exit_ignores_timer`

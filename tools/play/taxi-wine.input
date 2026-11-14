@@ -1,0 +1,12 @@
+# The wine given to the Portuguese taxi driver (BUGS.md B45): his drinking
+# animation holds the bottle, so the offered one must not be drawn as well.
+#
+#   zig-out/bin/noite --headless --scene 2fportdi --take 86 --fix all --ms 6000 --input tools/play/taxi-wine.input
+#
+# Without the fix (or with -drinker_takes_bottle) the check fails, as the
+# original draws both.
+300 move 320 240
+1000 offer 0 446 200
+3600 drawn 86 0
+4500 drawn 86 0
+5500 expect 2abarbei

@@ -129,6 +129,7 @@ pub const Harness = struct {
                 },
                 .wait => {},
                 .take => |id| take(g, id),
+                .drawn => |d| h.checkDrawn(g, d),
                 .focus => |on| _ = g.send(.{ .id = msg.wm.activate, .wparam = @intFromBool(on) }),
                 .freeze => |ms| {
                     std.debug.print("[{d}] freeze {d} ms\n", .{ now, ms });
@@ -344,26 +345,53 @@ pub const Harness = struct {
     /// on the screen.
     fn checkLeftover(h: *Harness, g: *Game, it: *Object) void {
         const last = h.offer.last;
-        const d = last.dib orelse return;
-        const buf = h.gpa.alloc(u8, p.screen_width * p.screen_height) catch return;
+        const s = h.onScreen(g, last) orelse return;
+        if (s.shown()) {
+            std.debug.print("[{d}] offer check: item {d} taken back but {d} of its {d} pixels are still on the screen at ({d},{d})\n", .{ g.plat.ticks(), it.id, s.same, s.total, last.x, last.y });
+            h.failed = true;
+        }
+    }
+
+    /// `drawn ID 0|1`: fails the run unless portable `id` is (or is not) on
+    /// the screen: visible, with most of its frame showing where it stands.
+    fn checkDrawn(h: *Harness, g: *Game, d: script.Drawn) void {
+        const bd = (g.scene orelse return).backdrop orelse return;
+        var it = g.globalObjects.head;
+        const o = while (it) |o| : (it = o.next) {
+            if (o.id == d.id and o.is(.portable)) break o;
+        } else null;
+        const drawn = if (o) |obj| obj.visible != 0 and if (h.onScreen(g, .of(obj, bd))) |s| s.shown() else false else false;
+        if (drawn == d.on) return;
+        std.debug.print("[{d}] drawn {d}: FAILED, it is {s}on the screen\n", .{ g.plat.ticks(), d.id, if (drawn) "" else "not " });
+        h.failed = true;
+    }
+
+    const Match = struct {
+        same: u32,
+        total: u32,
+        fn shown(m: Match) bool {
+            return m.total >= 20 and m.same * 10 >= m.total * 6;
+        }
+    };
+
+    /// How many of `img`'s opaque pixels the screen shows.
+    fn onScreen(h: *Harness, g: *Game, img: OfferWatch.Image) ?Match {
+        const d = img.dib orelse return null;
+        const buf = h.gpa.alloc(u8, p.screen_width * p.screen_height) catch return null;
         defer h.gpa.free(buf);
         const key = g.unk001C;
         @memset(buf, key);
         const hdr: dib.BitmapInfoHeader = .{ .biWidth = p.screen_width, .biHeight = -p.screen_height };
-        _ = dib.copyTransparent(&hdr, buf, last.x, last.y, d.bits, &d.header, last.src_x, last.src_y, last.w, last.orient *% last.h, key) catch return;
+        _ = dib.copyTransparent(&hdr, buf, img.x, img.y, d.bits, &d.header, img.src_x, img.src_y, img.w, img.orient *% img.h, key) catch return null;
         const scr = g.plat.screen();
-        var total: u32 = 0;
-        var same: u32 = 0;
+        var m: Match = .{ .same = 0, .total = 0 };
         for (0..p.client_height) |y| for (0..p.client_width) |x| {
             const c = buf[y * p.screen_width + x];
             if (c == key) continue;
-            total += 1;
-            if (scr.pixels[y * p.screen_width + x] == c) same += 1;
+            m.total += 1;
+            if (scr.pixels[y * p.screen_width + x] == c) m.same += 1;
         };
-        if (total >= 20 and same * 10 >= total * 6) {
-            std.debug.print("[{d}] offer check: item {d} taken back but {d} of its {d} pixels are still on the screen at ({d},{d})\n", .{ g.plat.ticks(), it.id, same, total, last.x, last.y });
-            h.failed = true;
-        }
+        return m;
     }
 
     /// 2fpontoc's destination table, `N => .{ "name", panel, anim },`
