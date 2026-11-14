@@ -51,7 +51,9 @@
   #toast button { margin: 0; padding: .2rem .6rem; font-size: inherit; }
   /* Arrows for a touch screen (one-button mode): they walk like the
      keyboard's, around what a tap's straight walk bumps into. Beside or
-     below the game, bottom right (placed by fit() in noite.js). */
+     below the game, bottom right (placed by fit() in noite.js). A
+     minigame's window on top shows its own keys (PAD_KEYS in noite.js:
+     TIRO's fire button, key 32, in the middle). */
   #dpad { position: fixed; display: grid; grid-template: repeat(3, 44px) / repeat(3, 44px); gap: 2px;
     z-index: 1; touch-action: none; user-select: none; -webkit-user-select: none; }
   #dpad button { margin: 0; padding: 0; font-size: 20px; line-height: 1; color: #ccc;
@@ -61,6 +63,7 @@
   #dpad [data-key="37"] { grid-area: 2 / 1; }
   #dpad [data-key="39"] { grid-area: 2 / 3; }
   #dpad [data-key="40"] { grid-area: 3 / 2; }
+  #dpad [data-key="32"] { grid-area: 2 / 2; font-size: 16px; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -117,6 +120,7 @@
   <button data-key="37" aria-label="Esquerda">◀</button>
   <button data-key="39" aria-label="Direita">▶</button>
   <button data-key="40" aria-label="Baixo">▼</button>
+  <button data-key="32" aria-label="Atirar" hidden>●</button>
 </div>
 <script src="noite.js"></script>
 </body>

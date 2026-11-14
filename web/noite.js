@@ -42,6 +42,11 @@
     { name: "encaixe", title: "Encaixe Perfeito", ready: true },
     { name: "tiro", title: "Tiro ao Álvaro", ready: true },
   ];
+  // The on-screen pad's keys (KeyboardEvent.keyCode) while that program's
+  // window is on top (`noite_top_program`): TIRO aims with LEFT/RIGHT and
+  // fires with SPACE, so its pad has a fire button (32) instead of UP and
+  // DOWN. A proposal waiting for the owner: change or drop the entry here.
+  const PAD_KEYS = { "": [37, 38, 39, 40], encaixe: [37, 38, 39, 40], tiro: [37, 32, 39] };
   // The files of the current manifest, by hashed URL. The name must not
   // start with "noite-": loaders before the hashes deleted every
   // "noite-*" cache but their own (their caches are migrated below).
@@ -627,6 +632,27 @@
       b.addEventListener("contextmenu", (e) => e.preventDefault());
     }
     pad.hidden = false;
+    padFor(topProgram());
+  }
+
+  /** The program whose window is on top ("" for NOITE). */
+  function topProgram() {
+    if (!running) return prefs.minigame || "";
+    const i = wasm.noite_top_program();
+    return i > 0 && i <= MINIGAMES.length ? MINIGAMES[i - 1].name : "";
+  }
+
+  let padProgram = null;
+  /** Shows the pad's buttons for `program` (PAD_KEYS); a hidden held one is released. */
+  function padFor(program) {
+    if (program === padProgram) return;
+    padProgram = program;
+    const keys = PAD_KEYS[program] || PAD_KEYS[""];
+    for (const b of $("dpad").querySelectorAll("button")) {
+      const show = keys.includes(Number(b.dataset.key));
+      if (!show) b.dispatchEvent(new Event("lostpointercapture"));
+      b.hidden = !show;
+    }
   }
 
   const GAP = 4; // tools' distance from the game and the window edge
@@ -874,6 +900,7 @@
       frameMs += dt;
       frames++;
       worstMs = Math.max(worstMs, dt);
+      if (!$("dpad").hidden) padFor(topProgram());
       if (quit) {
         $("loader").hidden = false;
         $("status").textContent = "Fim. Recarregue a página para jogar de novo.";

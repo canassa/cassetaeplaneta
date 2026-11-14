@@ -186,6 +186,16 @@ export fn noite_options() i32 {
         @as(i32, @intFromBool(g.oneButton.filter != null)) << 2;
 }
 
+/// The program whose window is on top, for the page's on-screen pad
+/// (`PAD_KEYS` in web/noite.js): 0 NOITE (or every window hidden), else the
+/// index into `minigames` plus one, as `noite_start`'s `minigame`.
+export fn noite_top_program() u32 {
+    const prog = if (hs.top()) |t| t.program orelse hs.primary_program else hs.primary_program;
+    const p = prog orelse return 0;
+    for (minigames, 1..) |m, i| if (m == p) return @intCast(i);
+    return 0;
+}
+
 /// Test hook (tools/web/test.py): the number of items the player carries
 /// (-1 before the start or without a player object).
 export fn noite_inventory() i32 {
