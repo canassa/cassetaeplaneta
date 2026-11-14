@@ -1052,46 +1052,55 @@ Addresses are Ghidra `seg:off` in `/ENCAIXE.EXE`; the game is described in `docs
 - **What the code does:** the test lets the new shape's bottom row reach row index 14. The board is
   `char[11][14]` column-major, so `board[c][14]` is `board[c+1][0]`: the rotation writes `'1'` into row 0 of the next
   column for each bottom cell. Emulating every rotation from every valid position: it happens for every kind but
-  the O, with the piece's top at row 11 (kind 0, the I) or row 12 (kinds 1–3), in any column (e.g. an I lying at
-  row 11, columns 7–10, rotated upright writes `board[8][0]`; kind 0 r1 at column 7, row 11 writes
-  `board[8..10][0]`). From a valid position the write never reaches the byte after the board (`Piece.column`).
+  the O, with the piece's top at row 11 (kinds 0 and 4, the long T and the I) or row 12 (kinds 1–3), in any column
+  (e.g. an I lying at row 11, columns 7–10, rotated upright writes `board[8][0]`; kind 0 r1 at column 7, row 11
+  writes `board[8..10][0]`). From a valid position the write never reaches the byte after the board
+  (`Piece.column`).
 - **Effect:** the piece's bottom row is drawn below the playfield and is not in the board; instead invisible
-  filled cells appear in the top row. They block pieces there, and a new piece that lands on one is in the top
-  three rows, which is a loss. Reachable: the rotate key works while the piece rests on the floor before the
-  landing tick.
+  filled cells (phantoms) appear in row 0. There a phantom only blocks sideways moves in row 0. It turns dangerous
+  through E10: each later line clear copies row 0 into row 1 and moves the rows below it down, so the phantom
+  grows into a column one row longer per clear. Once a phantom sits in row 1 under the spawn columns (4–6), the
+  next piece cannot fall and lands at row 0, which is an immediate loss. Reachable: the rotate key works while the
+  piece falls through rows 11–12 and while it rests on the floor before the landing tick.
 - **Confidence:** 9 (code, emulated); 7 (that players hit it).
 - **Port:** reproduced (unit `piece_vertical`, src/encaixe/); the fix is `Fixes.encaixe_rotation_stays_on_board`
   (`--fix encaixe_rotation_stays_on_board`, on in the Corrigida version).
 
-### E3. `te_piece_clear_full_lines` leaves `bottomRow` uninitialised for an unknown kind
-- **Where:** `te_piece_clear_full_lines` 1008:eed8, the `switch (kind)` that sets `bottomRow`.
-- **What the code does:** the switch has cases 0–5 and no default; any other kind would scan rows up to a stack
-  garbage value.
-- **Effect:** none: the kind is always `rand() % 6`. Latent.
+### E3. `te_piece_clear_full_lines` leaves `bottomRow` uninitialised for an unknown kind or rotation
+- **Where:** `te_piece_clear_full_lines` 1008:eed8, the `switch (kind)` / `switch (rotation)` that set `bottomRow`.
+- **What the code does:** the kind switch has cases 0–5 and each rotation switch cases 0–3, none with a default;
+  any other kind, or a rotation outside 0–3, leaves `bottomRow` a stack garbage value and the scan runs from the
+  piece's top row up to it.
+- **Effect:** none: the kind is always `rand() % 6` and the rotation `(r + 1) % 4`. Latent.
 - **Confidence:** 9.
-- **Port:** reproduced (unit `piece`, src/encaixe/); the fix is `Fixes.encaixe_clear_lines_unknown_kind` (`--fix
-  encaixe_clear_lines_unknown_kind`, on in the Corrigida version).
+- **Port:** reproduced (unit `piece`, src/encaixe/; the garbage is taken as 0); the fix is
+  `Fixes.encaixe_clear_lines_unknown_kind` (`--fix encaixe_clear_lines_unknown_kind`, on in the Corrigida
+  version): it scans the piece's top row only.
 
 ### E4. `frame_init` sizes the cell array from an uninitialised local
 - **Where:** `frame_init` 1008:a49a; caller `te_game_create_status_bar` 1008:9fb2.
 - **What the code does:** `operator_new([BP−2] << 3)` and `crt_array_construct(…, [BP−2], 8, …)` with the local
-  never written, instead of the frame count.
-- **Effect:** the status bar's frame gets a garbage-sized `FrameCell` array (or a NULL one when the allocation
+  never written, instead of the frame count. The word is what `load_dib` 1008:1fe4, called just before at the
+  same stack depth, left in that slot of its frame.
+- **Effect:** the status bar's frame gets a `FrameCell` array of that size (or a NULL one when the allocation
   fails). The cells are read only by `frame_get_cell`, and the status bar is never shown in the Tetris scene, so
-  nothing visible follows; a large garbage size can still exhaust the local heap.
+  nothing visible follows. A count of 0x2000–0x7fff wraps the 16-bit allocation size (`count << 3`) while
+  `crt_array_construct` still zeroes `count × 8` bytes: a local-heap overrun.
 - **Confidence:** 9 (code); 6 (effect).
 - **Port:** reproduced (unit `object_create`, src/encaixe/); the fix is `Fixes.encaixe_status_frame_cells`
-  (`--fix encaixe_status_frame_cells`, on in the Corrigida version). The stack word's value is unknowable: the
-  port takes it as 0 (no cells).
+  (`--fix encaixe_status_frame_cells`, on in the Corrigida version). The port does not model `load_dib`'s
+  stack frame and takes the word as 0 (no cells).
 
 ### E5. The down key sets the left-key flag
 - **Where:** `te_scene_handle_message` 1008:f2a2, `WM_KEYDOWN` `VK_DOWN`.
 - **What the code does:** `if (g_pieceKeyDown == 0) { g_pieceKeyLeft = 1; SetSystemTimer(id 12, 55 ms); }`.
   `g_pieceKeyDown` is never set to 1.
 - **Effect:** the key flags are otherwise write-only, so the wrong flag changes nothing by itself; but the guard
-  never closes, so every key repeat restarts the 55 ms timer. With a key repeat faster than 55 ms, holding the
-  key can delay the fall instead of speeding it up.
-- **Confidence:** 9 (code); 5 (the hold effect, which depends on the keyboard repeat rate).
+  never closes, so every key repeat restarts the 55 ms countdown. With a key repeat under 55 ms (the Windows
+  default is 33 ms), a held DOWN stops the fall completely: the timer never fires, and the piece never lands
+  while DOWN is held. Key up does not restore the period, so after the release the piece falls at 55 ms until
+  the next timer restart (a rotation, a sideways key or the landing).
+- **Confidence:** 9 (code); 8 (effect, with the default repeat rate).
 - **Port:** reproduced (unit `tetris`, src/encaixe/); the fix is `Fixes.encaixe_down_key_guard` (`--fix
   encaixe_down_key_guard`, on in the Corrigida version).
 
@@ -1111,13 +1120,15 @@ Addresses are Ghidra `seg:off` in `/ENCAIXE.EXE`; the game is described in `docs
 
 ### E7. The speed-up is skipped when a multi-line clear jumps over 5 lines
 - **Where:** `te_piece_on_landed` 1008:ba20, after `te_piece_clear_full_lines`.
-- **What the code does:** the period changes only when `linesCleared % 5 == 0` after the whole landing.
+- **What the code does:** the period changes only when `linesCleared % 5 == 0` after the whole landing. It sets
+  `Mover.timerPeriod` and restarts timer 12 with it, but leaves `Animation.timerPeriod` at 200: `animation_play`
+  re-arms the same timer with that, so each rotation still waits 200 ms for its tick.
 - **Effect:** going from 4 to 6 or more lines in one landing keeps 200 ms for the rest of the game (the next
-  level, 10 lines, is the win). The 100 ms and 55 ms levels (10, 15 lines) are unreachable, and for a multiple of
-  5 above 15 the period would be an uninitialised local.
+  level, 10 lines, is the win). The 100 ms and 55 ms levels (10, 15 lines) are unreachable regardless, because
+  10 lines is the win; for a multiple of 5 above 15 the period would be an uninitialised local.
 - **Confidence:** 9.
 - **Port:** reproduced (unit `piece`, src/encaixe/); the fix is `Fixes.encaixe_speed_up_on_crossing` (`--fix
-  encaixe_speed_up_on_crossing`, on in the Corrigida version).
+  encaixe_speed_up_on_crossing`, on in the Corrigida version): it changes the fall period only, as the original.
 
 ### E8. `actor2d_ctor_strips` sizes each strip's FrameCell array by the frame width
 - **Where:** `actor2d_ctor_strips` 1008:aa92 (the Piece's strips, via `player2d_ctor`).
@@ -1149,8 +1160,10 @@ Addresses are Ghidra `seg:off` in `/ENCAIXE.EXE`; the game is described in `docs
   the loop. So row 0 keeps its cells (and its pixels) and row 1 gets a copy of them.
 - **Effect:** none by itself. When a line clears in a running game row 0 holds no `'1'`: a piece whose top is in
   rows 0–2 has already lost (E6), the next piece spawns after the clear, and the playfield's top strip is plain
-  background. The one exception is an E2 phantom cell in row 0, which stays there and is also copied into row 1
-  (one invisible blocking cell more); E2's fix removes it.
+  background. The exception is an E2 phantom cell in row 0: it stays there and every later clear below it copies
+  the column one row further down (row 0 into row 1, the copy in row 1 into row 2, …), so the invisible column
+  grows by one cell per clear. Its first copy is already in row 1; under the spawn columns (4–6) that makes the
+  next piece land at row 0, a loss (E2). E2's fix removes the phantoms.
 - **Confidence:** 9 (code); 8 (effect).
 - **Port:** reproduced (unit `piece`, src/encaixe/), with the dead branches kept; no flag (nothing to fix once E2
   is fixed).

@@ -189,8 +189,8 @@ pub const Fixes = struct {
     /// E2: a rotation near the floor is refused when the new shape's bottom
     /// would pass row 13 (no hidden cells in the next column's top row).
     encaixe_rotation_stays_on_board: bool = false,
-    /// E3: the line clear scans no rows for an unknown piece kind (latent:
-    /// the kind is always 0-5).
+    /// E3: the line clear scans only the piece's top row for an unknown
+    /// kind or rotation (latent: the kind is always 0-5, the rotation 0-3).
     encaixe_clear_lines_unknown_kind: bool = false,
     /// E4: the status bar's frame gets one cell per frame (the original sizes
     /// it from an uninitialised local; nothing reads it).

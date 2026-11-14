@@ -97,8 +97,8 @@ returns 0 and leaves the board untouched.
 
 ## Timing and keys
 
-The piece has one timer, id 12. Its period is `Mover.timerPeriod`, 200 ms at start;
-`mover_move_to_edge_v/h` and `animation_play` (re)start the timer with it.
+The piece has one timer, id 12. `mover_move_to_edge_v/h` (re)start it with `Mover.timerPeriod`
+and `animation_play` (a rotation) with `Animation.timerPeriod`, both 200 ms at start.
 
 - **Gravity** (`WM_SYSTIMER` id 12, `te_scene_handle_message` `f2a2`): if the rotation
   animation is running, advance its frame and stop it, then resume the fall; else
@@ -111,12 +111,14 @@ The piece has one timer, id 12. Its period is `Mover.timerPeriod`, 200 ms at sta
 - **Up**: rotate (unless the rotation animation is still running), see Moves.
 - **Down**: `SetSystemTimer(id 12, 55 ms)`. Key up does not restore the period: the faster
   fall lasts until the next timer restart (a rotation, a sideways key, or the landing). The
-  guard flag is never set (BUGS E5), so every key repeat restarts the 55 ms countdown.
+  guard flag is never set (BUGS E5), so every key repeat restarts the 55 ms countdown: with a
+  repeat under 55 ms a held DOWN stops the fall.
 - Mouse buttons and moves, and `0x3bd`, are swallowed. Other keys do nothing.
 
 Speed-up (in `te_piece_on_landed`, after the line clear): when `linesCleared % 5 == 0` and
 non-zero, the period becomes 150 ms at 5 lines, 100 ms at 10 and 55 ms at 15. 10 lines is a
-win, so only 150 ms is reached (and only when the count lands exactly on 5, BUGS E7).
+win, so only 150 ms is reached (and only when the count lands exactly on 5, BUGS E7). Only
+`Mover.timerPeriod` changes: a rotation still re-arms the timer at 200 ms.
 
 ## Landing, lines and score
 
