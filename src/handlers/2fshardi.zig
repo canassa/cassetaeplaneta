@@ -3,7 +3,8 @@
 //! A car ride (a VW Beetle, seen from the back seat): the driver is a woman
 //! with a German-sounding accent (sprites 2ssha*, waves STONES*.WAV).
 //! Items dropped on her (objects 0xb-0xd, 0x21) get their WAVE reply and
-//! come back to the inventory with a score penalty. The bible (item 0x30), or the gift package (item 0x6b) when its
+//! come back to the inventory with a score penalty. The bible (item
+//! 0x30), or the gift package (item 0x6b) when its
 //! random picture is not the fourth one, is the right answer and leads to
 //! the party arrival (`2ffesta3`). Four wrong offers, or five seconds with an
 //! empty inventory, send the player back to the street (`2fpontoc`); no life
