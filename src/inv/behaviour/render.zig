@@ -16,6 +16,7 @@ const world = @import("../core/world.zig");
 const Backdrop = world.Backdrop;
 const dib = @import("../dib.zig");
 const position = @import("position.zig");
+const panels = @import("../panels.zig");
 
 fn blitFailed(err: dib.Error) noreturn {
     std.debug.panic("inv render: sprite blit left its buffers ({s})", .{@errorName(err)});
@@ -224,10 +225,7 @@ pub fn draw(g: *Game, obj: *Object, bd: *Backdrop) void {
         .saucer, .bomb, .shot => animationDraw(g, obj, bd),
         .invader_column => invaderColumnDraw(g, obj, bd),
         .invader_explosion => invaderExplosionDraw(g, obj, bd),
-        // control_panel_draw (1058:014c) belongs to unit `panels`, which
-        // declares no `draw` yet; the panel is never shown, and its
-        // animation_draw call is what is reachable here.
-        .control_panel => animationDraw(g, obj, bd),
+        .control_panel => panels.draw(g, obj, bd),
         .status_bar => soDraw(g, obj, bd),
     }
 }
