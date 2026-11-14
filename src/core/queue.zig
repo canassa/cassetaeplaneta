@@ -46,6 +46,18 @@ pub const Queue = struct {
         return q.posted.push(m);
     }
 
+    /// Removes the posted messages `id` (not Windows: for a fix, BUGS.md
+    /// B37); the others keep their order. Returns how many went.
+    pub fn dropPosted(q: *Queue, id: u16) usize {
+        var kept: Ring(post_capacity) = .{};
+        var dropped: usize = 0;
+        while (q.posted.pop()) |m| {
+            if (m.id == id) dropped += 1 else _ = kept.push(m);
+        }
+        q.posted = kept;
+        return dropped;
+    }
+
     /// Input from the platform. Consecutive mouse moves coalesce.
     pub fn postInput(q: *Queue, m: Msg) void {
         if (m.id == wm.mousemove and q.input.len > 0) {
@@ -198,4 +210,16 @@ test "a timer missed for a long time fires once (Windows coalesces WM_TIMER)" {
     try std.testing.expectEqual(wm.timer, q.next(10_000).?.id);
     try std.testing.expectEqual(@as(?Msg, null), q.next(10_000));
     try std.testing.expectEqual(@as(?u32, 10_100), q.nextDue());
+}
+
+test "dropPosted removes one kind and keeps the order of the rest" {
+    var q: Queue = .{};
+    _ = q.post(.{ .id = 0x403, .wparam = 1 });
+    _ = q.post(.{ .id = 0x402, .wparam = 1 });
+    _ = q.post(.{ .id = 0x403, .wparam = 2 });
+    _ = q.post(.{ .id = 0x402 });
+    try std.testing.expectEqual(@as(usize, 2), q.dropPosted(0x402));
+    try std.testing.expectEqual(@as(u16, 1), q.next(0).?.wparam);
+    try std.testing.expectEqual(@as(u16, 2), q.next(0).?.wparam);
+    try std.testing.expectEqual(@as(?Msg, null), q.next(0));
 }

@@ -415,7 +415,10 @@ fn mciNotify(g: *Game, scene: *Scene, m: Msg) i16 {
     _ = g.post(Msg.make(noite.unlock_input, 0, 0, 0));
     _ = sound.mixInit(g);
     if (scene.isClickExit != 0) return 1;
-    const anim = scene.animation orelse @panic("scene: no animation");
+    // A video that outlived its scene (BUGS.md B37: a second exit took the
+    // video scene's exit at once) ends here: the original calls
+    // exit_has_key_object on the NULL animation, a GPF.
+    const anim = scene.animation orelse @panic("scene: a video ends in a scene without its animation (original GPF, BUGS.md B37)");
     if (exit.hasKeyObject(g, anim, true, null)) {
         _ = g.post(Msg.make(noite.exit_finished, @bitCast(anim.exit.exitIndex), 0, 0));
         return 1;

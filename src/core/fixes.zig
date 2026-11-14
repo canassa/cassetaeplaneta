@@ -108,6 +108,10 @@ pub const Fixes = struct {
     /// that above (or below) the rest row, it walks on forever, off the
     /// screen.
     drop_walk_straight: bool = false,
+    /// B37: entering a scene drops the exit-finished messages (0x402) the
+    /// old scene's exits posted, so a second door that finished on the same
+    /// tick does not take the new scene's exit of that index.
+    exit_finished_stays_in_scene: bool = false,
     /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"):
     /// while an inventory item is dragged out of the control panel (right
     /// button held), its panel icon follows the pointer. The original shows

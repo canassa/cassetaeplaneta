@@ -1,0 +1,14 @@
+# BUGS.md B37: both prison doors right-clicked inside one 200 ms door tick.
+#
+#   zig-out/bin/noite --headless --ms 70000 --scene 3fprisao --input tools/play/b37-prison-doors.input
+#
+# The street door (3sportcd) finishes first and enters 3fstreet; the other
+# door's 0x402 (exit 0) then takes 3fstreet's video exit to 3fhall at once,
+# the street video still playing, and its end panics in the hall ("a video
+# ends in a scene without its animation", the original's GPF). With
+# `--fix exit_finished_stays_in_scene` the street escape plays (XILINDRO).
+2000 rclick 460 200
++60 rclick 220 200
++0 wait 3fstreet 10000
++1000 expect 3fstreet
++60000 state

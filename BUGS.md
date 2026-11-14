@@ -538,6 +538,30 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   column (`movement.fallTo`). B30's fall (`fallToRest`, not in the original) always does.
 - **Confidence:** 9 (code, port repro).
 
+### B37. Two doors that finish on the same tick: the second takes the next scene's exit (3fprisao → the hall with the street video playing, then a GPF)
+- **Where:** `exit_tick` 1010:68d4 posts 0x402 with the exit's *index* (`POSTMESSAGE` after its last frame);
+  `game_handle_message` 1018:0000 (0x402 case) takes `scene->exits[wParam]` of the *current* scene when
+  `Game.exitPending` is set; `ini_scene_handle_message` 1018:915e (0x401) sets `exitPending` for every
+  Is_1Animation scene that is not a click exit; `game_take_exit` 1018:12c6 reads `scene->exits[index]` unchecked.
+- **What the code does:** every door of a scene ticks on the same system timer. Two doors right-clicked within
+  one tick (3fprisao: 3sportcd and 3sportce share timer 6, 200 ms; a second right click is still taken until the
+  first door's first frame) finish on the same WM_SYSTIMER and post two 0x402. The first takes its exit; the new
+  scene's 0x401 is *sent* during the switch, so a video scene arms `exitPending` before the second 0x402, still
+  queued, is read, and that one takes the new scene's exit of the old index. Nothing ties a 0x402 to the scene
+  that posted it.
+- **Effect:** 3sportcd (→ 3fstreet) then 3sportce (exit 0): 3fstreet's video exit 0 goes to 3fhall at once,
+  skipping the street escape, with the street video still open and drawn over the hall. When it ends, its
+  MM_MCINOTIFY reaches the hall: `ini_scene_handle_message` calls `exit_has_key_object` on the hall's NULL
+  `animation`, a general protection fault. With an index the new scene has no exit for (two hall doors taken
+  through their INI exits, B38: 3ffarao then exit 3) `game_take_exit` reads the exit through NULL, a GPF too.
+- **Port:** reproduced (the panics name this entry); `Fixes.exit_finished_stays_in_scene` drops the queued 0x402
+  messages when a scene is entered. Repro: `--scene 3fprisao`, right clicks at (460, 200) and, 60 ms later, at
+  (220, 200).
+- **Evidence:** port traces (`noite --trace`: 0x403/0x402 for both doors on one tick, the second 0x402 after the
+  sent 0x401); the code paths above. An earlier port note blamed the guard's stale timer 5 (B21) for this
+  3fstreet → 3fhall jump; the trace shows the other door's 0x402 instead, and no 3fsegura visit is needed.
+- **Confidence:** 8 (code, port repro); 6 (how often a player double-clicks two doors inside 200 ms).
+
 ## Harmless: wrong paths rescued by the wave fallback
 
 `wave_open` retries `<root>pan\wav\<file name>.wav`, and `PAN\WAV\` holds a copy of almost every wave, so these

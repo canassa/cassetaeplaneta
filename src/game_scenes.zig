@@ -70,6 +70,8 @@ fn bdOf(scene: *Scene) *Backdrop {
 /// (`x`, `y`), draw the bars, start the idle pose and announce the scene
 /// (0x401, sent). The `hdc` of the original is dropped.
 fn enterScene(g: *Game, x: i16, y: i16) void {
+    // B37: a 0x402 still queued carries an exit index of the old scene.
+    if (g.fixes.exit_finished_stays_in_scene) _ = g.queue.dropPosted(noite.exit_finished);
     const scene = must(Scene, g.scene);
     const bd = bdOf(scene);
     object_list.attachToScene(g, &g.globalObjects, scene);
@@ -112,7 +114,10 @@ fn enterScene(g: *Game, x: i16, y: i16) void {
 /// the game.
 pub fn takeExit(g: *Game, exit_index: i16) *Game {
     const old = must(Scene, g.scene);
-    const ex = &must(Object, old.exits[@intCast(exit_index)]).exit;
+    // An index the scene has no exit for (a 0x402 another scene posted,
+    // BUGS.md B37): the original reads the exit through NULL, a GPF.
+    const ex_obj = old.exits[@intCast(exit_index)] orelse @panic("game_scenes: no exit at the 0x402 index (original GPF, BUGS.md B37)");
+    const ex = &ex_obj.exit;
     var x: i16 = undefined;
     var y: i16 = undefined;
     if (ex.altExitIndex == exit_index) {
