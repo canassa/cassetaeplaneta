@@ -1142,3 +1142,89 @@ Addresses are Ghidra `seg:off` in `/ENCAIXE.EXE`; the game is described in `docs
   the piece. Its frame-cell array takes 0x940 × 8 bytes of the local heap instead of 8.
 - **Confidence:** 9 (code); 8 (effect).
 - **Port:** reproduced (unit `game`, src/encaixe/; x is taken as 0); no flag, nothing to fix.
+
+---
+
+## TIRO.EXE (the "Tiro ao Álvaro" minigame)
+
+Addresses are Ghidra `seg:off` in `/TIRO.EXE`; the game is described in `docs/tiro/GAME.md`.
+
+### T1. The SPACE latch is never set, so a held SPACE fires on every key repeat
+- **Where:** `tiro_scene_handle_message` 1068:1790, `WM_KEYDOWN` `VK_SPACE` (test at 1068:1997).
+- **What the code does:** the fire code runs only when `g_keySpaceHeld` (1090:02c2) is 0, and `WM_KEYUP` clears
+  it (1068:1d8d), but nothing ever writes 1 to it (those are its only two references). The LEFT/RIGHT latches next
+  to it are set on key-down.
+- **Effect:** holding SPACE runs the fire code on every auto-repeat: each repeat takes an arrow (T2) and fires
+  again as soon as the arrow is free. A held SPACE drains the 16 arrows within a second or two and is the usual
+  way to skip the end test (T3).
+- **Confidence:** 9 (code); 8 (effect, depends on the keyboard repeat rate).
+- **Port:** not ported yet.
+
+### T2. An arrow is spent on a press that fires nothing
+- **Where:** `tiro_scene_handle_message` 1068:1790, `VK_SPACE`: `DEC word ptr [BX+0x40]` at 1068:19a4, then the
+  free test `CMP word ptr [BX+0x30],0x0` (arrow `moving`) at 1068:19b8.
+- **What the code does:** `lives` (the crossbow's arrow counter, `Player2D.lives`) is decremented before the code
+  checks whether the single arrow is still flying; a press while it flies only costs the arrow.
+- **Effect:** every SPACE press, or key repeat (T1), during a flight of about a second wastes one of the 16 arrows.
+  The game can end with fewer shots than arrows.
+- **Confidence:** 9.
+- **Port:** not ported yet.
+
+### T3. The end test `lives == 1` can be skipped, and then the game never ends
+- **Where:** `tiro_scene_handle_message` 1068:1790, the four target branches of `WM_SYSTIMER`
+  (`CMP word ptr [BX+0x40],0x1` at 1068:1e2e, 2069, 2227, 23a2; `SendMessage(hwnd, WM_DESTROY)` after each).
+- **What the code does:** the game ends only on a target tick that sees `lives` exactly 1. SPACE decrements
+  `lives` with no lower bound. The four target timers (100 ms) start together and drift apart only through hit
+  animations, so the test can run as rarely as every 100 ms.
+- **Effect:** two presses (or key repeats, T1) between target ticks take `lives` from 2 to 0; it then only goes
+  further negative, the test never holds again, and the game goes on with unlimited shots (each still taking an
+  arrow) until `lives` wraps round to 1 after some 65,000 more presses or the window is closed. No result reaches
+  NOITE until then.
+- **Confidence:** 9 (code); 8 (effect).
+- **Port:** not ported yet.
+
+### T4. The 15th arrow is lost, so at most 14 shots can score
+- **Where:** `tiro_game_create_player` 1048:0029 (`lives` = 16) and the end test of T3.
+- **What the code does:** the 15th SPACE press leaves `lives` = 1 and fires the 15th arrow; the next target tick,
+  at most 100 ms later, sends `WM_DESTROY`, which posts the result. An arrow needs about a second (some 18 ticks of
+  55 ms) to reach the lower row.
+- **Effect:** the 15th arrow is cut off in flight (it scores only if the target ticks are held up for a second),
+  and the 16th is never fired: of the 16 arrows only 14 can score.
+- **Confidence:** 9 (code); 8 (effect).
+- **Port:** not ported yet.
+
+### T5. A hit goes to the first target that overlaps the arrow in x, whichever row it is on
+- **Where:** `projectile_try_step` 1068:1448 (first stage) and `tiro_scene_handle_message` 1068:1790, arrow branch
+  (`target_hit` calls at 1068:28d0, 2a30, 2b90, 2cf0).
+- **What the code does:** the first stage only says that some Target blocks the arrow in the occupancy grid, within
+  47 px of that target's y. The handler then stops the arrow and gives the hit to the first of targets 2, 3, 1, 0
+  whose x-range overlaps the arrow's (x..x+55 against x..x+75); y is not tested. The three overlap cases use strict
+  comparisons, so arrow x = target x and arrow x = target x + 20 match none of them.
+- **Effect:** an arrow that reaches an upper-row target scores for a lower-row target (2 and 3 are tested first)
+  that happens to be under it in x, with that target's sign (+150 or −150). When no target matches (an exact
+  alignment, or the grid cell touched but the x-ranges do not overlap) the arrow is stopped and spent with no score.
+- **Confidence:** 9 (code); 7 (how often players see it).
+- **Port:** not ported yet.
+
+### T6. `target_restore_background` erases a strip one step wider than the move
+- **Where:** `target_restore_background` 1068:0e2f (`getStepX` calls at 1068:0edd and 0ef8).
+- **What the code does:** the restore rect is width + |stepX| + |stepX| by height + |stepY| from
+  min(previous, current) position; `mover_restore_background` 1028:0389, which it overrides, adds |stepX| once.
+  The same rect goes to `addDirtyRect`.
+- **Effect:** each walking step restores a 20-px-wide strip of background, the rect's full height, beyond what the
+  move uncovered. Whatever else is drawn there, the arrow or a target in its hit animation (which `target_redraw_overlapping`
+  skips), loses that strip until its own next redraw; elsewhere the background is restored over background.
+- **Confidence:** 9 (code); 6 (effect).
+- **Port:** not ported yet.
+
+### Latent (TIRO)
+
+- **`perspective_backdrop_set_layer` 1020:0118 stores before it checks the index:** `layers[layer-1] = obj`, and only
+  then `layer < 6` (else the "Estouro no número de Layers" message box). A layer above 5 writes past `layers[5]`
+  into `layerCount` (+0x468) and the bytes after the object. Never reached: nothing calls it and no
+  PerspectiveBackdrop is ever built. Confidence 9.
+
+### Harmless (TIRO)
+
+- **`WinMain` 1038:0202 returns an uninitialised word:** `[BP-0xe]` is 0 on the two early exits (second instance,
+  failed `app_init`) and never written after a normal run. Nothing reads TIRO's exit code. Confidence 9.
