@@ -223,6 +223,9 @@ pub const Game = struct {
     // @orig g_crtHoldRand (srand(time(NULL)) before every attack choice:
     // BUGS.md X3)
     rand: Rand = .{},
+    // No counterpart: set once `opponent_choose_attack` has seeded `rand`
+    // (only `xilindro_seed_once` reads it).
+    randSeeded: bool = false,
     // No counterpart: g_setSystemTimer / g_killSystemTimer (`setSystemTimer`),
     // g_instance, g_moduleHandle, g_modulePath(Buf) (the EXE's directory is
     // the host's `Program.dir`), g_game / g_xilindroGame (this Game), the
