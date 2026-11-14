@@ -71,7 +71,7 @@ fn blitRect(g: *Game, obj: *Object, bd: *Backdrop, x: i16, y: i16) void {
 }
 
 // @orig 1028:0041 scene_object_blit_to_dc
-fn sceneObjectBlitToDc(g: *Game, obj: *Object, bd: *Backdrop) void {
+pub fn sceneObjectBlitToDc(g: *Game, obj: *Object, bd: *Backdrop) void {
     blitRect(g, obj, bd, obj.x, obj.y);
 }
 

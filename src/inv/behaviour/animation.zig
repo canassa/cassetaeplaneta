@@ -247,12 +247,6 @@ pub fn playOnce(g: *Game, obj: *Object, bd: *Backdrop) void {
     g.setSystemTimer(@bitCast(obj.anim.timerId), @bitCast(obj.anim.timerPeriod));
 }
 
-/// scene_object_blit_to_dc (1028:0041, `visibility` owns it, private there):
-/// the object's strip rectangle at (x, y), whatever its class.
-fn blitSceneObject(g: *Game, obj: *Object, bd: *Backdrop) void {
-    g.plat.wingBitBlt(obj.x -% bd.originX, obj.y -% bd.originY, position.width(obj), position.height(obj), bd.surface(), obj.x, obj.y);
-}
-
 /// Animation::set_strip, out of line. When strip `strip` has another frame
 /// size than the current one the object is hidden, switched and shown again
 /// (each followed by a direct scene_object_blit_to_dc on the function's own DC). Returns the (new) current strip's Frame.
@@ -269,7 +263,7 @@ pub fn setStrip(g: *Game, obj: *Object, strip: i16, bd: *Backdrop) *Frame {
         obj.curStrip = strip;
         obj.curFrame = 0;
         visibility.show(g, obj, bd);
-        blitSceneObject(g, obj, bd);
+        visibility.sceneObjectBlitToDc(g, obj, bd);
     }
     return position.curStrip(obj);
 }
