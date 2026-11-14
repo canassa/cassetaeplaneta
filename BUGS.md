@@ -115,6 +115,8 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   never set again).
 - **Effect:** the door → destination table stays the same for the whole session, including after losing and
   coming back, starting a new game or loading. Possibly intended; listed for completeness.
+- **Not a bug:** a design choice. `Fixes.hall_shuffle_each_visit` (reshuffle on every visit) stays, but is
+  not part of `--fix all` (Corrigida): reshuffling only made the hall impossible to learn.
 - **Confidence:** 7 (code 9; whether it is a bug is a design question).
 
 ### B11. JARDIM: the CD drive's current directory is never restored

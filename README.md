@@ -53,7 +53,7 @@ Saves go to `save/` (`--save DIR`).
   released (with B30's fix) or left its image on the screen (with B25's).
 - **Playthrough**: `./zig-out/bin/noite --headless --ms 560000 --input tools/play/full.input`
   plays from the title screen to the sportsman ending, checking every scene.
-  With the fixes: add `--fix all,-hall_shuffle_each_visit,-avi_exit_ignores_timer`
+  With the fixes: add `--fix all,-avi_exit_ignores_timer`
   (the script follows this run's hall doors and the 3fstreet shortcut of BUGS.md B21).
   One-button: `--one-button --ms 480000 --input tools/play/onebutton.input` (the
   whole game with left clicks only, doors clicked from afar, items dropped and
