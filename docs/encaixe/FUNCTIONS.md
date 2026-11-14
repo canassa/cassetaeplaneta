@@ -232,3 +232,19 @@ that carry the tag.
 | 23 | `1008:f042–fcd1` | 20 | 3178 | 7 | 0 | Tetris scene: paint, `f186`, `f1fe`, keys `f2a2`, MCI, WaveMix, IPC `0x40a` |
 
 Groups 17, 21 and 22 fall below 10 functions because their functions are large.
+
+Phase 3 (`DATA.md`) did not change the groups. It gives them classes and types: 119 methods
+now have a typed `this` (Game, Scene, Backdrop/GridBackdrop, SceneObject base slots,
+Object3D, Mover, Animation, Piece, ControlPanel, Frame, OccupancyGrid, DrawList, the
+Conditions), and every vtable slot is a typed near function pointer. By group:
+- 5–6: Object3D methods and SceneObject-subobject helpers; 7–9: the SceneObjectVtbl and
+  Frame defaults (slot names in `DATA.md`); 10–13: small methods that the adjustor thunks
+  reach (type tests `5cf6/5cfc`, Moveable `5e7c/5f1e`, Mover ctors `6418/661c`);
+- 14: SceneObject render slots, UpdateList/DrawList, Mover movement `7a8a–7d0e`;
+  15: ObjectList `805c`, OccupancyGrid `8124–8302`, Backdrop create `8414`;
+- 18: TetrisGame overrides, the Scene methods, the Player2D and TetrisPanel ctors; 19:
+  Backdrop/GridBackdrop/TetrisBackdrop slots, the Actor2D/ControlPanel/Animated3D/Animation
+  ctors, ControlPanel `ad9c/adaa/adc8`; 20: Conditions, the other ControlPanel/TetrisPanel slots, Scene
+  `b5dc–b6f6`;
+- 21–22: the Tetris board in `Piece.board` (`char[11][14]`, column-major), driven through
+  `g_piece`; 23: TetrisScene handler `f2a2`, PieceVtbl `f186/f1fe`, DrawList ctor `f87a`.
