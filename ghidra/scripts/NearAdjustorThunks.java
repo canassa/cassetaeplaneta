@@ -7,14 +7,15 @@ import ghidra.program.model.symbol.SourceType;
 import java.util.*;
 
 // this-adjustor thunks of an MSVC 1.5 build: small model (near return, `this` at [SP+2]) or, with
-// `far`, medium model (far return, `this` at [SP+4]; TIRO).
+// `far`, medium or large model (far return, `this` at [SP+4]; TIRO, INFERNO).
 // Args: <seg> <lo> <hi> [dry] [far]     e.g. 1008 402d 51f6, 1088 0000 1332 far
 // Every `MOV BX,SP` (8B DC) in [lo,hi) that is not inside an instruction becomes a function and is
 // matched against the two thunk shapes:
 //   fixed:    MOV BX,SP; SUB SS:[BX+2],imm; JMP(F) target             -> <target>_thunk_<-imm> (_m<imm> if imm > 0)
 //   vtordisp: MOV BX,SP; MOV BX,SS:[BX+2]; MOV AX,[BX-2]; MOV BX,SP; [ADD AX,k;] SUB SS:[BX+2],AX;
 //             JMP(F) target                                             -> <target>_thunk[_<k>] (_m<k> if k < 0)
-// In far mode the slot is SS:[BX+4]. A thunk whose body ran on into its jump target (Ghidra made
+// In far mode the slot is SS:[BX+4]. A large-model build (far `this`, INFERNO) loads it with
+// `LES BX,SS:[BX+4]` and reads `MOV AX,ES:[BX-2]` in the vtordisp shape; that form is accepted too. A thunk whose body ran on into its jump target (Ghidra made
 // the target a tail) is cut back to end at the JMPF, so the target can become a function.
 // (NOITE's naming.) A name is only (re)written while the function still has a default name or a
 // *_thunk* name, so rerunning after the targets are renamed refreshes the thunk names.
@@ -74,7 +75,8 @@ public class NearAdjustorThunks extends GhidraScript {
 						: String.format("Adjustor thunk: adds 0x%x to this, then jumps to %s.", adj, "%s");
 				fixed++;
 			}
-			else if (t1.startsWith("MOV BX,word ptr SS:[BX + " + slot + "]")) {
+			else if (t1.startsWith("MOV BX,word ptr SS:[BX + " + slot + "]")
+					|| t1.startsWith("LES BX,SS:[BX + " + slot + "]")) {
 				Integer k = null;
 				for (Instruction x : ins)
 					if (x.getMnemonicString().equals("ADD") && x.toString().startsWith("ADD AX,"))
