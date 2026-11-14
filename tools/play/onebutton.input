@@ -101,7 +101,9 @@
 # Door 2 (of this run's shuffle): the shooting gallery (stub: won) -> prison.
 +100 click 200 200
 +0 wait 3fprisao 38000
-+1800 click 338 300
+# The player arrives in front of the hammer (273): step aside, tap it.
++500 click 450 420
++1300 click 338 300
 # The street escape; the guard's stale timer ends it in the hall.
 +1000 click 460 200
 +0 wait 3fhall 63000

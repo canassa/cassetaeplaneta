@@ -18,7 +18,10 @@
 //! - In a scene with the player: a click on something a right click acts on
 //!   (`target`) is a right click on it; an exit out of reach is walked to
 //!   first (a left click beside it, horizontally), and right-clicked when
-//!   the walk ends (0x404). Anything else is the left click: a walk.
+//!   the walk ends (0x404). Anything else is the left click: a walk. A
+//!   click on the player where he stands in front of an item is a walk too:
+//!   the right click would pick up the item he hides (the prison's hammer,
+//!   under him on every entry).
 //! - In a scene without the player: the right button, except in the menus
 //!   (`left_scenes`), click-to-continue scenes and one-animation scenes,
 //!   which take the left one.
@@ -47,6 +50,8 @@ const panels = @import("panels.zig");
 const frames = @import("frames.zig");
 const game_input = @import("game_input.zig");
 const movement = @import("behaviour/movement.zig");
+const dib = @import("dib.zig");
+const space3d = @import("behaviour/space3d.zig");
 
 /// Turns the mode on (before the first message is dispatched).
 pub fn enable(g: *Game) void {
@@ -253,7 +258,10 @@ fn hitBox(obj: *Object) Box {
 fn target(g: *Game, scene: *Scene, bd: *Backdrop, sx: i16, sy: i16) ?*Object {
     const q = backdrop.queryRect(g, bd, sx, sy, 16, 16);
     if (q.result <= 0) return null;
-    if (q.obj) |o| if (o.kind == .portable or counts(scene, o, sx, sy, false)) return o;
+    if (q.obj) |o| {
+        if (o.kind == .portable and hiddenByPlayer(g, bd, o, sx, sy)) return null;
+        if (o.kind == .portable or counts(scene, o, sx, sy, false)) return o;
+    }
     var best: ?*Object = null;
     var best_area: i32 = std.math.maxInt(i32);
     const lists = [2]?*ObjectList{ bd.sceneList, &g.globalObjects };
@@ -269,6 +277,26 @@ fn target(g: *Game, scene: *Scene, bd: *Backdrop, sx: i16, sy: i16) ?*Object {
         }
     }
     return best;
+}
+
+/// Whether backdrop point (sx, sy) shows the player, drawn in front of
+/// `item`, rather than the item.
+fn hiddenByPlayer(g: *Game, bd: *Backdrop, item: *Object, sx: i16, sy: i16) bool {
+    const player = g.player orelse return false;
+    if (player.visible == 0 or !opaqueAt(g, player, sx, sy)) return false;
+    return !space3d.isInFrontOf(g, item, player.as(.player) orelse return false, bd);
+}
+
+/// Whether `obj`'s current frame has a non-transparent pixel at backdrop
+/// point (sx, sy): the frame copied, as it is drawn, onto that one pixel.
+fn opaqueAt(g: *Game, obj: *Object, sx: i16, sy: i16) bool {
+    const d = frames.dib(obj) orelse return false;
+    const key = g.unk001C;
+    var px = [4]u8{ key, key, key, key };
+    const hdr: dib.BitmapInfoHeader = .{ .biWidth = 1, .biHeight = -1 };
+    const orient: i16 = @truncate(obj.dibFormatOk);
+    const drawn = dib.copyTransparent(&hdr, &px, obj.x -% sx, obj.y -% sy, d.bits, &d.header, frames.frameSrcX(obj), frames.frameSrcY(obj), frames.width(obj), orient *% frames.height(obj), key) catch return false;
+    return drawn and px[0] != key;
 }
 
 /// Whether a click at (sx, sy) is for `obj` (`target`): on it, or (not
