@@ -50,7 +50,7 @@ Saves go to `save/` (`--save DIR`).
   starts every INI scene and clicks around (`--freeze`: with random time jumps); failures keep their log in
   `zig-out/smoke/`. `--offers` gives the key items to every object (in the one-button mode by dragging and
   by tap-tap); the harness fails a run when an item a handler takes back had moved from where it was
-  released (with B30's fix) or left its image on the screen.
+  released (with B30's fix) or left its image on the screen (with B25's).
 - **Playthrough**: `./zig-out/bin/noite --headless --ms 560000 --input tools/play/full.input`
   plays from the title screen to the sportsman ending, checking every scene.
   With the fixes: add `--fix all,-hall_shuffle_each_visit,-avi_exit_ignores_timer`

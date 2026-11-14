@@ -290,8 +290,9 @@ pub const Harness = struct {
     /// Watches each dropped item until a handler takes it back (to the
     /// inventory, or consumed): with B30's fix it must not have moved from
     /// where it was released (an offer stays in the character's hands), and
-    /// its image must be gone from the screen a second later. A drop picked
-    /// up again by a click is not checked. Either failure fails the run.
+    /// with B25's its image must be gone from the screen a second later. A
+    /// drop picked up again by a click is not checked. Either failure fails
+    /// the run.
     fn watchOffers(h: *Harness, g: *Game, now: u32) void {
         const w = &h.offer;
         const scene = g.scene orelse {
@@ -321,7 +322,9 @@ pub const Harness = struct {
                     h.failed = true;
                 }
             } else if (now -% w.back_at.? >= 1000) {
-                if (!w.clicked) h.checkLeftover(g, it);
+                // Without B25's fix the take-back misses an image the drop
+                // left where it was released, as in the original.
+                if (!w.clicked and g.fixes.drop_syncs_previous_position) h.checkLeftover(g, it);
                 w.item = null;
             }
         }

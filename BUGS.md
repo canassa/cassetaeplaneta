@@ -355,7 +355,8 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
 - **Effect:** the item's picture stays on the screen (and in the backdrop bitmap) after it is back in the
   inventory; dropping it again draws a second one. E.g. the wallet dropped on the corridor's bathroom door
   (animation 256; it stays there because of B30). The give-item scenes (2fportd2, 2fblitg, 2fcopmau, 2fcopmu,
-  3fprisao…) hit it when an offered item is handed back.
+  3fprisao…) hit it when an offered item is handed back: in 4fbar the wine offered to the sportsman (396,293)
+  stays drawn there once the reply has handed it back (`tools/smoke.py --offers` without the fix).
 - **Port:** reproduced (`game_input.rightUp`); `Fixes.drop_syncs_previous_position` sets the previous
   position to the dropped one, as `mover_show` does.
 - **Confidence:** 9 (code, port repro).
