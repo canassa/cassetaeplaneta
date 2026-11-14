@@ -7,14 +7,14 @@ own references were ENCAIXE and NOITE. The data is in `DATA.md`.
 
 ## Counts
 
-**1,280 functions** in Ghidra: 94 externals, 94 import thunks, 451 adjustor thunks, and
-**640 code functions** (one of them, `atoi`, a one-`JMP` thunk to `atol`).
+**1,279 functions** in Ghidra: 94 externals, 94 import thunks, 451 adjustor thunks, `atoi`
+(a one-`JMP` thunk to `atol`) and **639 code functions**.
 
 | | Fns |
 |---|---|
-| Code functions (non-thunk) | 640 |
+| Code functions (non-thunk) | 639 |
 | named | **634** |
-| `FUN_` | **6** (5 unknown twins of TIRO's own 5 unknowns, below) |
+| `FUN_` | **5** (the twins of TIRO's own 5 unknowns, below) |
 | with a plate | 639 |
 | named from TIRO (plate "Name from TIRO …") | 567 |
 | named by hand / by role (game, new CRT, Frame dtor) | 67 |
@@ -134,7 +134,7 @@ answer 0 for every SALGIN class. Their defaults are renamed `scene_object_is_fig
 - `backdrop_autoscroll`'s body after `return 0`.
 - Whatever TIRO lists as dead and SALGIN shares (the second draw list, the PerspectiveBackdrop
   functions, the Portable ctors, `status_bar_draw_text`, …): their plates say so.
-- The 6 `FUN_`: `1028:0e71` (empty member, `RETF 0xa`), `1028:1c89` (huge-pointer arithmetic,
+- The 5 `FUN_`: `1028:0e71` (empty member, `RETF 0xa`), `1028:1c89` (huge-pointer arithmetic,
   no caller), `1088:3dcc`/`3de6` (empty `(this, backdrop)` methods), `1088:3e48` (empty
   `(this)` method); the same 5 TIRO leaves unnamed (tag `review`); and none else.
 
