@@ -40,6 +40,13 @@
   #tools button:hover, #tools button:focus-visible { color: #000; background: #e8b830; border-color: #e8b830; }
   #tools.overlay { opacity: .35; transition: opacity .2s; }
   #tools.overlay:hover, #tools.overlay:focus-within, #tools.overlay.lit { opacity: 1; }
+  /* A short note over the bottom of the page (a report saved), with an
+     optional button. */
+  #toast { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 2;
+    max-width: calc(100% - 32px); box-sizing: border-box; padding: .4rem .75rem; font-size: 13px;
+    background: rgba(20, 20, 20, .92); color: #ddd; border: 1px solid #444; border-radius: 6px;
+    display: flex; gap: .5rem; align-items: center; }
+  #toast button { margin: 0; padding: .2rem .6rem; font-size: inherit; }
   /* Arrows for a touch screen (one-button mode): they walk like the
      keyboard's, around what a tap's straight walk bumps into. Beside or
      below the game, bottom right (placed by fit() in noite.js). */
@@ -90,8 +97,10 @@
 </div>
 <div id="tools" hidden>
   <button id="switch"></button>
+  <button id="reportbtn" title="Baixar um relatório do jogo agora (cena, itens, imagem da tela) para mandar junto com a descrição do problema">Relatório</button>
   <button id="fullscreen" title="Tela cheia" hidden>⛶</button>
 </div>
+<div id="toast" hidden><span id="toasttext"></span><button id="toastbtn" hidden></button></div>
 <div id="dpad" hidden>
   <button data-key="38" aria-label="Cima">▲</button>
   <button data-key="37" aria-label="Esquerda">◀</button>

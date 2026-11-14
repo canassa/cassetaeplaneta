@@ -45,6 +45,7 @@ pub const platform = struct {
     pub const png = @import("platform/png.zig");
     pub const script = @import("platform/script.zig");
     pub const harness = @import("platform/harness.zig");
+    pub const report = @import("platform/report.zig");
 };
 pub const units = @import("units.zig");
 const one_button = @import("one_button.zig");
@@ -262,4 +263,5 @@ test {
     std.testing.refAllDecls(platform.mixer);
     std.testing.refAllDecls(platform.png);
     std.testing.refAllDecls(platform.script);
+    std.testing.refAllDecls(platform.report);
 }

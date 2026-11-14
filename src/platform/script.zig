@@ -18,6 +18,8 @@
 //!                       switch to an INI scene now (as `--scene`)
 //!     log TEXT          print a marker in the log
 //!     state             print the scene, player, inventory, lives, score
+//!     report FILE       write the state report (src/platform/report.zig,
+//!                       the web page's "Relatório") to FILE as JSON
 //!     expect NAME       fail the run (exit 1) unless NAME is the scene
 //!     wait NAME [MS]    hold the script until NAME is the scene (fail
 //!                       after MS, default 120000); every later time
@@ -50,6 +52,7 @@ pub const Action = union(enum) {
     scene: SceneJump,
     log: []const u8,
     state,
+    report: []const u8,
     expect: []const u8,
     wait: Wait,
     take: i16,
@@ -240,6 +243,8 @@ pub fn parse(gpa: std.mem.Allocator, text: []u8) ParseError!Script {
             try s.steps.append(gpa, .{ .at = t, .action = .{ .wait = .{ .name = name, .max_ms = max } } });
         } else if (eq(u8, cmd, "expect")) {
             try s.steps.append(gpa, .{ .at = t, .action = .{ .expect = words.next() orelse return bad(line_no, "missing scene") } });
+        } else if (eq(u8, cmd, "report")) {
+            try s.steps.append(gpa, .{ .at = t, .action = .{ .report = words.next() orelse return bad(line_no, "missing file") } });
         } else if (eq(u8, cmd, "state")) {
             try s.steps.append(gpa, .{ .at = t, .action = .state });
         } else if (eq(u8, cmd, "focus")) {

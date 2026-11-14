@@ -79,6 +79,9 @@ pub const Dib = struct {
     colors: [256]RgbQuad,
     /// Row-padded (4-byte) pixels, 8 bits per pixel after loading.
     bits: []u8,
+    /// Not in the original: the file's base name (`1PBOLA` of
+    /// `…\1PBOLA.BMP`), for the state report (`src/platform/report.zig`).
+    name: [16]u8 = @splat(0),
 };
 
 pub const BitmapInfoHeader = extern struct {

@@ -381,6 +381,7 @@ pub fn loadDib(gpa: std.mem.Allocator, plat: Platform, fixes: Fixes, path_buf: [
     _ = plat.read(f, bits);
     info.bits = bits;
     dib.* = info;
+    cstr.copy(&dib.name, splitFname(nm));
     plat.close(f);
     return dib;
 }

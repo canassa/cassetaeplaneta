@@ -7,7 +7,8 @@
 # manifest.json), the disc files the manifest lists under assets/ and the
 # SoundFont ($NOITE_SOUNDFONT, set by the dev shell) under soundfont/;
 # then tools/web/stamp.py gives every file but index.html a content hash
-# (requested as `url?h=<hash>`). OUT is replaced. Serve it as is (see
+# (requested as `url?h=<hash>`) and stamps the release id ($NOITE_RELEASE,
+# "local" without it) and the commit into index.html. OUT is replaced. Serve it as is (see
 # docs/WEB.md for the headers).
 set -euo pipefail
 root=$(cd "$(dirname "$0")/../.." && pwd)
@@ -33,4 +34,6 @@ for f in m["files"]:
     assert dst.stat().st_size == f["size"], url
 print(f"{out}: {len(m['files'])} files, {m['total'] / 1e6:.1f} MB")
 EOF
-python3 tools/web/stamp.py "$out"
+# The commit the page reports (tools/web/stamp.py); -dirty when the tree
+# has uncommitted changes.
+NOITE_COMMIT=$(git describe --always --dirty --abbrev=12 2>/dev/null || true) python3 tools/web/stamp.py "$out"

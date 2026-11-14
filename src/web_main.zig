@@ -15,6 +15,7 @@ const api = @import("platform/platform.zig");
 const web = @import("platform/web.zig");
 const mixer = @import("platform/mixer.zig");
 const harness = @import("platform/harness.zig");
+const report = @import("platform/report.zig");
 const units = @import("units.zig");
 const one_button = @import("one_button.zig");
 
@@ -157,4 +158,20 @@ export fn noite_scene() [*]const u8 {
     const g = game orelse return "";
     const s = g.scene orelse return "";
     return &s.name;
+}
+
+var report_text: []u8 = &.{};
+
+/// The state report (src/platform/report.zig) as JSON text; its length is
+/// `noite_report_len`. Valid until the next call. "" before the start.
+export fn noite_report() [*]const u8 {
+    gpa.free(report_text);
+    report_text = &.{};
+    const g = game orelse return "";
+    report_text = report.alloc(g, gpa) catch &.{};
+    return report_text.ptr;
+}
+
+export fn noite_report_len() u32 {
+    return @intCast(report_text.len);
 }

@@ -17,7 +17,10 @@ The script runs `zig build web` (→ `zig-out/web/`: the page, `noite.wasm`,
 the disc files the manifest lists (from `assets/`) and the SoundFont
 (`$NOITE_SOUNDFONT`, the dev shell's GeneralUser GS from the nix store),
 and stamps it with content hashes (`tools/web/stamp.py`, see Caching
-below). OUT is deleted and rebuilt.
+below) and with the release id and the commit, which the page puts in its
+reports (`data-release`, `data-commit` on the script tag: `$NOITE_RELEASE`,
+set by `tools/deploy-web.sh` to the server's `releases/<id>` name, else
+`local`; `git describe --always --dirty`). OUT is deleted and rebuilt.
 
 Site layout:
 
@@ -232,6 +235,32 @@ map $arg_h $noite_cache {
 - **Message boxes** are logged to the console and answered with their
   first button, like the SDL backend.
 
+## Bug reports
+
+The tools bar (with the version switch and fullscreen) lets a player
+send us the game's state instead of describing it. The file goes to the
+share sheet where the browser can share it (a phone: straight to a chat
+or mail), else it is downloaded.
+
+- **Relatório** (`#reportbtn`): `noite-<release>-<scene>-<UTC time>.json`
+  (~250 kB): release, commit, the wasm's and noite.js's hashes, version,
+  skip-videos, one-button, user agent, viewport, the canvas as a PNG data
+  URL, and `state`, the JSON of `noite_report` (`src/platform/report.zig`):
+  the scene (name, number, flags, scroll), the previous scene number,
+  lives, score, inputLocked, exitPending, aviPlaying, itemSelected and
+  selectedItem, the drag and one-button state, the panel, the player
+  (position, strip, frame, moving, allowOffscreen, target), the inventory
+  and used items (id and bitmap name), every object of the scene's list
+  and of the draw list (id, kind, bitmap or clip name, x, y, visible,
+  strip, frame, dirty and clip rects, timers and whether they are armed,
+  an exit's target), the update list, every portable of the game (id,
+  name, scene, previous and home scene, which list holds it, owner,
+  visible, x, y, elevation), the armed timers, the queue's counts and the
+  last 64 messages (the panic report's trail). Names are the objects'
+  bitmap files (`Dib.name`, kept by `dib.loadDib` for this; an item in
+  the inventory has only its icon's, `<name>2`). The native harness writes
+  the same JSON with the script command `report FILE`.
+
 ## Testing
 
 ```sh
@@ -258,6 +287,8 @@ the Corrigida version, which loads every file from Cache Storage, has
 every fix on in the wasm and is remembered; a drag there shows the item,
 and with the player behind the open panel no frame the page presents
 cuts the panel as it starts closing (B48, `panel-close.png`).
+Relatório downloads a report with the scene, a screenshot and the
+inventory (empty in the bedroom; the wallet in the Corrigida corridor).
 Then a phone-sized touch context (`has_touch`): the one-button control is
 on by default and reaches the wasm, and with `touchscreen.tap` only the
 videos are skipped, a new game starts, the drawer gives the wallet, a

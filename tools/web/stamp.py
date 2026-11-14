@@ -12,13 +12,19 @@ content hash (the first 16 hex digits of its SHA-256) and is requested as
   and `version` are recomputed from the files in SITE);
 - index.html: its `<script src="noite.js…">` becomes
   `<script src="noite.js?h=…" data-wasm="noite.wasm?h=…"
-  data-manifest="manifest.json?h=…">`, which noite.js reads.
+  data-manifest="manifest.json?h=…" data-release="…" data-commit="…">`,
+  which noite.js reads. The release id is $NOITE_RELEASE (set by
+  tools/deploy-web.sh: the name of the server's releases/<id> directory)
+  and the commit $NOITE_COMMIT (set by tools/web/build-site.sh); without
+  them the values already in the tag are kept ("local" and "" at first).
+  The page puts both in its reports and snapshots.
 
 Idempotent: stamping a stamped site again only updates the hashes.
 """
 
 import hashlib
 import json
+import os
 import pathlib
 import re
 import sys
@@ -58,7 +64,18 @@ def stamp(site):
            f' data-wasm="noite.wasm?h={short_hash(site / "noite.wasm")}"'
            f' data-manifest="manifest.json?h={short_hash(manifest_path)}"></script>')
     index = site / "index.html"
-    html, n = SCRIPT_TAG.subn(tag, index.read_text())
+    text = index.read_text()
+    old = SCRIPT_TAG.search(text)
+    kept = {}
+    for attr in ("release", "commit"):
+        m = old and re.search(rf'\bdata-{attr}="([^"]*)"', old.group(0))
+        kept[attr] = m.group(1) if m else ""
+    release = os.environ.get("NOITE_RELEASE") or kept["release"] or "local"
+    commit = os.environ.get("NOITE_COMMIT") or kept["commit"]
+    if not re.fullmatch(r"[0-9A-Za-z._-]+", release) or not re.fullmatch(r"[0-9a-z-]*", commit):
+        sys.exit(f"bad release id {release!r} or commit {commit!r}")
+    tag = tag[: -len("></script>")] + f' data-release="{release}" data-commit="{commit}"></script>'
+    html, n = SCRIPT_TAG.subn(tag, text)
     if n != 1:
         sys.exit(f"{index}: expected one <script src=\"noite.js\">, found {n}")
     replace(index, html)

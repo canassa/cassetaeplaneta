@@ -21,6 +21,7 @@ const dib = @import("../dib.zig");
 const occupancy = @import("../behaviour/occupancy.zig");
 const movement = @import("../behaviour/movement.zig");
 const object = @import("../core/object.zig");
+const report_json = @import("report.zig");
 
 pub const Options = struct {
     input: ?[]const u8 = null,
@@ -120,6 +121,7 @@ pub const Harness = struct {
                 .scene => |j| h.jump(g, j),
                 .log => |text| std.debug.print("[{d}] log: {s}\n", .{ now, text }),
                 .state => printState(g),
+                .report => |path| writeReportFile(h, g, path),
                 .expect => |name| {
                     const cur = if (g.scene) |sc| cstr.slice(&sc.name) else "";
                     if (std.ascii.eqlIgnoreCase(std.mem.trim(u8, cur, " "), name)) {
@@ -456,6 +458,17 @@ const OfferWatch = struct {
         }
     };
 };
+
+/// `report FILE`: the state report as JSON (src/platform/report.zig).
+fn writeReportFile(h: *Harness, g: *Game, path: []const u8) void {
+    const text = report_json.alloc(g, h.gpa) catch return;
+    defer h.gpa.free(text);
+    std.Io.Dir.cwd().writeFile(h.io, .{ .sub_path = path, .data = text }) catch |e| {
+        std.debug.print("report {s}: {t}\n", .{ path, e });
+        return;
+    };
+    if (h.opts.verbose) std.debug.print("[{d}] report {s}\n", .{ h.now, path });
+}
 
 pub fn writeScreen(gpa: std.mem.Allocator, io: std.Io, scr: *const p.Screen, path: []const u8, bmp: bool) !void {
     var out: std.ArrayList(u8) = .empty;

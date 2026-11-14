@@ -16,6 +16,9 @@ such; a click 3 s into the 22 s opening video skips it to the title
 screen (title.png); JOGAR then NOVO JOGO start a new game whose opening
 video Esc skips to the bedroom, 1fquarbo (bedroom.png); a right click on
 desk drawer 3 opens 1fgvboy3 (drawer.png), as in tools/play/full.input.
+In the bedroom the Relatório button downloads a report named after the
+release and the scene, with a screenshot and the game state (the scene,
+the empty inventory, the player, every portable).
 At 1280×960, 1920×1080, two phone sizes and an exact 2× (no letterbox)
 the canvas fills the window in one dimension, keeps its aspect ratio, is
 centred, and the tool buttons stay in the window and off the game unless
@@ -27,7 +30,8 @@ panel: its icon follows the pointer (drag.png) and is gone once it is
 released over the panel (drag-released.png); with the player walked down
 behind the open panel, three closes each keep the panel whole in every
 frame the page presents until the first step of the slide (B48,
-panel-close.png). On a phone-sized touch
+panel-close.png). In the corridor the report lists the wallet.
+On a phone-sized touch
 screen (a new context, has_touch): the loader has "Controle com um botão"
 on by default and the wasm gets it; with taps only, the opening video is
 skipped, a new game starts, the desk drawer opens and gives the wallet,
@@ -137,7 +141,7 @@ def main():
         env = {k: v for k, v in os.environ.items() if k != "LD_LIBRARY_PATH"}
         browser = pw.chromium.launch(headless=not args.headed, env=env)
         # One context for both loads, so the second one sees the cache.
-        ctx = browser.new_context(viewport={"width": 1280, "height": 960})
+        ctx = browser.new_context(viewport={"width": 1280, "height": 960}, accept_downloads=True)
         page = ctx.new_page()
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.on("console", lambda m: print(f"  console.{m.type}: {m.text}") if m.type in ("error", "warning") else None)
@@ -209,6 +213,31 @@ def main():
         def changed(a, b):
             return sum(a[i:i + 3] != b[i:i + 3] for i in range(0, len(a), 4))
 
+        def save_report(pg, scene_name):
+            """Relatório: the downloaded JSON, checked against the page."""
+            with pg.expect_download() as d:
+                pg.click("#reportbtn")
+            name = d.value.suggested_filename
+            path = out / name
+            d.value.save_as(path)
+            r = json.loads(path.read_text())
+            check(re.fullmatch(rf"noite-[0-9A-Za-z._-]+-{scene_name}-\d{{8}}T\d{{6}}Z\.json", name) is not None
+                  and r["release"] == pg.evaluate("window.noite.release"),
+                  f"Relatório downloads {name}")
+            st = r["state"]
+            check(st["scene"]["name"] == scene_name and r["screenshot"].startswith("data:image/png;base64,")
+                  and r["build"] == pg.evaluate("window.noite.build") and len(st["portables"]) > 50
+                  and st["player"] is not None and r["userAgent"] and r["viewport"]["width"] > 0,
+                  f"the report has the scene, a screenshot, the build, the player and the portables"
+                  f" ({len(path.read_bytes()) / 1e3:.0f} kB)")
+            return r
+
+        def corridor_report():
+            """In the corridor with the wallet: the report lists it."""
+            before = save_report(page, "1fcorred")
+            inv = [(i["id"], i["name"]) for i in before["state"]["inventory"]]
+            check(len(inv) == 1, f"the report lists the wallet in the inventory ({inv})")
+
         def drag_shows_item():
             """Corrigida: the wallet dragged out of the panel follows the
             pointer (Fixes.drag_shows_item) and goes with the release."""
@@ -238,6 +267,7 @@ def main():
             click(95, 80, "right")
             check(wait_scene("1fcorred", 40), "Corrigida: the corridor (1fcorred)")
             time.sleep(1)
+            corridor_report()
             page.mouse.move(*at(320, 452))  # open the panel (y > 440)
             time.sleep(1.5)
             page.mouse.move(*at(116, 425))
@@ -453,7 +483,7 @@ def main():
         print(f"      first load {first_load:.1f} s")
         html = page.evaluate("document.documentElement.outerHTML")
         check(re.search(r'<script src="noite\.js\?h=[0-9a-f]{16}" data-wasm="noite\.wasm\?h=[0-9a-f]{16}"'
-                        r' data-manifest="manifest\.json\?h=[0-9a-f]{16}">', html) is not None,
+                        r' data-manifest="manifest\.json\?h=[0-9a-f]{16}" data-release="[^"]+"', html) is not None,
               "index.html loads noite.js, the wasm and the manifest by hash")
         if not args.url:
             plain = [r for r in Handler.requests if r not in ("/", "/favicon.ico") and "?h=" not in r]
@@ -494,6 +524,9 @@ def main():
         check(wait_scene("1fquarbo", 5), "Esc skips it to the bedroom (1fquarbo)")
         time.sleep(2)
         shot("bedroom.png")
+        r = save_report(page, "1fquarbo")
+        check(r["state"]["inventory"] == [] and r["version"] == "Original",
+              "the bedroom's report: nothing carried, the Original version")
         peak = page.evaluate("window.noite.audioPeak")
         check(peak > 1000, f"sound reaches WebAudio (peak sample {peak})")
         page.evaluate("window.noite.suspendAudio()")

@@ -17,6 +17,10 @@
 // hashed URLs in its <script> tag's data attributes, and the manifest
 // gives each disc file's hash. Cache Storage keys the files by those
 // URLs, so a deploy re-downloads only what changed.
+//
+// For bug reports, the tools bar has "Relatório" (a JSON file: the build,
+// the options, a screenshot and the game's state from `noite_report`;
+// docs/WEB.md).
 "use strict";
 
 (() => {
@@ -40,6 +44,12 @@
   const script = document.currentScript;
   const WASM_URL = (script && script.dataset.wasm) || "noite.wasm";
   const MANIFEST_URL = (script && script.dataset.manifest) || "manifest.json";
+  // Stamped by tools/web/stamp.py: the deploy's release id (the server's
+  // releases/<id>) and the commit it was built from.
+  const RELEASE = (script && script.dataset.release) || "local";
+  const COMMIT = (script && script.dataset.commit) || "";
+  const hashOf = (url) => (/[?&]h=([0-9a-f]+)/.exec(url || "") || [])[1] || "";
+  const JS_HASH = hashOf(script && script.src);
   const fetchOptions = (url) => (/[?&]h=/.test(url) ? {} : { cache: "no-cache" });
   const fileUrl = (entry) => (entry.hash ? `${entry.url}?h=${entry.hash}` : entry.url);
 
@@ -276,6 +286,7 @@
   // ---- the wasm ---------------------------------------------------------------
 
   let wasm = null; // exports
+  let build = ""; // the wasm's short hash (stamp.py's), computed at the start
   let running = false, ready = false, failure = null, loadStats = null, pruned = false;
   // For tests: the loudest sample sent to WebAudio, and the cost of the
   // game's turns (ms per frame, worst frame).
@@ -656,6 +667,108 @@
     document.addEventListener("webkitfullscreenchange", fit);
   }
 
+  // ---- reports -------------------------------------------------------------------
+
+  /** 20261114T093000Z */
+  const utcStamp = () => new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
+
+  function sceneName() {
+    if (!wasm) return "";
+    const m = mem(), p = wasm.noite_scene();
+    let e = p;
+    while (m[e]) e++;
+    return str(p, e - p).trim();
+  }
+
+  /** The game's state (src/platform/report.zig), or null. */
+  function gameState() {
+    try {
+      const p = wasm.noite_report(), n = wasm.noite_report_len();
+      return n ? JSON.parse(new TextDecoder().decode(mem().subarray(p, p + n))) : null;
+    } catch (e) {
+      console.warn("report:", e);
+      return null;
+    }
+  }
+
+  /** What the Relatório button downloads. */
+  function report() {
+    let screenshot = null;
+    try {
+      screenshot = canvas.toDataURL("image/png");
+    } catch {}
+    return {
+      kind: "noite-report",
+      release: RELEASE, commit: COMMIT, build, js: JS_HASH,
+      time: new Date().toISOString(),
+      version: VERSION_NAMES[prefs.version], skipVideos: prefs.skip, oneButton: prefs.oneButton,
+      userAgent: navigator.userAgent,
+      viewport: { width: innerWidth, height: innerHeight, dpr: window.devicePixelRatio || 1 },
+      canvas: { width: canvas.width, height: canvas.height, cssWidth: canvas.clientWidth, cssHeight: canvas.clientHeight },
+      failure,
+      screenshot,
+      state: gameState(),
+    };
+  }
+
+  const fileStem = () => `noite-${RELEASE}-${(sceneName() || "sem-cena").replace(/[^0-9A-Za-z_-]/g, "")}-${utcStamp()}`;
+
+  let toastTimer = 0;
+  /** A note at the bottom; with `action`, a button that runs it (a new gesture). */
+  function toast(text, action, label) {
+    const t = $("toast"), b = $("toastbtn");
+    $("toasttext").textContent = text;
+    b.hidden = !action;
+    b.textContent = label || "";
+    b.onclick = action ? () => {
+      t.hidden = true;
+      action();
+    } : null;
+    t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => (t.hidden = true), action ? 30000 : 4000);
+  }
+
+  /**
+   * Hands a file to the player: the share sheet where the browser can share
+   * it (a phone: straight to a chat or mail), else a download. Sharing
+   * needs a fresh gesture: when it has expired (a slow compression), a
+   * button asks for one.
+   */
+  async function deliver(blob, name) {
+    const file = new File([blob], name, { type: blob.type });
+    let share = false;
+    try {
+      share = !!(navigator.canShare && navigator.canShare({ files: [file] }));
+    } catch {}
+    if (share && navigator.userActivation && !navigator.userActivation.isActive) {
+      toast(`${name} (${mb(blob.size)}) pronto.`, () => deliver(blob, name), "Enviar");
+      return;
+    }
+    if (share) {
+      try {
+        await navigator.share({ files: [file], title: name });
+        return;
+      } catch (e) {
+        if (e && e.name === "AbortError") return;
+      }
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+    toast(`Salvo: ${name}`);
+  }
+
+  function saveReport() {
+    const r = report();
+    deliver(new Blob([JSON.stringify(r, null, 1)], { type: "application/json" }), fileStem() + ".json");
+    return r;
+  }
+
   // ---- main ---------------------------------------------------------------------
 
   function fail(e) {
@@ -716,7 +829,7 @@
     });
   }
 
-  /** The tool buttons: a reload into the other version, and fullscreen. */
+  /** The tool buttons: a reload into the other version, the report and fullscreen. */
   function showTools() {
     const other = prefs.version === "original" ? "corrigida" : "original";
     const sw = $("switch");
@@ -727,6 +840,10 @@
       if (!confirm(`Recarregar a página com a versão ${VERSION_NAMES[other]}? O que não foi salvo se perde.`)) return;
       writePrefs({ ...prefs, version: other });
       location.href = location.pathname + "?versao=" + other;
+    };
+    $("reportbtn").onclick = () => {
+      $("reportbtn").blur();
+      if (running) saveReport();
     };
     const fs = $("fullscreen");
     fs.hidden = !(document.fullscreenEnabled || document.webkitFullscreenEnabled);
@@ -758,8 +875,10 @@
       $("status").textContent = "Pronto.";
       if ($("play").disabled) $("play").textContent = "Iniciando…";
       await play;
+      const bytes = await wasmBytes;
+      build = await shortHash(bytes).catch(() => "");
       savePrefix = SAVE_PREFIXES[prefs.version];
-      const { instance } = await WebAssembly.instantiate(await wasmBytes, { env, wasi_snapshot_preview1: wasiProxy });
+      const { instance } = await WebAssembly.instantiate(bytes, { env, wasi_snapshot_preview1: wasiProxy });
       wasm = instance.exports;
       wasm._initialize();
       $("loader").hidden = true;
@@ -801,12 +920,12 @@
     /** Items the player carries (-1 before the start). */
     get inventory() { return wasm ? wasm.noite_inventory() : -1; },
     get scene() {
-      if (!wasm) return "";
-      const m = mem(), p = wasm.noite_scene();
-      let e = p;
-      while (m[e]) e++;
-      return str(p, e - p).trim();
+      return sceneName();
     },
+    get release() { return RELEASE; },
+    get build() { return build; },
+    /** What Relatório downloads (without downloading). */
+    report() { return running ? report() : null; },
   };
   main();
 })();

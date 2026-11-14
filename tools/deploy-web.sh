@@ -21,9 +21,11 @@ if [ -n "$(git status --porcelain --untracked-files=no --ignore-submodules)" ]; 
   exit 1
 fi
 
-tools/web/build-site.sh "$site"
-
+# The release id names the server's releases/<id> directory; the page
+# reports it (Relatório, snapshots), so it is stamped in before the upload.
 release=$(date -u +%Y%m%dT%H%M%SZ)
+NOITE_RELEASE=$release tools/web/build-site.sh "$site"
+
 ssh "$target" "mkdir -p $base/releases/$release"
 # --link-dest is resolved on the server, relative to the destination.
 rsync -a --delete --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
