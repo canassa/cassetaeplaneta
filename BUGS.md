@@ -854,6 +854,9 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
   on the presented frame, `Screen.overlay`); the original shows nothing (no `SetCursor` anywhere).
 - `Fixes.smooth_item_fall`: a falling item is drawn in 2-row frames between its 10-row steps (system timer
   0xfa11, `movement.smoothFallTick`); the steps, path, end and timing are the original's.
+- `Fixes.panel_icons_while_sliding`: the inventory icons stay drawn while the control panel slides, lowered
+  with its art (`panels.drawInventorySliding`); the original draws them only when the panel is open and
+  still (`control_panel_draw` 1018:1f1c).
 
 ---
 
