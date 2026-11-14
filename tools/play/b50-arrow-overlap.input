@@ -1,0 +1,6 @@
+0 scene 1fcorred 300 130 1 1 0 0 0
++1500 hold left 1000
++600 hold right 3000
++500 state
++1500 state
++300 quit

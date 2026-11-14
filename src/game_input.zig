@@ -164,7 +164,29 @@ fn keyUp(g: *Game, m: Msg) i32 {
         else => return 0,
     }
     movement.stopMoving(g, must(Object, g.player), bdOf(g));
+    // B50: an arrow still held walks again (the original stops on any
+    // arrow's release; the held one's repeats are ignored by its flag).
+    if (g.fixes.arrow_release_resumes_held) resumeHeldArrow(g);
     return 1;
+}
+
+/// B50's fix: after an arrow's release, the walk of an arrow still held
+/// starts again as its key-down started it.
+fn resumeHeldArrow(g: *Game) void {
+    const player = must(Object, g.player);
+    if (g.keyLeft != 0) {
+        movement.moveToEdgeH(g, player, bdOf(g), 1);
+    } else if (g.keyRight != 0) {
+        movement.moveToEdgeH(g, player, bdOf(g), 2);
+    } else if (g.keyUp != 0) {
+        movement.moveToEdgeV(g, player, bdOf(g), 4);
+    } else if (g.keyDown != 0) {
+        movement.moveToEdgeV(g, player, bdOf(g), 8);
+    } else return;
+    movement.moveTick(g, player, bdOf(g));
+    if (hasPanel(g)) render.draw(g, must(Object, g.controlPanel), bdOf(g));
+    if (hasStatusBar(g)) render.draw(g, must(Object, g.statusBar), bdOf(g));
+    flushUpdates(g);
 }
 
 /// Object timers of the engine: the control panel's slide (with the

@@ -790,6 +790,18 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   clipped at the screen's bottom.
 - **Confidence:** 9 (code, port frames).
 
+### B50. Releasing an arrow while another is held stops the player for good
+- **Where:** `game_handle_message` 1018:0000, WM_KEYDOWN / WM_KEYUP: each arrow has a held flag
+  (`g_keyLeft`/`Up`/`Right`/`Down`); a key-down starts a walk only when it sets its flag from 0, and any
+  arrow's key-up clears its own flag and stops the player.
+- **What the code does:** pressing right while left is held walks right; releasing left then stops the player,
+  and right's key repeats are ignored (its flag is still 1).
+- **Effect:** a quick left-to-right change of direction ends with the player standing still while right is
+  held; it must be released and pressed again.
+- **Port:** reproduced (`tools/play/b50-arrow-overlap.input`); `Fixes.arrow_release_resumes_held` walks
+  on towards an arrow still held after the release.
+- **Confidence:** 9 (code, port repro).
+
 ---
 
 ## Harmless: wrong paths rescued by the wave fallback

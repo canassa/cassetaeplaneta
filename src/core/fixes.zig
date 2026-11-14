@@ -152,6 +152,9 @@ pub const Fixes = struct {
     /// slides, lowered with its art (the original draws them only when it
     /// is open and still).
     panel_icons_while_sliding: bool = false,
+    /// B50: releasing an arrow while another is held walks on towards the
+    /// held one instead of stopping.
+    arrow_release_resumes_held: bool = false,
     /// B48: the control panel's slide down keeps its open frame until the
     /// first step, so a redraw before that step (the player's idle tick, a
     /// walk starting) no longer cuts the closed frame into the open panel.
