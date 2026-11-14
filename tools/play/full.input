@@ -3,13 +3,14 @@
 #   zig-out/bin/noite --headless --ms 600000 --input tools/play/full.input [--dump DIR]
 #
 # The run is deterministic (headless virtual clock): the random choices
-# (roadblock cop, hall doors, ENCAIXE's pieces, bar quiz question) depend
+# (roadblock cop, hall doors, TIRO's targets, ENCAIXE's pieces, bar quiz question) depend
 # on the time of the calls, so changing the timing of an earlier line can
 # change them. With the fixes, leave out the two that change the route
 # (README.md):
 #   --fix all,-avi_exit_ignores_timer
-# The pharaoh runs the real ENCAIXE (a scripted win, tools/encaixe_plan.py);
-# with `--minigame-stub` the run fails at its `result` line.
+# The hall's TIRO and the pharaoh's ENCAIXE are the real minigames (scripted
+# wins, tools/tiro_plan.py and tools/encaixe_plan.py); with
+# `--minigame-stub` the run fails at their `result` lines.
 
 # Title menu: JOGAR, then NOVO JOGO; the opening video ends in the bedroom.
 22000 dump title
@@ -91,22 +92,69 @@
 +600 rclick 140 200
 +0 wait 3fhall 33000
 +1000 dump hall
-# Door 2 of this run's shuffle: the shooting gallery (stub: won) -> prison.
+# Door 2 of this run's shuffle: the shooting gallery, the real TIRO (it
+# starts 1500 ms after the click: srand(298062)); the shots are
+# `tools/tiro_plan.py --start 298062 --win --relative-to 296562` (296562:
+# the click). A win, +2100, then the prison.
 +100 rclick 327 200
-+0 wait 3fprisao 38000
+# shot 1: right, girl
++1680 key left
++120 key space
+# shot 2: straight, girl
++1030 key left
++120 key space
+# shot 3: right, girl
++2970 key right
++120 key space
+# shot 4: left, girl
++9000 key right
++120 key space
+# shot 5: right, girl
++1260 key left
++120 key space
+# shot 6: right, girl
++4030 key space
+# shot 7: straight, girl
++1210 key left
++120 key space
+# shot 8: right, girl
++1140 key right
++120 key space
+# shot 9: right, girl
++1390 key space
+# shot 10: straight, girl
++1490 key left
++120 key space
+# shot 11: right, girl
++1150 key right
++120 key space
+# shot 12: right, girl
++1050 key space
+# shot 13: left, girl
++3140 key right
++120 key space
+# shot 14: right, girl
++1700 key left
++120 key space
+# shot 15: straight, TIRO ends at the next target tick
++1150 key left
++120 key space
++100 result won 2100
++0 wait 3fprisao 5000
 +1000 hold right 400
 +800 rclick 338 300
 # The street escape; the guard's stale timer ends it in the hall.
 +1000 rclick 460 200
 +0 wait 3fhall 63000
 # Door 4: the pharaoh. His video ends in the real ENCAIXE (it starts
-# 36555 ms after the scene: seed time() 800000366); the moves are
-# `tools/encaixe_plan.py --start 366623 --relative-to 330068` (330068:
+# 36555 ms after the scene: seed time() 800000396); the moves are
+# `tools/encaixe_plan.py --start 396923 --relative-to 360368` (360368:
 # the scene's start in this run). A win, +1500, back to the hall.
 +1000 rclick 465 200
 +0 wait 3ffarao 33000
-# piece kind 1: rotation 2, column 0, lands at row 12
+# piece kind 3: rotation 3, column 0, lands at row 12
 +36655 key up
++250 key up
 +250 key up
 +250 key left
 +100 key left
@@ -115,153 +163,138 @@
 # piece kind 4: rotation 1, column 3, lands at row 13
 +2750 key up
 +250 key left
-# piece kind 4: rotation 1, column 7, lands at row 13, 1 line(s), 1 in all
-+2950 key up
-+250 key right
-+100 key right
-+100 key right
-# piece kind 4: rotation 0, column 0, lands at row 10
-+2950 key left
-+100 key left
-+100 key left
-+100 key left
-# piece kind 3: rotation 2, column 9, lands at row 11
-+2350 key up
-+250 key up
-+250 key right
+# piece kind 5: rotation 0, column 9, lands at row 12
++2950 key right
 +100 key right
 +100 key right
 +100 key right
 +100 key right
-# piece kind 1: rotation 2, column 2, lands at row 12
-+2550 key up
-+250 key up
-+250 key left
-+100 key left
-# piece kind 4: rotation 1, column 5, lands at row 13, 1 line(s), 2 in all
+# piece kind 5: rotation 0, column 7, lands at row 12, 1 line(s), 1 in all
++2750 key right
++100 key right
++100 key right
+# piece kind 3: rotation 3, column 4, lands at row 12
 +2750 key up
-+250 key right
-# piece kind 2: rotation 2, column 1, lands at row 11
-+2950 key up
++250 key up
++250 key up
+# piece kind 3: rotation 3, column 1, lands at row 12, 1 line(s), 2 in all
++2900 key up
++250 key up
 +250 key up
 +250 key left
 +100 key left
 +100 key left
-# piece kind 3: rotation 0, column 9, lands at row 11
-+2550 key right
+# piece kind 5: rotation 0, column 9, lands at row 12
++2750 key right
 +100 key right
 +100 key right
 +100 key right
 +100 key right
-# piece kind 1: rotation 1, column 3, lands at row 11
+# piece kind 5: rotation 0, column 7, lands at row 12
++2750 key right
++100 key right
++100 key right
+# piece kind 3: rotation 2, column 5, lands at row 11
++2750 key up
++250 key up
++250 key right
+# piece kind 4: rotation 1, column 7, lands at row 11
 +2550 key up
++250 key right
++100 key right
++100 key right
+# piece kind 0: rotation 3, column 2, lands at row 11
++2550 key up
++250 key up
++250 key up
 +250 key left
-# piece kind 4: rotation 1, column 5, lands at row 13, 1 line(s), 3 in all
++100 key left
+# piece kind 4: rotation 1, column 7, lands at row 10
 +2550 key up
 +250 key right
-# piece kind 3: rotation 2, column 9, lands at row 9
-+2950 key up
-+250 key up
-+250 key right
 +100 key right
 +100 key right
-+100 key right
-+100 key right
-# piece kind 4: rotation 1, column 5, lands at row 13
-+2150 key up
-+250 key right
-# piece kind 2: rotation 0, column 1, lands at row 11, 1 line(s), 4 in all
-+2950 key left
-+100 key left
-+100 key left
-# piece kind 3: rotation 0, column 8, lands at row 11
-+2550 key right
-+100 key right
-+100 key right
-+100 key right
-# piece kind 4: rotation 0, column 0, lands at row 9
-+2550 key left
-+100 key left
-+100 key left
-+100 key left
-# piece kind 0: rotation 2, column 5, lands at row 10
-+2150 key up
-+250 key up
-+250 key right
-# piece kind 5: rotation 0, column 4, lands at row 11
-# piece kind 1: rotation 3, column 9, lands at row 8
-+4750 key up
-+250 key up
-+250 key up
-+250 key right
-+100 key right
-+100 key right
-+100 key right
-+100 key right
-# piece kind 0: rotation 0, column 6, lands at row 9
-+1950 key right
-+100 key right
-# piece kind 5: rotation 0, column 4, lands at row 9
-# piece kind 1: rotation 2, column 1, lands at row 10, 1 line(s), 5 in all
-+4150 key up
-+250 key up
-+250 key left
-+100 key left
-+100 key left
-# piece kind 0: rotation 2, column 1, lands at row 7, 1 line(s), 6 in all
+# piece kind 1: rotation 3, column 0, lands at row 11, 1 line(s), 3 in all
 +2350 key up
 +250 key up
++250 key up
 +250 key left
 +100 key left
 +100 key left
-# piece kind 4: rotation 0, column 3, lands at row 10, 2 line(s), 8 in all
-+1350 key left
-# piece kind 5: rotation 0, column 4, lands at row 11
-# piece kind 2: rotation 3, column 3, lands at row 10
++100 key left
+# piece kind 4: rotation 1, column 7, lands at row 10
++2550 key up
++250 key right
++100 key right
++100 key right
+# piece kind 4: rotation 0, column 3, lands at row 10, 1 line(s), 4 in all
++2350 key left
+# piece kind 5: rotation 0, column 4, lands at row 12
+# piece kind 4: rotation 0, column 6, lands at row 9
++4950 key right
++100 key right
+# piece kind 2: rotation 1, column 0, lands at row 11, 1 line(s), 5 in all
++2150 key up
++250 key left
++100 key left
++100 key left
++100 key left
+# piece kind 1: rotation 1, column 0, lands at row 11, 1 line(s), 6 in all
++2550 key up
++250 key left
++100 key left
++100 key left
++100 key left
+# piece kind 0: rotation 1, column 2, lands at row 11
++1950 key up
++250 key left
++100 key left
+# piece kind 4: rotation 1, column 7, lands at row 12
++1950 key up
++250 key right
++100 key right
++100 key right
+# piece kind 1: rotation 3, column 0, lands at row 10, 1 line(s), 7 in all
++2100 key up
++250 key up
++250 key up
++250 key left
++100 key left
++100 key left
++100 key left
+# piece kind 2: rotation 1, column 8, lands at row 11
++1800 key up
++250 key right
++100 key right
++100 key right
++100 key right
+# piece kind 4: rotation 0, column 4, lands at row 10, 1 line(s), 8 in all
+# piece kind 2: rotation 3, column 7, lands at row 12
 +3600 key up
 +250 key up
 +250 key up
-+250 key left
-# piece kind 2: rotation 2, column 6, lands at row 10
++250 key right
++100 key right
++100 key right
+# piece kind 5: rotation 0, column 5, lands at row 11
++2100 key right
+# piece kind 2: rotation 1, column 8, lands at row 10
++1950 key up
++250 key right
++100 key right
++100 key right
++100 key right
+# piece kind 3: rotation 2, column 2, lands at row 11, 1 line(s), 9 in all
 +1800 key up
 +250 key up
-+250 key right
-+100 key right
-# piece kind 0: rotation 1, column 7, lands at row 10
-+1800 key up
-+250 key right
-+100 key right
-+100 key right
-# piece kind 3: rotation 1, column 5, lands at row 9
-+1800 key up
-+250 key right
-# piece kind 2: rotation 0, column 0, lands at row 11, 1 line(s), 9 in all
-+1650 key left
++250 key left
 +100 key left
-+100 key left
-+100 key left
-# piece kind 0: rotation 3, column 4, lands at row 8
+# piece kind 2: rotation 2, column 1, lands at row 11, 1 line(s), 10 in all
 +1950 key up
 +250 key up
-+250 key up
-# piece kind 0: rotation 2, column 5, lands at row 5
-+1650 key up
-+250 key up
-+250 key right
-# piece kind 0: rotation 3, column 0, lands at row 9
-+1050 key up
-+250 key up
-+250 key up
 +250 key left
 +100 key left
 +100 key left
-+100 key left
-# piece kind 5: rotation 0, column 4, lands at row 6
-# piece kind 3: rotation 0, column 8, lands at row 11, 1 line(s), 10 in all
-+2700 key right
-+100 key right
-+100 key right
-+100 key right
 +1950 result won 1500
 +0 wait 3fhall 10000
 +1000 dump pharaoh-won

@@ -38,7 +38,10 @@
   // The minigames that can run alone: `noite_start`'s `minigame` is the
   // index + 1 (src/web_main.zig `minigames`). `ready` follows the port's
   // `ready` (src/<name>/root.zig): until then the choice is disabled.
-  const MINIGAMES = [{ name: "encaixe", title: "Encaixe Perfeito", ready: true }];
+  const MINIGAMES = [
+    { name: "encaixe", title: "Encaixe Perfeito", ready: true },
+    { name: "tiro", title: "Tiro ao Álvaro", ready: true },
+  ];
   // The files of the current manifest, by hashed URL. The name must not
   // start with "noite-": loaders before the hashes deleted every
   // "noite-*" cache but their own (their caches are migrated below).

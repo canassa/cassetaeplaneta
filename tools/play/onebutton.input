@@ -1,5 +1,5 @@
 # Full playthrough in the one-button mode (src/one_button.zig): the left
-# button only, no keys, title screen to the sportsman ending.
+# button only, no keys but TIRO's, title screen to the sportsman ending.
 #
 #   zig-out/bin/noite --headless --ms 480000 --one-button --input tools/play/onebutton.input [--dump DIR]
 #
@@ -7,7 +7,7 @@
 # stands (the player walks over first), the keyboard walks are clicks, and
 # items are dropped by tap-tap (tap the slot, tap the spot) and by
 # dragging, and offered both ways. Deterministic like full.input: the
-# random choices (cop, hall doors, quiz) depend on the virtual time, so
+# random choices (cop, hall doors, TIRO's targets, quiz) depend on the virtual time, so
 # editing an earlier line can change them; this timing gives the good
 # cop, the hall shuffle below and the football quiz. Original version (no
 # --fix).
@@ -98,9 +98,54 @@
 +700 click 140 200
 +0 wait 3fhall 33000
 +1000 dump hall
-# Door 2 (of this run's shuffle): the shooting gallery (stub: won) -> prison.
+# Door 2 (of this run's shuffle): the shooting gallery, the real TIRO,
+# played with its keys (on a touch screen the web page's pad: LEFT, fire,
+# RIGHT). It starts 1500 ms after the click; the shots are
+# `tools/tiro_plan.py --start 286262 --win --relative-to 284762` (284762:
+# the click). A win, +2100, then the prison.
 +100 click 200 200
-+0 wait 3fprisao 38000
+# shot 1: straight, girl
++1680 key right
++120 key space
+# shot 2: straight, girl
++1560 key space
+# shot 3: straight, girl
++1390 key space
+# shot 4: right, girl
++5880 key right
++120 key space
+# shot 5: straight, girl
++1340 key left
++120 key space
+# shot 6: left, girl
++3290 key left
++120 key space
+# shot 7: right, girl
++4860 key left
++120 key space
+# shot 8: right, girl
++1330 key space
+# shot 9: straight, girl
++930 key left
++120 key space
+# shot 10: straight, girl
++1380 key space
+# shot 11: right, girl
++1000 key right
++120 key space
+# shot 12: left, girl
++930 key right
++120 key space
+# shot 13: right, girl
++4770 key left
++120 key space
+# shot 14: right, girl
++1270 key space
+# shot 15: straight, TIRO ends at the next target tick
++930 key left
++120 key space
++100 result won 2100
++0 wait 3fprisao 5000
 # The player arrives in front of the hammer (273): step aside, tap it.
 +500 click 450 420
 +1300 click 338 300

@@ -19,7 +19,7 @@ const Game = core.game.Game;
 /// Every unit ported and the game checked (the last step of the port,
 /// docs/tiro/DESIGN.md "Finishing"): only then does NOITE's WinExec run
 /// it instead of the stub, and `--minigame tiro` play it.
-pub const ready = false;
+pub const ready = true;
 
 /// The window class and caption FindWindow looks for (DGROUP 1090:00aa).
 pub const title = "Tiro ao Alvaro";

@@ -21,8 +21,8 @@ sources, merged:
 
 Plus the files the engine opens by fixed name (CASSETA.INI, CASSETUP.INI,
 JOGO0-5.INI and the save slots HD\\JOGO0-5.INI, MSSVGA\\VGASYS.FON).
-A ported minigame's names (src/encaixe/) are also looked for in its EXE's
-directory (ENCAIXE\\), as the host does.
+A ported minigame's names (src/encaixe/, src/tiro/) are looked for at the
+disc root, then in its EXE's directory (ENCAIXE\\, TIRO\\), as the host does.
 """
 
 import argparse
@@ -35,7 +35,7 @@ ASSETS = ROOT / "assets"
 OUT = ROOT / "tools" / "web" / "files.txt"
 FIXED = ["CASSETA.INI", "CASSETUP.INI", "MSSVGA/VGASYS.FON"] + [f"{d}JOGO{i}.INI" for d in ("", "HD/") for i in range(6)]
 # The ported minigames: src/<name>/, their EXE in <NAME>/ on the disc.
-MINIGAMES = {"encaixe"}
+MINIGAMES = {"encaixe", "tiro"}
 # Sprite and icon frames: `<name><N>.bmp`.
 MAX_FRAME = 200
 
@@ -152,9 +152,9 @@ def main():
     idx = disc_index()
     static = set()
     for tok, prog in [(t, None) for t in ini_tokens()] + list(source_tokens()):
-        for chain in chains(tok):
-            if prog:
-                chain = chain + [f"{prog}/{c}" for c in chain]
+        # A minigame opens its names as given: the disc root, then its
+        # EXE's directory (`Sim.open`), without NOITE's `pan\` fallbacks.
+        for chain in [[norm(tok), f"{prog}/{norm(tok)}"]] if prog else chains(tok):
             for cand in chain:
                 if cand in idx:
                     static.add(cand)
