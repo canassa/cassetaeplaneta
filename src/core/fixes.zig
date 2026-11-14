@@ -112,6 +112,10 @@ pub const Fixes = struct {
     /// old scene's exits posted, so a second door that finished on the same
     /// tick does not take the new scene's exit of that index.
     exit_finished_stays_in_scene: bool = false,
+    /// B38: in 3fhall, a right click below y 0x168 with the control panel
+    /// open goes to the panel only when it is on the panel; on a door it is
+    /// the hall's (shuffled) door, not the door's INI exit.
+    hall_low_click_takes_door: bool = false,
     /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"):
     /// while an inventory item is dragged out of the control panel (right
     /// button held), its panel icon follows the pointer. The original shows

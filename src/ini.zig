@@ -260,7 +260,10 @@ pub fn close(plat: Platform, fd: File) void {
 // @orig 1018:9caa ini_seek_section
 pub fn seekSection(ini: *const Ini, plat: Platform, fixes: Fixes, fd: File, name: []const u8, after_header: bool) Error!i16 {
     const off = ini_sections.findSectionOffset(&ini.sections, name);
-    if (off == -1) return fatalError(plat, fixes, msg_no_section);
+    if (off == -1) {
+        std.log.info("ini: no section [{s}]", .{name});
+        return fatalError(plat, fixes, msg_no_section);
+    }
     _ = plat.seek(fd, off, .set);
     if (after_header) return 1;
     // The original tests an uninitialised stack byte before the first read;

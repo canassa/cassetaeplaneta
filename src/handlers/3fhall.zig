@@ -98,8 +98,22 @@ fn leave(g: *Game, s: *State, name: []const u8, x: i16, y: i16, has_player: i16,
 
 fn rightButton(g: *Game, s: *State, m: Msg) i16 {
     const y = m.hi();
-    if (y >= 0x168 and panels.isOpen(g, g.controlPanel.?)) return 0;
     const bd = g.scene.?.backdrop.?;
+    if (y >= 0x168 and panels.isOpen(g, g.controlPanel.?)) {
+        // B38: the engine default gets it, and a click that is not on an
+        // item or the options button picks the door under it and takes its
+        // INI exit (unshuffled; JPASSARA is no section). With the fix the
+        // engine only gets what the panel does something with.
+        if (!g.fixes.hall_low_click_takes_door) return 0;
+        const cp = g.controlPanel.?;
+        const sx = @as(i16, @bitCast(m.lo())) +% bd.originX;
+        const sy = @as(i16, @bitCast(y)) +% bd.originY;
+        if (panels.contains(g, cp, sx, sy)) {
+            if (panels.isOnOptionsButton(g, cp, sx, sy)) return 0;
+            if (panels.getInventoryItemAt(g, cp, &g.player.?.actor.inventory, sx, sy) != null) return 0;
+            return 1;
+        }
+    }
     const q = backdrop.queryRect(g, bd, @as(i16, @bitCast(m.lo())) +% bd.originX, @as(i16, @bitCast(y)) +% bd.originY, 0x10, 0x10);
     s.hitObject = q.obj;
     const hitFlag: i8 = @truncate(q.result);

@@ -1,0 +1,12 @@
+# BUGS.md B38: in 3fhall, with the control panel open, a right click on the
+# lowest part of a door (y >= 0x168) takes the door's own INI exit.
+#
+#   zig-out/bin/noite --headless --ms 8000 --scene 3fhall --input tools/play/b38-hall-low-door.input
+#
+# The TIRO door (x 111-284) leads to JPASSARA, which is no INI section: the
+# "Erro Fatal" boxes and exit(1), as the original. With
+# `--fix hall_low_click_takes_door` it is the hall's own (shuffled) door.
+1000 move 300 470
++1500 move 300 380
++500 rclick 200 380
++3000 state

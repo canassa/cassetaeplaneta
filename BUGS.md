@@ -80,6 +80,8 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   in the INI design is the closet's *failure* outcome.
 - **Also inside 3fpapclo** (moot because unreachable): the 60 s / 18 s timers only play a warning, and timer 0x16
   sends 0x3bd, which the handler ignores unless a verdict wave is pending — there is no real time limit.
+- **Exception:** with the control panel open, a right click on the lowest ~46 px of the door reaches the engine,
+  which takes the INI exit to 3fpapclo after all (B38).
 - **Evidence:** hall dispatch code; INI exits; strings/xrefs for `3fpapclo`.
 - **Confidence:** 8.
 
@@ -264,6 +266,9 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
     with its timer running, and the timer outlives the scene. In 3ffarao the same race decides again: the
     stale tick must come after the video ends and before ENCAIXE.EXE's 0x40c, from which 3ffarao's handler
     swallows the ticks in turn.
+  - A hall door's own exit animation (timer 6, B38) cut short by the hall's switch to 3ffarao (a right click
+    low on the door with the panel open, then one higher up before the door has finished) keeps timer 6
+    running too: the pharaoh video ends in `JTETRIS` the same way.
 - **Effect:** 3fstreet: depending on which comes first, the street escape minigame result arrives in 3fhall
   (whose handler takes it for the shooting gallery's: a win sends the player to 3fprisao), or the hall's own
   FindWindow poll reports a lost game (a life) first. The player can end up in the hall without having played
@@ -561,6 +566,26 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   sent 0x401); the code paths above. An earlier port note blamed the guard's stale timer 5 (B21) for this
   3fstreet → 3fhall jump; the trace shows the other door's 0x402 instead, and no 3fsegura visit is needed.
 - **Confidence:** 8 (code, port repro); 6 (how often a player double-clicks two doors inside 200 ms).
+
+### B38. 3fhall: a right click low on a door with the control panel open takes the door's INI exit (JPASSARA: a fatal INI error)
+- **Where:** `handler_3fhall` 1020:7b06, 1020:7bff–7c1f: with y ≥ 0x168 and the control panel open it returns 0
+  before any door test; `game_handle_message` 1018:0000 (WM_RBUTTONDOWN) then tries the panel and, when the
+  click selects no item, picks the object under it and plays the door's INI exit.
+- **What the code does:** the five doors reach y 406, the open panel starts lower and the panel stays open while
+  the pointer is at y ≥ 0x154, so a right click on the lowest ~46 px of a door (or on an empty part of the panel
+  over a door) is not the hall's: the engine takes the door's own `Exit=` line, unshuffled: 143 → 3fsauna,
+  142 → `JPASSARA`, 141 → 3ffarao, 139 → 3fpapclo, 140 → 4FINIFES.
+- **Effect:** the TIRO door's exit names `JPASSARA`, which is not an INI section: "Não consegui encontrar a sessão
+  procurada", then "Linha [3fpapclo]] inválida" and `exit(1)` (as `JTETRIS`, B21). The pope's-closet door goes
+  to the closet game (so B6's "never" is wrong for this path). A door animation cut short by a right click
+  higher up (the hall's own switch) keeps its system timer 6, which matches 3ffarao's video exit (B21: the
+  pharaoh video ends in `JTETRIS`). With one-button play the panel is open after any tap near the bottom and a
+  tap on a door is aimed where the finger was, so this is easy to hit on a touch screen.
+- **Port:** reproduced; `Fixes.hall_low_click_takes_door` lets the engine have a low click only when it is on an
+  item or the options button of the open panel; on a door it is the hall's shuffled door. Repro: `--scene 3fhall`,
+  move to (300, 470), then to (300, 380), right click at (200, 380).
+- **Evidence:** the disassembly at 1020:7bff; port runs (`ini: no section [jpassara]` in the log).
+- **Confidence:** 8.
 
 ## Harmless: wrong paths rescued by the wave fallback
 
