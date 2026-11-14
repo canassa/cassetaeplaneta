@@ -14,6 +14,7 @@ const Object = object.Object;
 const Frame = object.Frame;
 const world = @import("../core/world.zig");
 const Backdrop = world.Backdrop;
+const panels = @import("../panels.zig");
 const position = @import("position.zig");
 const render = @import("render.zig");
 const visibility = @import("visibility.zig");
@@ -155,10 +156,7 @@ pub fn tick(g: *Game, obj: *Object, bd: *Backdrop) void {
             visibility.blitToDc(g, obj, bd);
         },
         .arrow => animationTick(g, obj, bd),
-        // control_panel_tick (1058:0411) belongs to the panels unit, which
-        // declares no tick dispatcher. The panel is never shown and its
-        // timer never started, so the slot is not reached.
-        .control_panel => {},
+        .control_panel => panels.tick(g, obj, bd),
         // scene_object_tick_default (absorbed)
         .status_bar => {},
     }

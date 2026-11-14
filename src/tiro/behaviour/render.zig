@@ -15,6 +15,7 @@ const BitmapInfoHeader = object.BitmapInfoHeader;
 const world = @import("../core/world.zig");
 const Backdrop = world.Backdrop;
 const dib = @import("../dib.zig");
+const panels = @import("../panels.zig");
 const position = @import("position.zig");
 
 fn blitFailed(err: dib.Error) noreturn {
@@ -220,9 +221,7 @@ pub fn draw(g: *Game, obj: *Object, bd: *Backdrop) void {
     switch (obj.kind) {
         .crossbow => player2dDraw(g, obj, bd),
         .target, .arrow => animationDraw(g, obj, bd),
-        // control_panel_draw (1058:014c) belongs to `panels`, which declares
-        // no dispatcher for it yet and depends on this unit.
-        .control_panel => std.debug.panic("tiro render: control_panel_draw (1058:014c, unit panels) is not callable from render yet", .{}),
+        .control_panel => panels.draw(g, obj, bd),
         .status_bar => soDraw(g, obj, bd),
     }
 }
