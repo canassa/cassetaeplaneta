@@ -312,6 +312,41 @@ pub const Fixes = struct {
     /// S11: the walls test the position after the step: the fighter stays
     /// within x 0-400.
     salgin_walls_after_step: bool = false,
+    /// X1: a block (End) that holds (the reaction is the block pose, 7)
+    /// takes no energy. A choice until the owner says (`choices`).
+    xilindro_block_holds: bool = false,
+    /// X2: the fighter's weak reaction (the fall) is chosen by the energy
+    /// bar's `fighterEnergy` < 10, as the opponent's is by its energy.
+    xilindro_weak_reaction_by_energy: bool = false,
+    /// X3: the opponent's attacks are seeded from the clock once (on the
+    /// first choice), not before every choice.
+    xilindro_seed_once: bool = false,
+    /// X4: releasing Left or Right ends only a walk; any other move plays
+    /// on and keeps its latches.
+    xilindro_keyup_stops_walk_only: bool = false,
+    /// X5: an attack or the block locks Insert too. A choice until the
+    /// owner says (`choices`).
+    xilindro_insert_locked: bool = false,
+    /// X6: closing the window before the round is over reports a loss
+    /// (0, -1000), not a win by the energies.
+    xilindro_close_mid_fight_loses: bool = false,
+    /// X7: a KO's winner follows the result's rule (the fighter wins unless
+    /// its energy is below the opponent's), so the pose, the wave, the end
+    /// animation and the result agree on a double KO.
+    xilindro_double_ko_by_energy: bool = false,
+    /// X8: every energy change checks that side's bar mark and adds as many
+    /// tiles as the energy lost.
+    xilindro_bar_follows_energy: bool = false,
+    /// X9: the PORRADA banner is drawn back over the arena band, behind the
+    /// fighters, for the round's first 2 s. A choice until the owner says
+    /// (`choices`).
+    xilindro_banner_shown: bool = false,
+    /// X10: a Right press within 100 px of the opponent stops the fighter
+    /// 100 px from it (no 32-px step past the clamp).
+    xilindro_standoff_100: bool = false,
+    /// X11: the walls test the position after the step and the recoil stops
+    /// at x 0: the fighter stays within x 0-400.
+    xilindro_fighter_stays_on_screen: bool = false,
     /// U1: draw the status-bar text.
     status_bar_text: bool = false,
     /// `ini_fatal_error` ("Erro Fatal!") quits (`error.Fatal`) instead of
@@ -320,7 +355,7 @@ pub const Fixes = struct {
 
     /// Flags left out of `all` (`--fix all`, the web build's "Corrigida"
     /// version), e.g. the hall-door reshuffle.
-    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit", "serial_lane2_own_timer", "salgin_opponent_damage_table", "salgin_block_holds", "salgin_insert_locked", "salgin_weak_reaction_by_energy", "salgin_banner_shown" };
+    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit", "serial_lane2_own_timer", "salgin_opponent_damage_table", "salgin_block_holds", "salgin_insert_locked", "salgin_weak_reaction_by_energy", "salgin_banner_shown", "xilindro_block_holds", "xilindro_insert_locked", "xilindro_banner_shown" };
 
     /// `--fix all`: every flag but the `choices`.
     pub fn all() Fixes {

@@ -1,0 +1,22 @@
+//! Port unit `hud` (module) of XILINDRO.EXE. What is drawn around the fight: the PORRADA banner, the energy bar and its tiles (energy_bar_add_mark), the round clock (draw, blit), the arena band redraw.
+//!
+//! This unit owns no virtual slot: its functions are called directly (the
+//! scene handler, `game.onCreate`), so they are written by the porting
+//! agent. Each carries `// @orig <seg:xxxx> <name>` with the XILINDRO address.
+
+const std = @import("std");
+const stub = @import("../core/stub.zig");
+const msg = @import("../core/msg.zig");
+const Msg = msg.Msg;
+const Game = @import("core/game.zig").Game;
+const object = @import("core/object.zig");
+const Object = object.Object;
+const ObjectList = object.ObjectList;
+const Frame = object.Frame;
+const FrameCell = object.FrameCell;
+const BitmapInfoHeader = object.BitmapInfoHeader;
+const world = @import("core/world.zig");
+const Backdrop = world.Backdrop;
+const Scene = world.Scene;
+const Condition = world.Condition;
+const RectQuery = world.RectQuery;

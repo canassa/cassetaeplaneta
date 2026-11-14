@@ -1,0 +1,21 @@
+# Owners of the non-SceneObject vtable slots of XILINDRO.EXE (noite -p xilindro unit dep infer;
+# format in tools/cli/src/noite/deps.py). The SceneObject slots are docs/xilindro/DESIGN.md's table.
+# vtable	slots	unit
+Object3DVtbl	0-7	space3d
+AnimationVtbl	0	animation
+MoverVtbl	0	movement
+FighterVtbl	0	movement
+FighterVtbl	1,2	fighters
+OpponentVtbl	0	movement
+OpponentVtbl	1	fighters
+ControlPanelVtbl	0	animation
+ControlPanelVtbl	1-8	panels
+GameVtbl	0	game_input
+GameVtbl	1-6	game
+SceneVtbl	*	scene
+SceneVtbl	0,5,7	arena
+BackdropVtbl	*	backdrop
+GridBackdropVtbl	*	backdrop
+ConditionVtbl	*	game
+FrameVtbl	0	object_create
+type_test	3a-4b,52,53,56,57
