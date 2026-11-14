@@ -39,12 +39,14 @@ By segment (code functions, adjustor thunks excluded):
 | `1040` | 2 | 2 | `1088` | 317 | 314 |
 
 Conventions: 501 `__stdcall16far` (far pascal, `this` first, parameters listed in stack order),
-97 `__cdecl16far`, 5 `__cdecl16far_dx_ax`, 4 `__cdecl16far_dxax_ptr`, 24 CRT near helpers, and
+98 `__cdecl16far`, 4 `__cdecl16far_dx_ax`, 4 `__cdecl16far_dxax_ptr`, 24 CRT near helpers, and
 the 2 untyped blitters.
 
-Tags: `review` on 11 (the 5 `FUN_`, the 6 engine functions that differ from TIRO), `sig?` on 8
-(TIRO's: the 4 DIB functions without a caller-cleanup count, the perspective projection pair,
-`message_box_printf` varargs, `FUN_1028_1c8d`).
+**Final state** (after phase 4 and the cleanup): 633 code functions, **628 named, 5 `FUN_`**,
+**0 `sig?`, 0 `review`** (the tags copied from TIRO and set in phase 2 were checked and resolved,
+"Phase 4 results"); 462 adjustor thunks, every name matching its target's final name
+(`NearAdjustorThunks.java` rerun, `far`); 464 call-site overrides, every indirect call typed but the
+11 CRT function-pointer calls (`DATA.md`).
 
 ## How the functions were found
 
@@ -73,8 +75,8 @@ In this order (all in the program now):
 7. **The game** (`1068`, the `1088` game ctors) by vtable slot against TIRO's tables, by role, or
    by reading (below).
 
-Uncovered bytes left (all data or padding): `1068:22ab–22b6` (the handler's jump table, already
-data), `1080:0000–0011` (segment prefix), `1080:09ae–09bd` (`_output`'s table), `1080:1570–1571`
+Uncovered bytes left (all data or padding): `1068:22ab–22b6` (the handler's jump table
+`g_spawnLane1JumpTable`), `1080:0000–0011` (segment prefix), `1080:09ae–09bd` (`_output`'s table), `1080:1570–1571`
 (`90 90` inside `_isindst`), and 379 one-byte fillers between functions in `1088` plus 46 in
 `1080`.
 
@@ -88,7 +90,7 @@ Every plate's first line says where the name comes from:
 | `Twin of TIRO FUN_…` | the same, for TIRO's 5 unnamed functions (left `FUN_`) | 5 |
 | `Name from NOITE <name> at 1008:<addr> (CRT; …)` | normalised-opcode match ≥ 0.73 against NOITE's CRT (`atoi` by its place and body) | 10 |
 | `Name by <slot or role> (TIRO <name>)` | the SERIAL game, by vtable slot (same table and slot as TIRO's, `vtpairs.py`) or by role; TIRO's prototype copied when the `RETF n` matches (it does for all 24) | 24 |
-| `Name by behaviour` / `Name by body` / `Name from TIRO … (role: …)` | read: `target_start_timer`, `target_redraw`, `target_move_tick_or_stop`, `target_wrap_at_edge`, `serial_hit_kind1`, `serial_hit_kind0_2`, `target_ctor`, `frame_vector_deleting_dtor` | 8 |
+| `Name by behaviour` / `Name by body` / `Name from TIRO … (role: …)` | read: `target_start_timer`, `target_hide_and_blit`, `target_move_tick_or_stop`, `target_wrap_at_edge`, `serial_hit_kind1`, `serial_hit_kind0_2`, `target_ctor`, `frame_vector_deleting_dtor` | 8 |
 | `Name from TIRO …` on the imports | `CopyTypesFromProgram.java /TIRO.EXE` (phase 1) | 93 |
 | adjustor thunks | `NearAdjustorThunks`, after their targets | 462 |
 
@@ -113,13 +115,18 @@ differences are the game's own overrides, which named them:
 **SERIAL's TargetVtbl has 4 slots, TIRO's 3:** SERIAL inserted `startTimer` at slot 1 and moved
 `moveTick` and `checkEdge` down one.
 
-Engine functions whose bytes differ from TIRO's (tagged `review`, with a "SERIAL differs from
-TIRO" line in the plate): `scene_object_restore_background` (`1028:0311`, +4: pushes `g_unk00A8`),
-`mover_move_tick` (`0fb9`, −6), `scene_object_redraw_overlapping` (`1100`, −6),
-`animation_stop_and_redraw_dc` (`170b`, −6), `animation_tick` (`17b7`, −28: no DC of its own,
-slot 0x78 instead of 0x74) and `wave_play` (`1078:01e6`, +9: the play flags are computed). In each
-case the arguments of a call differ, not the function's own frame or `RETF`; TIRO's engine had
-been edited for its crossbow and target ticks, SERIAL keeps the plainer version.
+Engine functions whose bytes differ from TIRO's (each plate has a "SERIAL differs from TIRO" line):
+- `mover_move_tick` (`1028:0fb9`, −6), `scene_object_redraw_overlapping` (`1100`, −6),
+  `animation_stop_and_redraw_dc` (`170b`, −6) and `animation_tick` (`17b7`, −28: no DC of its own)
+  repaint with SceneObject slot 0x78 `invalidate(this)` where TIRO calls slot 0x74
+  `blitToDc(this, backdrop, hdc)`;
+- `scene_object_restore_background` (`0311`, +4) restores with the colour-key copy
+  `dib_copy_transparent` (key `g_unk00A8` = 0x0b), as ENCAIXE, where TIRO calls the opaque
+  `dib_copy_rect`; `Fundo.bmp` has no pixel of index 0x0b, so the key changes nothing here;
+- `wave_play` (`1078:01e6`, +9): flags `5 | (hWndNotify == 0 ? 2 : 0)`, 7 for every SERIAL call (TIRO 5).
+
+None changes the function's own frame or `RETF`. TIRO's engine had been edited for its crossbow and
+target ticks; SERIAL keeps the plainer version.
 
 ## Signatures
 
@@ -178,12 +185,12 @@ Adjustor thunks keep no signature.
 | `03d5` | `serial_create_bullets` | the one Bullet (`bala.bmp`) |
 | `04c1` | `gun_aim` | 'D' / 'E' cycle the gun's `curFrame` 0→1→2→0 / 0→2→1→0 |
 | `05d1`, `05fb` | `gun_play`, `gun_tick` | Gun SceneObject overrides |
-| `0663`, `06d9`, `072a`, `0c1a`, `0dfc` | `target_stop_moving_dc`, `target_stop_moving`, `target_redraw_overlapping`, `target_can_step`, `target_move_tick` | Target SceneObject overrides; `target_move_tick` also costs a **life** when a target gets through, and ends the game at 0 |
+| `0663`, `06d9`, `072a`, `0c1a`, `0dfc` | `target_stop_moving_dc`, `target_stop_moving`, `target_redraw_overlapping`, `target_can_step`, `target_move_tick` | Target SceneObject overrides; `target_move_tick` is the walk step, and a kind-2 figure's shot (a **life**; `WM_DESTROY` at 0) |
 | `0c42` | `target_hit` | score by the target's kind, stop it, clear its lane flag, redraw |
-| `0d0d` | `target_redraw` | restore background + blit |
+| `0d0d` | `target_hide_and_blit` | hide the hit figure and blit its rect to the window |
 | `0d94`, `0f59` | `target_move_tick_or_stop`, `target_wrap_at_edge` | TargetVtbl 2, 3 |
 | `120b`, `1254`, `12a5`, `135f`, `13d7`, `14d2` | `projectile_*` | the Projectile overrides (the Bullet uses them) |
-| `1529` | `serial_scene_handle_message` | **the handler, 12,899 bytes**: keys, timers (one per target), hits, the 60-s clock, the 0x40a result |
+| `1529` | `serial_scene_handle_message` | **the handler, 12,899 bytes**: keys, 7 timer tests, the spawns, the hit test, the 60-s clock, the 0x40a result |
 | `478c` | `serial_play_shot_wave` | `tiros1.WAV` |
 | `47b2`, `480c` | `serial_hit_kind1`, `serial_hit_kind0_2` | score +100 / −100 or +200, `morte2.wav`, redraw the score |
 | `4871`, `48bc` | `serial_blit_score_box`, `serial_draw_score` | the score box (TIRO's) |
@@ -198,10 +205,13 @@ No caller and no slot (or a slot nothing calls), 18:
   `dead_mover_draw_clipped_to` `3e84`, `dead_mover_redraw` `41e4`;
 - the 5 `FUN_` (below);
 - `frame_vector_deleting_dtor` `1088:0000` (new, SERIAL only);
-- `target_move_tick_or_stop`/`projectile_move_tick` slots and the Portable ctors are as in TIRO
-  (reached only through slots nothing calls; check in phase 4).
+- `target_move_tick_or_stop` (TargetVtbl 2) and `projectile_move_tick` (ProjectileVtbl 1): no call
+  site uses those slots (the handler calls `checkEdge` and `projectile_step_move`); the Portable
+  ctors are dead as in TIRO;
+- the lane-2 spawn branch of the handler (1068:2968–2cca), unreachable (`BUGS.md` K5).
 
-The 5 `FUN_` are TIRO's 5 unnamed functions, at the mapped addresses (tag `review`):
+The 5 `FUN_` are TIRO's 5 unnamed functions, at the mapped addresses (no caller, slot or data
+reference settles a role):
 `1028:0e75` (empty member, `RETF 0xa`), `1028:1c8d` (far cdecl huge-pointer arithmetic, no caller),
 `1088:3dcc`/`3de6` (empty `(this, backdrop)` twins), `1088:3e48` (empty `(this)`).
 
@@ -240,10 +250,45 @@ the `sig?`/`review` tags. **SERIAL** groups need real reading.
 | 24 | `1088:5a00–5fff` | 32 | ControlPanel/Scene/Backdrop ctors, `game_ctor`, update list, `serial_backdrop_ctor` | mixed, low |
 | 25 | `1088:6000–6a31` | 33 | grid backdrop, Actor2D/Animated3D/Animation/Mover ctors, Conditions, **`target_ctor`, `bullet_ctor`, `projectile_ctor`** | mixed, medium (the Target class is new: 0x5c bytes) |
 | 26 | `1068:0000–1528`, `1068:478c–49b5` | 28 | **the SERIAL game**: grid, scene create, target/bullet creators, gun, the Target class (timer, move, wrap, hit, redraw), the Projectile class, score helpers | SERIAL, high |
-| 27 | `1068:1529` | 1 (12.9 KB) | **`serial_scene_handle_message`** (keys, 15 target timers, collisions by lane, the game clock, WM_DESTROY → 0x40a) | SERIAL, high (alone) |
+| 27 | `1068:1529` | 1 (12.9 KB) | **`serial_scene_handle_message`** (keys, 7 timer tests, spawns, the hit test by lane, the game clock, WM_DESTROY → 0x40a) | SERIAL, high (alone) |
 
 Order: 1–4 and 10 first (CRT, DIB and app names anchor the rest), then 5–9 and 11–13, then
 14–25 (after `DATA.md`'s vtable structs and `FarSlotSignatures`), then 26–27.
+
+## Phase 4 results
+
+All 27 groups are done: every function is named or noted, plated and typed. The game is described in
+`GAME.md`, its bugs in `BUGS.md` (section SERIAL, K1–K5). What phase 4 corrected in the earlier
+picture:
+- **Names:** `target_redraw` → `target_hide_and_blit` (it erases the hit figure, it does not draw it).
+- **Timers:** the handler has **7 timer tests**, not one per target: gun 10 (60 ms), walk 3 (figures
+  0–12, 200 ms), walk 6 (13–14, 100 ms), spawn 7 (5 s), lane 2 10 (5 s, `g_timerPeriods[4]`), bullet
+  0xc (55 ms), clock 8 (60 s). The lane-2 test is dead: id 10 is the gun's too, and the gun is tested
+  first (`BUGS.md` K5). Lane 2 gets a figure every 10 s through `g_spawnToggle` in the id-7 branch.
+  `g_timerPeriods[5..7]` and `g_timerIds[1]`, `[2]`, `[6]` are never read.
+- **Lives:** `target_move_tick` takes a life only through a kind-2 figure's shot (the step that
+  brings its frame to two before the end of the strip), not when a figure gets through.
+- **`target_move_tick_or_stop`** compares the SceneObject's y (`< 10`), not `curFrame`.
+- **Engine differences:** the four `invalidate`-for-`blitToDc` swaps, the colour-key restore and
+  `wave_play`'s flags (above), not "pushes fewer".
+- **The hit test:** stage 2 tests lanes 2, 1, 0 by x only with TIRO's 55-px arrow width
+  (`BUGS.md` K3).
+
+Cleanup:
+- **Tags:** `message_box_printf` is far cdecl `(caption, format, int arg)`, not varargs (all 14
+  callers push 3 words and pop 6); `perspective_project_point`/`_unproject_point` keep 7 words (every
+  caller pops 0xe); the 4 unreferenced DIB functions keep TIRO's prototypes (their bodies are TIRO's);
+  `FUN_1028_1c8d` is `(ulong, ulong) -> DX:AX`. The 5 `FUN_` plates end with a one-line note: no
+  caller, slot or data reference settles a role.
+- **Overrides:** the 12 calls through `g_setSystemTimer` (8) and `g_killSystemTimer` (4) have
+  `/SetSystemTimerFn` and `/KillSystemTimerFn` (`FarSlotSignatures.java 1090 site
+  <addr>=/SetSystemTimerFn …`); the 452 virtual calls are typed (phase 3's 428 and the 24 engine
+  sites by `site`). 11 CRT function-pointer calls stay untyped.
+- **Plates:** the stale TIRO table, scene-table and background references in `serial_panel_ctor`,
+  `serial_scene_ctor`, `serial_scene_create_screen`, `target_ctor`, `bullet_ctor` and
+  `projectile_ctor` now give SERIAL's; the handler plate and its pre-comments cite the K entries.
+- **The jump table** `1068:22ab` is `g_spawnLane1JumpTable`, `word[6]` (cases 0–5 → `2269`…`2291`,
+  figures 7–12).
 
 ## Scripts
 

@@ -45,9 +45,13 @@ What differs from TIRO:
   in length (`scene_object_restore_background` +4, `mover_move_tick` −6,
   `scene_object_redraw_overlapping` −6, `animation_stop_and_redraw_dc` −6, `animation_tick`
   −28). TIRO's engine had local changes (the crossbow/target ticks); SERIAL is the plainer
-  version. To check per function in phase 2.
+  version: the four shorter ones repaint with SceneObject slot 0x78 `invalidate(this)` where TIRO
+  calls slot 0x74 `blitToDc(this, backdrop, hdc)`, and `scene_object_restore_background` restores
+  with the colour-key copy `dib_copy_transparent` (key `g_unk00A8` = 0x0b, as ENCAIXE) where TIRO
+  copies opaque (`FUNCTIONS.md`).
 - `1078` WaveMix is +9 bytes (`wave_play`), the same +9 that TIRO's QUALITY.md notes for LIXO.EXE,
-  TIRO's earlier build. SERIAL's wave module is the older one.
+  TIRO's earlier build. SERIAL's wave module is the older one: the flags are
+  `5 | (hWndNotify == 0 ? 2 : 0)`, 7 for every SERIAL call (TIRO always 5).
 - `1048` (the Game subclass) has the same size and the same six functions; only the immediates
   and one call differ.
 - `GETTICKCOUNT` is not imported (93 imports, TIRO 94).
@@ -127,7 +131,8 @@ What is missing, measured with the dry runs of the far-model scripts:
   helpers, `FATALEXIT` no-return) plus the five new routines.
 - **Jump tables:** two. `_output` (CRT, as in TIRO) and **one in the handler**:
   `1068:22a6 JMP CS:[BX+0x22ab]`, 6 words (a `switch (rand() % 6)` that picks a target index
-  7–12). Ghidra already recovered this one (the table is data, the cases are in the body).
+  7–12). Ghidra already recovered this one (the table is data, the cases are in the body); it is
+  labelled `g_spawnLane1JumpTable`, `word[6]`.
 
 Bad splits: none seen. The handler `1068:1529` is one function of 12,899 bytes in 18 ranges
 (the gaps are dead `JMP`s and the jump table). No data decoded as code.
@@ -240,9 +245,8 @@ Stored in the program (saved):
 
 **The 0x40a result** (`1068:15ad`): `PostMessage(g_noiteWnd, 0x40a, hwnd, MAKELONG(lives,
 lives > 0 ? 500 : <BSS word 63c4>))`. The wParam pushed is the handler's own `hwnd` argument,
-which is never 0. **Candidate original bug:** NOITE reads `wParam != 0` as a win, so SERIAL
-would always report a win, and NOITE adds the whole 32-bit lParam (≈ 500·65536 + lives) to the
-score. To confirm with the typed decompile in phase 3.
+which is never 0. NOITE reads `wParam != 0` as a win, so SERIAL always reports a win, and NOITE
+adds the whole 32-bit lParam (≈ 500·65536 + lives) to the score (`BUGS.md` K1, K2).
 
 ## 10. Plan
 
@@ -275,3 +279,9 @@ classes from their ctors.
 `FarVtables`, `FarSlotSignatures`, `NearStructs`, `NearGlobals`, `NearThisTypes`, `NearNullTests`,
 `DefineStrings`, `RenameFunctions`, `NoiteStructs`/`NoiteFieldSet`, `UndefinedRanges`; the three
 cspecs. New: a TIRO→SERIAL transfer script (names, prototypes, plates by mapped address).
+
+Final state (after phase 4 and the cleanup): 1,188 functions (93 imports, 462 adjustor thunks, 633
+code functions, 628 named, 5 dead `FUN_`), 0 `sig?`/`review` tags, 464 call-site overrides (every
+indirect call but the 11 CRT function-pointer calls), uncovered code only data and padding
+(`FUNCTIONS.md`). `_output` (`1080:09be`) still fails to decompile. The game is in `GAME.md`, its
+bugs in `BUGS.md` (section SERIAL).

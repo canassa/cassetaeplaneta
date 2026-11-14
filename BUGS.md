@@ -1539,3 +1539,99 @@ the next beat. Each is consistent code with a plausible intent, and none is reac
   strip guard, so an opponent in strip 8–10 would read the next row. Not reached: the opponent's reaction ends on
   the same beat as the fighter's move, or the approach replaces it first. Confidence 7.
 - **`WinMain` 1038:0202 returns an uninitialised word,** as TIRO's. Confidence 9.
+
+---
+
+## SERIAL.EXE (the "Serial Killer" shooting-gallery minigame)
+
+Addresses are Ghidra `seg:off` in `/SERIAL.EXE`; the game is described in `docs/serial/GAME.md`.
+`serial_scene_handle_message` is 1068:1529. The letter is K (for Killer): S is SALGIN's. Left out as
+design: a hit figure vanishes with no animation; a killer shoots once per animation cycle (figure 2
+twice per crossing); lane 2 is tried only every 10 s and loses its turn when busy; lane-1 figures
+appear whole at the right edge while lane 0 enters at x 20; the shots are unlimited and the game ends
+only on the clock or the lives; a survived game is worth a flat 500 whatever `g_score` is. Each is
+consistent code with a plausible intent, and none is reached by a slip.
+
+### K1. Every game is reported as a win
+- **Where:** `serial_scene_handle_message`, `WM_DESTROY` 1068:1577–15be (`PUSH word ptr [BP+0x10]` at
+  1068:15b4 as the 0x40a wParam); NOITE `handler_3farmcai` 1020:8671 (`minigameWon[2] = wParam != 0`).
+- **What the code does:** the wParam of the 0x40a result is the handler's own `hwnd` argument, never 0,
+  whether the clock ran out or the lives did. TIRO sends `g_score > 0` there. NOITE reads any non-zero
+  wParam as a win.
+- **Effect:** losing all five lives still counts as a win: no life is taken, and the player goes on to
+  the hall (with the jail minigame won) or back to the prison. Only NOITE's own fallback (the window
+  gone without a result) posts a loss.
+- **Confidence:** 9.
+- **Port:** not ported yet (NOITE's side is ported as is in `src/handlers/3farmcai.zig`).
+
+### K2. The score is packed into the high word of the result
+- **Where:** `serial_scene_handle_message`, `WM_DESTROY` 1068:1598–15be; NOITE `handler_3farmcai`
+  1020:8679 (`g_score += lParam`, a 32-bit add).
+- **What the code does:** lParam = `MAKELONG(g_lives, g_lives > 0 ? 500 : g_score)`: the lives go in the
+  low word and the score (500, or `g_score` after a loss of all lives) in the high word. NOITE adds the
+  whole dword to its 32-bit score.
+- **Effect:** a survived game adds 500·65536 + lives (32,768,001 to 32,768,005), a lost one `g_score`·65536
+  (negative when the SERIAL score is). NOITE shows and saves only the low word (B19), so on screen the
+  score grows by the lives left, or not at all; the hidden high word jumps by 500 or by `g_score`.
+- **Confidence:** 9 (code); 8 (that `MAKELONG(score, …)` or a plain score was meant).
+- **Port:** not ported yet (NOITE's side adds the whole lParam, `g.score +%= m.lparam`).
+
+### K3. A hit goes to the first figure that overlaps the bullet in x, in any lane
+- **Where:** `projectile_try_step` 1068:12a5 (first stage) and `serial_scene_handle_message`, the bullet
+  branch (from 1068:2db2; `target_hit` calls 1068:2fe4–45ea).
+- **What the code does:** the first stage only says that some Target blocks the bullet in the occupancy
+  grid, within half that figure's height of its y. The handler then stops the bullet and gives the hit to
+  the first moving figure of lane 2 (13, 14), lane 1 (7–12), then lane 0 (0–6) whose x-range overlaps
+  the bullet's; y is not tested. The bullet is taken as 55 px wide (the constant 0x37, TIRO's arrow
+  width); `bala.bmp` is 47. TIRO's three strict overlap cases leave bullet x = figure x unmatched.
+- **Effect:** a bullet that reaches a lane-0 or lane-1 figure scores for a lane-2 figure (Kennedy is
+  200 px wide, the rabbit 188) or a lane-1 figure that happens to be under it in x, with that figure's
+  points; the one aimed at walks on (a killer keeps shooting). The 8 extra pixels also count a figure
+  whose left edge is 47–54 px right of the bullet's x as overlapped. With no match the bullet is spent
+  with no score.
+- **Confidence:** 9 (code); 7 (how often players see it).
+- **Port:** not ported yet.
+
+### K4. The SPACE latch is never set, so a held SPACE fires on every key repeat
+- **Where:** `serial_scene_handle_message`, `WM_KEYDOWN` `VK_SPACE` (test 1068:172b), `WM_KEYUP` 1068:1a91.
+- **What the code does:** the fire code runs only when `g_keySpaceHeld` (1090:0312) is 0, and key-up
+  clears it, but nothing writes 1 to it. The LEFT/RIGHT latches are set on key-down. (TIRO's T1.)
+- **Effect:** holding SPACE fires again as soon as the bullet is free, on every auto-repeat: a held key
+  is an automatic gun. With unlimited shots nothing else limits it.
+- **Confidence:** 9 (code); 8 (effect, depends on the keyboard repeat rate).
+- **Port:** not ported yet.
+
+### K5. The gun's timer id is also lane 2's spawn timer, whose branch never runs
+- **Where:** `serial_game_create_player` 1048:0029 (gun timer id 10); `serial_create_targets` 1068:013f
+  (`startTimer` on target 13 with `g_timerIds[7]` = 10, 5000 ms); `serial_scene_handle_message`,
+  `WM_SYSTIMER` test 1 (gun id, 1068:1abd–1ae7) before test 5 (`timerId13`, 1068:295a).
+- **What the code does:** both timers are system timers of the same window with id 10, so the later
+  `SetSystemTimer` replaces the earlier: from the start id 10 ticks every 5 s, and from the first aim key
+  (`gun_play`) every 60 ms. Every id-10 tick matches the gun first, so the lane-2 spawn branch
+  (1068:2968–2cca) is dead.
+- **Effect:** lane 2 gets a figure only through the 10-s toggle of the id-7 spawn, never on its own 5-s
+  timer; until the first aim key the gun is repainted every 5 s instead of every 60 ms (nothing draws
+  over it, so this is not seen).
+- **Confidence:** 9 (code); 6 (that lane 2 was meant to spawn on its own timer).
+- **Port:** not ported yet.
+
+### Harmless (SERIAL)
+
+- **The shot counter is never read:** SPACE decrements `g_gun->lives` (+0x40, 16 from
+  `serial_game_create_player`) at 1068:1738 on every press, before the bullet test, and nothing reads it;
+  it goes negative after 16 presses. TIRO ended the game on it. Confidence 9.
+- **The gun's hit box is TIRO's crossbow box:** `serial_game_create_player` passes 0x11d×0x7f (285×127)
+  for the 238×105 `trabu.bmp` frame. The extra area is right of and below the picture, where no bullet or
+  figure goes. Confidence 8.
+- **`WM_DESTROY` from inside a walk tick:** `target_move_tick` 1068:0dfc sends it when `g_lives` reaches 0,
+  and the tick then goes on (the redraw, the other figures' steps) with the waves freed and WaveMix closed;
+  `wave_play` then finds no wave (`g_waveCount` 0) and does nothing. Confidence 9.
+- **A lane-2 spawn resets a walking figure's frame:** the toggle branch (1068:2602–2650) sets the chosen
+  figure's `curStrip`/`curFrame` to 0 before it tests `laneBusy[2]`; when lane 2 is busy with that figure,
+  its animation jumps to frame 0. Not seen in practice: a lane-2 crossing takes about 3 s, the toggle
+  comes every 10 s. Confidence 9 (code).
+- **Write-only state:** `Target.wrapFlag` (+0x40, set by `target_ctor` and `target_wrap_at_edge`).
+  Confidence 9.
+- **The `0x3bd` case is dead:** 1068:15cc returns 1 for a wave-done message, but every wave is played
+  with `hWndNotify` 0. Confidence 9.
+- **`WinMain` 1038:0202 returns an uninitialised word,** as TIRO's. Confidence 9.

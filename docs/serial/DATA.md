@@ -15,7 +15,8 @@ layout and name; this file records where SERIAL's data sits and what is SERIAL's
 | Vtables / vbtables applied | 52 / 25 (77 tables), labelled, one DATA reference per slot |
 | Vtable structs | TIRO's 13 + SERIAL's **`TargetVtbl` (4 slots)**; `Vbtable`, `Vbtable3d` |
 | Class and record structs | TIRO's 30, **`Target` redone (0x5c)**, `Crossbow`→`Gun`, `Arrow`→`Bullet` |
-| Slot `FunctionDefinition`s / virtual-call overrides | 181 / 428 of 455 sites (`FarSlotSignatures.java`) |
+| Slot `FunctionDefinition`s | 181 (`FarSlotSignatures.java 1090 defs`) |
+| Call-site overrides | 464: 428 virtual calls resolved (`1090 calls`), 24 virtual calls and 12 timer-pointer calls by hand (`site`); 11 CRT function-pointer calls left |
 | Globals typed (non-string, non-table) | 138 |
 | NULL-test comments (`NearNullTests`) | 14 (the same sites as TIRO) |
 | Undefined bytes left in DGROUP | 46 (pads and unreferenced CRT words, below) |
@@ -71,7 +72,7 @@ printf engine).
 | `0112–01b5` | the 15 target bitmaps `s_arabBmp` … `s_coelBmp` (`3s*.bmp`) |
 | `01b6–024b` | **the target table**: `g_targetStripFiles[15]`, **`g_targetKinds[15]`**, `g_targetStripFrames[15]`, `g_targetStripWidths[15]`, `g_targetStripHeights[15]` |
 | `024c–025d` | `s_balaBmp`; `g_bulletStrip*[1]` = {`bala.bmp`}, 3, 47, 31 |
-| `025e–027d` | **`g_timerIds[8]`** = 3…10 and **`g_timerPeriods[8]`** = 200, 200, 200, 100, 5000, 5000, 10000, 10000 ms |
+| `025e–027d` | **`g_timerIds[8]`** = 3…10 and **`g_timerPeriods[8]`** = 200, 200, 200, 100, 5000, 5000, 10000, 10000 ms; read: ids `[0]` 3, `[3]` 6, `[4]` 7, `[5]` 8, `[7]` 10, periods `[0]`, `[3]`, `[4]` (`[5..7]` and ids `[1]`, `[2]`, `[6]` never) |
 | `027e–02a5` | `s_panelBmp` ×2, `s_fontFace` "Serial", `s_fontFile` "arialbd.fot" |
 | **`02a6`** | **`g_lives`** = 5 |
 | `02a8–0309` | `s_mciOpenMusic` (`doom2.mid`, alias `musica`), `s_mciPlayMusic`, `s_tiros1Wav`, `s_morte2Wav`, `s_pracas01Wav` |
@@ -145,11 +146,14 @@ no `startTimer`. ProjectileVtbl is TIRO's (`placeAt`, `moveTick`, `stepMove`, `t
 
 **Virtual calls.** `FarSlotSignatures.java 1090 defs` rewrote the 181 slot definitions (one
 changed: `TargetVtbl_placeAtFn`), `1090 calls` put overrides on 428 of 455 virtual-call sites.
-**27 are unresolved**: the 24 engine sites TIRO fixed by hand (`1018:091f`, `09f0`, `0a3c`,
+The other 24 are the engine sites TIRO fixed by hand (`1018:091f`, `09f0`, `0a3c`,
 `0c3d`, `0c87`, `0cc8`, `0ce9`, `14b4`, `14ff`, `15e1`, `1876`, `1bc7`, `1028:043b`, `046d`,
 `04aa`, `1037`, `1030:0800`, `085e`, `08d4`, `1040:06be`, `0a3c`, `0b84`, `1058:017a`,
-`1088:3394`) and the three CRT function-pointer calls. They are left to the phase-4 group that
-owns each function (`FarSlotSignatures.java 1090 site <addr>=<Vtbl>`).
+`1088:3394`), typed by `FarSlotSignatures.java 1090 site <addr>=<Vtbl>`. The 12 calls through
+the timer pointers (`g_setSystemTimer` 8, `g_killSystemTimer` 4) have `/SetSystemTimerFn` and
+`/KillSystemTimerFn` (`site <addr>=/SetSystemTimerFn`). The 11 CRT function-pointer calls
+(`crt_array_construct`/`_destruct`, `_cinit`, `crt_restore_vectors`, `crt_call_fptr_table`, `_output`,
+`_nmalloc`) stay untyped.
 
 ## Classes (`/serial`)
 
@@ -202,8 +206,9 @@ timers and lane flags.
 - every **5 s** (timer id 7 on target 0): if lane 0 is free, a random one of 0–6
   (`rand() % 7`) enters at x 20, y 1 and walks right; if lane 1 is free, one of 7–12 (`rand() %
   6` through the handler's jump table);
-- every **10 s** (timer id 10 on target 13): lane 2 alternates (`g_spawnToggle`) and picks 13 or
-  14 (`rand() % 2`) — Kennedy's car or the rabbit;
+- on every second id-7 tick (`g_spawnToggle`, so every **10 s**), if lane 2 is free: 13 or 14
+  (`rand() % 2`), Kennedy's car or the rabbit. Target 13's own timer (id 10, 5 s) shares the gun's
+  id and its branch never runs (`BUGS.md` K5);
 - the shared timers (id 3, id 6) step every walking target (`isMoving` → `checkEdge`).
 
 **Scoring** (`target_hit` → `serial_hit_kind1` / `serial_hit_kind0_2`, `g_score` a 16-bit int in
@@ -224,10 +229,9 @@ lives run out first.
 **The result** (WM_DESTROY, `1068:1529`): stop the waves, close WaveMix and MCI, then
 `PostMessage(g_noiteWnd, 0x40a, hwnd, MAKELONG(g_lives, g_lives > 0 ? 500 : g_score))`.
 
-So the game, as the data shows: survive two minutes of passers-by in three lanes, shoot the
-kind-2 "killers" before they fire (+200), the kind-1 ones for +100, avoid the kind-0 ones
-(−100). Which of the 15 figures is which is only in the table above; the meaning of the kinds (who
-is the serial killer) is a reading of the bitmaps for phase 4.
+So the game: survive two minutes of passers-by in three lanes, shoot the kind-2 "killers" before
+they fire (+200), the kind-1 ones for +100, avoid the kind-0 ones (−100). `GAME.md` has the rules
+in full.
 
 **Music and waves:** `doom2.mid` through MCI (alias `musica`, replayed from 0 on MM_MCINOTIFY, paused
 and resumed on WM_ACTIVATE like TIRO); `tiros1.WAV` (the shot, both the player's and a killer's),
@@ -238,20 +242,17 @@ and resumed on WM_ACTIVATE like TIRO); `tiros1.WAV` (the shot, both the player's
 5–13 and row 13 for columns 0–18. **Background** `Fundo.bmp` (640×480); the score box is the
 192×32 rectangle at (416, 400), text at x = 460 + 32·i, y = 408.
 
-## Candidate original bugs (for BUGS.md later; not verified at run time)
+## Original bugs
 
-- **S1 — always a win.** The 0x40a `wParam` is the minigame's own `hwnd` (`[BP+0x10]`, the
-  handler's window argument), never 0. NOITE's `handler_3farmcai` stores `wParam != 0` in
-  `minigameWon[2]`, so SERIAL always reports a win, even when the lives ran out (TIRO sends
-  `g_score > 0`). NOITE's own fallback (the window vanished) posts `wParam` 0.
-- **S2 — the score is packed into the high word.** `lParam = MAKELONG(g_lives, g_lives > 0 ? 500 :
-  g_score)`; NOITE adds the whole 32-bit lParam to its score, i.e. `500·65536 + lives` (32 768 005
-  with 5 lives) for a survived game, or `g_score·65536` (0 lives) — the intent was probably
-  `MAKELONG(score, …)` / a 16-bit score.
-- **S3 — `Gun.lives` counts down forever.** `serial_scene_handle_message` decrements the gun's
-  `Player2D.lives` (16) on every SPACE press, even one ignored because the bullet is still flying,
-  and never tests it (TIRO ended the game on it); after 16
-  shots it goes negative. Harmless.
+In `BUGS.md`, section SERIAL: K1 (the result always reads as a win), K2 (the score in the high word
+of lParam), K3 (the x-only hit test across lanes, with a 55-px bullet), K4 (no SPACE latch), K5 (the
+gun's timer id 10 is also lane 2's), and the harmless ones (the unread shot counter, the oversized
+gun hit box, the write-only `wrapFlag`, …).
+
+## Code-segment data
+
+`1068:22ab` `g_spawnLane1JumpTable`, `word[6]`: the handler's `switch (rand() % 6)` at `1068:22a6`
+(`JMP CS:[BX+0x22ab]`), cases 0–5 → `2269`, `2271`, …, `2291` (figures 7–12).
 
 ## Undefined bytes left in DGROUP (46)
 
@@ -270,7 +271,7 @@ unreferenced words = 1 at `0314–0317` (TIRO's `02c4`); unreferenced CRT words 
 | `FarVtables.java /serial 1090 <vt.arg>` | `TargetVtbl` (S), `Vbtable`/`Vbtable3d` (P), the 77 tables (A) |
 | `DefineStrings.java <strings.arg>` | the 93 strings |
 | `NearGlobals.java /serial <glob.arg>` | the 138 globals |
-| `FarSlotSignatures.java 1090 defs`, `1090 calls` | slot definitions, 428 overrides |
+| `FarSlotSignatures.java 1090 defs`, `1090 calls`, `1090 site …` | slot definitions, 428 overrides, the 24 engine sites and the 12 timer-pointer calls |
 | `NearNullTests.java 1018`, `1028`, `1058`, `1088` | the 14 NULL-test comments |
 | `UndefinedRanges.java 1090:0000` | the list above |
 
