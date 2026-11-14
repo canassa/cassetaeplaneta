@@ -862,6 +862,19 @@ Usability changes the "Corrigida" version (`Fixes.all()`) turns on; the original
 
 ## Not bugs (checked)
 
+- **The bad cop and the policewoman arrest a player who just waits, even with the wallet:** by design. With a
+  non-empty inventory `handler_2fcopmau` plays the cop's greeting (PMAUS01, 17.8 s; scene start 1020:250c,
+  the empty-inventory timer is 24ee–2503); its end with nothing offered (MM_WOM_DONE 1020:1f4a: no
+  `selectedItem` or no hit object → 234c) clears `greetingPending` and, unless the gift package (0x6b,
+  scanned at scene start) is carried, resets the offers and switches to `2apremau` (1020:2360–23a6); with the
+  gift he says PMAUS03 instead (23ce) and waits. The wallet has to be offered while he speaks.
+  `handler_2fcopmu` does the same after the boys' garots05 line (2apremu2). The good cop (`handler_2fblitg`)
+  only stops his animation. An empty inventory ends all three in the arrest after the 5 s timer 0x15.
+- **The roadblock arrest takes no life:** by design. `2aprebom`, `2apremau` and `2apremu2` (scene numbers
+  24–26) have no handler (`register_scene_handlers` 1018:570e), their video exits go to `1fquarbo` and no
+  roadblock handler writes `g_lives` (its writers: 1fcarnbo, baracut1, 2fsuabig, 2floucos, 2fasspap, 3fhall,
+  3fsauna, 3ffarao, 3farmcai, 3fstree1, 3fpapmal, 4fboydj, 4fbar, 4fmarte, 4fsalgin, 6fsaida). The price is the
+  drive again from the bedroom (items and score kept); 2fshardi's send-off works the same way.
 - **4fsacaet takes no life on an INV loss:** by design — the loss scene does: `handler_4fmarte` 1028:03f9
   (`DEC; JZ`: game over at 0, else 4fbar), and 4fmarte is reached only from the 4fsacaet loss.
 - **3fstree2 does nothing when `minigameWon[3]` is 0:** it is entered only from `handler_3fstreet`
