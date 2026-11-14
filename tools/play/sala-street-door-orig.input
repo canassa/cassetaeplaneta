@@ -1,0 +1,8 @@
+# The Original's living room: a right click at (20, 120) misses the exit to the
+# street (its click area is x 0-40, y 280-390), so the scene stays 1fsala.
+#
+#   zig-out/bin/noite --headless --ms 4000 --input tools/play/sala-street-door-orig.input
+0 scene 1fsala 60 300 1 1 0 0 0
+500 rclick 20 120
++1500 expect 1fsala
++0 quit

@@ -1,0 +1,12 @@
+# Corrigida addition (BUGS.md, "Corrigida additions"): the living room's exit to
+# the street (Exit=114) is clickable over the whole door frame, y 73-390.
+# A right click at (20, 120), in the frame's upper part, takes the exit.
+#
+#   zig-out/bin/noite --headless --ms 4000 --fix all --input tools/play/sala-street-door.input
+#
+# Passes with `--fix all` (or `--fix sala_street_exit_covers_door`); the Original
+# stays in 1fsala (tools/play/sala-street-door-orig.input).
+0 scene 1fsala 60 300 1 1 0 0 0
+500 rclick 20 120
++1500 expect 2fpontoc
++0 quit
