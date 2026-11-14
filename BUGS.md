@@ -1128,14 +1128,18 @@ Addresses are Ghidra `seg:off` in `/ENCAIXE.EXE`; the game is described in `docs
 - **Port:** reproduced (unit `object_create`, src/encaixe/); the fix is `Fixes.encaixe_strip_cells_by_count`
   (`--fix encaixe_strip_cells_by_count`, on in the Corrigida version).
 
-### E9. The occupancy-grid walls are asymmetric
-- **Where:** `te_grid_backdrop_create_with_walls` 1008:b766 (loop at 1008:b812).
-- **What the code does:** marks blocked cells (count −1) at grid columns 0 and 15 for rows 1–10, and rows 1 and 13
-  for columns 0–13: the box is not closed and does not match the 11×14 board.
-- **Effect:** none: the Tetris moves test `Piece.board`, not the occupancy grid.
-- **Confidence:** 7.
-- **Port:** reproduced (unit `backdrop`, src/encaixe/); the fix is `Fixes.encaixe_grid_walls_match_board`
-  (`--fix encaixe_grid_walls_match_board`, on in the Corrigida version).
+### E9. The occupancy-grid walls do not enclose the board
+- **Where:** `te_grid_backdrop_create_with_walls` 1008:b766 (loop at 1008:b848).
+- **What the code does:** marks blocked cells (count −1) in the 32-px occupancy grid, indexed `row * 81 + col`,
+  at (rows 1–10, columns 0 and 15) and (rows 1 and 13, columns 0–13). The board sits in grid rows 0–13, columns
+  1–11 (x 32–383, y 0–447): the walls cross it and close no box around it, and no transposition or offset of
+  them does either.
+- **Effect:** none: the Tetris moves test `Piece.board`, and nothing in the Tetris scene queries the grid
+  (`te_piece_step_move` does not, and the scene swallows the mouse messages whose engine handlers would). The
+  walls are dead data.
+- **Confidence:** 9 (code); 8 (effect).
+- **Port:** reproduced (unit `backdrop`, src/encaixe/); no flag: there is nothing visible to fix, and the walls
+  give no intended box to restore.
 
 ### E10. `te_piece_clear_row` never rewrites row 0
 - **Where:** `te_piece_clear_row` 1008:f042.

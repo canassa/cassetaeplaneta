@@ -335,12 +335,12 @@ and PostMessage fails.
 | E6 landing after the result | `encaixe_result_stops_landing` | piece |
 | E7 skipped speed-up | `encaixe_speed_up_on_crossing` | piece |
 | E8 strip cells | `encaixe_strip_cells_by_count` | object_create |
-| E9 grid walls | `encaixe_grid_walls_match_board` | backdrop |
 | E11 leftover rotations at the top | `encaixe_spawn_syncs_previous_position` | piece |
 
 All in `Fixes.all()`. E4's uninitialised stack word is taken as 0 (no
 cells). E3 cannot happen (`rand() % 6`). E10 (row 0 never rewritten,
-`piece`) has no flag: its one effect comes from E2's phantom cells.
+`piece`) has no flag: its one effect comes from E2's phantom cells. E9
+(the grid walls, `backdrop`) has none either: nothing reads them.
 
 ## Units
 

@@ -208,9 +208,6 @@ pub const Fixes = struct {
     /// E8: each piece strip gets one FrameCell per frame, not per pixel of
     /// width (6 KB of local heap; nothing visible).
     encaixe_strip_cells_by_count: bool = false,
-    /// E9: the occupancy-grid walls close the 11×14 board's box (nothing
-    /// visible: the moves test the board).
-    encaixe_grid_walls_match_board: bool = false,
     /// E11: a new piece starts with its previous position at its spawn
     /// point, so rotations before its first fall step erase its whole frame
     /// (no leftover rotations drawn at the top; drawing only).

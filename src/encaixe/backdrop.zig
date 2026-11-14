@@ -297,28 +297,13 @@ pub fn createWithGrid(g: *Game, bd: *Backdrop, cell_shift: i16) ?*Backdrop {
 
 // @orig 1008:b766 te_grid_backdrop_create_with_walls
 /// BackdropVtbl slot 00 create (TetrisBackdrop's; hwnd dropped): the grid
-/// with 32-px cells, then the wall cells (count -1, no object). BUGS.md E9:
-/// the original blocks columns 0 and 15 for rows 1-10 and rows 1 and 13 for
-/// columns 0-13 (the first index is the board column, the second the board
-/// row); `encaixe_grid_walls_match_board` closes the 11 x 14 board's box
-/// instead (the board in cells 1-11 x 1-14: first index 0 and 12, second
-/// index 0 and 15).
+/// with 32-px cells, then the wall cells (count -1, no object) at grid
+/// (row, col) = (1-10, 0), (1-10, 15), (1, 0-13) and (13, 0-13). BUGS.md
+/// E9: they match no box around the board (grid rows 0-13, columns 1-11),
+/// and nothing in the Tetris game reads them; reproduced, no flag.
 pub fn create(g: *Game, bd: *Backdrop) ?*Backdrop {
     _ = baseCreate(g, bd);
     bd.grid = newGrid(g, bd, 5);
-    if (g.fixes.encaixe_grid_walls_match_board) {
-        var i: i32 = 0;
-        while (i <= 15) : (i += 1) {
-            storeCell(g, i * 81 + 0, null, -1);
-            storeCell(g, i * 81 + 12, null, -1);
-        }
-        i = 0;
-        while (i <= 12) : (i += 1) {
-            storeCell(g, i * 81 + 0, null, -1);
-            storeCell(g, i * 81 + 15, null, -1);
-        }
-        return bd;
-    }
     var row: i32 = 1;
     while (row <= 10) : (row += 1) {
         storeCell(g, row * 81 + 0, null, -1);
