@@ -3,186 +3,584 @@
 //! InfernoBackdrop's ctor and create (the floor wall, row 23), the occupancy
 //! grid (occupancy_grid_clear: BUGS.md H6) and its queries, autoscroll.
 //!
-//! Virtual-slot dispatchers owned by this unit are declared below with
-//! their final signatures; their bodies panic until the unit is ported
-//! (docs/inferno/DESIGN.md "Virtual slots"). Replace each body, keep the
-//! signature (other units already call it). Each implementation function
-//! carries `// @orig <seg:xxxx> <name>` with the INFERNO address.
+//! Only InfernoBackdrop is instantiated (Backdrop + GridBackdrop +
+//! InfernoBackdrop flattened in `world.Backdrop`). Its one WinG bitmap is a
+//! top-down pixel buffer (`pixels`, `bgWidth` x `bgHeight`, rows padded to
+//! 4) allocated from `g.gpa` and freed by `dtor`. The DC, the logical palette
+//! and the old-bitmap handle have no counterpart (SelectPalette +
+//! RealizePalette is `g.plat.realizePalette`). The occupancy grid object
+//! (`new OccupancyGrid`, never freed) is on the task's local heap. The cells
+//! are `g.occupancy`, addressed flat (`row * 81 + col`, 16-bit wrapping as
+//! the original): the floor wall writes row 23 for columns 0-89, so the last
+//! nine land on row 24 (BUGS.md "Harmless (INFERNO)"); an index outside the
+//! 65 x 81 cells reads as a free cell and writes are dropped.
 
 const std = @import("std");
-const stub = @import("../core/stub.zig");
-const msg = @import("../core/msg.zig");
-const Msg = msg.Msg;
+const platform = @import("../platform/platform.zig");
 const Game = @import("core/game.zig").Game;
 const object = @import("core/object.zig");
 const Object = object.Object;
-const ObjectList = object.ObjectList;
-const Frame = object.Frame;
-const FrameCell = object.FrameCell;
-const BitmapInfoHeader = object.BitmapInfoHeader;
 const world = @import("core/world.zig");
 const Backdrop = world.Backdrop;
-const Scene = world.Scene;
-const Condition = world.Condition;
+const OccupancyGrid = world.OccupancyGrid;
 const RectQuery = world.RectQuery;
+const dib = @import("dib.zig");
+const position = @import("behaviour/position.zig");
+const movement = @import("behaviour/movement.zig");
+const visibility = @import("behaviour/visibility.zig");
 
-/// BackdropVtbl slot 00 create: InfernoBackdrop's (inferno_backdrop_create:
-/// the grid and the floor wall; hwnd dropped).
+/// The 256 entries of the Win16 `LOGPALETTE256`.
+pub const LogPalette = [256]platform.PaletteEntry;
+
+/// Latin-1, as in the original's code segment (1080:7cac, 7cba, 7cec, 7d20,
+/// 4710).
+const msg_caption = "Erro FATAL !";
+const msg_rows = "Estouro do n\xfamero de linhas da matriz de ocupa\xe7\xe3o";
+const msg_cols = "Estouro do n\xfamero de colunas da matriz de ocupa\xe7\xe3o";
+const msg_cannot_open = "N\xe3o foi poss\xedvel abrir o arquivo: %s";
+const msg_fatal = "Erro Fatal!!";
+
+const cell_total = world.grid_rows * world.grid_cols;
+
+fn flatCount(g: *Game) *[cell_total]i8 {
+    return @ptrCast(&g.occupancy.count);
+}
+
+fn flatObject(g: *Game) *[cell_total]?*Object {
+    return @ptrCast(&g.occupancy.object);
+}
+
+fn cellCount(g: *Game, idx: i32) i8 {
+    if (idx < 0 or idx >= cell_total) return 0;
+    return flatCount(g)[@intCast(idx)];
+}
+
+fn cellObject(g: *Game, idx: i32) ?*Object {
+    if (idx < 0 or idx >= cell_total) return null;
+    return flatObject(g)[@intCast(idx)];
+}
+
+/// Stores the object and the count of a cell (dropped outside the matrix).
+fn storeCell(g: *Game, idx: i32, obj: ?*Object, count: i8) void {
+    if (idx < 0 or idx >= cell_total) return;
+    const i: usize = @intCast(idx);
+    flatObject(g)[i] = obj;
+    flatCount(g)[i] = count;
+}
+
+/// 16-bit `row * 81 + col` (`IMUL`, `ADD`), as an unsigned index.
+fn index16(row: i16, col: i16) i32 {
+    const v: i16 = row *% 81 +% col;
+    return @as(u16, @bitCast(v));
+}
+
+/// x86 `SAR r16, CL`: the count is masked to 5 bits, 16+ gives the sign.
+fn sar(v: i16, shift: i16) i16 {
+    const s: u5 = @intCast(@as(u16, @bitCast(shift)) & 0x1f);
+    if (s > 15) return if (v < 0) -1 else 0;
+    return v >> @intCast(s);
+}
+
+/// x86 `SHR r16, CL`.
+fn shr(v: u16, shift: i16) u16 {
+    const s: u5 = @intCast(@as(u16, @bitCast(shift)) & 0x1f);
+    if (s > 15) return 0;
+    return v >> @intCast(s);
+}
+
+// @orig 1080:587e occupancy_grid_set_cell
+/// Stores `obj` and the (byte) `count` in cell (`col`, `row`).
+pub fn setCell(g: *Game, grid: *OccupancyGrid, obj: ?*Object, count: i16, col: i16, row: i16) void {
+    _ = grid;
+    storeCell(g, index16(row, col), obj, @truncate(count));
+}
+
+// @orig 1080:58ba occupancy_grid_occupy_cell
+/// Stores `obj` in the cell and moves its count one step away from zero
+/// (down if blocked, up otherwise).
+fn occupyCell(g: *Game, grid: *OccupancyGrid, obj: *Object, col: i16, row: i16) void {
+    _ = grid;
+    const idx = index16(row, col);
+    const c = cellCount(g, idx);
+    storeCell(g, idx, obj, if (c < 0) c -% 1 else c +% 1);
+}
+
+// @orig 1080:591c occupancy_grid_vacate_cell
+/// Clears the cell's object and moves its count one step back to zero.
+fn vacateCell(g: *Game, grid: *OccupancyGrid, col: i16, row: i16) void {
+    _ = grid;
+    const idx = index16(row, col);
+    const c = cellCount(g, idx);
+    storeCell(g, idx, null, if (c < 1) c +% 1 else c -% 1);
+}
+
+/// The cell range under an object's hit box (INFERNO's is in the
+/// SceneObject: `hitX`..`hitH`): rows `r0..r1`, columns `c0..c1`; the sums
+/// are the original's, 16-bit.
+const Span = struct { r0: i16, r1: i16, c0: i16, c1: i16 };
+
+fn hitSpan(grid: *const OccupancyGrid, obj: *Object) Span {
+    return .{
+        .r0 = sar(obj.y +% obj.hitY, grid.rowShift),
+        .c0 = sar(obj.x +% obj.hitX, grid.colShift),
+        .r1 = sar(obj.y +% obj.hitY +% obj.hitH, grid.rowShift),
+        .c1 = sar(obj.x +% obj.hitX +% obj.hitW, grid.colShift),
+    };
+}
+
+// @orig 1030:0000 occupancy_grid_occupy
+/// Occupies every cell under the object's hit box (rows outer, columns
+/// inner). Returns 1, or -1 when the object's position is negative.
+pub fn gridOccupy(g: *Game, grid: *OccupancyGrid, obj: *Object) i8 {
+    if (obj.x < 0 or obj.y < 0) return -1;
+    const s = hitSpan(grid, obj);
+    var row = s.r0;
+    while (row <= s.r1) : (row +%= 1) {
+        var col = s.c0;
+        while (col <= s.c1) : (col +%= 1) occupyCell(g, grid, obj, col, row);
+    }
+    return 1;
+}
+
+// @orig 1030:00e9 occupancy_grid_vacate
+/// Vacates every cell under the object's hit box. Returns 1, or -1 when the
+/// object's position is negative.
+pub fn gridVacate(g: *Game, grid: *OccupancyGrid, obj: *Object) i8 {
+    if (obj.x < 0 or obj.y < 0) return -1;
+    const s = hitSpan(grid, obj);
+    var row = s.r0;
+    while (row <= s.r1) : (row +%= 1) {
+        var col = s.c0;
+        while (col <= s.c1) : (col +%= 1) vacateCell(g, grid, col, row);
+    }
+    return 1;
+}
+
+// @orig 1030:01d2 occupancy_grid_clear
+/// Sets every cell under the object's hit box to (0, null), or the whole
+/// 65 x 81 matrix when `obj` is null (hazard_hit_player's wipe: BUGS.md H6).
+/// Nothing for an object at a negative position.
+pub fn gridClear(g: *Game, grid: *OccupancyGrid, obj: ?*Object) void {
+    const o = obj orelse {
+        var row: i16 = 0;
+        while (row < world.grid_rows) : (row += 1) {
+            var col: i16 = 0;
+            while (col < world.grid_cols) : (col += 1) setCell(g, grid, null, 0, col, row);
+        }
+        return;
+    };
+    if (o.x < 0 or o.y < 0) return;
+    const s = hitSpan(grid, o);
+    var row = s.r0;
+    while (row <= s.r1) : (row +%= 1) {
+        var col = s.c0;
+        while (col <= s.c1) : (col +%= 1) setCell(g, grid, null, 0, col, row);
+    }
+}
+
+// @orig 1030:033c occupancy_grid_query_rect
+/// Scans the cells covered by the rectangle. `result` is 0 if all are free,
+/// else the count of the first occupied cell (`-1 - count` for a blocked
+/// cell holding objects), -1 for a negative position (then `flag` stays 0).
+/// `flag` becomes -1 if a blocked cell was seen. `obj` is the object of
+/// each unblocked cell scanned until the first occupied one (the last
+/// assigned is the result). Unlike TIRO's, `grid.firstObject` is not reset
+/// and takes the previous cell's object when the current cell has none.
+pub fn gridQueryRect(g: *Game, grid: *OccupancyGrid, x: i16, y: i16, w: i16, h: i16) RectQuery {
+    var q: RectQuery = .{};
+    var res: i8 = 0;
+    grid.lastCellObject = null;
+    q.obj = null;
+    if (x < 0 or y < 0) {
+        res = -1;
+    } else {
+        const row0 = sar(y, grid.rowShift);
+        const col0 = sar(x, grid.colShift);
+        const row1 = sar(h, grid.rowShift) +% row0;
+        const col1 = sar(w, grid.colShift) +% col0;
+        var row = row0;
+        while (row <= row1) : (row += 1) {
+            var col = col0;
+            while (col <= col1) : (col += 1) {
+                const idx = index16(row, col);
+                const c = cellCount(g, idx);
+                if (c == -1) {
+                    q.flag = -1;
+                } else if (res == 0) {
+                    const o = cellObject(g, idx);
+                    q.obj = o;
+                    if (o == null and grid.lastCellObject != null) grid.firstObject = grid.lastCellObject;
+                    grid.lastCellObject = o;
+                    if (c > 0) {
+                        res = c;
+                    } else if (c < 0) {
+                        q.flag = -1;
+                        res = -1 -% c;
+                    }
+                } else if (c < 0) {
+                    q.flag = -1;
+                }
+                if (col == std.math.maxInt(i16)) break;
+            }
+            if (row == std.math.maxInt(i16)) break;
+        }
+        if (res == 0) res = q.flag;
+    }
+    q.result = res;
+    return q;
+}
+
+// @orig 1030:060b backdrop_init_dib_header
+/// Asks WinG for the DIB format (always top-down here), then sets 8 bpp,
+/// the background's width and height x orientation. Returns the
+/// orientation (1 bottom-up, -1 top-down).
+pub fn initDibHeader(bd: *Backdrop) i32 {
+    var orient: i32 = 1;
+    if (!platform.wingRecommendDibFormat(&bd.bmiHeader)) {
+        bd.bmiHeader.biSize = 0x28;
+        bd.bmiHeader.biPlanes = 1;
+        bd.bmiHeader.biBitCount = 8;
+        bd.bmiHeader.biCompression = 0;
+        bd.bmiHeader.biSizeImage = 0;
+        bd.bmiHeader.biClrUsed = 0;
+        bd.bmiHeader.biClrImportant = 0;
+    } else {
+        bd.bmiHeader.biBitCount = 8;
+        bd.bmiHeader.biCompression = 0;
+        orient = if (bd.bmiHeader.biHeight < 0) -1 else 1;
+    }
+    bd.bmiHeader.biWidth = bd.bgWidth;
+    bd.bmiHeader.biHeight = @as(i32, bd.bgHeight) *% orient;
+    return orient;
+}
+
+// @orig 1030:071e backdrop_set_static_colors
+/// Entries 0-9 and 246-255 of the system palette into the colour table;
+/// their `peFlags` are cleared.
+pub fn setStaticColors(bd: *Backdrop, pal: *LogPalette) void {
+    for (0..10) |i| {
+        for ([2]usize{ i, 246 + i }) |k| {
+            bd.bmiColors[k] = .{ .red = pal[k].red, .green = pal[k].green, .blue = pal[k].blue, .reserved = 0 };
+            pal[k].flags = 0;
+        }
+    }
+}
+
+// @orig 1030:0811 backdrop_set_dib_colors
+/// Entries 10-245 of the background picture's colour table into the
+/// backdrop's colour table and the logical palette (flags PC_RESERVED).
+pub fn setDibColors(bd: *Backdrop, pal: *LogPalette) void {
+    const bg = bd.background orelse return;
+    for (10..246) |k| {
+        const c = bg.colors[k];
+        bd.bmiColors[k] = .{ .red = c.red, .green = c.green, .blue = c.blue, .reserved = 0 };
+        pal[k] = .{ .red = c.red, .green = c.green, .blue = c.blue, .flags = 1 };
+    }
+}
+
+// @orig 1080:5646 backdrop_blit_to_dc
+/// SelectPalette + RealizePalette, then copies the view (`viewWidth` x
+/// `viewHeight` at the origin) to the window (`hdc` dropped).
+pub fn blitToDc(g: *Game, bd: *const Backdrop) void {
+    _ = g.plat.realizePalette(&bd.bmiColors);
+    g.plat.wingBitBlt(0, 0, bd.viewWidth, bd.viewHeight, bd.surface(), bd.originX, bd.originY);
+}
+
+// @orig 1080:597a backdrop_clear
+/// PatBlt(BLACKNESS) over the whole bitmap.
+pub fn clear(bd: *Backdrop) void {
+    @memset(bd.pixels, 0);
+}
+
+// @orig 1080:59b2 backdrop_draw_background
+/// Copies the whole background picture into the bitmap.
+pub fn drawBackground(g: *Game, bd: *Backdrop) dib.Error!void {
+    const bg = bd.background orelse return;
+    _ = try dib.copy(&bd.bmiHeader, bd.pixels, 0, 0, bg.bits, &bg.header, g.fixes);
+}
+
+// @orig 1030:04c0 backdrop_create
+/// Builds the palette (static colours, then the picture's 10-245) and the
+/// one WinG bitmap, clears it, shows it in the window and draws the
+/// background. No failure checks in the original; a bitmap that cannot be
+/// allocated returns null here. GetDC/ReleaseDC, CreatePalette, WinGCreateDC
+/// and the old-bitmap handle have no counterpart.
+fn baseCreate(g: *Game, bd: *Backdrop) ?*Backdrop {
+    var pal: LogPalette = @splat(.{});
+    _ = platform.getSystemPaletteEntries(0, pal[0..10]);
+    _ = platform.getSystemPaletteEntries(246, pal[246..256]);
+    setStaticColors(bd, &pal);
+    setDibColors(bd, &pal);
+    bd.dibOrientation = initDibHeader(bd);
+    const w: usize = @as(u16, @bitCast(bd.bgWidth));
+    const stride = (w + 3) & ~@as(usize, 3);
+    const h: usize = @as(u16, @bitCast(bd.bgHeight));
+    bd.pixels = g.gpa.alloc(u8, stride * h) catch return null;
+    clear(bd);
+    blitToDc(g, bd);
+    drawBackground(g, bd) catch return null;
+    return bd;
+}
+
+// @orig 1080:7924 occupancy_grid_ctor
+/// The occupancy grid of a freshly created backdrop (`new OccupancyGrid`,
+/// 16 bytes, never freed: the task's local heap): `1 << cell_shift` px
+/// cells, the rows and columns that fit, the two "Estouro" boxes (direct
+/// MessageBox calls; they carry on) and the cells cleared. Null when the
+/// allocation fails.
+fn newGrid(g: *Game, bd: *Backdrop, cell_shift: i16) ?*OccupancyGrid {
+    const grid = g.local().create(OccupancyGrid) catch return null;
+    grid.* = .{};
+    grid.rowShift = cell_shift;
+    grid.colShift = cell_shift;
+    grid.rowCount = @bitCast(shr(@bitCast(bd.bgHeight), cell_shift) +% 1);
+    grid.colCount = @bitCast(shr(@bitCast(bd.bgWidth), cell_shift) +% 1);
+    if (grid.rowCount > 0x41) _ = g.plat.messageBox(msg_caption, msg_rows, platform.mb.iconexclamation);
+    if (grid.colCount > 0x51) _ = g.plat.messageBox(msg_caption, msg_cols, platform.mb.iconexclamation);
+    var row: i16 = 0;
+    while (row < grid.rowCount) : (row +%= 1) {
+        var col: i16 = 0;
+        while (col < grid.colCount) : (col +%= 1) setCell(g, grid, null, 0, col, row);
+    }
+    grid.lastCellObject = null;
+    grid.firstObject = null;
+    return grid;
+}
+
+// @orig 1080:75e6 grid_backdrop_create_with_grid
+/// GridBackdropVtbl slot 14: `baseCreate` plus the occupancy grid.
+pub fn createWithGrid(g: *Game, bd: *Backdrop, cell_shift: i16) ?*Backdrop {
+    _ = baseCreate(g, bd);
+    bd.grid = newGrid(g, bd, cell_shift);
+    return bd;
+}
+
+// @orig 1080:765c grid_backdrop_create
+/// GridBackdrop's create (slot 00 of its own table): `createWithGrid` with
+/// 16-px cells (the original calls it through slot 14).
+fn gridBackdropCreate(g: *Game, bd: *Backdrop) void {
+    _ = createWithGrid(g, bd, 4);
+}
+
+// @orig 1068:0102 inferno_backdrop_create
+/// BackdropVtbl slot 00 create (InfernoBackdrop's; hwnd dropped): the grid
+/// with 16-px cells, then the floor wall (count -1, no object) on row 23
+/// for columns 0-89 (the last nine land on row 24: the matrix is 81 wide).
 pub fn create(g: *Game, bd: *Backdrop) ?*Backdrop {
-    _ = g;
-    _ = bd;
-    stub.unported("inferno.backdrop.create");
+    gridBackdropCreate(g, bd);
+    const grid = bd.grid orelse return bd;
+    var col: i16 = 0;
+    while (col < 0x5a) : (col += 1) setCell(g, grid, null, -1, col, 0x17);
+    return bd;
 }
 
-/// BackdropVtbl slot 01 isRectOccupied (GridBackdrop's).
+// @orig 1080:7a1c backdrop_ctor
+/// Base constructor: loads the background bitmap `path` and records the
+/// view rectangle. If the bitmap cannot be opened the original shows the
+/// box (the path as the argument) and then reads the null header (taken as
+/// 0).
+fn backdropCtor(g: *Game, bd: *Backdrop, path: []const u8, origin_x: i16, origin_y: i16, view_w: i16, view_h: i16) *Backdrop {
+    bd.background = dib.loadDib(g.gpa, g.plat, g.fixes, path);
+    if (bd.background == null) position.messageBoxPrintf(g, msg_fatal, msg_cannot_open, path);
+    bd.bgWidth = if (bd.background) |bg| @truncate(bg.header.biWidth) else 0;
+    bd.bgHeight = if (bd.background) |bg| @truncate(bg.header.biHeight) else 0;
+    bd.originX = origin_x;
+    bd.originY = origin_y;
+    bd.viewWidth = view_w;
+    bd.viewHeight = view_h;
+    bd.sceneList = null;
+    return bd;
+}
+
+// @orig 1080:759e grid_backdrop_ctor
+/// Base constructor (the GridBackdrop vtable has no counterpart: flattened).
+fn gridBackdropCtor(g: *Game, bd: *Backdrop, path: []const u8, origin_x: i16, origin_y: i16, view_w: i16, view_h: i16) *Backdrop {
+    return backdropCtor(g, bd, path, origin_x, origin_y, view_w, view_h);
+}
+
+// @orig 1080:7556 inferno_backdrop_ctor
+/// Constructor of the class INFERNO's scene builds (the caller allocates
+/// `bd`).
+pub fn ctor(g: *Game, bd: *Backdrop, path: []const u8, origin_x: i16, origin_y: i16, view_w: i16, view_h: i16) *Backdrop {
+    return gridBackdropCtor(g, bd, path, origin_x, origin_y, view_w, view_h);
+}
+
+// @orig 1080:60fa backdrop_dtor
+/// Releases the WinG bitmap and the background picture (the DC, the palette
+/// and the old-bitmap handle have no counterpart).
+pub fn dtor(g: *Game, bd: *Backdrop) void {
+    if (bd.pixels.len != 0) g.gpa.free(bd.pixels);
+    bd.pixels = &.{};
+    if (bd.background) |bg| {
+        g.gpa.free(bg.bits);
+        g.gpa.destroy(bg);
+        bd.background = null;
+    }
+}
+
+// @orig 1080:60a6 backdrop_scalar_dtor
+/// Scalar deleting destructor: `dtor`; freeing the object itself
+/// (`flags & 1`) is up to whoever allocated it.
+pub fn delete(g: *Game, bd: *Backdrop, flags: u16) *Backdrop {
+    _ = flags;
+    dtor(g, bd);
+    return bd;
+}
+
+// @orig 1030:08d9 backdrop_autoscroll
+/// For the player object at (`x`, `y`) (slot 3A isPlayer), scrolls the view
+/// by 20 pixels when it is within 40 pixels of the left/top edge or beyond
+/// 500/300 (clamped to the background), moves the object by the same amount,
+/// redraws what it overlaps, realizes the palette and blits the view. True
+/// if it scrolled. (`hdc` dropped.)
+pub fn autoscroll(g: *Game, bd: *Backdrop, obj: *Object, x: i16, y: i16) bool {
+    if (!obj.is(.player)) return false;
+    var dx: i16 = 0;
+    var dy: i16 = 0;
+    if (x -% bd.originX > 500) {
+        dx = 1;
+    } else if (x -% bd.originX < 40) {
+        dx = -1;
+    }
+    if (y -% bd.originY > 300) {
+        dy = 1;
+    } else if (y -% bd.originY < 40) {
+        dy = -1;
+    }
+    if (dx == 0 and dy == 0) return false;
+    if (dx > 0) {
+        if (bd.bgWidth < bd.originX +% bd.viewWidth +% 20) dx = 0;
+    } else if (dx < 0) {
+        if (bd.originX -% 20 < 0) dx = 0;
+    }
+    if (dy > 0) {
+        if (bd.bgHeight < bd.originY +% bd.viewHeight +% 20) dy = 0;
+    } else if (dy < 0) {
+        if (bd.originY -% 20 < 0) dy = 0;
+    }
+    if (dx == 0 and dy == 0) return false;
+    dx *%= 20;
+    dy *%= 20;
+    bd.originX +%= dx;
+    bd.originY +%= dy;
+    _ = slot07(g, bd);
+    movement.placeAt(g, obj, obj.x +% dx, obj.y +% dy, bd);
+    visibility.redrawOverlapping(g, obj, bd, 1);
+    _ = g.plat.realizePalette(&bd.bmiColors);
+    blitToDc(g, bd);
+    return true;
+}
+
+/// BackdropVtbl slot 01 isRectOccupied (via isRectFree).
+// @orig 1080:7710 grid_backdrop_is_rect_occupied
 pub fn isRectOccupied(g: *Game, bd: *Backdrop, x: i16, y: i16, w: i16, h: i16) bool {
-    _ = g;
-    _ = bd;
-    _ = x;
-    _ = y;
-    _ = w;
-    _ = h;
-    stub.unported("inferno.backdrop.isRectOccupied");
+    return !isRectFree(g, bd, x, y, w, h);
 }
 
-/// BackdropVtbl slot 02 isRectFree.
+/// BackdropVtbl slot 02 isRectFree (via queryRect, slot 03).
+// @orig 1080:76c8 grid_backdrop_is_rect_free
 pub fn isRectFree(g: *Game, bd: *Backdrop, x: i16, y: i16, w: i16, h: i16) bool {
-    _ = g;
-    _ = bd;
-    _ = x;
-    _ = y;
-    _ = w;
-    _ = h;
-    stub.unported("inferno.backdrop.isRectFree");
+    return queryRect(g, bd, x, y, w, h).result == 0;
 }
 
-/// BackdropVtbl slot 03 queryRect (out parameters → RectQuery; INFERNO has no
-/// queryRectFirst).
+/// BackdropVtbl slot 03 queryRect: the grid query (INFERNO has no
+/// queryRectFirst; `first` stays null).
+// @orig 1080:7688 grid_backdrop_query_rect
 pub fn queryRect(g: *Game, bd: *Backdrop, x: i16, y: i16, w: i16, h: i16) RectQuery {
-    _ = g;
-    _ = bd;
-    _ = x;
-    _ = y;
-    _ = w;
-    _ = h;
-    stub.unported("inferno.backdrop.queryRect");
+    return gridQueryRect(g, bd.grid.?, x, y, w, h);
 }
 
-/// BackdropVtbl slot 04 occupy.
+/// BackdropVtbl slot 04 occupy: 1, or -1 for a negative position.
+// @orig 1080:7744 grid_backdrop_occupy
 pub fn occupy(g: *Game, bd: *Backdrop, obj: *Object) i16 {
-    _ = g;
-    _ = bd;
-    _ = obj;
-    stub.unported("inferno.backdrop.occupy");
+    return gridOccupy(g, bd.grid.?, obj);
 }
 
-/// BackdropVtbl slot 05 vacate.
+/// BackdropVtbl slot 05 vacate: 1, or -1 for a negative position.
+// @orig 1080:7774 grid_backdrop_vacate
 pub fn vacate(g: *Game, bd: *Backdrop, obj: *Object) i16 {
-    _ = g;
-    _ = bd;
-    _ = obj;
-    stub.unported("inferno.backdrop.vacate");
+    return gridVacate(g, bd.grid.?, obj);
 }
 
-/// BackdropVtbl slot 06 slot07 (default).
+/// BackdropVtbl slot 06 slot07 (default: 0).
+// @orig 1080:61f8 backdrop_slot07_default (absorbed)
 pub fn slot07(g: *Game, bd: *Backdrop) i16 {
-    _ = g;
-    _ = bd;
-    stub.unported("inferno.backdrop.slot07");
+    _ = .{ g, bd };
+    return 0;
 }
 
-/// BackdropVtbl slot 07 slot08 (default).
+/// BackdropVtbl slot 07 slot08 (default: nothing).
+// @orig 1080:6212 backdrop_slot08_default (absorbed)
 pub fn slot08(g: *Game, bd: *Backdrop, arg2: i16, arg1: i16) void {
-    _ = g;
-    _ = bd;
-    _ = arg2;
-    _ = arg1;
-    stub.unported("inferno.backdrop.slot08");
+    _ = .{ g, bd, arg2, arg1 };
 }
 
-/// BackdropVtbl slot 08 setVanishPoint (default).
+/// BackdropVtbl slot 08 setVanishPoint (default: returns this).
+// @orig 1080:6228 backdrop_set_vanish_point_default (absorbed)
 pub fn setVanishPoint(g: *Game, bd: *Backdrop, vanish_x: i16, vanish_y: i16) *Backdrop {
-    _ = g;
-    _ = bd;
-    _ = vanish_x;
-    _ = vanish_y;
-    stub.unported("inferno.backdrop.setVanishPoint");
+    _ = .{ g, vanish_x, vanish_y };
+    return bd;
 }
 
-/// BackdropVtbl slot 09 setView (default).
+/// BackdropVtbl slot 09 setView (default: returns this).
+// @orig 1080:6244 backdrop_set_view_default (absorbed)
 pub fn setView(g: *Game, bd: *Backdrop, view_x: i16, view_y: i16, view3d_x: i16, view3d_y: i16, view3d_z: i16) *Backdrop {
-    _ = g;
-    _ = bd;
-    _ = view_x;
-    _ = view_y;
-    _ = view3d_x;
-    _ = view3d_y;
-    _ = view3d_z;
-    stub.unported("inferno.backdrop.setView");
+    _ = .{ g, view_x, view_y, view3d_x, view3d_y, view3d_z };
+    return bd;
 }
 
-/// BackdropVtbl slot 0A setAxis (default).
+/// BackdropVtbl slot 0A setAxis (default: returns this).
+// @orig 1080:6260 backdrop_set_axis_default (absorbed)
 pub fn setAxis(g: *Game, bd: *Backdrop, axis_x: i16, axis_y: i16) *Backdrop {
-    _ = g;
-    _ = bd;
-    _ = axis_x;
-    _ = axis_y;
-    stub.unported("inferno.backdrop.setAxis");
+    _ = .{ g, axis_x, axis_y };
+    return bd;
 }
 
-/// BackdropVtbl slots 0B and 0F getVanishX (default).
+/// BackdropVtbl slots 0B and 0F getVanishX (default: 0).
+// @orig 1080:627c backdrop_get_vanish_x_default (absorbed)
 pub fn getVanishX(g: *Game, bd: *Backdrop) i16 {
-    _ = g;
-    _ = bd;
-    stub.unported("inferno.backdrop.getVanishX");
+    _ = .{ g, bd };
+    return 0;
 }
 
-/// BackdropVtbl slots 0C and 10 getVanishY (default).
+/// BackdropVtbl slots 0C and 10 getVanishY (default: 0).
+// @orig 1080:6296 backdrop_get_vanish_y_default (absorbed)
 pub fn getVanishY(g: *Game, bd: *Backdrop) i16 {
-    _ = g;
-    _ = bd;
-    stub.unported("inferno.backdrop.getVanishY");
+    _ = .{ g, bd };
+    return 0;
 }
 
-/// BackdropVtbl slot 0D getEyeDistance (default).
+/// BackdropVtbl slot 0D getEyeDistance (default: 0).
+// @orig 1080:62b0 backdrop_get_eye_distance_default (absorbed)
 pub fn getEyeDistance(g: *Game, bd: *Backdrop) i16 {
-    _ = g;
-    _ = bd;
-    stub.unported("inferno.backdrop.getEyeDistance");
+    _ = .{ g, bd };
+    return 0;
 }
 
-/// BackdropVtbl slot 0E getAxisX (default).
+/// BackdropVtbl slot 0E getAxisX (default: 0).
+// @orig 1080:62ca backdrop_get_axis_x_default (absorbed)
 pub fn getAxisX(g: *Game, bd: *Backdrop) i16 {
-    _ = g;
-    _ = bd;
-    stub.unported("inferno.backdrop.getAxisX");
+    _ = .{ g, bd };
+    return 0;
 }
 
-/// BackdropVtbl slot 11 getView3dZ (default).
+/// BackdropVtbl slot 11 getView3dZ (default: 0).
+// @orig 1080:62e4 backdrop_get_view3d_z_default (absorbed)
 pub fn getView3dZ(g: *Game, bd: *Backdrop) i16 {
-    _ = g;
-    _ = bd;
-    stub.unported("inferno.backdrop.getView3dZ");
+    _ = .{ g, bd };
+    return 0;
 }
 
 /// BackdropVtbl slot 12 isGridBackdrop (GridBackdrop's: 1).
+// @orig 1080:77a4 grid_backdrop_is_grid_backdrop (absorbed)
 pub fn isGridBackdrop(g: *Game, bd: *Backdrop) bool {
-    _ = g;
-    _ = bd;
-    stub.unported("inferno.backdrop.isGridBackdrop");
+    _ = .{ g, bd };
+    return true;
 }
 
 /// BackdropVtbl slot 13 asGridBackdrop (GridBackdrop's: the backdrop itself).
+// @orig 1080:77be grid_backdrop_as_grid_backdrop (absorbed)
 pub fn asGridBackdrop(g: *Game, bd: *Backdrop) ?*Backdrop {
     _ = g;
-    _ = bd;
-    stub.unported("inferno.backdrop.asGridBackdrop");
-}
-
-/// GridBackdropVtbl slot 14 createWithGrid (hwnd dropped).
-pub fn createWithGrid(g: *Game, bd: *Backdrop, cell_shift: i16) ?*Backdrop {
-    _ = g;
-    _ = bd;
-    _ = cell_shift;
-    stub.unported("inferno.backdrop.createWithGrid");
+    return bd;
 }
