@@ -370,6 +370,7 @@ pub const Fixes = struct {
     pub fn set(f: *Fixes, name: []const u8) bool {
         const off = name.len > 0 and name[0] == '-';
         const n = if (off) name[1..] else name;
+        @setEvalBranchQuota(10_000);
         var found = false;
         inline for (@typeInfo(Fixes).@"struct".field_names) |field| {
             const in_all = std.mem.eql(u8, n, "all") and comptime !isChoice(field);
