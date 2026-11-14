@@ -8,9 +8,10 @@
 //! to 3fentseg. A click that hits no door repeats the previous choice
 //! (initially -1: nothing; BUGS.md B15, fix `hall_door_click_only`).
 //!
-//! Original bugs reproduced: the shuffle happens once per run (B10, fix
-//! `hall_shuffle_each_visit`) and the INI exit of door 139 to 3fpapclo is
-//! never taken (B6, fix `pope_closet_reachable`).
+//! The shuffle happens once per run, by design (`hall_shuffle_each_visit`
+//! reshuffles on every visit, a choice left out of `all`). The INI exit of
+//! door 139 to 3fpapclo is taken only by a low click with the panel open
+//! (B6, B38; fix `pope_closet_reachable`).
 
 const Game = @import("../core/game.zig").Game;
 const Object = @import("../core/object.zig").Object;

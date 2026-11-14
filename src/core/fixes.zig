@@ -2,10 +2,10 @@
 //! `false`: the port reproduces the original. A unit that ports buggy code
 //! reads `g.fixes.<flag>` at the bug site and keeps both paths.
 //!
-//! Not bugs but choices, left out of `all`: `quit_on_ini_error` (quit
-//! where the original only shows a message box and carries on) and
-//! `hall_shuffle_each_visit` (B10: the original shuffles the hall's doors
-//! once per run, by design).
+//! Choices, not bug fixes, left out of `all` (`choices`):
+//! `quit_on_ini_error` (quit where the original only shows a message box
+//! and carries on) and `hall_shuffle_each_visit` (the original shuffles the
+//! hall's doors once per run, by design).
 //!
 //! Latent bugs (L*) are not flags: the port never executes them either,
 //! and where it would, it returns an error instead of corrupting memory (or,
@@ -29,8 +29,8 @@ pub const Fixes = struct {
     festa3_uninitialised_path: bool = false,
     /// B6: the hall door to 3fpapclo leads to the closet game.
     pope_closet_reachable: bool = false,
-    /// B10 (a choice, not in `all`): reshuffle the 3fhall doors on every
-    /// visit instead of once per run.
+    /// A choice, left out of `all`: reshuffle the 3fhall doors on every
+    /// visit instead of once per run (the original's design).
     hall_shuffle_each_visit: bool = false,
     /// B12: the opaque row copy copies black pixels at row ends too.
     opaque_copy_black_tail: bool = false,
@@ -160,12 +160,11 @@ pub const Fixes = struct {
     /// returning 0 and letting the caller carry on as the original does.
     quit_on_ini_error: bool = false,
 
-    /// Every bug fix (`--fix all`, the web build's "Corrigida" version):
-    /// all flags but the `choices`.
-    /// Flags that change the game by choice, not to fix a bug: never part
-    /// of `all`.
+    /// Flags left out of `all` (`--fix all`, the web build's "Corrigida"
+    /// version), e.g. the hall-door reshuffle.
     pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit" };
 
+    /// `--fix all`: every flag but the `choices`.
     pub fn all() Fixes {
         var f: Fixes = .{};
         _ = f.set("all");

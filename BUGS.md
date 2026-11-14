@@ -69,19 +69,19 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
 - **Evidence:** decompilation + disassembly of the switch; `LAB_1020_7603` reached from the default case.
 - **Confidence:** 8.
 
-### B6. The pope's-closet puzzle (3fpapclo) can never be reached
+### B6. The pope's-closet puzzle (3fpapclo) is out of normal reach
 - **Where:** `handler_3fhall` 1020:7ce4–7d1b; INI `[3fhall]` `Exit=139 … 3fpapclo` (CASSETA.INI line 733).
 - **What the code does:** the hall handler intercepts right clicks on all five doors (ids 139–143 = 0x8b–0x8f)
   and maps each, via a shuffled table, to sauna / TIRO / 3ffarao / 3fpapmal / 4finifes; it returns "handled",
-  so the INI exit to `3fpapclo` never fires. No other INI exit or code path switches to 3fpapclo (the right-click
-  hook only *returns* to it from its own drawers).
-- **Effect:** the whole closet game (20 drawers, Portables 169–188, verdict waves `papar0N.wav`, `papatime.wav`)
-  is dead content; the door that should lead to it gives the pope's punishment video (3fpapmal) directly, which
-  in the INI design is the closet's *failure* outcome.
-- **Also inside 3fpapclo** (moot because unreachable): the 60 s / 18 s timers only play a warning, and timer 0x16
-  sends 0x3bd, which the handler ignores unless a verdict wave is pending — there is no real time limit.
-- **Exception:** with the control panel open, a right click on the lowest ~46 px of the door reaches the engine,
-  which takes the INI exit to 3fpapclo after all (B38).
+  so the INI exit to `3fpapclo` does not fire. No other INI exit or code path switches to 3fpapclo (the
+  right-click hook only *returns* to it from its own drawers). The one way in is a right click on the lowest
+  ~46 px of the door with the control panel open, which the engine handles with the INI exit (B38).
+- **Effect:** in normal play the closet game (20 drawers, Portables 169–188, verdict waves `papar0N.wav`,
+  `papatime.wav`) is never seen; the door that should lead to it gives the pope's punishment video (3fpapmal)
+  directly, which in the INI design is the closet's *failure* outcome.
+- **Inside 3fpapclo:** the 60 s / 18 s timers only play a warning, and timer 0x16 sends 0x3bd, which the handler
+  ignores unless a verdict wave is pending: there is no real time limit.
+- **Port:** reproduced; `Fixes.pope_closet_reachable` makes the hall's closet door take the INI exit.
 - **Evidence:** hall dispatch code; INI exits; strings/xrefs for `3fpapclo`.
 - **Confidence:** 8.
 
@@ -110,15 +110,6 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
 - **Evidence:** script over the INI against the disc listing (case-insensitive) and the PAN\WAV fallback rule.
 - **Confidence:** 8 (missing files); 6 (exactly which of them are ever requested).
 
-### B10. 3fhall door destinations are shuffled once per run
-- **Where:** `handler_3fhall` 1020:7b06 (`g_s3fhallShuffleDoors`, initially 1, cleared after the first shuffle and
-  never set again).
-- **Effect:** the door → destination table stays the same for the whole session, including after losing and
-  coming back, starting a new game or loading. Possibly intended; listed for completeness.
-- **Not a bug:** a design choice. `Fixes.hall_shuffle_each_visit` (reshuffle on every visit) stays, but is
-  not part of `--fix all` (Corrigida): reshuffling only made the hall impossible to learn.
-- **Confidence:** 7 (code 9; whether it is a bug is a design question).
-
 ### B11. JARDIM: the CD drive's current directory is never restored
 - **Where:** `handler_espquete` 1028:0c6f–0cc2 (same shape in `handler_4fjarvamp`).
 - **What the code does:** before launching JARDIM it `_chdrive`/`_chdir`s into `<CD>jardim`; on the result message
@@ -127,8 +118,6 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
 - **Effect:** the CD drive keeps `jardim` as its current directory. Paths are built from `g_driveCD` (`\` in the
   shipped CASSETUP.INI), so they stay absolute and nothing visible follows; the game ends right after anyway.
 - **Confidence:** 8 (code); effect negligible.
-
----
 
 ### B12. The opaque row copy skips black pixels at the end of each row
 - **Where:** `dib_rows_copy32` 1000:0114 (32-bit segment), tail loop 1000:018a–019a.
@@ -258,36 +247,31 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   - 3fsegura's guard (timer 5, 150 ms, never stopped) → 3fstreet's video exit (timer 5) goes to `3fhall`.
   - 3fsauna's attendant `3sboal` (timer 6, 200 ms) → 3ffarao's video exit (timer 6) goes to `JTETRIS`,
     which is not an INI section: `ini_seek_section` 1018:9caa shows "Não consegui encontrar a sessão
-    procurada" and returns 0 without seeking, so `ini_scene_create` 1018:6bee reads on from where the file
-    was left (the `[3fhall]` header after `[3ffarao]`) and stops with "Linha [3fhall]] inválida" and
-    `exit(1)`. The right click plays the attendant *once* (1020:802a–8057: Animation slot 0x1c,
-    `animation_play_once`): 8 ticks, the last 1.6 s after the click, which stops it and kills its timer.
-    Its wave GLOBO2.WAV ends at 1.415 s and launches SAUNA.EXE (timer 0x14 polls for its window every
-    100 ms); once the minigame's 0x40c arrives, the sauna handler swallows every WM_SYSTIMER
-    (1020:7fe6–8012, returns 1). If that happens before the last tick, the attendant is frozen mid-play
-    with its timer running, and the timer outlives the scene. In 3ffarao the same race decides again: the
-    stale tick must come after the video ends and before ENCAIXE.EXE's 0x40c, from which 3ffarao's handler
-    swallows the ticks in turn.
-  - A hall door's own exit animation (timer 6, B38) cut short by the hall's switch to 3ffarao (a right click
-    low on the door with the panel open, then one higher up before the door has finished) keeps timer 6
-    running too: the pharaoh video ends in `JTETRIS` the same way.
-- **Effect:** 3fstreet: depending on which comes first, the street escape minigame result arrives in 3fhall
-  (whose handler takes it for the shooting gallery's: a win sends the player to 3fprisao), or the hall's own
-  FindWindow poll reports a lost game (a life) first. The player can end up in the hall without having played
-  the escape, or lose a life for it. 3ffarao: once the sauna has been visited, taking the pharaoh door can
-  end the program with a fatal INI error when the pharaoh video ends, if SAUNA.EXE showed its window by the first 100 ms poll and answered within the next ~85 ms (and ENCAIXE.EXE
-  was not faster than the stale tick). With the port's stub minigames (window after 1.5 s) it does not
-  happen; `--minigame-startup 0 --minigame-reply 0` reproduces it (faithful build, `--scene 3fhall`: right
-  clicks on the sauna door (x 560 in that run's shuffle), in the sauna, then on the pharaoh door (x 210)).
-- **Evidence:** port traces (`noite --trace`): timer 5 runs from 3fsegura on, timer 6 from 3fsauna on when
-  the minigame answers before the attendant's last tick; the code paths above. The port used to start the
-  attendant looping (SceneObject `play`), which kept timer 6 alive in every run and made the 3ffarao fatal
-  error deterministic; it now plays once, as the original.
-- **Port:** reproduced; `Fixes.avi_exit_ignores_timer` does not tick a video (`isAvi`) exit from the timer path.
-  The playthrough script relies on the 3fstreet shortcut, so its `--fix` run leaves this fix (and the door
-  reshuffle) out.
-- **Confidence:** 8 (code, port traces); 5 (how often the 3fstreet timing lines up in the original, and how
-  fast SAUNA.EXE and ENCAIXE.EXE start and answer on a period machine for the 3ffarao case).
+    procurada" and returns 0 without seeking, so `ini_scene_create` 1018:6bee reads on from the `[3fhall]`
+    header after `[3ffarao]` and stops with "Linha [3fhall]] inválida" and `exit(1)`. The right click plays
+    the attendant *once* (1020:802a–8057, `animation_play_once`): 8 ticks, the last 1.6 s after the click,
+    which kills its timer. Its wave GLOBO2.WAV ends at 1.415 s and launches SAUNA.EXE (timer 0x14 polls for
+    its window every 100 ms); from the minigame's 0x40c the sauna handler swallows every WM_SYSTIMER
+    (1020:7fe6–8012). If that comes before the last tick, the attendant's timer outlives the scene. In
+    3ffarao the stale tick must then come after the video ends and before ENCAIXE.EXE's 0x40c, from which
+    3ffarao's handler swallows the ticks in turn.
+  - A hall door's exit animation (timer 6) cut short by the hall's switch to 3ffarao (B38: a low click with
+    the panel open, then one higher up before the door finishes) keeps timer 6 running too: the pharaoh
+    video ends in `JTETRIS` the same way.
+- **Effect:** 3fstreet: depending on which comes first, the street escape's result arrives in 3fhall (whose
+  handler takes it for the shooting gallery's: a win sends the player to 3fprisao), or the hall's own
+  FindWindow poll reports a lost game (a life). The player can end up in the hall without having played the
+  escape, or lose a life for it. (B37 is a separate route from 3fprisao to the hall.) 3ffarao: once the sauna
+  has been visited, the pharaoh door can end the program with a fatal INI error, if SAUNA.EXE showed its
+  window by the first 100 ms poll and answered within the next ~85 ms (and ENCAIXE.EXE was not faster than
+  the stale tick).
+- **Port:** reproduced; `Fixes.avi_exit_ignores_timer` does not tick a video (`isAvi`) exit from the timer
+  path. `tools/play/full.input` takes the 3fstreet route (one prison door), so its `--fix` run leaves this
+  fix out. The stub minigames (window after 1.5 s) miss the 3ffarao race; `--minigame-startup 0
+  --minigame-reply 0` hits it (`--scene 3fhall`: the sauna door, a right click in the sauna, then the
+  pharaoh door).
+- **Evidence:** port traces (`noite --trace`); the code paths above.
+- **Confidence:** 8 (code, port traces); 5 (how often the timings line up on a period machine).
 
 ### B22. 2ftaxi keeps handling a click on the scene it has just deleted (use after free)
 - **Where:** `handler_2ftaxi` 1020:9a3a: a right click on the exit to 3fentseg switches scenes and returns 0.
@@ -308,22 +292,21 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   wrong-item path charges `scoreMisuse` and "returns" the new item. A reply that ends while an item is
   merely selected (any wave end, e.g. 4fbarboy's intro) is taken as a wrong offer of it.
   Any right press during the reply also overwrites the handlers' hit object (2fportdi 1020:4306 WM_RBUTTONDOWN
-  stores the query's object, NULL on the panel): at the reply's end the wrong-offer path then skips the take
-  back and only clears the selection, so the offered item stays on the scene for good (2fsuabig 1020:0000 too:
-  the gift, the right item, stays on the floor and the hold-up goes on). A slot pressed during the reply and released on a
+  stores the query's object, NULL on the panel): the wrong-offer path then skips the take back and only clears
+  the selection, so the offered item stays on the scene for good (in 2fsuabig 1020:0000 the gift, the right
+  item, stays on the floor and the hold-up goes on). A slot pressed during the reply and released on a
   character after its end reaches the WM_RBUTTONUP offer with `itemSelected` set and `selectedItem` NULL: a
   NULL far-pointer read (2fportdi `takeItemBack`).
 - **Effect:** quick players lose items and score; the inventory shows fewer items than its count, or, with
-  items in the used list, more than its 8 slots (the chain runs on into the used list: the extra icons are
-  drawn past the last slot, under the score box). The one-button mode makes it easy: a tap on a slot selects
-  the item and it stays selected (2fportdi: offer the bible, tap the next slot while the driver answers: the
-  bible stays in the car). Port repro, 2fsuabig: the gift offered, the wallet's slot held through the reply:
-  the wallet is consumed, the Oscar after it is cut off, the gift stays on the floor.
+  items in the used list, more than its 8 slots (the extra icons are drawn past the last slot, under the score
+  box). The one-button mode makes it easy: a tapped slot stays selected (2fportdi: offer the bible, tap the
+  next slot while the driver answers: the bible stays in the car). Port repro, 2fsuabig: the gift offered, the
+  wallet's slot held through the reply: the wallet is consumed, the Oscar after it is cut off, the gift stays
+  on the floor.
 - **Port:** reproduced (the lists are shared the same way); at exit only the items the inventory still owns
-  are parked (`object_init.sceneObjectDtor`), the cut-off ones stay unfreed as in the original.
-  `Fixes.reply_keeps_offer`: after an offer (a drop in one of these scenes, `game_input.rightUp`) the right
-  button does nothing until the next MM_WOM_DONE, while the offered item is still the selected one lying in
-  the scene.
+  are parked (`object_init.sceneObjectDtor`), the cut-off ones stay unfreed. `Fixes.reply_keeps_offer`: after
+  an offer (a drop in one of these scenes, `game_input.rightUp`) the right button does nothing until the next
+  MM_WOM_DONE, while the offered item is still the selected one lying in the scene.
 - **Confidence:** 8.
 
 ### B24. A wave that ends with no item offered crashes the bar and the hold-up (4fbarboy, 2fsuabig)
@@ -453,22 +436,17 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   (bottom), walk ends at (435,145), 70 rows up.
 - **Port:** reproduced (`game_input.rightUp`). `Fixes.drop_falls_onto_support` (`fallToRest`): the item falls
   straight down from its release row onto the first support top under it, or to the original's floor row; it
-  never rises. A support is a visible local, animated, exit or portable with a non-zero 3D box (doors and
-  paintings drawn as size-0 hotspots are not; characters are not; a door with a 3D height has its top far
-  above any release row) under the item's centre whose projected top face, kept inside its hit box (moved
-  to the hit box's top row when the two miss each other, as for the corridor table), is at or below the
-  release row; the item rests on the face's middle row. The item enters the draw list, and keeps its 3D
-  place, on the support's top with its anchor on its bottom row (the `ZoomPort=` items' anchor is their
-  top-left corner, which put them behind the bed they lie on); the fall's steps reset that place
-  (`portable_move_to_and_drop`), so its stop restores it. With B25's fix, the previous position stays synced
-  (the drop sets it, the fall's stop resets it). An offer is left alone: it stays where it was released, in the
-  character's hands, while the reply plays. An offer is any drop in a scene whose handler answers offers (the
-  eleven of B23's list, `pub const answers_offers`): each takes WM_RBUTTONUP with an item, clears the
-  selection unless it was released on one of its characters, and there starts the reply and returns 0
-  (2fportdi 1020:4306: the driver's head, mouth, hands and the passing bushes, of which only the mouth has
-  `WAVE=` lines). The original's own drop may move an offer too (2fportdi, the bible released on the mouth
-  walks 100 rows down to a support's top). `tools/smoke.py --offers` checks that with the fix an offered item
-  stays put until it is taken back and leaves no image behind.
+  never rises. A support is a visible local, animated, exit or portable with a non-zero 3D box (not size-0
+  door or painting hotspots, not characters) under the item's centre whose projected top face, kept inside
+  its hit box (moved to the hit box's top row when the two miss each other, as for the corridor table), is at
+  or below the release row; the item rests on the face's middle row. It enters the draw list, and keeps its
+  3D place, on the support's top with its anchor on its bottom row (a `ZoomPort=` item's anchor is its
+  top-left corner); the fall's steps reset that place (`portable_move_to_and_drop`), so its stop restores it.
+  With B25's fix the drop sets the previous position and the fall's stop resets it. An offer (any drop in a
+  scene whose unit has `pub const answers_offers`: the eleven of B23's list) does not fall: it stays where
+  it was released, in the character's hands, while the reply plays. (The original's drop can move an offer:
+  in 2fportdi the bible released on the mouth walks 100 rows down to a support's top.) `tools/smoke.py
+  --offers` checks that with the fix an offered item stays put until it is taken back and leaves no image.
 - **Confidence:** 9 (code, port repro).
 
 ### B31. The sitting room's package is cut in half by the table when the player walks by
@@ -587,8 +565,7 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   messages when a scene is entered. Repro: `--scene 3fprisao`, right clicks at (460, 200) and, 60 ms later, at
   (220, 200).
 - **Evidence:** port traces (`noite --trace`: 0x403/0x402 for both doors on one tick, the second 0x402 after the
-  sent 0x401); the code paths above. An earlier port note blamed the guard's stale timer 5 (B21) for this
-  3fstreet → 3fhall jump; the trace shows the other door's 0x402 instead, and no 3fsegura visit is needed.
+  sent 0x401); the code paths above. Unlike B21's 3fstreet case, it needs no stale timer.
 - **Confidence:** 8 (code, port repro); 6 (how often a player double-clicks two doors inside 200 ms).
 
 ### B38. 3fhall: a right click low on a door with the control panel open takes the door's INI exit (JPASSARA: a fatal INI error)
@@ -601,7 +578,7 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   142 → `JPASSARA`, 141 → 3ffarao, 139 → 3fpapclo, 140 → 4FINIFES.
 - **Effect:** the TIRO door's exit names `JPASSARA`, which is not an INI section: "Não consegui encontrar a sessão
   procurada", then "Linha [3fpapclo]] inválida" and `exit(1)` (as `JTETRIS`, B21). The pope's-closet door goes
-  to the closet game (so B6's "never" is wrong for this path). A door animation cut short by a right click
+  to the closet game (the only way there, B6). A door animation cut short by a right click
   higher up (the hall's own switch) keeps its system timer 6, which matches 3ffarao's video exit (B21: the
   pharaoh video ends in `JTETRIS`). With one-button play the panel is open after any tap near the bottom and a
   tap on a door is aimed where the finger was, so this is easy to hit on a touch screen.
@@ -626,15 +603,12 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   the panel slides open over him and his shoes and legs stay in the slots in front of him, swaying with his
   idle frames and walking with him; an item dragged out of a slot leaves his legs in its place. It reads as the
   player drawn over the menu, most of all while the panel slides closed: each step of the slide
-  (`control_panel_tick` 1018:22cc erases the panel's whole rectangle and draws the next frame; 1018:0354 timer
-  test, 038f tick, 03ca `scene_object_hitbox_overlaps` 1010:bc1e, then 0407 the player's tick or 0429/044d his
-  draw and slot 58 redraw while he walks, 047a → 0649 the panel, 065a the flush) redraws him whole and the panel
-  over him, and the slots slide down across his legs and shoes, showing pieces of them on the way. Nothing
-  else of him is lost or drawn over the paper during either slide.
+  (`control_panel_tick` 1018:22cc: erase, the player's tick or draw 1018:0407/0429/044d, the panel 0649, the
+  flush 065a) redraws him whole and the panel over him, and the slots slide down across his legs.
 - **Port:** reproduced (`--scene 1fgarage`, click at (320, 425), move to (320, 470), then back to (320, 200));
-  `Fixes.panel_slots_show_background` fills the slots of the panel's frame (key pixels no key-coloured path
-  joins to its top row, so the gaps of the torn top edge still show the scene, nor key-coloured specks of fewer
-  than 64 pixels, pockets of that edge) with the pristine background picture each time the panel is drawn.
+  `Fixes.panel_slots_show_background` fills the slots with the pristine background picture each time the
+  panel is drawn. A slot is a key-coloured region of the frame of at least 64 pixels that no key-coloured path
+  joins to the top row, so the gaps and small pockets of the torn top edge still show the scene.
 - **Confidence:** 8 (code, port repro).
 
 ### B40. Green bushes show through the taxi driver's face
@@ -655,6 +629,20 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   handler sees it created (before the bushes enter the draw list).
 - **Confidence:** 9 (INI, code, port repro).
 
+### B41. The bar after a wrong DJ answer never lets the control panel open (4fbarbo2)
+- **Where:** `handler_4fbarbo2` 1020:c632, WM_MOUSEMOVE: returns 1 (handled) for every move at y ≥ 0x169, so
+  the engine's move handler never sees the pointer reach the bottom strip that slides the panel open.
+  `[4fbarbo2]` has no `Exit=` lines, and the scene (entered from `4fdj` 1020:b7ac and `4fboydj` 1020:d4fc
+  with the panel on) has no player.
+- **What the code does:** the only way on is a right click on the drunk's pocket (0xdc) after the barman's
+  opening wave; until then nothing on screen responds, and the panel, the only route to Opções, is shut.
+- **Effect:** the player can neither leave, save, load nor quit until finding the pocket; it reads as a
+  soft lock. Deliberate or not, no other scene with the panel on blocks it for its whole length (4fdj
+  blocks it only until its intro ends, `panelAllowed`).
+- **Port:** reproduced; `Fixes.bar_panel_opens` lets the moves through. The scene's Screen line clears
+  `mayDropObject`, so the open panel offers Opções only (no item can be dropped there).
+- **Confidence:** 9 (code, INI, port repro).
+
 ### B42. The bad cop's arrest video plays with garbage on the mugshots (damaged file on the disc)
 - **Where:** `[2apremau]` `Exit=41,…,fase2\2fcopmau\2aprema2` (the arrest after the bad-cop roadblock 2fcopmau);
   `animation_open_avi` 1010:c9f6 tries `<HD>2aprema2.avi` (INSTALAR.EXE copies a fixed list of big clips
@@ -674,6 +662,49 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
 - **Port:** reproduced (the decoder stops a damaged frame at the bad packet and keeps playing);
   `Fixes.clean_arrest_video` opens the root copy before the `pan\avi\` one.
 - **Confidence:** 9 (file contents); 7 (how the period AFLC codec drew the damaged frames).
+
+### B43. A dropped item still falling when the scene changes falls on in the next scene, drawn over it
+- **Where:** `game_handle_message` 1018:0000, WM_SYSTIMER 1018:0512–059c: when the timer id is the selected
+  item's (`Game.selectedItem`, +0x67c, slot F4) and it is moving (slot F8), it runs the item's `moveTick`
+  (1018:059c→0507, slot F0) with the *current* scene's backdrop. `game_take_exit` 1018:12c6 and
+  `ini_game_switch_scene` 1018:15ea clear `itemSelected` but neither forget `selectedItem` (set only by the
+  panel picks, 1018:09e8 and the hook 1018:c0fc; cleared only by the give-item handlers that keep an offered
+  item) nor stop its walk; the item is a global object, so deleting the old scene leaves
+  its system timer running until `mover_stop_moving_dc` at the end of the fall.
+- **What the code does:** an item dropped high in a scene falls 10 rows a tick; a
+  door taken before it lands (the hall's doors switch at once) brings the rest of the fall into the next
+  scene: each tick draws the item into the new backdrop at the old scene's coordinates and puts it on the
+  screen. Nothing of the new scene is in its draw list, so nothing erases it.
+- **Effect:** the item's picture slides down over the new scene and stays there until something repaints that
+  spot; in scenes without the player or the panel (3fpapclo, the pope's closet, reached through the hall) it
+  stays for good, over the drawers. With B36 the fall never ends, so it goes on through every later scene
+  until it leaves the view. In the old scene the item lies where the fall would have ended. With one-button
+  play a tap on the item's slot, a tap high up and a tap on a door is enough.
+- **Port:** reproduced (`--scene 3fhall --take 98 --fix pope_closet_reachable`: `offer 0 420 60`, then a right
+  click on the closet door at once); `Fixes.scene_change_lands_item` ends the fall in the old scene before a
+  switch (`game_scenes.landFallingItem`: the remaining steps run at once; one that never arrives is stopped).
+- **Confidence:** 9 (code, port repro).
+
+### B44. The pope's closet: a drawer closed without a pick leaves the last pick in the closet, over the drawers
+- **Where:** `handler_3fpapclo` 1020:8db8, scene start (0x401), 1020:94c4–94ce: the last picked item (slot
+  `pickedCount - 1`) is placed whenever the closet starts, then `portable_drop` 1010:71ac (1020:94e1) copies its
+  scene name into `prevSceneName`; `Game.pickAdded` (+0x6c4), which the right-click hook 1018:c0fc sets on a pick
+  and 1020:9546 clears, is never tested. The verdicts give the items back with `portable_move_to_scene`
+  (1020:9032, 91cb, 9355), which swaps `sceneName` and `prevSceneName`, and `moveToAndDrop` at the drawer
+  position, in the closet's backdrop.
+- **What the code does:** a drawer closed with a right click on nothing (no pick) brings the closet back and
+  drops the last pick again: both of its scene names are now `3FPAPCLO`. When the verdict hands the items back,
+  the swap leaves that one in the closet, at the coordinates it had in its drawer scene.
+- **Effect:** after picking, opening and closing a drawer, then two more picks and a wrong verdict, the item's
+  full drawer picture shows over the drawers (after the first failure from the next entry on; after the second,
+  on the next visit), and its occupancy cells take the right clicks there: the handler returns 1 for a portable
+  under the cursor, so the drawers it covers can no longer be opened. The item never comes back to its drawer,
+  so a right item (0xac, 0xb4, 0xb9) caught this way makes the puzzle unsolvable.
+- **Port:** reproduced (`tools/play/b44-closet-redrop.input`, `--scene 3fhall --fix pope_closet_reachable`);
+  `Fixes.closet_places_new_pick_once` places the last pick only when `pickAdded` says it is new.
+- **Confidence:** 9 (code, port repro).
+
+---
 
 ## Harmless: wrong paths rescued by the wave fallback
 
@@ -722,61 +753,6 @@ Confidence 8–9.
   between the scene constructor and `ini_scene_create`, when no message is pumped. The port uses 0.
 Confidence 8–9.
 
-### B41. The bar after a wrong DJ answer never lets the control panel open (4fbarbo2)
-- **Where:** `handler_4fbarbo2` 1020:c632, WM_MOUSEMOVE: returns 1 (handled) for every move at y ≥ 0x169, so
-  the engine's move handler never sees the pointer reach the bottom strip that slides the panel open.
-  `[4fbarbo2]` has no `Exit=` lines, and the scene (entered from `4fdj` 1020:b7ac and `4fboydj` 1020:d4fc
-  with the panel on) has no player.
-- **What the code does:** the only way on is a right click on the drunk's pocket (0xdc) after the barman's
-  opening wave; until then nothing on screen responds, and the panel, the only route to Opções, is shut.
-- **Effect:** the player can neither leave, save, load nor quit until finding the pocket; it reads as a
-  soft lock. Deliberate or not, no other scene with the panel on blocks it for its whole length (4fdj
-  blocks it only until its intro ends, `panelAllowed`).
-- **Port:** reproduced; `Fixes.bar_panel_opens` lets the moves through. The scene's Screen line clears
-  `mayDropObject`, so the open panel offers Opções only (no item can be dropped there).
-- **Confidence:** 9 (code, INI, port repro).
-
-### B43. A dropped item still falling when the scene changes falls on in the next scene, drawn over it
-- **Where:** `game_handle_message` 1018:0000, WM_SYSTIMER 1018:0512–059c: when the timer id is the selected
-  item's (`Game.selectedItem`, +0x67c, slot F4) and it is moving (slot F8), it runs the item's `moveTick`
-  (1018:059c→0507, slot F0) with the *current* scene's backdrop. `game_take_exit` 1018:12c6 and
-  `ini_game_switch_scene` 1018:15ea clear `itemSelected` but neither forget `selectedItem` (set only by the
-  panel picks, 1018:09e8 and the hook 1018:c0fc; cleared only by the give-item handlers that keep an offered
-  item) nor stop its walk; the item is a global object, so deleting the old scene leaves
-  its system timer running until `mover_stop_moving_dc` at the end of the fall.
-- **What the code does:** an item dropped high in a scene falls 10 rows a tick; a
-  door taken before it lands (the hall's doors switch at once) brings the rest of the fall into the next
-  scene: each tick draws the item into the new backdrop at the old scene's coordinates and puts it on the
-  screen. Nothing of the new scene is in its draw list, so nothing erases it.
-- **Effect:** the item's picture slides down over the new scene and stays there until something repaints that
-  spot; in scenes without the player or the panel (3fpapclo, the pope's closet, reached through the hall) it
-  stays for good, over the drawers. With B36 the fall never ends, so it goes on through every later scene
-  until it leaves the view. In the old scene the item lies where the fall would have ended. With one-button
-  play a tap on the item's slot, a tap high up and a tap on a door is enough.
-- **Port:** reproduced (`--scene 3fhall --take 98 --fix pope_closet_reachable`: `offer 0 420 60`, then a right
-  click on the closet door at once); `Fixes.scene_change_lands_item` ends the fall in the old scene before a
-  switch (`game_scenes.landFallingItem`: the remaining steps run at once; one that never arrives is stopped).
-- **Confidence:** 9 (code, port repro).
-
-### B44. The pope's closet: a drawer closed without a pick leaves the last pick in the closet, over the drawers
-- **Where:** `handler_3fpapclo` 1020:8db8, scene start (0x401), 1020:94c4–94ce: the last picked item (slot
-  `pickedCount - 1`) is placed whenever the closet starts, then `portable_drop` 1010:71ac (1020:94e1) copies its
-  scene name into `prevSceneName`; `Game.pickAdded` (+0x6c4), which the right-click hook 1018:c0fc sets on a pick
-  and 1020:9546 clears, is never tested. The verdicts give the items back with `portable_move_to_scene`
-  (1020:9032, 91cb, 9355), which swaps `sceneName` and `prevSceneName`, and `moveToAndDrop` at the drawer
-  position, in the closet's backdrop.
-- **What the code does:** a drawer closed with a right click on nothing (no pick) brings the closet back and
-  drops the last pick again: both of its scene names are now `3FPAPCLO`. When the verdict hands the items back,
-  the swap leaves that one in the closet, at the coordinates it had in its drawer scene.
-- **Effect:** after picking, opening and closing a drawer, then two more picks and a wrong verdict, the item's
-  full drawer picture shows over the drawers (after the first failure from the next entry on; after the second,
-  on the next visit), and its occupancy cells take the right clicks there: the handler returns 1 for a portable
-  under the cursor, so the drawers it covers can no longer be opened. The item never comes back to its drawer,
-  so a right item (0xac, 0xb4, 0xb9) caught this way makes the puzzle unsolvable.
-- **Port:** reproduced (`tools/play/b44-closet-redrop.input`, `--scene 3fhall --fix pope_closet_reachable`);
-  `Fixes.closet_places_new_pick_once` places the last pick only when `pickAdded` says it is new.
-- **Confidence:** 9 (code, port repro).
-
 ---
 
 ## Unfinished features (never wired up)
@@ -796,23 +772,14 @@ Confidence 8–9.
   but neither field (Game +0x676/+0x678) is written anywhere, including the constructor. The values are whatever
   the heap block held (most likely 0 → no-op). Confidence 9 (no writer); 6 (actual value at run time).
 
-### Corrigida additions (not bugs)
-Usability changes the "Corrigida" version (`Fixes.all()`) turns on; the original lacks them by design.
-- **The dragged item follows the pointer** (`Fixes.drag_shows_item`). Dragging an item out of the control panel
-  (right button held on a slot, until the release) shows nothing in the original: `game_handle_message`
-  (1018:0000) only slides the panel on WM_MOUSEMOVE and there is no `SetCursor` anywhere. With the flag the
-  item's panel icon is drawn centred on the pointer, as an overlay the platform adds when it shows the frame
-  (`Screen.overlay`), never into the screen buffer or backdrop; it goes with the release or anything that clears
-  the selection (drop, offer, scene change). Game logic is unchanged.
-- **A dropped item falls smoothly** (`Fixes.smooth_item_fall`). The original moves a falling item 10 rows per tick
-  of its own timer (`portableCtor` step 0,10; timer 4 at 200 ms for most items, 100 ms for some), 5–10 frames a
-  second. With the flag a system timer (id 0xfa11, a fifth of the item's period; `movement.smoothFallTick`)
-  draws the item between its last step and the next, in proportion to the time since the last step (2 rows a
-  frame). The steps still come from `moveTick`, unchanged, so the path, the end, the 3D place and the time the
-  fall ends are the original's, and the item's timer (shared with other objects) keeps its period. Any running
-  scene timer 5–10 also steps it (`ini_scene_handle_message` 1018:915e moves every moving object of the scene
-  whatever the id: the sitting room's cat, 100 ms, while it plays), so the next step is the first of those
-  timers and the item's.
+---
+
+## Corrigida additions (not bugs)
+Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
+- `Fixes.drag_shows_item`: an item dragged out of the control panel shows its icon at the pointer (an overlay
+  on the presented frame, `Screen.overlay`); the original shows nothing (no `SetCursor` anywhere).
+- `Fixes.smooth_item_fall`: a falling item is drawn in 2-row frames between its 10-row steps (system timer
+  0xfa11, `movement.smoothFallTick`); the steps, path, end and timing are the original's.
 
 ---
 
@@ -878,8 +845,8 @@ Usability changes the "Corrigida" version (`Fixes.all()`) turns on; the original
   9414), but a drawer exit (ids 146–165) still works during the verdict wave and leaving the scene means
   that wave end never reaches it. The 4th pick writes over pickActive/pickArmed/`pickRetry`/`pickAdded`
   (+0x6be..0x6c4); `returnItems` then treats 0000:0001 as an object pointer (GPF).
-- Not reached: 3fpapclo is unreachable (B6). Port: `game_hook` panics with this id (reachable only with
-  `Fixes.pope_closet_reachable`). Confidence 8.
+- Reached only in 3fpapclo, which only B38's low click (or `Fixes.pope_closet_reachable`) opens (B6).
+  Port: `game_hook` panics with this id. Confidence 8.
 
 ### L9. Exit lookups accept `index == exitCount`; the exit table has no bound
 - `game_create_exit_scene` 1018:11ea rejects only `exitCount < exitIndex`, so index == exitCount reads the
@@ -910,48 +877,35 @@ Usability changes the "Corrigida" version (`Fixes.all()`) turns on; the original
 
 ## Not bugs (checked)
 
-- **The bad cop and the policewoman arrest a player who just waits, even with the wallet:** by design. With a
-  non-empty inventory `handler_2fcopmau` plays the cop's greeting (PMAUS01, 17.8 s; scene start 1020:250c,
-  the empty-inventory timer is 24ee–2503); its end with nothing offered (MM_WOM_DONE 1020:1f4a: no
-  `selectedItem` or no hit object → 234c) clears `greetingPending` and, unless the gift package (0x6b,
-  scanned at scene start) is carried, resets the offers and switches to `2apremau` (1020:2360–23a6); with the
-  gift he says PMAUS03 instead (23ce) and waits. The wallet has to be offered while he speaks.
-  `handler_2fcopmu` does the same after the boys' garots05 line (2apremu2). The good cop (`handler_2fblitg`)
-  only stops his animation. An empty inventory ends all three in the arrest after the 5 s timer 0x15.
-- **The roadblock arrest takes no life:** by design. `2aprebom`, `2apremau` and `2apremu2` (scene numbers
-  24–26) have no handler (`register_scene_handlers` 1018:570e), their video exits go to `1fquarbo` and no
-  roadblock handler writes `g_lives` (its writers: 1fcarnbo, baracut1, 2fsuabig, 2floucos, 2fasspap, 3fhall,
-  3fsauna, 3ffarao, 3farmcai, 3fstree1, 3fpapmal, 4fboydj, 4fbar, 4fmarte, 4fsalgin, 6fsaida). The price is the
-  drive again from the bedroom (items and score kept); 2fshardi's send-off works the same way.
-- **4fsacaet takes no life on an INV loss:** by design — the loss scene does: `handler_4fmarte` 1028:03f9
-  (`DEC; JZ`: game over at 0, else 4fbar), and 4fmarte is reached only from the 4fsacaet loss.
-- **3fstree2 does nothing when `minigameWon[3]` is 0:** it is entered only from `handler_3fstreet`
-  1020:8900 when the minigame was won; no INI exit leads there and it cannot be saved in (no control panel).
+Behaviour that looks wrong but is the original's design or harmless; the port reproduces it without a flag.
+
+- **A waiting player is arrested at the 2fcopmau / 2fcopmu roadblocks, even with the wallet:** the greeting's
+  end with nothing offered (2fcopmau MM_WOM_DONE 1020:1f4a → 234c) switches to the arrest (1020:2360–23a6)
+  unless the gift package (0x6b) is carried (then PMAUS03, 23ce, and he waits). The wallet must be offered
+  while the cop speaks; 2fcopmu does the same after garots05. An empty inventory ends all three roadblocks
+  (2fblitg too) in the arrest after timer 0x15 (5 s).
+- **The roadblock arrest takes no life:** `2aprebom`, `2apremau`, `2apremu2` (scenes 24–26) have no handler
+  (`register_scene_handlers` 1018:570e) and their video exits go to `1fquarbo`; the price is the drive again
+  (items and score kept). 2fshardi's send-off works the same way.
+- **4fsacaet takes no life on an INV loss:** the loss scene does, `handler_4fmarte` 1028:03f9 (`DEC; JZ`).
+- **3fstree2 ignores `minigameWon[3]` == 0:** it is entered only from `handler_3fstreet` 1020:8900 on a win;
+  no INI exit leads there and it cannot be saved in.
 - **2fportdi always looks up WAVE replies for Number 0x17** (1020:4644): every `[2fportdi]` WAVE line is
-  Number 23 — only the doorman answers. Its 4th-offer check in MM_WOM_DONE is always reached (the angry
-  wave's end, or wave_play's faked 0x3bd).
-- **2fgaydir's right-button compare chain** (`JMP 5c14` after `SUB AX,0xe1`) is a merged tail: the
-  effective id is 0x10c.
+  Number 23. Its 4th-offer check in MM_WOM_DONE is always reached.
+- **2fgaydir's right-button compare chain** (`JMP 5c14` after `SUB AX,0xe1`) is a merged tail: the effective
+  id is 0x10c.
 - **3fhall's TIRO timer branch returns 0:** neither the engine default nor the hook handles WM_TIMER.
-- **4fbarboy leaves `selectedItem` set after a wrong item:** its MM_WOM_DONE path dereferences it, so
-  clearing it would turn an unclaimed wave end into a NULL dereference; nothing visible follows.
-- **A wave from the previous scene does not end in the next one:** about twenty handlers (1furso,
-  1fquarbo, 2bfedriv, 3fsauna, 4fbar, …) act on any MM_WOM_DONE without looking at wParam, but no wave
-  outlives its scene. `game_take_exit` 1018:12c6 itself keeps the waves, yet its only caller, the
-  exit-finished path of `game_handle_message` (0x402), calls `wave_free_all` first, and
-  `ini_game_switch_scene` 1018:15ea flushes and frees them. WAVEMIX.DLL's `WaveMixFreeWave` (segment 1,
-  offset 0x20d8) unlinks the wave from every channel queue, the playing entry included, and posts
-  nothing, so e.g. the kitchen door's PORTA1.WAV (exit 61) never ends inside 1furso and the bear's
-  URSOR01.WAV plays to its end. (The port's WaveMix simulation used to keep the freed wave's
-  notification, which cut the bear after 2 s.) Only a completion already posted before the switch can
-  still reach the new scene, as in Windows.
-- **4fbarboy's barman, drunk, Smarr and boys play once; the front barman loops:** the four are cast to
-  Animation and started with its slot 0x1c, `animation_play_once` (1020:a3af→a3d3, aa37→aa5d, aa6a→aa90,
-  b658→b67e); only BarmanFront goes through SceneObject slot 0xc0 (looping play). (The port used to loop
-  all of them, and the 3fsauna attendant too: B21.)
-- **4fbar's PtInRect** compares window coordinates with scene coordinates, but `[4fbar]` is 640×480 and
-  never scrolls. Its `DEC; JNS` lives test is in B1; `okvamp.wav` is rescued by `PAN\WAV`.
-- **The `exit_has_key_object` call in `ini_scene_handle_message`** (1018:9548) pushes a dword NULL (66-prefixed),
-  the take flag and `this`: 10 bytes, matching its `RETF 0xa`.
-- **`portable_move_to_scene`'s name swap** through a stack temporary: it has 20 bytes and the names
-  copied are at most 19 characters (`strncpy 0x13` everywhere they are set; the longest section name has 9).
+- **4fbarboy leaves `selectedItem` set after a wrong item:** its MM_WOM_DONE path dereferences it; nothing
+  visible follows.
+- **Handlers that act on any MM_WOM_DONE** (1furso, 1fquarbo, 2bfedriv, 3fsauna, 4fbar, …) never see the
+  previous scene's wave end: the 0x402 path of `game_handle_message` calls `wave_free_all` before
+  `game_take_exit` 1018:12c6, `ini_game_switch_scene` 1018:15ea frees them, and `WaveMixFreeWave`
+  (WAVEMIX.DLL 1:20d8) unlinks the wave, playing entry included, without posting. Only a completion posted
+  before the switch reaches the new scene.
+- **4fbarboy's barman, drunk, Smarr and boys play once** (`animation_play_once`, 1020:a3d3, aa5d, aa90,
+  b67e); only BarmanFront loops (SceneObject slot 0xc0).
+- **4fbar's PtInRect** compares window with scene coordinates, but `[4fbar]` is 640×480 and never scrolls.
+- **`exit_has_key_object`'s call in `ini_scene_handle_message`** (1018:9548) pushes 10 bytes, matching its
+  `RETF 0xa`.
+- **`portable_move_to_scene`'s name swap** uses a 20-byte stack temporary; the names are at most 19
+  characters (`strncpy 0x13`).
