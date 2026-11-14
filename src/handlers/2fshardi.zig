@@ -1,8 +1,8 @@
 //! Port unit `handler_2fshardi` (handler). scene handler 1020:32b2.
 //!
-//! A dressing room: a singer with a German-sounding accent and her band
-//! (waves STONES*.WAV). Items dropped on them (objects 0xb-0xd,
-//! 0x21) get their WAVE reply and come back to the inventory with a score
+//! A car ride (a VW Beetle, seen from the back seat): the driver is a woman
+//! with a German-sounding accent (sprites 2ssha*, waves STONES*.WAV).
+//! Items dropped on her (objects 0xb-0xd, 0x21) get their WAVE reply and come back to the inventory with a score
 //! penalty. The bible (item 0x30), or the gift package (item 0x6b) when its
 //! random picture is not the fourth one, is the right answer and leads to
 //! the party arrival (`2ffesta3`). Four wrong offers, or five seconds with an
@@ -272,7 +272,7 @@ fn rightUp(g: *Game, s: *State, m: Msg) i16 {
     return offer(g, s, hit);
 }
 
-/// An item was dropped on the band.
+/// An item was dropped on the driver.
 fn offer(g: *Game, s: *State, hit: *Object) i16 {
     s.offerCount +%= 1;
     const fd = g.iniFile;
@@ -301,7 +301,7 @@ fn offer(g: *Game, s: *State, hit: *Object) i16 {
         }
     }
     if (s.offerCount > 3 and s.rightItem != 1) {
-        // The fourth wrong offer: the item comes back, the band reacts.
+        // The fourth wrong offer: the item comes back, the driver reacts.
         const bd = bdOf(g);
         const ret = returnItem(g, s);
         frames.resetRects(ret);

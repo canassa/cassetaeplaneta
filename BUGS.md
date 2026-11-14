@@ -220,7 +220,7 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   whole long.
 - **Confidence:** 9 (code); 6 (that a normal playthrough passes 32767).
 
-### B20. Giving the bible to the singer in the dressing room freezes the game (2fshardi)
+### B20. Giving the bible to the driver of the Beetle ride freezes the game (2fshardi)
 - **Where:** `handler_2fshardi` 1020:32b2, MM_WOM_DONE with `g_s2fshardiRightItem` set (the right-item
   branch after the score/used-list block): 2sshaa (object 11) plays once and `wave_play(2sshaa.wave)`;
   only the 0x403 for object 11 leaves the scene (`2ffesta3`).
@@ -983,3 +983,89 @@ Behaviour that looks wrong but is the original's design or harmless; the port re
   `RETF 0xa`.
 - **`portable_move_to_scene`'s name swap** uses a 20-byte stack temporary; the names are at most 19
   characters (`strncpy 0x13`).
+
+---
+
+## ENCAIXE.EXE (the "Encaixe Perfeito" minigame)
+
+Addresses are Ghidra `seg:off` in `/ENCAIXE.EXE`; the game is described in `docs/encaixe/GAME.md`.
+
+### E1. The O piece loses its left column in the board when it moves left
+- **Where:** `te_piece_move_left` 1008:ce8c, the kind 5 case.
+- **What the code does:** it tests the two cells left of the square and clears the square's right column, but
+  never writes `'1'` into the new left column; `column--` and returns 1. Emulating the bytes from an O at
+  (4,5)–(5,6): after the move the board holds only (4,5), (4,6); the next fall step (`te_piece_move_down`, which
+  writes the new bottom row and clears the old top row) leaves (3,7), (4,6), (4,7).
+- **Effect:** the sprite shows a whole square, but the board misses one or more of its cells (all of them after
+  two left moves in a row until the next fall step). Other pieces can then fall into the visible square, and its
+  row is not seen as full, so a line that looks complete is not cleared.
+- **Confidence:** 9 (code, emulated); 8 (effect).
+
+### E2. A rotation near the floor writes one cell past the column (row 14)
+- **Where:** `te_piece_rotate` 1008:e392, the bottom tests of the cases where the shape grows downwards
+  (`14 < row + h − 1` → fail).
+- **What the code does:** the test lets the new shape's bottom cell reach row index 14. The board is
+  `char[11][14]` column-major, so `board[c][14]` is `board[c+1][0]`, and for c = 10 it is the byte after the board,
+  the low byte of `Piece.column` (`Piece+0xec`). Emulated: an I lying at row 11 (columns 7–10) rotated upright
+  writes `board[8][0]`; a T/L/J at column 9, row 12 writes `board[10][0]` and, in four cases (kind 1 r0, kind 2 r1/r3,
+  kind 3 r1), `'1'` into `Piece.column`, which becomes 49.
+- **Effect:** a phantom filled cell at the top of the next column (a block that can make the next spawn land
+  in the top rows, i.e. a loss), or a piece whose column is 49: every later move indexes far outside the board.
+  Reachable: the rotate key works while the piece rests on the floor before the landing tick.
+- **Confidence:** 9 (code, emulated); 7 (that players hit it).
+
+### E3. `te_piece_clear_full_lines` leaves `bottomRow` uninitialised for an unknown kind
+- **Where:** `te_piece_clear_full_lines` 1008:eed8, the `switch (kind)` that sets `bottomRow`.
+- **What the code does:** the switch has cases 0–5 and no default; any other kind would scan rows up to a stack
+  garbage value.
+- **Effect:** none: the kind is always `rand() % 6`. Latent.
+- **Confidence:** 9.
+
+### E4. `frame_init` sizes the cell array from an uninitialised local
+- **Where:** `frame_init` 1008:a49a; caller `te_game_create_status_bar` 1008:9fb2.
+- **What the code does:** `operator_new([BP−2] << 3)` and `crt_array_construct(…, [BP−2], 8, …)` with the local
+  never written, instead of the frame count.
+- **Effect:** the status bar's frame gets a garbage-sized `FrameCell` array (or a NULL one when the allocation
+  fails). The cells are read only by `frame_get_cell`, and the status bar is never shown in the Tetris scene, so
+  nothing visible follows; a large garbage size can still exhaust the local heap.
+- **Confidence:** 9 (code); 6 (effect).
+
+### E5. The down key sets the left-key flag
+- **Where:** `te_scene_handle_message` 1008:f2a2, `WM_KEYDOWN` `VK_DOWN`.
+- **What the code does:** `if (g_pieceKeyDown == 0) { g_pieceKeyLeft = 1; SetSystemTimer(id 12, 55 ms); }`.
+  `g_pieceKeyDown` is never set to 1.
+- **Effect:** the key flags are otherwise write-only, so the wrong flag changes nothing by itself; but the guard
+  never closes, so every key repeat restarts the 55 ms timer. With a key repeat faster than 55 ms, holding the
+  key can delay the fall instead of speeding it up.
+- **Confidence:** 9 (code); 5 (the hold effect, which depends on the keyboard repeat rate).
+
+### E6. After a loss the landing code still clears lines and spawns a piece
+- **Where:** `te_piece_on_landed` 1008:ba20.
+- **What the code does:** `SendMessage(hwnd, WM_DESTROY, 0, 0)` when `row < 3`, then goes on: line clear (with
+  scoring, sound and the win test), speed check, next piece. The result (`0x40a`, score − 500) has already been
+  posted and `WM_QUIT` queued.
+- **Effect:** after the loss the game still plays the line sound and redraws; the extra score is never reported.
+  A second result cannot follow: after the −500 the score cannot reach exactly 1000 with at most 4 lines.
+- **Confidence:** 9.
+
+### E7. The speed-up is skipped when a multi-line clear jumps over 5 lines
+- **Where:** `te_piece_on_landed` 1008:ba20, after `te_piece_clear_full_lines`.
+- **What the code does:** the period changes only when `linesCleared % 5 == 0` after the whole landing.
+- **Effect:** going from 4 to 6 or more lines in one landing keeps 200 ms for the rest of the game (the next
+  level, 10 lines, is the win). The 100 ms and 55 ms levels (10, 15 lines) are unreachable, and for a multiple of
+  5 above 15 the period would be an uninitialised local.
+- **Confidence:** 9.
+
+### E8. `actor2d_ctor_strips` sizes each strip's FrameCell array by the frame width
+- **Where:** `actor2d_ctor_strips` 1008:aa92 (the Piece's strips, via `player2d_ctor`).
+- **What the code does:** allocates `width` (128) 8-byte cells per strip where `animation_ctor_strips_no_hitbox`
+  1008:ae7a uses the frame count (4).
+- **Effect:** 6 × 1 KB of unused local heap; harmless.
+- **Confidence:** 8.
+
+### E9. The occupancy-grid walls are asymmetric
+- **Where:** `te_grid_backdrop_create_with_walls` 1008:b766 (loop at 1008:b812).
+- **What the code does:** marks blocked cells (count −1) at grid columns 0 and 15 for rows 1–10, and rows 1 and 13
+  for columns 0–13: the box is not closed and does not match the 11×14 board.
+- **Effect:** none: the Tetris moves test `Piece.board`, not the occupancy grid.
+- **Confidence:** 7.
