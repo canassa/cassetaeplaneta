@@ -33,7 +33,8 @@ the disc). `WAVEMIX.DLL` sits next to the EXE.
      `open doom2.mid type sequencer alias musica` and `play musica notify`; `wave_mix_init`;
      `tetris2.wav` into `g_tetrisWave`; `te_draw_score` and `te_blit_score_box`;
    - the status bar and the TetrisPanel are created and attached but stay hidden (the
-     panel's attach is where `AddFontResource("arialbd.fot")` runs);
+     panel's attach is where `AddFontResource("arialbd.fot")` runs; the panel's constructor
+     gets its arguments one word off, BUGS E11);
    - `te_game_create_player`: the Piece (`g_piece`, a Player2D: step 32×32 px, timer id 12,
      period 200 ms, start x 160), `srand(time(NULL))`, first kind `rand() % 6`;
    - `PostMessage(hwnd, 0x401)`, ignored.
@@ -128,8 +129,8 @@ win, so only 150 ms is reached (and only when the count lands exactly on 5, BUGS
    the bottom up: `linesCleared++` and `te_piece_clear_row` (`f042`) for each, which calls
    `te_score_cleared_row` (`f67a`: plays `tetris2.wav`, `g_score += 100`, redraws the score;
    `g_score == 1000` → `SendMessage(hwnd, WM_DESTROY, 0xffff, 0)`, a win) and then moves every
-   row above down by one (row 0 becomes `'0'`), shifting the pixels on both backdrop DCs and
-   blitting the backdrop to the window.
+   row above down by one, shifting the pixels on both backdrop DCs and blitting the backdrop to
+   the window. Row 0 is never rewritten: it keeps its cells and row 1 gets a copy (BUGS E10).
 3. The speed-up check above.
 4. The next piece: `rand() % 6`, rotation 0, spawned at column 4 row 0 (written over whatever
    is there), x 160, y 0, falling.

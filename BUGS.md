@@ -1115,3 +1115,30 @@ Addresses are Ghidra `seg:off` in `/ENCAIXE.EXE`; the game is described in `docs
 - **Confidence:** 7.
 - **Port:** reproduced (unit `backdrop`, src/encaixe/); the fix is `Fixes.encaixe_grid_walls_match_board`
   (`--fix encaixe_grid_walls_match_board`, on in the Corrigida version).
+
+### E10. `te_piece_clear_row` never rewrites row 0
+- **Where:** `te_piece_clear_row` 1008:f042.
+- **What the code does:** the loop runs `r` from `row` down to 1 (`srcY` from `(row − 1)·32` down to 0) and copies
+  `board[c][r−1]` into `board[c][r]` and the pixel strip at `srcY` 32 px down. The branches for the top row, `'0'`
+  into row 0 when `srcY < −31` and `dib_copy_transparent` when `srcY < 0`, are dead: `srcY` never goes below 0 in
+  the loop. So row 0 keeps its cells (and its pixels) and row 1 gets a copy of them.
+- **Effect:** none by itself. When a line clears in a running game row 0 holds no `'1'`: a piece whose top is in
+  rows 0–2 has already lost (E6), the next piece spawns after the clear, and the playfield's top strip is plain
+  background. The one exception is an E2 phantom cell in row 0, which stays there and is also copied into row 1
+  (one invisible blocking cell more); E2's fix removes it.
+- **Confidence:** 9 (code); 8 (effect).
+- **Port:** reproduced (unit `piece`, src/encaixe/), with the dead branches kept; no flag (nothing to fix once E2
+  is fixed).
+
+### E11. `te_game_create_control_panel` passes one argument too few to `te_panel_ctor`
+- **Where:** `te_game_create_control_panel` 1008:9f64, calling `te_panel_ctor` 1008:a59e.
+- **What the code does:** it pushes 11 words but the constructor (`RET 0x18`) takes 12: `unk10` is missing, so
+  every later parameter is read one word off. The constructor sees `unk10` = the scene's `hasControlPanel` (0),
+  `visible` = 0x37, timer period 10, timer id 0xf5, height 0x78, width 1, frame count 0x940, `bmpName` =
+  DGROUP 0x20 (`"eito"`, the tail of the window title: no such file, no picture), y = 4 and x = the caller's
+  saved SI. The constructor pops the extra word; the caller's `LEAVE` restores its stack.
+- **Effect:** none visible. The panel is created and attached but never shown or drawn: `game_init` shows it and
+  the paint draws it only when the scene has a control panel (the Tetris scene has none), and nothing links it to
+  the piece. Its frame-cell array takes 0x940 × 8 bytes of the local heap instead of 8.
+- **Confidence:** 9 (code); 8 (effect).
+- **Port:** reproduced (unit `game`, src/encaixe/; x is taken as 0); no flag, nothing to fix.
