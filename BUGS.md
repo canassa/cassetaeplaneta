@@ -743,6 +743,23 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   `Fixes.player_offscreen_per_scene` clears the flag on every scene change.
 - **Confidence:** 9 (code, port repro).
 
+### B47. A new game in the same run leaves the prison's hammer where the last game left it
+- **Where:** NOVO JOGO on the title menu (`handler_fundinic` 1018:c688) and on the options screen
+  (`handler_fundini1` 1018:d31e) loads slot 0, `JOGO0.INI` on the disc, with `ini_game_load_game` 1018:5274;
+  `ini_game_load_objects` 1018:4c8e moves only the items a `Portab=`/`Invent=` line names (a carried or used
+  one back to the global list, then its scene and position). Nothing else resets the items.
+- **What the code does:** `JOGO0.INI` has a `Portab=` line for every `Portable=`/`ZoomPort=` item but the
+  hammer (`Portable=273`, `3fprisao`); the saved slots (`JOGO1`–`5`) have it. So the new game keeps the hammer
+  as the last game left it: carried, consumed (given to the barman), or lying in another scene.
+- **Effect:** after a new game the prison floor has no hammer; carried, it is still in the panel from the
+  bedroom on; given to the barman (4fbarboy, the only one who takes it) or left elsewhere, the new game cannot
+  get past the barman unless the player fetches it from where it was dropped. A page reload (a new run)
+  starts clean.
+- **Port:** reproduced (`--scene 3fprisao`, pick the hammer up, `scene fundinic`, JOGAR, NOVO JOGO: `where
+  273` says carried); `Fixes.new_game_resets_items` sends every item home (scene, position, on the floor)
+  before slot 0's lines.
+- **Confidence:** 9 (disc data, code, port repro).
+
 ---
 
 ## Harmless: wrong paths rescued by the wave fallback

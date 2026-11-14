@@ -152,6 +152,10 @@ pub const Fixes = struct {
     /// new, so closing a drawer without a pick no longer drops the last one
     /// again (which kept it in the closet, over the drawers, for good).
     closet_places_new_pick_once: bool = false,
+    /// B47: a new game (`jogo0`) first sends every item home, so the
+    /// prison's hammer, the one item `jogo0` does not name, is back in the
+    /// prison and not still carried, consumed or dropped elsewhere.
+    new_game_resets_items: bool = false,
     /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"):
     /// while an inventory item is dragged out of the control panel (right
     /// button held), its panel icon follows the pointer. The original shows

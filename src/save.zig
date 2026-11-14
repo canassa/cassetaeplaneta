@@ -21,6 +21,10 @@
 //! - A `Portab=` line for an item that is in the global list or the
 //!   inventory only copies the scene name; one for a consumed item
 //!   (`usedObjects`) sends it back to its home position and scene.
+//! - B47: a new game is a load of `jogo0`, and only the items it names are
+//!   put back; it names every one but the prison's hammer (273), which
+//!   stays carried, consumed or wherever it was dropped.
+//!   `Fixes.new_game_resets_items` first sends every item home.
 //!
 //! Where the original dereferences NULL (`asPortable` of a non-portable
 //! object named by a save line) the port panics. `exit(1)` after an invalid
@@ -241,6 +245,37 @@ fn loadPortab(g: *Game, id: i16, x: i16, y: i16) void {
     }
 }
 
+/// B47's fix: every item, carried, consumed or on a scene, goes back to the
+/// global list at its INI home (scene, position, on the floor, still), as
+/// the new game's `jogo0` lines expect.
+fn resetItems(g: *Game) void {
+    const player = playerOf(g);
+    while (player.actor.inventory.head) |o| {
+        _ = object_list.remove(&player.actor.inventory, o);
+        o.portable.owner = null;
+        _ = object_list.add(g, &g.globalObjects, o);
+    }
+    while (g.usedObjects.head) |o| {
+        _ = object_list.remove(&g.usedObjects, o);
+        o.portable.owner = null;
+        _ = object_list.add(g, &g.globalObjects, o);
+    }
+    var cur = g.globalObjects.head;
+    while (cur) |o| : (cur = o.next) {
+        const p = o.as(.portable) orelse continue;
+        movement.cancelWalk(p);
+        p.x = p.portable.homeX;
+        p.y = p.portable.homeY;
+        p.o3d.worldElev = 0;
+        p.portable.restElev = null;
+        cstr.copy(&p.sceneName, &p.portable.homeSceneName);
+        cstr.copy(&p.portable.prevSceneName, &p.portable.homeSceneName);
+    }
+    g.selectedItem = null;
+    g.offered = null;
+    g.drag.item = null;
+}
+
 /// Game slot 09: loads `<dir><name>.ini` (`jogo0` from the CD directory,
 /// the others from the HD one): builds the start scene, restores player
 /// position, score, lives and objects, re-attaches everything, redraws and
@@ -274,6 +309,7 @@ fn loadGameImpl(g: *Game, name: []const u8) Error!void {
     };
     if (g.oldScene) |old| _ = scene_unit.scalarDtor(g, old, 1);
     g.oldScene = null;
+    if (g.fixes.new_game_resets_items and dir == &g.driveCD) resetItems(g);
     g.scene = game_scenes.createStartScene(g, fd);
     var px: i16 = 0;
     var py: i16 = 0;
