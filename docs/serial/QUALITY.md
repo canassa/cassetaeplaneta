@@ -233,7 +233,7 @@ Stored in the program (saved):
 - **15 targets**, one per bitmap, all built at start (`1068:013f`; 13 of one parameter set, 2
   of another), each with a *kind* from the table at `01d4`. Vertical strips of N frames:
   `3sarab` 6×80×177 … `3skenn` 2×200×67 (Kennedy in a car), `3scoel` 6×188×60 (a rabbit).
-- **5 lives** (`02a6`); hitting the wrong kind costs one (to confirm).
+- **5 lives** (`02a6`): a kind-2 target that gets its shot off costs one (`DATA.md`).
 - Waves: `tiros1.WAV` (shot), `morte2.wav` (death), `PRACAS01.WAV`. Music: `doom2.mid`
   (MCI alias `musica`, replayed on MM_MCINOTIFY). `CARREGA*.WAV`, `LPVITOR.WAV`, `METRAL.WAV`,
   `TIROS.WAV` and `VELHA.MID` are on the disc but not referenced by the EXE.
