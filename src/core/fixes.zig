@@ -376,6 +376,38 @@ pub const Fixes = struct {
     /// P8: a score of five digits is drawn one character to the left, so
     /// all six characters fit the 192-px box that is restored and blitted.
     sauna_score_fits_box: bool = false,
+    // ---- INFERNO.EXE (BUGS.md H1-H7). The src/inferno/ units port each
+    // bug as it is and keep the fix only behind its flag; NOITE's 3fpapmal
+    // and 3fhall stay as they are (docs/inferno/DESIGN.md "Fixes"). ----
+    /// H1: AppWndProc posts 0x40c ("ready") once, to NOITE's window (after
+    /// 0x40b gave it), not before every message: no 0x40c after the result
+    /// reaches the hall, which took it for its own TIRO and counted a loss.
+    inferno_ready_once: bool = false,
+    /// H2: the time-out posts its 0x40a result once; the grace second before
+    /// WM_DESTROY reposts nothing, so the hall gets no second result (a won
+    /// TIRO game, +500 more and the prison).
+    inferno_report_once: bool = false,
+    /// H3: the last life lost posts the loss, 0x40a (0, g_score - 1000), to
+    /// NOITE before WM_DESTROY, so INFERNO's points reach NOITE (the original
+    /// reports nothing: NOITE sees the window gone and counts a loss with no
+    /// score change). A choice until the owner says (`choices`).
+    inferno_loss_reports: bool = false,
+    /// H4: WM_CLOSE (End Task, the port's window close) reports a loss, 0x40a
+    /// (0, 0) (with `inferno_loss_reports`, (0, g_score - 1000)), instead of
+    /// the time-out's report, which is a win while a life is left. A choice
+    /// until the owner says (`choices`).
+    inferno_close_forfeits: bool = false,
+    /// H5: a small hero that runs into a hazard below the stomp height loses
+    /// a life (inferno_lose_life: -500, a life, sonicmor), as when the
+    /// hazard walks into him; the death strip no longer comes free.
+    inferno_side_hit_costs_life: bool = false,
+    /// H6: a life lost leaves the occupancy grid as it is (the parked hazard
+    /// vacates its own cells) instead of wiping it all: the floor wall and
+    /// every object's cells stay, and no phantom blockers are left behind.
+    inferno_hit_keeps_grid: bool = false,
+    /// H7: a landing in the scroll zone clears the stomp latch too, so every
+    /// stomp of a small hero scores +150.
+    inferno_scroll_landing_clears_stomp: bool = false,
     /// U1: draw the status-bar text.
     status_bar_text: bool = false,
     /// `ini_fatal_error` ("Erro Fatal!") quits (`error.Fatal`) instead of
@@ -384,7 +416,7 @@ pub const Fixes = struct {
 
     /// Flags left out of `all` (`--fix all`, the web build's "Corrigida"
     /// version), e.g. the hall-door reshuffle.
-    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit", "serial_lane2_own_timer", "sauna_eat_on_arrival", "salgin_opponent_damage_table", "salgin_block_holds", "salgin_insert_locked", "salgin_weak_reaction_by_energy", "salgin_banner_shown", "xilindro_block_holds", "xilindro_insert_locked", "xilindro_banner_shown" };
+    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit", "serial_lane2_own_timer", "sauna_eat_on_arrival", "salgin_opponent_damage_table", "salgin_block_holds", "salgin_insert_locked", "salgin_weak_reaction_by_energy", "salgin_banner_shown", "xilindro_block_holds", "xilindro_insert_locked", "xilindro_banner_shown", "inferno_loss_reports", "inferno_close_forfeits" };
 
     /// `--fix all`: every flag but the `choices`.
     pub fn all() Fixes {
