@@ -729,6 +729,28 @@ Confidence 8–9.
   `mayDropObject`, so the open panel offers Opções only (no item can be dropped there).
 - **Confidence:** 9 (code, INI, port repro).
 
+### B43. A dropped item still falling when the scene changes falls on in the next scene, drawn over it
+- **Where:** `game_handle_message` 1018:0000, WM_SYSTIMER 1018:0512–059c: when the timer id is the selected
+  item's (`Game.selectedItem`, +0x67c, slot F4) and it is moving (slot F8), it runs the item's `moveTick`
+  (1018:059c→0507, slot F0) with the *current* scene's backdrop. `game_take_exit` 1018:12c6 and
+  `ini_game_switch_scene` 1018:15ea clear `itemSelected` but neither forget `selectedItem` (set only by the
+  panel picks, 1018:09e8 and the hook 1018:c0fc; cleared only by the give-item handlers that keep an offered
+  item) nor stop its walk; the item is a global object, so deleting the old scene leaves
+  its system timer running until `mover_stop_moving_dc` at the end of the fall.
+- **What the code does:** an item dropped high in a scene falls 10 rows a tick; a
+  door taken before it lands (the hall's doors switch at once) brings the rest of the fall into the next
+  scene: each tick draws the item into the new backdrop at the old scene's coordinates and puts it on the
+  screen. Nothing of the new scene is in its draw list, so nothing erases it.
+- **Effect:** the item's picture slides down over the new scene and stays there until something repaints that
+  spot; in scenes without the player or the panel (3fpapclo, the pope's closet, reached through the hall) it
+  stays for good, over the drawers. With B36 the fall never ends, so it goes on through every later scene
+  until it leaves the view. In the old scene the item lies where the fall would have ended. With one-button
+  play a tap on the item's slot, a tap high up and a tap on a door is enough.
+- **Port:** reproduced (`--scene 3fhall --take 98 --fix pope_closet_reachable`: `offer 0 420 60`, then a right
+  click on the closet door at once); `Fixes.scene_change_lands_item` ends the fall in the old scene before a
+  switch (`game_scenes.landFallingItem`: the remaining steps run at once; one that never arrives is stopped).
+- **Confidence:** 9 (code, port repro).
+
 ---
 
 ## Unfinished features (never wired up)

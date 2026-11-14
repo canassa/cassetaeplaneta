@@ -134,6 +134,9 @@ pub const Fixes = struct {
     /// root's undamaged copy, not the `PAN\AVI\` one whose two damaged
     /// frames leave specks and stripes of garbage on the mugshots.
     clean_arrest_video: bool = false,
+    /// B43: a scene change ends the fall of a dropped item in the scene it
+    /// was dropped in, so its timer no longer draws it into the next scene.
+    scene_change_lands_item: bool = false,
     /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"):
     /// while an inventory item is dragged out of the control panel (right
     /// button held), its panel icon follows the pointer. The original shows

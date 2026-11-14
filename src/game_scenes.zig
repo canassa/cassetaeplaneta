@@ -106,6 +106,27 @@ fn enterScene(g: *Game, x: i16, y: i16) void {
     _ = g.send(Msg.make(noite.scene_started, 0, 0, 0));
 }
 
+/// B43's fix (not in the original): a dropped item still falling when the
+/// scene changes. The scene switches never stop its walk or forget
+/// `selectedItem`, and WM_SYSTIMER (1018:0512-059c) steps the selected
+/// item on its timer with the current scene's backdrop, so the fall goes
+/// on in the next scene, drawn over it at the old scene's coordinates.
+/// Here the fall ends at once, in the scene it belongs to (still the
+/// current one): the remaining steps run as the timer would have run them
+/// (a fall that never arrives, B36, is stopped after them), then the
+/// update list is dropped, as the switch does.
+fn landFallingItem(g: *Game) void {
+    if (!g.fixes.scene_change_lands_item) return;
+    const sel = g.selectedItem orelse return;
+    const scene = g.scene orelse return;
+    const bd = scene.backdrop orelse return;
+    if (sel.kind != .portable or !movement.isMoving(g, sel)) return;
+    var n: usize = 0;
+    while (n < 512 and movement.isMoving(g, sel)) : (n += 1) movement.moveTick(g, sel, bd);
+    if (movement.isMoving(g, sel)) movement.stopMoving(g, sel, bd);
+    update_list.discard(&g.updateList);
+}
+
 // @orig 1018:12c6 game_take_exit
 /// Scene switch through exit `exit_index` of the current scene: the player
 /// arrives at the exit's target position (the alternative one when the
@@ -113,6 +134,7 @@ fn enterScene(g: *Game, x: i16, y: i16) void {
 /// scene (`createExitScene`), slot 07 of the scene creates it. Returns
 /// the game.
 pub fn takeExit(g: *Game, exit_index: i16) *Game {
+    landFallingItem(g);
     const old = must(Scene, g.scene);
     // An index the scene has no exit for (a 0x402 another scene posted,
     // BUGS.md B37): the original reads the exit through NULL, a GPF.
@@ -143,6 +165,7 @@ pub fn takeExit(g: *Game, exit_index: i16) *Game {
 /// creates it and re-attaches everything (the player at `x`, `y`). Returns
 /// the game.
 pub fn switchScene(g: *Game, name: []const u8, x: i16, y: i16, has_player: i16, has_control_panel: i16, has_status_bar: i16, is_1animation: i16, is_click_exit: i16) *Game {
+    landFallingItem(g);
     update_list.discard(&g.updateList);
     sound.stopAll(&g.sound, g.plat);
     sound.freeAll(&g.sound, g.plat);
