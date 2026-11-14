@@ -30,8 +30,11 @@ panel: its icon follows the pointer (drag.png) and is gone once it is
 released over the panel (drag-released.png); with the player walked down
 behind the open panel, three closes each keep the panel whole in every
 frame the page presents until the first step of the slide (B48,
-panel-close.png). In the corridor the report lists the wallet.
-On a phone-sized touch
+panel-close.png). In the corridor the report lists the wallet, and "⋯"
+then "Estado completo" downloads a snapshot; restored into a new page
+(`?snapshot` and its file picker) the game goes on in the corridor with
+the wallet, its clock from the captured time, for a few seconds without
+page errors (restored.png). On a phone-sized touch
 screen (a new context, has_touch): the loader has "Controle com um botão"
 on by default and the wasm gets it; with taps only, the opening video is
 skipped, a new game starts, the desk drawer opens and gives the wallet,
@@ -232,11 +235,40 @@ def main():
                   f" ({len(path.read_bytes()) / 1e3:.0f} kB)")
             return r
 
-        def corridor_report():
-            """In the corridor with the wallet: the report lists it."""
+        def snapshot_restore():
+            """In the corridor with the wallet: a snapshot, restored into a new page."""
             before = save_report(page, "1fcorred")
             inv = [(i["id"], i["name"]) for i in before["state"]["inventory"]]
             check(len(inv) == 1, f"the report lists the wallet in the inventory ({inv})")
+            page.click("#morebtn")
+            check(page.is_visible("#snapbtn"), "⋯ shows Estado completo")
+            with page.expect_download(timeout=120_000) as d:
+                page.click("#snapbtn")
+            snap = out / d.value.suggested_filename
+            d.value.save_as(snap)
+            check(not page.is_visible("#snapbtn") and snap.suffix == ".noitesnap",
+                  f"Estado completo downloads {snap.name} ({snap.stat().st_size / 1e6:.1f} MB)")
+            rpage = ctx.new_page()
+            rerrors = []
+            rpage.on("pageerror", lambda e: rerrors.append(str(e)))
+            rpage.goto(url + "?snapshot")
+            rpage.wait_for_function("window.noite.ready || window.noite.failure", timeout=600_000)
+            check(rpage.is_visible("#snapfile"), "?snapshot offers a snapshot file on the loader")
+            rpage.set_input_files("#snapfile", str(snap))
+            rpage.wait_for_function("window.noite.restored || window.noite.failure", timeout=120_000)
+            check(not rpage.evaluate("window.noite.failure"), "the snapshot is restored")
+            t0 = rpage.evaluate("window.noite.ticks")
+            check(rpage.evaluate("[window.noite.scene, window.noite.inventory, window.noite.fixes]")
+                  == ["1fcorred", 1, True], "restored: the corridor, the wallet, the Corrigida version")
+            check(t0 >= before["state"]["ticks"], f"restored: the clock goes on from the capture ({t0} ms)")
+            time.sleep(3)
+            after = rpage.evaluate("window.noite.report()")["state"]
+            check(after["ticks"] - t0 >= 2500 and after["scene"]["name"] == "1fcorred"
+                  and [(i["id"], i["name"]) for i in after["inventory"]] == inv,
+                  f"restored: still running {after['ticks'] - t0} ms later, same scene and inventory")
+            rpage.locator("#screen").screenshot(path=str(out / "restored.png"))
+            check(not rerrors, "restored: no page errors" + (": " + "; ".join(rerrors) if rerrors else ""))
+            rpage.close()
 
         def drag_shows_item():
             """Corrigida: the wallet dragged out of the panel follows the
@@ -267,7 +299,7 @@ def main():
             click(95, 80, "right")
             check(wait_scene("1fcorred", 40), "Corrigida: the corridor (1fcorred)")
             time.sleep(1)
-            corridor_report()
+            snapshot_restore()
             page.mouse.move(*at(320, 452))  # open the panel (y > 440)
             time.sleep(1.5)
             page.mouse.move(*at(116, 425))

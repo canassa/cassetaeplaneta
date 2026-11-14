@@ -68,3 +68,30 @@ tml_message *noite_midi_dispatch(tsf *f, tml_message *cur, unsigned int ms)
 	}
 	return cur;
 }
+
+/* The font's decoded samples (floats; immutable once loaded): their
+ * block and its size. A web snapshot (web/noite.js) leaves them out. */
+#include <malloc.h>
+#include <string.h>
+void *noite_tsf_samples(tsf *f, unsigned int *bytes)
+{
+	*bytes = f->fontSamples ? (unsigned int)malloc_usable_size(f->fontSamples) : 0;
+	return f->fontSamples;
+}
+
+/* Decodes the same SoundFont again into a scratch synth and copies its
+ * samples over `f`'s (a restored snapshot). Returns 0 on bad data. */
+int noite_tsf_refill(tsf *f, const void *buffer, int size)
+{
+	tsf *t = tsf_load_memory(buffer, size);
+	size_t a, b;
+	if (!t) return 0;
+	a = malloc_usable_size(f->fontSamples);
+	b = malloc_usable_size(t->fontSamples);
+	memcpy(f->fontSamples, t->fontSamples, a < b ? a : b);
+	/* Freed memory keeps its bytes: zeroed, the next snapshot of this
+	 * game compresses them away. */
+	memset(t->fontSamples, 0, b);
+	tsf_close(t);
+	return 1;
+}

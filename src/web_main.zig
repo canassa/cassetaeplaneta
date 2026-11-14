@@ -175,3 +175,44 @@ export fn noite_report() [*]const u8 {
 export fn noite_report_len() u32 {
     return @intCast(report_text.len);
 }
+
+/// The game clock (`ticks()`, ms since the start), for a snapshot.
+export fn noite_ticks() u32 {
+    const g = game orelse return 0;
+    return g.plat.ticks();
+}
+
+/// What a snapshot may leave out (zeroed): the SoundFont's decoded
+/// samples, two thirds of the memory, which `noite_resume` decodes again.
+/// `noite_snapshot_skip_len` is 0 without a SoundFont.
+export fn noite_snapshot_skip() usize {
+    const syn = backend.synth orelse return 0;
+    return @intFromPtr(syn.samples().ptr);
+}
+
+export fn noite_snapshot_skip_len() u32 {
+    const syn = backend.synth orelse return 0;
+    return @intCast(syn.samples().len);
+}
+
+/// After the page copied a snapshot of the whole memory over a fresh
+/// instance (between frames, so no Zig frame was live): the clock goes on
+/// from `ticks` (the page clock is a new one), the SoundFont's samples are
+/// decoded again if the snapshot left them out (`refill`), and the next
+/// frame shows the screen. Everything else is in the memory, the files the
+/// game has open included (`Sim` holds their bytes). 0 on success.
+export fn noite_resume(ticks: u32, refill: bool) i32 {
+    backend.epoch_ms = web.js.js_now() - @as(f64, @floatFromInt(ticks));
+    backend.dirty = true;
+    if (refill) if (backend.synth) |*syn| {
+        const sf2 = backend.sim.opts.host_files.?.read(&backend, gpa, "soundfont.sf2") orelse return 1;
+        // Zeroed before it is freed: freed memory keeps its bytes, and the
+        // next snapshot of this game would carry them.
+        defer {
+            @memset(sf2, 0);
+            gpa.free(sf2);
+        }
+        syn.refill(sf2) catch return 2;
+    };
+    return 0;
+}

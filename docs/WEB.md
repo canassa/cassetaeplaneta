@@ -237,10 +237,11 @@ map $arg_h $noite_cache {
 
 ## Bug reports
 
-The tools bar (with the version switch and fullscreen) lets a player
-send us the game's state instead of describing it. The file goes to the
-share sheet where the browser can share it (a phone: straight to a chat
-or mail), else it is downloaded.
+The tools bar (with the version switch and fullscreen) has two ways for
+a player to send us the game's state instead of describing it. Both hand
+the file to the share sheet where the browser can share it (a phone:
+straight to a chat or mail; after a slow compression a toast's "Enviar"
+button asks for the gesture sharing needs), else download it.
 
 - **Relatório** (`#reportbtn`): `noite-<release>-<scene>-<UTC time>.json`
   (~250 kB): release, commit, the wasm's and noite.js's hashes, version,
@@ -260,6 +261,57 @@ or mail), else it is downloaded.
   bitmap files (`Dib.name`, kept by `dib.loadDib` for this; an item in
   the inventory has only its icon's, `<name>2`). The native harness writes
   the same JSON with the script command `report FILE`.
+- **Estado completo** (under "⋯", `#snapbtn`): a snapshot,
+  `noite-<release>-<scene>-<UTC time>.noitesnap`, gzip
+  (CompressionStream) of `NOITESNAP1\n`, the header's length (u32 LE), a
+  JSON header and the wasm's whole linear memory. The header has the
+  release, commit and hashes, the clock (`ticks`, `noite_ticks`), the
+  memory size, the options, whether the canvas or the minigame note was
+  shown, whether the game was active, the canvas size and the report
+  above. It is taken from a button handler, between two frames: no Zig
+  frame is live, so the wasm's two globals (stack pointers) are at their
+  start values and the memory is all the state there is. The page holds
+  no other game state: input goes straight into the wasm's ring buffer,
+  open files are byte arrays in the wasm (`Sim` reads a whole file at
+  open; the page's file store is only read through `js_file_read`), the
+  screen is converted per frame, audio is pulled per chunk. The
+  SoundFont's decoded samples (62 MB of floats, immutable) are zeroed in
+  the copy (`noite_snapshot_skip`, `header.skip`). Sizes: 2.3 MB in the
+  bedroom at the start (133 MB of memory), 3.9 MB in act 3's hall
+  (3fhall, 217 MB of memory: a game restored twice, each restore leaves a
+  freed, zeroed scratch SoundFont behind).
+
+**Restoring** (developers): `?snapshot` adds a file picker to the loader.
+Once the files are loaded, a chosen snapshot is checked against the
+page's wasm (the SHA-256 of the bytes it runs: a snapshot only restores
+into the same build), its options replace the stored ones, and a fresh
+instance (`_initialize` only, no `noite_start`) gets the memory grown to
+the snapshot's size and copied in; `noite_resume(ticks, refill)` moves the
+platform's epoch so `ticks()` goes on from the captured value, decodes the
+SoundFont's samples again and marks the screen for the next frame; then
+the frame loop starts. Audio starts with the next click, as on a load.
+
+```sh
+nix develop .#web -c python3 tools/web/restore.py FILE.noitesnap \
+    [--site DIR | --ssh HOST] [--ms MS] [--input FILE] [--report FILE|-] \
+    [--dump-every MS] [--out DIR]
+```
+
+`tools/web/restore.py` finds a page that runs the snapshot's wasm: a
+built site (`--site`, else `zig-out/site`) whose `noite.wasm` has its
+hash, else the live site if its current release is the snapshot's, else
+with `--ssh HOST` (the deploy target) it copies `index.html`, `noite.js`,
+`noite.wasm` and `manifest.json` of `/var/www/cassetaeplaneta/releases/<id>/`
+next to a local site's disc files. It restores the snapshot in headless
+Chromium, runs it on, and can dump frames, write or print the report and
+play a harness input script (times from the restore; `snapshot FILE`
+takes a new one). Deploys keep every release directory, but the web
+server serves only `current`, and a `?h=` request with an old hash gets
+the current file (nginx ignores the query), so old releases are reachable
+only over ssh. To make them reachable by URL, the server would need, for
+example, `location ~ ^/releases/([0-9TZ]+)/(index\.html|noite\.js|noite\.wasm|manifest\.json)$
+{ alias /var/www/cassetaeplaneta/releases/$1/$2; }` (with the same
+caching headers); the tool would then fetch from there.
 
 ## Testing
 
@@ -288,7 +340,11 @@ every fix on in the wasm and is remembered; a drag there shows the item,
 and with the player behind the open panel no frame the page presents
 cuts the panel as it starts closing (B48, `panel-close.png`).
 Relatório downloads a report with the scene, a screenshot and the
-inventory (empty in the bedroom; the wallet in the Corrigida corridor).
+inventory (empty in the bedroom; the wallet in the Corrigida corridor);
+there "⋯", "Estado completo" downloads a snapshot, which a new page with
+`?snapshot` restores: the corridor, the wallet and the Corrigida version,
+the clock going on from the capture, running for 3 s without page errors
+(`restored.png`).
 Then a phone-sized touch context (`has_touch`): the one-button control is
 on by default and reaches the wasm, and with `touchscreen.tap` only the
 videos are skipped, a new game starts, the drawer gives the wallet, a

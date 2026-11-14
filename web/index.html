@@ -40,8 +40,8 @@
   #tools button:hover, #tools button:focus-visible { color: #000; background: #e8b830; border-color: #e8b830; }
   #tools.overlay { opacity: .35; transition: opacity .2s; }
   #tools.overlay:hover, #tools.overlay:focus-within, #tools.overlay.lit { opacity: 1; }
-  /* A short note over the bottom of the page (a report saved), with an
-     optional button. */
+  /* A short note over the bottom of the page (a report saved, a snapshot
+     being packed), with an optional button. */
   #toast { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 2;
     max-width: calc(100% - 32px); box-sizing: border-box; padding: .4rem .75rem; font-size: 13px;
     background: rgba(20, 20, 20, .92); color: #ddd; border: 1px solid #444; border-radius: 6px;
@@ -88,6 +88,8 @@
           <span>Controle com um botão <small>— para telas de toque: o clique faz tudo, toque no item e depois onde usá-lo</small></span></label>
       </fieldset>
       <button id="play">Jogar</button>
+      <label id="restore" hidden>Restaurar um estado salvo (.noitesnap):
+        <input type="file" id="snapfile" accept=".noitesnap,application/octet-stream"></label>
     </div>
   </div>
   <div id="away" class="panel" hidden>
@@ -98,6 +100,8 @@
 <div id="tools" hidden>
   <button id="switch"></button>
   <button id="reportbtn" title="Baixar um relatório do jogo agora (cena, itens, imagem da tela) para mandar junto com a descrição do problema">Relatório</button>
+  <button id="snapbtn" title="Baixar o estado completo do jogo (alguns MB), para reproduzir o problema exatamente" hidden>Estado completo</button>
+  <button id="morebtn" title="Mais opções" aria-expanded="false">⋯</button>
   <button id="fullscreen" title="Tela cheia" hidden>⛶</button>
 </div>
 <div id="toast" hidden><span id="toasttext"></span><button id="toastbtn" hidden></button></div>

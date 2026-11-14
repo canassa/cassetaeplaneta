@@ -19,6 +19,8 @@ extern "c" fn noite_tsf_open(buffer: *const anyopaque, size: c_int, sample_rate:
 extern "c" fn noite_tsf_rewind(f: *Tsf) void;
 extern "c" fn noite_tsf_silence(f: *Tsf) void;
 extern "c" fn noite_midi_dispatch(f: *Tsf, cur: ?*TmlMessage, ms: c_uint) ?*TmlMessage;
+extern "c" fn noite_tsf_samples(f: *Tsf, bytes: *c_uint) ?*anyopaque;
+extern "c" fn noite_tsf_refill(f: *Tsf, buffer: *const anyopaque, size: c_int) c_int;
 extern "c" fn tsf_close(f: *Tsf) void;
 extern "c" fn tsf_active_voice_count(f: *Tsf) c_int;
 extern "c" fn tsf_render_short(f: *Tsf, buffer: [*]i16, samples: c_int, flag_mixing: c_int) void;
@@ -192,6 +194,20 @@ pub const Synth = struct {
         if (size < 12) return error.InvalidSoundFont;
         const font = noite_tsf_open(sf2_bytes.ptr, size, rate) orelse return error.InvalidSoundFont;
         return .{ .font = font, .sample_rate = sample_rate };
+    }
+
+    /// The font's decoded samples: a web snapshot leaves them out
+    /// (src/web_main.zig) and `refill` puts them back.
+    pub fn samples(s: *const Synth) []u8 {
+        var n: c_uint = 0;
+        const p = noite_tsf_samples(s.font, &n) orelse return &.{};
+        return @as([*]u8, @ptrCast(p))[0..n];
+    }
+
+    /// Decodes `sf2_bytes` (the font `init` got) again into `samples`.
+    pub fn refill(s: *Synth, sf2_bytes: []const u8) !void {
+        const size = std.math.cast(c_int, sf2_bytes.len) orelse return error.InvalidSoundFont;
+        if (noite_tsf_refill(s.font, sf2_bytes.ptr, size) == 0) return error.InvalidSoundFont;
     }
 
     pub fn deinit(s: *Synth) void {

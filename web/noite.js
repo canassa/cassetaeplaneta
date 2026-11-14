@@ -19,8 +19,9 @@
 // URLs, so a deploy re-downloads only what changed.
 //
 // For bug reports, the tools bar has "Relatório" (a JSON file: the build,
-// the options, a screenshot and the game's state from `noite_report`;
-// docs/WEB.md).
+// the options, a screenshot and the game's state from `noite_report`) and,
+// under "⋯", "Estado completo" (a snapshot: the wasm's whole memory,
+// gzipped, which `?snapshot` restores into the same build; docs/WEB.md).
 "use strict";
 
 (() => {
@@ -50,6 +51,7 @@
   const COMMIT = (script && script.dataset.commit) || "";
   const hashOf = (url) => (/[?&]h=([0-9a-f]+)/.exec(url || "") || [])[1] || "";
   const JS_HASH = hashOf(script && script.src);
+  const SNAP_MAGIC = "NOITESNAP1\n";
   const fetchOptions = (url) => (/[?&]h=/.test(url) ? {} : { cache: "no-cache" });
   const fileUrl = (entry) => (entry.hash ? `${entry.url}?h=${entry.hash}` : entry.url);
 
@@ -287,6 +289,7 @@
 
   let wasm = null; // exports
   let build = ""; // the wasm's short hash (stamp.py's), computed at the start
+  let restored = false; // started from a snapshot
   let running = false, ready = false, failure = null, loadStats = null, pruned = false;
   // For tests: the loudest sample sent to WebAudio, and the cost of the
   // game's turns (ms per frame, worst frame).
@@ -667,7 +670,7 @@
     document.addEventListener("webkitfullscreenchange", fit);
   }
 
-  // ---- reports -------------------------------------------------------------------
+  // ---- reports and snapshots ---------------------------------------------------
 
   /** 20261114T093000Z */
   const utcStamp = () => new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
@@ -769,6 +772,65 @@
     return r;
   }
 
+  /**
+   * The snapshot file: gzip of SNAP_MAGIC, the header's length (u32 LE),
+   * the header (JSON) and the wasm's whole memory. Taken between two
+   * frames (no Zig frame is live), so a fresh instance of the same build
+   * with this memory copied in carries on from here. The SoundFont's
+   * decoded samples are zeroed (`skip`: the restore decodes them again).
+   */
+  async function snapshot() {
+    const bytes = new Uint8Array(wasm.memory.buffer).slice();
+    const skip = [wasm.noite_snapshot_skip() >>> 0, wasm.noite_snapshot_skip_len() >>> 0];
+    bytes.fill(0, skip[0], skip[0] + skip[1]);
+    const header = {
+      kind: "noite-snapshot",
+      release: RELEASE, commit: COMMIT, build, js: JS_HASH,
+      ticks: wasm.noite_ticks() >>> 0,
+      memory: bytes.length,
+      skip,
+      prefs: { ...prefs },
+      mainShown: !canvas.hidden,
+      active,
+      canvas: { width: CW, height: CH },
+      report: report(),
+    };
+    const head = new TextEncoder().encode(JSON.stringify(header));
+    const len = new Uint8Array(4);
+    new DataView(len.buffer).setUint32(0, head.length, true);
+    let blob = new Blob([SNAP_MAGIC, len, head, bytes]);
+    if (window.CompressionStream) {
+      blob = await new Response(blob.stream().pipeThrough(new CompressionStream("gzip"))).blob();
+    }
+    return { header, blob: new Blob([blob], { type: "application/octet-stream" }) };
+  }
+
+  async function saveSnapshot() {
+    toast("Salvando o estado…");
+    try {
+      const { blob } = await snapshot();
+      await deliver(blob, fileStem() + ".noitesnap");
+    } catch (e) {
+      console.error(e);
+      toast("Não foi possível salvar o estado: " + (e && e.message ? e.message : e));
+    }
+  }
+
+  /** { header, memory: Uint8Array } of a snapshot file (gzipped or not). */
+  async function readSnapshot(buf) {
+    let bytes = new Uint8Array(buf);
+    if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
+      bytes = new Uint8Array(await new Response(new Blob([bytes]).stream()
+        .pipeThrough(new DecompressionStream("gzip"))).arrayBuffer());
+    }
+    const magic = new TextDecoder().decode(bytes.subarray(0, SNAP_MAGIC.length));
+    if (magic !== SNAP_MAGIC) throw new Error("não é um estado salvo do Noite Animal");
+    const n = new DataView(bytes.buffer, bytes.byteOffset + SNAP_MAGIC.length, 4).getUint32(0, true);
+    const at = SNAP_MAGIC.length + 4;
+    const header = JSON.parse(new TextDecoder().decode(bytes.subarray(at, at + n)));
+    return { header, memory: bytes.subarray(at + n) };
+  }
+
   // ---- main ---------------------------------------------------------------------
 
   function fail(e) {
@@ -829,7 +891,10 @@
     });
   }
 
-  /** The tool buttons: a reload into the other version, the report and fullscreen. */
+  /**
+   * The tool buttons: a reload into the other version, the report, "⋯"
+   * (shows the snapshot button) and fullscreen.
+   */
   function showTools() {
     const other = prefs.version === "original" ? "corrigida" : "original";
     const sw = $("switch");
@@ -841,9 +906,25 @@
       writePrefs({ ...prefs, version: other });
       location.href = location.pathname + "?versao=" + other;
     };
+    const more = $("morebtn"), snap = $("snapbtn");
+    const showMore = (on) => {
+      snap.hidden = !on;
+      more.setAttribute("aria-expanded", String(on));
+      more.textContent = on ? "×" : "⋯";
+      fit();
+    };
+    more.onclick = () => {
+      more.blur();
+      showMore(snap.hidden);
+    };
     $("reportbtn").onclick = () => {
       $("reportbtn").blur();
       if (running) saveReport();
+    };
+    snap.onclick = () => {
+      snap.blur();
+      showMore(false);
+      if (running) saveSnapshot();
     };
     const fs = $("fullscreen");
     fs.hidden = !(document.fullscreenEnabled || document.webkitFullscreenEnabled);
@@ -862,9 +943,30 @@
     tools.hidden = false;
   }
 
+  /**
+   * With `?snapshot` (a developer's page, tools/web/restore.py): a file
+   * picker on the loader; resolves with the chosen snapshot, read.
+   */
+  function waitForSnapshot() {
+    if (!new URLSearchParams(location.search).has("snapshot")) return new Promise(() => {});
+    $("restore").hidden = false;
+    return new Promise((resolve) => {
+      $("snapfile").onchange = async () => {
+        const f = $("snapfile").files[0];
+        if (!f) return;
+        try {
+          resolve(await readSnapshot(await f.arrayBuffer()));
+        } catch (e) {
+          fail(e);
+        }
+      };
+    });
+  }
+
   async function main() {
     $("retry").onclick = () => location.reload();
     const play = waitForPlay();
+    const restore = waitForSnapshot();
     try {
       const wasmBytes = fetch(WASM_URL, fetchOptions(WASM_URL)).then((r) => {
         if (!r.ok) throw new Error(`noite.wasm: HTTP ${r.status}`);
@@ -874,22 +976,46 @@
       ready = true;
       $("status").textContent = "Pronto.";
       if ($("play").disabled) $("play").textContent = "Iniciando…";
-      await play;
+      const snap = await Promise.race([play.then(() => null), restore]);
       const bytes = await wasmBytes;
       build = await shortHash(bytes).catch(() => "");
+      if (snap) {
+        const h = snap.header;
+        if (h.build !== build) {
+          throw new Error(`este estado é de outra versão do jogo (release ${h.release}, wasm ${h.build});` +
+            ` esta página roda ${RELEASE} (wasm ${build})`);
+        }
+        prefs = { ...prefs, ...h.prefs };
+      }
       savePrefix = SAVE_PREFIXES[prefs.version];
       const { instance } = await WebAssembly.instantiate(bytes, { env, wasi_snapshot_preview1: wasiProxy });
       wasm = instance.exports;
       wasm._initialize();
+      if (snap) {
+        // The same build's memory over the fresh instance: its two wasm
+        // globals (the stack pointers) are back at their start values
+        // between frames, as they were when the snapshot was taken.
+        const grow = snap.memory.length - wasm.memory.buffer.byteLength;
+        if (grow > 0) wasm.memory.grow(Math.ceil(grow / 65536));
+        mem().set(snap.memory);
+        const skipped = !!(snap.header.skip && snap.header.skip[1]);
+        const rc = wasm.noite_resume(snap.header.ticks, skipped ? 1 : 0);
+        if (rc !== 0) throw new Error(`o estado não foi restaurado (${rc})`);
+        active = snap.header.active !== false;
+      }
       $("loader").hidden = true;
-      canvas.hidden = false;
+      canvas.hidden = snap ? snap.header.mainShown === false : false;
+      $("away").hidden = !canvas.hidden;
       showTools();
       if (prefs.oneButton) showDpad();
       fit();
       watchSize();
       attachInput();
-      const rc = wasm.noite_start(prefs.version === "corrigida" ? 1 : 0, prefs.skip ? 1 : 0, prefs.oneButton ? 1 : 0);
-      if (rc !== 0) throw new Error(`o jogo não iniciou (${rc})`);
+      if (!snap) {
+        const rc = wasm.noite_start(prefs.version === "corrigida" ? 1 : 0, prefs.skip ? 1 : 0, prefs.oneButton ? 1 : 0);
+        if (rc !== 0) throw new Error(`o jogo não iniciou (${rc})`);
+      }
+      restored = !!snap;
       running = true;
       requestAnimationFrame(frame);
     } catch (e) {
@@ -922,6 +1048,9 @@
     get scene() {
       return sceneName();
     },
+    /** The game clock (ms). */
+    get ticks() { return wasm && running ? wasm.noite_ticks() >>> 0 : -1; },
+    get restored() { return restored; },
     get release() { return RELEASE; },
     get build() { return build; },
     /** What Relatório downloads (without downloading). */
