@@ -51,7 +51,44 @@ pub const Options = struct {
     /// Quality of life, not in the original (`Sim.filterInput`): a click,
     /// a right click or Esc/Enter/Space while an AVI clip plays ends it.
     skip_videos: bool = false,
+    /// Windows' keyboard auto-repeat (`Sim.filterInput`, `--key-repeat`);
+    /// null: a held key sends one WM_KEYDOWN.
+    key_repeat: ?KeyRepeat = null,
 };
+
+/// Auto-repeat of a held key, on the program's clock: `delay_ms` after the
+/// press, then every `period_ms`, a WM_KEYDOWN with lParam `repeat_lparam`.
+pub const KeyRepeat = struct {
+    delay_ms: u32 = 500,
+    period_ms: u32 = 33,
+
+    /// Windows 3.1's defaults (WIN.INI KeyboardDelay / KeyboardSpeed),
+    /// taken as 500 ms and ~30 per second until confirmed.
+    pub const windows: KeyRepeat = .{};
+    /// The SDL and web backends' default.
+    pub const interactive_default: ?KeyRepeat = windows;
+    /// The headless default (`--key-repeat` overrides it): off, so the
+    /// scripts written before the repeats play as they did. Set it to
+    /// `windows` to repeat held keys in every run (docs/tiro/DESIGN.md
+    /// "Platform").
+    pub const headless_default: ?KeyRepeat = null;
+
+    /// `DELAY,PERIOD` (ms) or `off` (null).
+    pub fn parse(text: []const u8) !?KeyRepeat {
+        if (std.mem.eql(u8, text, "off")) return null;
+        const comma = std.mem.indexOfScalar(u8, text, ',') orelse return error.BadKeyRepeat;
+        const r: KeyRepeat = .{
+            .delay_ms = try std.fmt.parseInt(u32, text[0..comma], 10),
+            .period_ms = try std.fmt.parseInt(u32, text[comma + 1 ..], 10),
+        };
+        if (r.period_ms == 0) return error.BadKeyRepeat;
+        return r;
+    }
+};
+
+/// WM_KEYDOWN's lParam for a repeat: count 1, bit 30 (the key was down).
+pub const repeat_lparam: i32 = 0x40000001;
+const repeat_bit: i32 = 0x40000000;
 
 /// Files from somewhere other than the host file system. Paths are
 /// `hostKey`s: lower case, `/`-separated, relative to the disc root.
@@ -213,6 +250,11 @@ pub const Sim = struct {
     /// Input that skipped a video: its release (and the button's bit in
     /// the moves until then) is kept from the game too.
     swallowed: Swallowed = .{},
+    /// Task 0 is a minigame run alone (`host.zig`), not NOITE.
+    minigame_alone: bool = false,
+    /// The key auto-repeating (the last key pressed, until its release)
+    /// and when its next WM_KEYDOWN is due.
+    repeat: ?struct { key: u16, due: u32 } = null,
 
     pub fn init(gpa: std.mem.Allocator, io: std.Io, opts: Options) Sim {
         return .{ .gpa = gpa, .io = io, .opts = opts };
@@ -241,6 +283,13 @@ pub const Sim = struct {
             if (@as(i32, @bitCast(now -% pe.due)) < 0) continue;
             if (best == null or @as(i32, @bitCast(pe.due -% s.pending.items[best.?].due)) < 0) best = i;
         }
+        // A key repeat due no later than the earliest notification.
+        if (s.repeat) |*r| if (@as(i32, @bitCast(now -% r.due)) >= 0 and
+            (best == null or @as(i32, @bitCast(r.due -% s.pending.items[best.?].due)) <= 0))
+        {
+            r.due = now +% s.opts.key_repeat.?.period_ms;
+            return .{ .input = .{ .id = wm.keydown, .wparam = r.key, .lparam = repeat_lparam } };
+        };
         const i = best orelse return null;
         const pe = s.pending.orderedRemove(i);
         const ev = pe.ev;
@@ -257,7 +306,7 @@ pub const Sim = struct {
     }
 
     pub fn nextDue(s: *const Sim) ?u32 {
-        var best: ?u32 = null;
+        var best: ?u32 = if (s.repeat) |r| r.due else null;
         for (s.pending.items) |pe| {
             if (best == null or @as(i32, @bitCast(pe.due -% best.?)) < 0) best = pe.due;
         }
@@ -1031,7 +1080,43 @@ pub const Sim = struct {
     /// the next scene's handler would take its 0x40c/0x40a for its own
     /// (3fhall's TIRO into 3ffarao: back to the hall with the pharaoh
     /// video still playing over it, then a crash when the video ends).
+    ///
+    /// Keys: NOITE gets Enter, Esc and Space only with `skip_videos` (as
+    /// before the minigames needed them); a minigame (a task other than 0,
+    /// or one run alone) gets every key and skips no video. With
+    /// `key_repeat` a press that passes starts its auto-repeat (`poll`
+    /// sends the repeats) and its release ends it; a press swallowed ends
+    /// the current one.
     pub fn filterInput(s: *Sim, now: u32, m: p.Msg) ?p.Msg {
+        const out = s.filterInputInner(now, m);
+        s.trackRepeat(now, m, out != null);
+        return out;
+    }
+
+    /// The input is for a minigame, not NOITE (the calling task).
+    fn forMinigame(s: *const Sim) bool {
+        return s.task != 0 or s.minigame_alone;
+    }
+
+    fn trackRepeat(s: *Sim, now: u32, m: p.Msg, passed: bool) void {
+        const r = s.opts.key_repeat orelse return;
+        switch (m.id) {
+            wm.keydown => if (m.lparam & repeat_bit == 0) {
+                s.repeat = if (passed) .{ .key = m.wparam, .due = now +% r.delay_ms } else null;
+            },
+            wm.keyup => if (s.repeat) |cur| if (cur.key == m.wparam) {
+                s.repeat = null;
+            },
+            else => {},
+        }
+    }
+
+    /// The held key stops repeating (the window lost the focus).
+    pub fn stopKeyRepeat(s: *Sim) void {
+        s.repeat = null;
+    }
+
+    fn filterInputInner(s: *Sim, now: u32, m: p.Msg) ?p.Msg {
         if (s.minigameHasInput(now)) {
             switch (m.id) {
                 wm.lbuttonup => s.swallowed.lbutton = false,
@@ -1065,8 +1150,12 @@ pub const Sim = struct {
             if (s.swallowed.lbutton) out.wparam &= ~msg.mk.lbutton;
             if (s.swallowed.rbutton) out.wparam &= ~msg.mk.rbutton;
         }
-        if (!s.opts.skip_videos) return out;
+        if (s.forMinigame()) return out;
         const key = std.mem.indexOfScalar(u16, &skip_keys, m.wparam);
+        if (!s.opts.skip_videos) {
+            const is_key = m.id == wm.keydown or m.id == wm.keyup;
+            return if (is_key and key != null) null else out;
+        }
         switch (m.id) {
             wm.lbuttondown, wm.rbuttondown => {},
             wm.keydown => if (key == null) return out,
@@ -1345,4 +1434,51 @@ test "hostKey turns DOS paths into lower-case store keys" {
     try std.testing.expectEqualStrings("velha.mid", hostKey(&buf, "\\velha.mid").?);
     var small: [4]u8 = undefined;
     try std.testing.expectEqual(@as(?[]const u8, null), hostKey(&small, "\\velha.mid"));
+}
+
+test "Enter, Esc and Space reach NOITE only to skip videos; a minigame gets every key" {
+    var s = Sim.init(std.testing.allocator, std.testing.io, .{});
+    defer s.deinit();
+    const space: msg.Msg = .{ .id = wm.keydown, .wparam = 0x20 };
+    const left: msg.Msg = .{ .id = wm.keydown, .wparam = msg.vk.left };
+    try std.testing.expectEqual(@as(?p.Msg, null), s.filterInput(0, space));
+    try std.testing.expectEqual(@as(?p.Msg, left), s.filterInput(0, left));
+    s.task = 1;
+    try std.testing.expectEqual(@as(?p.Msg, space), s.filterInput(0, space));
+    s.task = 0;
+    s.minigame_alone = true;
+    try std.testing.expectEqual(@as(?p.Msg, space), s.filterInput(0, space));
+}
+
+test "a held key repeats on the clock: the last one pressed, until its release" {
+    var s = Sim.init(std.testing.allocator, std.testing.io, .{ .key_repeat = .{ .delay_ms = 500, .period_ms = 33 } });
+    defer s.deinit();
+    s.minigame_alone = true;
+    const down: msg.Msg = .{ .id = wm.keydown, .wparam = 0x20 };
+    _ = s.filterInput(100, down).?;
+    try std.testing.expectEqual(@as(?u32, 600), s.nextDue());
+    try std.testing.expectEqual(@as(?p.Event, null), s.poll(599));
+    const r = s.poll(600).?.input;
+    try std.testing.expectEqual(wm.keydown, r.id);
+    try std.testing.expectEqual(@as(u16, 0x20), r.wparam);
+    try std.testing.expectEqual(repeat_lparam, r.lparam);
+    // A repeat passing the filter does not restart the delay.
+    _ = s.filterInput(600, r).?;
+    try std.testing.expectEqual(@as(?u32, 633), s.nextDue());
+    // Another key pressed takes over; releasing the first changes nothing.
+    _ = s.filterInput(610, .{ .id = wm.keydown, .wparam = msg.vk.left }).?;
+    _ = s.filterInput(620, .{ .id = wm.keyup, .wparam = 0x20 }).?;
+    try std.testing.expectEqual(@as(?u32, 1110), s.nextDue());
+    _ = s.filterInput(700, .{ .id = wm.keyup, .wparam = msg.vk.left }).?;
+    try std.testing.expectEqual(@as(?u32, null), s.nextDue());
+    // A focus loss ends it too.
+    _ = s.filterInput(800, down).?;
+    s.stopKeyRepeat();
+    try std.testing.expectEqual(@as(?p.Event, null), s.poll(10_000));
+}
+
+test "KeyRepeat.parse" {
+    try std.testing.expectEqual(@as(?KeyRepeat, null), try KeyRepeat.parse("off"));
+    try std.testing.expectEqual(@as(?KeyRepeat, .{ .delay_ms = 250, .period_ms = 40 }), try KeyRepeat.parse("250,40"));
+    try std.testing.expectError(error.BadKeyRepeat, KeyRepeat.parse("250"));
 }

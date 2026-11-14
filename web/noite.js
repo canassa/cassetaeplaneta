@@ -535,10 +535,11 @@
     canvas.addEventListener("contextmenu", (e) => e.preventDefault());
     const key = (down) => (e) => {
       startAudio();
-      // The arrows walk; Enter, Esc and Space skip a video when that is on.
-      const skipKey = e.keyCode === 13 || e.keyCode === 27 || e.keyCode === 32;
-      if ((e.keyCode >= 37 && e.keyCode <= 40) || (skipKey && prefs.skip)) {
-        wasm.noite_key(down, e.keyCode);
+      // The arrows, Enter, Esc and Space (the game decides who gets them:
+      // NOITE only to skip a video, a minigame always). The browser's own
+      // repeats are dropped: the game repeats a held key on its clock.
+      if ((e.keyCode >= 37 && e.keyCode <= 40) || e.keyCode === 13 || e.keyCode === 27 || e.keyCode === 32) {
+        if (!(down && e.repeat)) wasm.noite_key(down, e.keyCode);
         e.preventDefault();
       }
     };

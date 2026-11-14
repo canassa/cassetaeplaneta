@@ -1,5 +1,5 @@
-//! SDL3 backend: a window of the original's client size (platform.client_*) showing the palettized screen, mouse and
-//! arrow keys as Win16 input messages, the real clock, and an audio stream
+//! SDL3 backend: a window of the original's client size (platform.client_*) showing the palettized screen, mouse,
+//! arrow keys, Enter, Esc and Space as Win16 input messages, the real clock, and an audio stream
 //! fed from `Sim`'s mixer (waves, AVI soundtracks, MIDI through
 //! TinySoundFont with the SoundFont in `$NOITE_SOUNDFONT`). Files, media
 //! timing and video frames come from `Sim`. SDL is declared by hand below
@@ -180,7 +180,10 @@ pub const Sdl = struct {
         switch (ty) {
             c.event_quit => return .quit,
             c.event_focus_gained => return .{ .activate = true },
-            c.event_focus_lost => return .{ .activate = false },
+            c.event_focus_lost => {
+                s.sim.stopKeyRepeat();
+                return .{ .activate = false };
+            },
             c.event_mouse_motion => {
                 const x: u16 = @intFromFloat(@max(0, rd(f32, e, 28)));
                 const y: u16 = @intFromFloat(@max(0, rd(f32, e, 32)));
@@ -204,15 +207,18 @@ pub const Sdl = struct {
                 return .{ .input = msg.Msg.make(id, s.buttons, x, y) };
             },
             c.event_key_down, c.event_key_up => {
+                // The OS's own repeats are dropped (SDL_KeyboardEvent.repeat):
+                // `Sim` repeats a held key on the game's clock.
+                if (e.bytes[37] != 0) return null;
                 const key = rd(u32, e, 28);
                 const v: u16 = switch (key) {
                     c.key_left => msg.vk.left,
                     c.key_right => msg.vk.right,
                     c.key_up => msg.vk.up,
                     c.key_down => msg.vk.down,
-                    // SDLK_RETURN/ESCAPE/SPACE are the virtual keys; only
-                    // passed on to skip videos.
-                    0x0d, 0x1b, 0x20 => if (s.sim.opts.skip_videos) @intCast(key) else return null,
+                    // SDLK_RETURN/ESCAPE/SPACE are the virtual keys
+                    // (`Sim.filterInput` decides who gets them).
+                    0x0d, 0x1b, 0x20 => @intCast(key),
                     else => return null,
                 };
                 return .{ .input = .{ .id = if (ty == c.event_key_down) wm.keydown else wm.keyup, .wparam = v } };

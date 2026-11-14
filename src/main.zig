@@ -5,6 +5,7 @@
 //!           [--scene NAME [--take ID,ID…]] [--minigame win|lose|encaixe|tiro]
 //!           [--minigame-stub] [--minigame-startup MS] [--minigame-reply MS] [--quiet]
 //!           [--fix NAME,…|all[,-NAME…]] [--skip-videos] [--one-button]
+//!           [--key-repeat DELAY,PERIOD|off]
 //!
 //! The test harness (`platform/harness.zig`): `--input` plays a script of
 //! timed mouse/keyboard input (`platform/script.zig`), `--dump` writes
@@ -15,6 +16,10 @@
 //! `--minigame encaixe|tiro` runs ENCAIXE.EXE or TIRO.EXE alone (`runAlone`); `--minigame
 //! win|lose` is the result of the stubbed minigames, and `--minigame-stub`
 //! stubs the ported ones too (`platform/host.zig`).
+//!
+//! `--key-repeat` sets the auto-repeat of a held key (`Sim`, on the game's
+//! clock; ms): on by default in the SDL window, off headless
+//! (`sim.KeyRepeat`'s `interactive_default` / `headless_default`).
 //!
 //! The loop is the original's `app_message_loop` (PeekMessage/WaitMessage)
 //! around the emulated Win16 queue: platform events become queued input or
@@ -80,6 +85,8 @@ const Args = struct {
     alone: ?*const platform.host.Program = null,
     /// `--minigame-stub`: NOITE's WinExec stubs the ported minigames too.
     stub_minigames: bool = false,
+    /// `--key-repeat` was given (else the backend's default).
+    key_repeat_set: bool = false,
 };
 
 fn findMinigame(name: []const u8) ?*const platform.host.Program {
@@ -167,6 +174,13 @@ pub fn main(init: std.process.Init) !void {
                 std.log.err("--minigame {s}: want win, lose or a ported minigame (encaixe, tiro)", .{v});
                 return error.BadArgument;
             }
+        } else if (std.mem.eql(u8, a, "--key-repeat")) {
+            const v = it.next() orelse return error.MissingValue;
+            args.opts.key_repeat = platform.sim.KeyRepeat.parse(v) catch {
+                std.log.err("--key-repeat {s}: want DELAY,PERIOD (ms) or off", .{v});
+                return error.BadArgument;
+            };
+            args.key_repeat_set = true;
         } else if (std.mem.eql(u8, a, "--minigame-stub")) {
             args.stub_minigames = true;
         } else if (std.mem.eql(u8, a, "--minigame-startup")) {
@@ -178,6 +192,11 @@ pub fn main(init: std.process.Init) !void {
             return error.BadArgument;
         }
     }
+
+    if (!args.key_repeat_set) args.opts.key_repeat = if (args.headless)
+        platform.sim.KeyRepeat.headless_default
+    else
+        platform.sim.KeyRepeat.interactive_default;
 
     var trace: std.ArrayList(u8) = .empty;
     defer trace.deinit(gpa);

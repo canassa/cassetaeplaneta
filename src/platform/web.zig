@@ -62,8 +62,9 @@ const InputRing = struct {
 };
 
 /// The page's key codes for `key` (KeyboardEvent.keyCode, which are the
-/// Win16 virtual keys): the arrows, and the keys that skip a video
-/// (`Sim.filterInput`; the page sends them only when that is on).
+/// Win16 virtual keys): the arrows, Enter, Esc and Space (`Sim.filterInput`
+/// decides who gets them). The page drops the browser's repeats: `Sim`
+/// repeats a held key.
 pub const Key = enum(u16) { enter = 0x0d, escape = 0x1b, space = 0x20, left = 0x25, up = 0x26, right = 0x27, down = 0x28 };
 
 pub const Web = struct {
@@ -89,6 +90,7 @@ pub const Web = struct {
                 .keep_audio = true,
                 .host_files = .{ .ctx = w, .read = hostRead, .save = hostSave },
                 .skip_videos = skip_videos,
+                .key_repeat = sim_mod.KeyRepeat.interactive_default,
             }),
             .epoch_ms = js.js_now(),
         };
@@ -156,6 +158,7 @@ pub const Web = struct {
 
     /// Window focus (WM_ACTIVATE).
     pub fn focus(w: *Web, on: bool) void {
+        if (!on) w.sim.stopKeyRepeat();
         w.input.push(.{ .activate = on });
     }
 

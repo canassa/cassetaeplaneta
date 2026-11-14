@@ -163,7 +163,10 @@ pub const Host = struct {
     /// the program `main` runs: `title` is its window's.
     pub fn init(h: *Host, gpa: std.mem.Allocator, machine: p.Platform, sim: *Sim, opts: Options, title: []const u8, primary_program: ?*const Program) void {
         h.* = .{ .gpa = gpa, .machine = machine, .sim = sim, .opts = opts, .primary_program = primary_program };
-        if (primary_program) |prog| sim.task_dirs[0] = prog.dir;
+        if (primary_program) |prog| {
+            sim.task_dirs[0] = prog.dir;
+            sim.minigame_alone = true;
+        }
         for (&h.tasks, 0..) |*t, i| t.* = .{ .host = h, .id = @intCast(i) };
         const t0 = &h.tasks[0];
         t0.* = .{ .host = h, .id = 0, .state = .running, .hwnd = msg.main_window, .title = title, .visible = true, .z = 0 };
@@ -218,6 +221,7 @@ pub const Host = struct {
     /// The harness's `focus 0|1`: the active window loses or regains the
     /// focus (WM_ACTIVATE).
     pub fn focus(h: *Host, on: bool) void {
+        if (!on) h.sim.stopKeyRepeat();
         const t = h.activeTask() orelse &h.tasks[0];
         _ = t.inbox.push(.{ .activate = on });
     }

@@ -143,7 +143,10 @@ pub const Harness = struct {
                 .take => |id| take(g, id),
                 .drawn => |d| h.checkDrawn(g, d),
                 .where => |id| printWhere(g, id),
-                .focus => |on| _ = g.send(.{ .id = msg.wm.activate, .wparam = @intFromBool(on) }),
+                .focus => |on| {
+                    if (!on) if (h.host) |hs| hs.sim.stopKeyRepeat();
+                    _ = g.send(.{ .id = msg.wm.activate, .wparam = @intFromBool(on) });
+                },
                 .freeze => |ms| {
                     std.debug.print("[{d}] freeze {d} ms\n", .{ now, ms });
                     g.plat.freeze(ms);
