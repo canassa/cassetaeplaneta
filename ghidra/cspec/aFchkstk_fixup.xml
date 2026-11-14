@@ -1,0 +1,8 @@
+<callfixup name="aFchkstk">
+  <target name="_aFchkstk"/>
+  <pcode>
+    <body><![CDATA[
+     SP = SP + 4 - ((AX + 1) & 0xfffe);
+    ]]></body>
+  </pcode>
+</callfixup>
