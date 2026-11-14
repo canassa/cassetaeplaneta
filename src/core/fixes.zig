@@ -171,6 +171,11 @@ pub const Fixes = struct {
     /// `1obibli0` picture; the one its INI line names does not exist, so a
     /// dropped bible is invisible.
     bible_scene_image: bool = false,
+    /// B52: erasing an object copies the background's pixels of the
+    /// transparent index too (the corridor's Mona Lisa picture has a
+    /// dithered edge of them), so the player passing in front of it no
+    /// longer leaves a column of his pixels there.
+    restore_copies_key_pixels: bool = false,
     /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"):
     /// while an inventory item is dragged out of the control panel (right
     /// button held), its panel icon follows the pointer. The original shows

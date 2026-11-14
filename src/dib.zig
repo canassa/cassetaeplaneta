@@ -244,6 +244,45 @@ pub fn copyTransparent(
     return true;
 }
 
+/// `copyTransparent` without a key: every pixel of the rectangle is copied
+/// (not an original routine; `Fixes.restore_copies_key_pixels`' restore).
+pub fn copyRect(
+    dst_hdr: *const BitmapInfoHeader,
+    dst_bits: []u8,
+    x_dst: i16,
+    y_dst: i16,
+    src_bits: []const u8,
+    src_hdr: *const BitmapInfoHeader,
+    x_src: i16,
+    y_src: i16,
+    width: i16,
+    height: i16,
+) Error!bool {
+    const src_w: i16 = @truncate(src_hdr.biWidth);
+    const src_h: i16 = @truncate(src_hdr.biHeight);
+    var w = width;
+    if (width +% x_src > src_w) w = src_w -% x_src;
+    var cx = height;
+    if (height +% y_src > src_h) cx = src_h -% y_src;
+    const p = plan(dst_hdr, src_hdr, x_dst, y_dst, x_src, y_src, w, cx) orelse return false;
+    if (p.width == 0) return true;
+    if (p.width < 0 or p.height <= 0) return error.LimitExceeded;
+    try checkBlock(dst_bits.len, p.dst_off, p.width, p.height, p.dst_stride);
+    try checkBlock(src_bits.len, p.src_off, p.width, p.height, p.src_stride);
+    const wu: usize = @intCast(p.width);
+    var d: i64 = p.dst_off;
+    var s: i64 = p.src_off;
+    var rows: i32 = p.height;
+    while (rows != 0) : (rows -= 1) {
+        const du: usize = @intCast(d);
+        const su: usize = @intCast(s);
+        @memcpy(dst_bits[du..][0..wu], src_bits[su..][0..wu]);
+        d += p.dst_stride;
+        s += p.src_stride;
+    }
+    return true;
+}
+
 // @orig 1010:01e0 dib_copy
 /// Copies the whole 8-bit DIB `src` to (`x_dst`, `y_dst`) of `dst`, clipped to
 /// the destination. Returns true if anything was drawn. Subject to bug B12

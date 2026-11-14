@@ -29,6 +29,8 @@
 //!     drawn ID 0|1      fail the run unless portable ID is (1) or is not
 //!                       (0) on the screen: visible and most of its frame
 //!                       showing where it stands
+//!     pixel X Y INDEX   fail the run unless the screen's pixel at X Y has
+//!                       palette index INDEX (0x for hex)
 //!     where ID          print where portable ID is: on a scene (its scene
 //!                       names, position, visible, moving), carried, used
 //!     offer SLOT X Y    open the panel, drag inventory slot SLOT (0-7) to
@@ -66,6 +68,7 @@ pub const Action = union(enum) {
     wait: Wait,
     take: i16,
     drawn: Drawn,
+    pixel: Pixel,
     where: i16,
     focus: bool,
     freeze: u32,
@@ -83,6 +86,9 @@ pub const Wait = struct { name: []const u8, max_ms: u32 };
 
 /// `drawn ID 0|1`: whether portable ID must be on the screen.
 pub const Drawn = struct { id: i16, on: bool };
+
+/// `pixel X Y INDEX`: the palette index the screen must show there.
+pub const Pixel = struct { x: u16, y: u16, index: u8 };
 
 pub const SceneJump = struct {
     name: []const u8,
@@ -240,6 +246,11 @@ pub fn parse(gpa: std.mem.Allocator, text: []u8) ParseError!Script {
             const id = try num(i16, words.next(), line_no);
             const on = try num(u16, words.next(), line_no) != 0;
             try s.steps.append(gpa, .{ .at = t, .action = .{ .drawn = .{ .id = id, .on = on } } });
+        } else if (eq(u8, cmd, "pixel")) {
+            const x = try num(u16, words.next(), line_no);
+            const y = try num(u16, words.next(), line_no);
+            const index = try num(u8, words.next(), line_no);
+            try s.steps.append(gpa, .{ .at = t, .action = .{ .pixel = .{ .x = x, .y = y, .index = index } } });
         } else if (eq(u8, cmd, "where")) {
             try s.steps.append(gpa, .{ .at = t, .action = .{ .where = try num(i16, words.next(), line_no) } });
         } else if (eq(u8, cmd, "offer")) {

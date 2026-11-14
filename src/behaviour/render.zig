@@ -125,6 +125,12 @@ fn soComputeOverlap(obj: *Object, other: *Object) bool {
 fn copyBackground(g: *Game, bd: *Backdrop, x: i16, y: i16, w: i16, h: i16) void {
     const bg = bd.background orelse return;
     if (bd.pixels.len == 0) return;
+    // B52: the key is the index of the picture's own dithered pixels too
+    // (the corridor's Mona Lisa): skipping them leaves what stood there.
+    if (g.fixes.restore_copies_key_pixels) {
+        _ = dib.copyRect(&bd.bmiHeader, bd.pixels, x, y, bg.bits, &bg.header, x, y, w, h) catch |e| blitFailed(e);
+        return;
+    }
     _ = dib.copyTransparent(&bd.bmiHeader, bd.pixels, x, y, bg.bits, &bg.header, x, y, w, h, g.unk001C) catch |e| blitFailed(e);
 }
 

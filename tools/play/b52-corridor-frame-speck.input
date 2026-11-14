@@ -1,0 +1,30 @@
+# BUGS.md B52: erasing the player copies the background with the transparent
+# index skipped, and the corridor's Mona Lisa picture (1FCORRED.BMP, x 312-437,
+# y 17-188) has a dithered edge of that index (x 436 on even rows, 437 on odd
+# ones, from y 17 down): the player's pixels over it stay when he walks on.
+# He starts at x 300, walks right past the picture, back, and right again.
+#
+#   zig-out/bin/noite --headless --ms 20000 --fix all --input tools/play/b52-corridor-frame-speck.input
+#
+# Passes with `--fix all` (or `--fix restore_copies_key_pixels`); the Original
+# fails the `pixel`s after the first walk (a pixel of his cap, face or body
+# shows in the column instead of the picture's index 11).
+0 scene 1fcorred 300 130 1 1 0 0 0
+500 pixel 436 132 11
++0 pixel 437 133 11
++500 click 600 400
++5000 pixel 436 132 11
++0 pixel 437 133 11
++0 pixel 436 140 11
++0 pixel 437 141 11
++0 pixel 436 152 11
++0 pixel 437 157 11
++1000 click 100 400
++6000 pixel 436 132 11
++0 pixel 437 133 11
++0 pixel 436 146 11
++1000 click 600 400
++6000 pixel 436 132 11
++0 pixel 437 133 11
++0 pixel 437 155 11
++0 quit

@@ -142,6 +142,7 @@ pub const Harness = struct {
                 .wait => {},
                 .take => |id| take(g, id),
                 .drawn => |d| h.checkDrawn(g, d),
+                .pixel => |px| h.checkPixel(g, px),
                 .where => |id| printWhere(g, id),
                 .focus => |on| {
                     if (!on) if (h.host) |hs| hs.sim.stopKeyRepeat();
@@ -469,6 +470,19 @@ pub const Harness = struct {
         const drawn = if (o) |obj| obj.visible != 0 and if (h.onScreen(g, .of(obj, bd))) |s| s.shown() else false else false;
         if (drawn == d.on) return;
         std.debug.print("[{d}] drawn {d}: FAILED, it is {s}on the screen\n", .{ g.plat.ticks(), d.id, if (drawn) "" else "not " });
+        h.failed = true;
+    }
+
+    /// `pixel X Y INDEX`: fails the run unless the screen shows that index there.
+    fn checkPixel(h: *Harness, g: *Game, px: script.Pixel) void {
+        if (px.x >= p.client_width or px.y >= p.client_height) {
+            std.debug.print("[{d}] pixel {d},{d}: FAILED, off the screen\n", .{ g.plat.ticks(), px.x, px.y });
+            h.failed = true;
+            return;
+        }
+        const got = g.plat.screen().pixels[@as(usize, px.y) * p.screen_width + px.x];
+        if (got == px.index) return;
+        std.debug.print("[{d}] pixel {d},{d}: FAILED, the screen has index {d}, not {d}\n", .{ g.plat.ticks(), px.x, px.y, got, px.index });
         h.failed = true;
     }
 

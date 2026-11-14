@@ -49,7 +49,7 @@ Saves go to `save/` (`--save DIR`).
   (`noite -p encaixe …` for ENCAIXE).
 - **Harness** (`src/platform/harness.zig`), for either backend:
   `--input FILE` plays timed input (`src/platform/script.zig`: `click`,
-  `rclick`, `hold`, `offer`, `wait SCENE`, `expect SCENE`, `drawn ID 0|1`, `where ID`, `dump`, `state`,
+  `rclick`, `hold`, `offer`, `wait SCENE`, `expect SCENE`, `drawn ID 0|1`, `pixel X Y INDEX`, `where ID`, `dump`, `state`,
   `report FILE` (the state as JSON, as the web page's Relatório),
   `focus 0|1`, `freeze MS` (a time jump: the clock runs on while nothing is
   dispatched, as in a hidden web page), `result won|lost|none [SCORE]` (the
@@ -67,6 +67,8 @@ Saves go to `save/` (`--save DIR`).
   released (with B30's fix) or left its image on the screen (with B25's).
   `--scene 2fportdi --take 86 --fix all --ms 6000 --input tools/play/taxi-wine.input` checks that the wine
   given to the taxi driver is not drawn over his drinking animation (B45).
+  `--fix all --ms 20000 --input tools/play/b52-corridor-frame-speck.input` checks that the player's
+  pixels do not stay on the corridor's Mona Lisa (B52; the Original fails it).
 - **Playthrough**: `./zig-out/bin/noite --headless --ms 600000 --input tools/play/full.input`
   plays from the title screen to the sportsman ending, checking every scene
   (the hall's TIRO and the pharaoh's ENCAIXE with scripted wins).

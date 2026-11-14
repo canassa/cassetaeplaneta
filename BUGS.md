@@ -820,6 +820,23 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   checks it is drawn.
 - **Confidence:** 9 (disc listing, code, port repro).
 
+### B52. A column of the player's pixels stays on the corridor's Mona Lisa after he walks past it
+- **Where:** `mover_restore_background` 1010:b3fa (the player's erase) and `scene_object_restore_background`
+  1010:b366 restore the pristine background over the object's rectangle with `dib_copy_transparent` 1010:0000
+  (→ `dib_rows_copy_transparent32` 1000:0024), key `g_unk001C` (DGROUP data 0x0b, never written), the index the
+  sprites use for "not drawn"; the loop skips every source byte equal to the key (`CMP AL,AH; JE` before each store).
+- **What the code does:** a background pixel of index 11 is not copied back. `FASE1\1FCORRED\1FCORRED.BMP`
+  has 306 of them: the dithered right edge of the Mona Lisa picture (x 436 on even rows, 437 on odd ones, y 17-188;
+  more of the same pattern inside it). The initial scene draw copies the background whole, so they show as the
+  palette's blue (0,136,208).
+- **Effect:** where the player's rectangle covers those pixels (he passes x 436-437 walking along the corridor), the
+  pixel he drew there stays after his erase: a 1-px zigzag column of his cap, face and body, on the picture's edge,
+  for the rest of the visit. The other backgrounds with index-11 pixels (1fquarpa 2406, 1fquarbo 635, 1fsala 97,
+  3fhall 44, ...) do the same where an object passes over them.
+- **Port:** reproduced (`render.copyBackground`; `tools/play/b52-corridor-frame-speck.input` checks the screen's
+  pixels after three walks); `Fixes.restore_copies_key_pixels` restores the rectangle with a copy that has no key.
+- **Confidence:** 9 (code, disc data, port repro).
+
 ---
 
 ## Harmless: wrong paths rescued by the wave fallback
