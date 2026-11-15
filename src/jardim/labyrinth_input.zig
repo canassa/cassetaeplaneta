@@ -29,7 +29,7 @@ const vk_space: u16 = 0x20;
 
 /// `_aFldiv`: signed 32-bit division; a zero divisor is the original's #DE.
 fn aFldiv(a: i32, b: i32) i32 {
-    if (b == 0) @panic("labyrinth_input: divide fault in _aFldiv (the original's #DE: a table entry of 0)");
+    if (b == 0) @panic("BUGS.md latent (JARDIM): unchecked cells, table entries and divisors (labyrinth_input: _aFldiv by a table entry of 0)");
     if (b == -1) return 0 -% a;
     return @divTrunc(a, b);
 }
@@ -37,13 +37,13 @@ fn aFldiv(a: i32, b: i32) i32 {
 /// An entry of tables[`which`] (the original's pointer into it).
 fn tableAt(g: *Game, which: usize, i: i32) i32 {
     const t = g.tables.trig[which];
-    if (i < 0 or i >= t.len) @panic("labyrinth_input: table index out of range");
+    if (i < 0 or i >= t.len) @panic("BUGS.md latent (JARDIM): unchecked cells, table entries and divisors (labyrinth_input: an angle outside the tables)");
     return t[@intCast(i)];
 }
 
 fn wallAt(bd: *const Backdrop, row: i32, col: i32) i8 {
     if (row < 0 or row >= world.map_rows or col < 0 or col > world.map_cols)
-        @panic("labyrinth_input: wall read outside the map");
+        @panic("BUGS.md latent (JARDIM): unchecked cells, table entries and divisors (labyrinth_input: a wall read outside the map)");
     return bd.wallRows[@intCast(row)][@intCast(col)];
 }
 
@@ -66,7 +66,7 @@ fn stepCell(g: *Game, bd: *const Backdrop, row: i32, col: i32) i8 {
 
 fn objectAt(bd: *Backdrop, row: i32, col: i32) *?*Object {
     if (row < 0 or row >= world.map_rows or col < 0 or col >= world.map_cols)
-        @panic("labyrinth_input: object cell outside the map");
+        @panic("BUGS.md latent (JARDIM): unchecked cells, table entries and divisors (labyrinth_input: an object cell outside the map)");
     return &bd.objectRows[@intCast(row)][@intCast(col)];
 }
 
@@ -433,6 +433,7 @@ fn destroy(g: *Game, bd: *Backdrop, m: Msg) void {
             const lo: i16 = @bitCast(@as(u16, @truncate(now)));
             diff = @as(i32, lo) -% @as(i32, @bitCast(g.startTick));
         }
+        if (diff == 0) @panic("BUGS.md J1: the win's time bonus divides by zero (the low tick word equals the start tick)");
         const bonus = aFldiv(1000000000, diff);
         bd.score +%= @truncate(bonus);
         _ = g.plat.postTo(g.noiteWnd, .{ .id = msg.noite.minigame_result, .wparam = 1, .lparam = bd.score });

@@ -58,7 +58,7 @@ fn bdOf(s: *Scene) *Backdrop {
 /// objectRows[row][col] = obj for the cell index of a long position (>> 5).
 fn cellSlot(bd: *Backdrop, row: i32, col: i32) *?*Object {
     if (row < 0 or row >= world.map_rows or col < 0 or col >= world.map_cols)
-        @panic("jardim phase1: cell outside the map (latent in the original)");
+        @panic("BUGS.md latent (JARDIM): unchecked cells, table entries and divisors (phase1: a cell outside the map)");
     return &bd.objectRows[@intCast(row)][@intCast(col)];
 }
 
@@ -104,7 +104,7 @@ pub fn handleMessage(g: *Game, s: *Scene, m: Msg) u16 {
                 const col: u16 = @truncate(@as(u32, @bitCast(col32)));
                 const row: u16 = @truncate(@as(u32, @bitCast(row32)));
                 if (row >= world.map_rows or col >= world.map_cols + 1)
-                    @panic("jardim phase1: door probe outside the map (latent in the original)");
+                    @panic("BUGS.md latent (JARDIM): unchecked cells, table entries and divisors (phase1: a door probe outside the map)");
                 const wall = bd.wallRows[row][col];
                 // 7 or 8, and the row (a long) above 1: not the 7 beside the start.
                 if (wall > 6 and wall <= 8 and row32 > 1) {

@@ -127,7 +127,7 @@ fn ownCell(obj: *const Object) struct { row: i16, col: i16 } {
 }
 
 fn cellIndex(v: i16, limit: usize) usize {
-    if (v < 0 or v >= limit) @panic("labmap: object outside the map (latent in the original)");
+    if (v < 0 or v >= limit) @panic("BUGS.md latent (JARDIM): unchecked cells, table entries and divisors (labmap: an object outside the map)");
     return @intCast(v);
 }
 

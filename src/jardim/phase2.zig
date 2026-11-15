@@ -61,7 +61,7 @@ fn newObject(g: *Game, kind: object.Kind) *Object {
 /// unchecked, a coordinate outside the map is a panic.
 fn cellOf(v: i32, limit: usize) usize {
     const c = v >> 5;
-    if (c < 0 or c >= limit) @panic("jardim phase2: player outside the map (latent in the original)");
+    if (c < 0 or c >= limit) @panic("BUGS.md latent (JARDIM): unchecked cells, table entries and divisors (phase2: the player outside the map)");
     return @intCast(c);
 }
 

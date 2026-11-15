@@ -257,7 +257,7 @@ fn drawColumn(g: *Game, bd: *Backdrop, comptime horizontal: bool, dist: i32, cel
     var wall_h: i32 = 0x65ae;
     if (dist != 0) {
         if (dist == -1 and fisheye == std.math.minInt(i32))
-            @panic("raycast: divide fault in raycast_render_view (the original's #DE)");
+            @panic("BUGS.md latent (JARDIM): unchecked cells, table entries and divisors (raycast_render_view: a divide fault)");
         wall_h = lo16(@divTrunc(fisheye, dist) >> 16); // MOV AX,DX; CWD
     }
     const top: i32 = ((@as(i32, bd.viewH) -% wall_h) >> 1) +% bd.viewY;
@@ -281,7 +281,7 @@ fn drawColumn(g: *Game, bd: *Backdrop, comptime horizontal: bool, dist: i32, cel
 /// A table entry at a ray angle (the original's pointers into the tables; the angle stays in
 /// 0..2879 for the callers' view angles 0..2879).
 fn at(table: []const i32, i: i32) i32 {
-    if (i < 0 or i >= table.len) @panic("raycast: table index out of range (a view angle outside 0..2879)");
+    if (i < 0 or i >= table.len) @panic("BUGS.md latent (JARDIM): unchecked cells, table entries and divisors (raycast: a ray angle outside the tables)");
     return table[@intCast(i)];
 }
 

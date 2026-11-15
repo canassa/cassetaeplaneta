@@ -72,7 +72,7 @@ fn cellOf(v: i32) u16 {
 }
 
 fn cellIndex(v: u16, limit: usize) usize {
-    if (v >= limit) @panic("jardim phase3: cell outside the map (latent in the original)");
+    if (v >= limit) @panic("BUGS.md latent (JARDIM): unchecked cells, table entries and divisors (phase3: a cell outside the map)");
     return v;
 }
 
@@ -137,7 +137,7 @@ pub fn handleMessage(g: *Game, s: *Scene, m: Msg) u16 {
 /// `_aFldiv`: the signed 32-bit quotient. A zero divisor is the original's divide fault.
 fn ldiv(dividend: i32, divisor: i32) i32 {
     if (divisor == 0 or (dividend == std.math.minInt(i32) and divisor == -1))
-        @panic("jardim phase3: divide fault in phase3_scene_handle_message (the original's #DE)");
+        @panic("BUGS.md latent (JARDIM): unchecked cells, table entries and divisors (phase3_scene_handle_message: a divide fault)");
     return @divTrunc(dividend, divisor);
 }
 

@@ -34,7 +34,7 @@ const scaled = @import("scaled.zig");
 /// INT_MIN / -1 are the original's divide faults.
 fn ldiv(dividend: i32, divisor: i32) i32 {
     if (divisor == 0 or (dividend == std.math.minInt(i32) and divisor == -1))
-        @panic("sprites: divide fault in labyrinth_draw_sprite_entry (the original's #DE)");
+        @panic("BUGS.md latent (JARDIM): unchecked cells, table entries and divisors (labyrinth_draw_sprite_entry: a divide fault)");
     return @divTrunc(dividend, divisor);
 }
 
@@ -142,14 +142,14 @@ fn depthAt(g: *const Game, v: i16) i32 {
     const idx: usize = (@as(u16, @bitCast(v)) & 0xfffc) >> 2;
     if (idx < world.view_columns) return g.columnDepth[idx];
     if (idx == world.view_columns) return std.mem.readInt(i32, g.hudTextBuffer[0..4], .little);
-    @panic("sprites: g_columnDepth read far outside the array (latent in the original)");
+    @panic("BUGS.md latent (JARDIM): unchecked cells, table entries and divisors (sprites: g_columnDepth read far outside the array)");
 }
 
 /// The map cell of a world coordinate: `(v & 0xffe7) >> 3` is a byte offset of
 /// the row/column pointer arrays, i.e. `v >> 5` for a coordinate in the map.
 fn cell(v: i16, limit: usize) usize {
     const c = v >> 5;
-    if (c < 0 or c >= limit) @panic("sprites: enemy step outside the map (latent in the original)");
+    if (c < 0 or c >= limit) @panic("BUGS.md latent (JARDIM): unchecked cells, table entries and divisors (sprites: an enemy step outside the map)");
     return @intCast(c);
 }
 

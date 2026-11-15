@@ -61,7 +61,7 @@ fn getAxisX(g: *Game, bd: *Backdrop) i16 {
 /// `(a * m) / b` as the original's 32-bit helpers: the product keeps its
 /// low 32 bits, the division truncates toward zero, the result is cut to 16.
 fn mulDiv(a: i32, m: i32, b: i32) i16 {
-    if (b == 0) @panic("space3d: division by zero (the original faults)");
+    if (b == 0) @panic("BUGS.md latent (JARDIM): unchecked cells, table entries and divisors (space3d: a zero perspective divisor)");
     const prod: i32 = a *% m;
     const q: i64 = @divTrunc(@as(i64, prod), @as(i64, b));
     return @truncate(q);
@@ -71,7 +71,7 @@ fn mulDiv(a: i32, m: i32, b: i32) i16 {
 fn perspectiveShift(size_w: i16, depth: i16, eye: i16) i16 {
     const prod: i32 = @as(i32, size_w) *% @as(i32, depth);
     const den: i32 = @as(i32, eye) + @as(i32, depth);
-    if (den == 0) @panic("space3d: division by zero (the original faults)");
+    if (den == 0) @panic("BUGS.md latent (JARDIM): unchecked cells, table entries and divisors (space3d: a zero perspective divisor)");
     const q: i64 = @divTrunc(@divTrunc(@as(i64, prod), 2), @as(i64, den));
     return @truncate(q);
 }
