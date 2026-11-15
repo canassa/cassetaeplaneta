@@ -272,7 +272,10 @@ pub fn canStep(g: *Game, obj: *Object, bd: *Backdrop) bool {
 }
 
 /// P1's fix: the first object in the next block's cells (row-major) that is
-/// the other kind and not the mover; null if none.
+/// the other kind and not the mover; null if none. Wall cells are skipped,
+/// as `gridQueryRect` skips them: an actor's occupy writes its object into
+/// the walls under its hit box (count stays -1), and a meeting there would
+/// be a catch through the wall.
 fn otherKindInBlock(g: *Game, bd: *Backdrop, mover: *Object, x: i16, y: i16, w: i16, h: i16, want: object.Kind) ?*Object {
     const grid = bd.grid.?;
     if (x < 0 or y < 0) return null;
@@ -285,7 +288,9 @@ fn otherKindInBlock(g: *Game, bd: *Backdrop, mover: *Object, x: i16, y: i16, w: 
         var col = col0;
         while (col <= col1) : (col += 1) {
             if (cellIndex(row, col)) |i| {
-                if (flatObject(g)[i]) |o| {
+                if (flatCount(g)[i] == -1) {
+                    // a wall cell
+                } else if (flatObject(g)[i]) |o| {
                     if (o != mover and o.kind == want) return o;
                 }
             }
