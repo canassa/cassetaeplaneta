@@ -1,0 +1,27 @@
+# NOITE's prison escape (3farmcai) starts the real SERIAL, which wins: NOITE
+# gets 0x40c (hides), then 0x40a, shows itself, adds the score and goes
+# back to the prison (the jail fight, XILINDRO's minigameWon[3], is not won
+# here; with it the win goes to the hall).
+#
+#   zig-out/bin/noite --headless --scene 3farmcai --ms 126000 --input tools/play/serial-3farmcai-win.input
+#   zig-out/bin/noite --headless --scene 3farmcai --ms 126000 --fix all --input tools/play/serial-3farmcai-win.input
+#
+# The escape video ends at 1710 (MM_MCINOTIFY: the WinExec); SERIAL starts
+# 1500 ms later (its WM_CREATE at 3210 seeds the figures). The shots are
+# `tools/serial_plan.py --start 3210 --win`: three killers, +600, 3 lives
+# left when the clock ends SERIAL at 123210. The Original reports a win of
+# MAKELONG(3, 500) = 32768003 and NOITE adds it whole (BUGS.md K1, K2; on
+# screen B19 shows the low word); the Corrigida a win of 500.
+4000 dump serial
+# shot 1: straight, 3sbabt (figure 2, kind 2)
+9270 key right
+9390 key space
+# shot 2: straight, 3sbabt (figure 2, kind 2)
+34630 key space
+# shot 3: right, 3snoem (figure 9, kind 2)
+118120 key right
+118240 key space
+124000 result won 32768003 | won 500
+124000 expect 3fprisao
+125000 state
+125000 dump prison
