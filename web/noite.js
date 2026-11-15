@@ -49,9 +49,11 @@
   // The on-screen pad's keys (KeyboardEvent.keyCode) while that program's
   // window is on top (`noite_top_program`): TIRO and SERIAL aim with
   // LEFT/RIGHT and fire with SPACE, so their pad has a fire button (32)
-  // instead of UP and DOWN. A proposal waiting for the owner: change or
-  // drop the entry here.
-  const PAD_KEYS = { "": [37, 38, 39, 40], encaixe: [37, 38, 39, 40], tiro: [37, 32, 39], serial: [37, 32, 39] };
+  // instead of UP and DOWN. SALGIN fights with eight keys: the arrows
+  // (UP the flying kick, DOWN the sweep, LEFT/RIGHT walk), PgUp (33) the
+  // punch, Home (36) the jump kick, End (35) the block, Insert (45) the
+  // jump. Proposals waiting for the owner: change or drop the entries here.
+  const PAD_KEYS = { "": [37, 38, 39, 40], encaixe: [37, 38, 39, 40], tiro: [37, 32, 39], serial: [37, 32, 39], salgin: [36, 38, 33, 37, 45, 39, 35, 40] };
   // The files of the current manifest, by hashed URL. The name must not
   // start with "noite-": loaders before the hashes deleted every
   // "noite-*" cache but their own (their caches are migrated below).
