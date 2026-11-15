@@ -20,7 +20,10 @@
 //!     state             print the scene, player, inventory, lives, score
 //!     report FILE       write the state report (src/platform/report.zig,
 //!                       the web page's "Relatório") to FILE as JSON
-//!     expect NAME       fail the run (exit 1) unless NAME is the scene
+//!     expect NAME [| NAME]
+//!                       fail the run (exit 1) unless NAME is the scene;
+//!                       the NAME after `|`, when given, is what a run with
+//!                       a `--fix` on must be in instead (as `result`)
 //!     wait NAME [MS]    hold the script until NAME is the scene (fail
 //!                       after MS, default 120000); every later time
 //!                       moves by the time waited
@@ -69,7 +72,7 @@ pub const Action = union(enum) {
     log: []const u8,
     state,
     report: []const u8,
-    expect: []const u8,
+    expect: SceneExpect,
     wait: Wait,
     take: i16,
     drawn: Drawn,
@@ -94,6 +97,10 @@ pub const ResultCheck = struct {
 };
 
 pub const Wait = struct { name: []const u8, max_ms: u32 };
+
+/// `expect NAME [| NAME]`: the scene, and the one a run with fixes is in
+/// instead, if it differs.
+pub const SceneExpect = struct { name: []const u8, fixed: ?[]const u8 = null };
 
 /// `drawn ID 0|1`: whether portable ID must be on the screen.
 pub const Drawn = struct { id: i16, on: bool };
@@ -280,7 +287,13 @@ pub fn parse(gpa: std.mem.Allocator, text: []u8) ParseError!Script {
             const max: u32 = if (words.peek() != null) try num(u32, words.next(), line_no) else 120_000;
             try s.steps.append(gpa, .{ .at = t, .action = .{ .wait = .{ .name = name, .max_ms = max } } });
         } else if (eq(u8, cmd, "expect")) {
-            try s.steps.append(gpa, .{ .at = t, .action = .{ .expect = words.next() orelse return bad(line_no, "missing scene") } });
+            var e: SceneExpect = .{ .name = words.next() orelse return bad(line_no, "missing scene") };
+            if (words.next()) |sep| {
+                if (!eq(u8, sep, "|")) return bad(line_no, "want `|` before the fixed scene");
+                e.fixed = words.next() orelse return bad(line_no, "missing fixed scene");
+                if (words.peek() != null) return bad(line_no, "extra words after the fixed scene");
+            }
+            try s.steps.append(gpa, .{ .at = t, .action = .{ .expect = e } });
         } else if (eq(u8, cmd, "report")) {
             try s.steps.append(gpa, .{ .at = t, .action = .{ .report = words.next() orelse return bad(line_no, "missing file") } });
         } else if (eq(u8, cmd, "state")) {
@@ -389,4 +402,18 @@ test "a result line can carry the fixed run's expectation" {
     try std.testing.expectEqual(ResultCheck.Want.lost, b.want);
     try std.testing.expectEqual(ResultCheck.Want.none, b.fixed.?.want);
     try std.testing.expectEqual(@as(?ResultCheck.Expect, null), s.steps.items[2].action.result.fixed);
+}
+
+test "an expect line can name the fixed run's scene" {
+    const gpa = std.testing.allocator;
+    const text = try gpa.dupe(u8,
+        \\100 expect 3fprisao | 3fhall
+        \\200 expect 3fhall
+    );
+    var s = try parse(gpa, text);
+    defer s.deinit(gpa);
+    const a = s.steps.items[0].action.expect;
+    try std.testing.expectEqualStrings("3fprisao", a.name);
+    try std.testing.expectEqualStrings("3fhall", a.fixed.?);
+    try std.testing.expectEqual(@as(?[]const u8, null), s.steps.items[1].action.expect.fixed);
 }

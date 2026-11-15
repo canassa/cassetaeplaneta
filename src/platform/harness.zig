@@ -130,7 +130,8 @@ pub const Harness = struct {
                 .log => |text| std.debug.print("[{d}] log: {s}\n", .{ now, text }),
                 .state => printState(g),
                 .report => |path| writeReportFile(h, g, path),
-                .expect => |name| {
+                .expect => |e| {
+                    const name = if (e.fixed != null and h.fixesOn()) e.fixed.? else e.name;
                     const cur = if (g.scene) |sc| cstr.slice(&sc.name) else "";
                     if (std.ascii.eqlIgnoreCase(std.mem.trim(u8, cur, " "), name)) {
                         if (h.opts.verbose) std.debug.print("[{d}] expect {s}: ok\n", .{ now, name });
@@ -179,11 +180,16 @@ pub const Harness = struct {
     }
 
     /// `result`: the last minigame result against `r`.
+    /// A `--fix` is on: `result` and `expect` check the part after `|`.
+    fn fixesOn(h: *Harness) bool {
+        return if (h.host) |hs| !std.meta.eql(hs.opts.fixes, @import("../core/fixes.zig").Fixes{}) else false;
+    }
+
     fn checkResult(h: *Harness, now: u32, r: script.ResultCheck) void {
         const items = if (h.host) |hs| hs.results.items else &.{};
         const last: ?@import("host.zig").Result = if (items.len > 0) items[items.len - 1] else null;
         // A run with a fix on checks the part after `|`, when the line has one.
-        const fixed = if (h.host) |hs| !std.meta.eql(hs.opts.fixes, @import("../core/fixes.zig").Fixes{}) else false;
+        const fixed = h.fixesOn();
         const e: script.ResultCheck.Expect = if (fixed and r.fixed != null) r.fixed.? else .{ .want = r.want, .score = r.score };
         const ok = switch (e.want) {
             .none => last == null,
