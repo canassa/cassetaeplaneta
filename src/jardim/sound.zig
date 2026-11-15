@@ -3,7 +3,7 @@
 //! See docs/jardim/DESIGN.md "How to port a JARDIM unit". Each function
 //! carries `// @orig <10a0:xxxx> <name>` with the JARDIM address.
 //!
-//! The WaveMix state is `g.waveMixSession`, `g.waveMixOpenResult`,
+//! The WaveMix state is `g.waveMixSession`, `g.waveMixOpenResult`, (`waveMixOpenResult` is i16 here: the DLL results are bit-cast)
 //! `g.waves` and `g.waveCount`. WaveMix goes through the platform (0 =
 //! success, as the DLL). The wave table has 20 entries (the original's
 //! unchecked `g_waves[g_waveCount]`; JARDIM opens its own set).
@@ -29,7 +29,7 @@ pub fn mixInit(g: *Game) u16 {
         _ = g.plat.messageBox("Erro Wave Mix", "N\xe3o consegue iniciar sess\xe3o", platform.mb.iconexclamation);
         return 0;
     }
-    g.waveMixOpenResult = g.plat.mixOpenChannel(g.waveMixSession, 0, platform.wmix.openall);
+    g.waveMixOpenResult = @bitCast(g.plat.mixOpenChannel(g.waveMixSession, 0, platform.wmix.openall));
     if (g.waveMixOpenResult != 0) {
         _ = g.plat.messageBox("Erro Wave Mix", "N\xe3o consegue abrir canais", platform.mb.iconexclamation);
         return 0;
@@ -43,7 +43,7 @@ pub fn mixInit(g: *Game) u16 {
 pub fn open(g: *Game, path: []const u8) ?Wave {
     const idx: usize = @intCast(g.waveCount);
     g.waves[idx] = g.plat.waveOpen(g.waveMixSession, path);
-    g.waveMixOpenResult = g.waves[idx] orelse 0;
+    g.waveMixOpenResult = @bitCast(g.waves[idx] orelse 0);
     if (g.waveMixOpenResult == 0) {
         _ = g.plat.messageBox("WAveMix Erro", "Error ao abrir waves", platform.mb.iconexclamation);
         return null;
@@ -55,14 +55,14 @@ pub fn open(g: *Game, path: []const u8) ?Wave {
 // @orig 10a0:0170 wave_mix_activate
 /// Activates the session (the window became active). 1 on success.
 pub fn mixActivate(g: *Game) u16 {
-    g.waveMixOpenResult = g.plat.mixActivate(g.waveMixSession, true);
+    g.waveMixOpenResult = @bitCast(g.plat.mixActivate(g.waveMixSession, true));
     return @intFromBool(g.waveMixOpenResult == 0);
 }
 
 // @orig 10a0:01ac wave_mix_deactivate
 /// Deactivates the session (the window was minimised). 1 on success.
 pub fn mixDeactivate(g: *Game) u16 {
-    g.waveMixOpenResult = g.plat.mixActivate(g.waveMixSession, false);
+    g.waveMixOpenResult = @bitCast(g.plat.mixActivate(g.waveMixSession, false));
     return @intFromBool(g.waveMixOpenResult == 0);
 }
 
@@ -76,7 +76,7 @@ pub fn play(g: *Game, hwnd: msg.Hwnd, wave: ?Wave) u16 {
     const n: usize = @intCast(@max(g.waveCount, 0));
     for (g.waves[0..n]) |e| {
         if (e != w) continue;
-        g.waveMixOpenResult = g.plat.wavePlay(.{
+        g.waveMixOpenResult = @bitCast(g.plat.wavePlay(.{
             .session = g.waveMixSession,
             .channel = 0,
             .wave = w,
@@ -85,7 +85,7 @@ pub fn play(g: *Game, hwnd: msg.Hwnd, wave: ?Wave) u16 {
             .clear_queue = true,
             .high_priority = true,
             .use_lru_channel = hwnd == 0,
-        });
+        }));
         return @intFromBool(g.waveMixOpenResult == 0);
     }
     return 0;
