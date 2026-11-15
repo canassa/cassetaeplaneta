@@ -20,14 +20,17 @@ const space3d = @import("space3d.zig");
 const visibility = @import("visibility.zig");
 const scene = @import("../scene.zig");
 
-/// SceneObject slot 2C nextFrame: animated3d_next_frame (exit, player, control_panel) / default.
+/// SceneObject slot 2C nextFrame: animated3d_next_frame (exit, player, control_panel) /
+/// scene_object_next_frame_default (the rest). In JARDIM the default is not an empty stub
+/// (as in NOITE, TIRO and the others) but the same wrap as `animation_next_frame` (79 bytes,
+/// as SAUNA's): the enemies animate and the hands show their firing pose.
 pub fn nextFrame(g: *Game, obj: *Object) i16 {
     _ = g;
     return switch (obj.kind) {
         // @orig 10c0:23ae animated3d_next_frame
         .exit, .player, .control_panel => animationNextFrame(obj),
-        // scene_object_next_frame_default (absorbed)
-        .scene_object, .wall_strip, .portable => 0,
+        // @orig 10c0:38ea scene_object_next_frame_default
+        .scene_object, .wall_strip, .portable => animationNextFrame(obj),
     };
 }
 
@@ -41,14 +44,16 @@ fn animationNextFrame(obj: *Object) i16 {
     return obj.curFrame;
 }
 
-/// SceneObject slot 2D prevFrame: animated3d_prev_frame (exit, player, control_panel) / default.
+/// SceneObject slot 2D prevFrame: animated3d_prev_frame (exit, player, control_panel) /
+/// scene_object_prev_frame_default (the rest: the same wrap as `animation_prev_frame` in
+/// JARDIM, see `nextFrame`).
 pub fn prevFrame(g: *Game, obj: *Object) i16 {
     _ = g;
     return switch (obj.kind) {
         // @orig 10c0:23d0 animated3d_prev_frame
         .exit, .player, .control_panel => animationPrevFrame(obj),
-        // scene_object_prev_frame_default (absorbed)
-        .scene_object, .wall_strip, .portable => 0,
+        // @orig 10c0:393a scene_object_prev_frame_default
+        .scene_object, .wall_strip, .portable => animationPrevFrame(obj),
     };
 }
 

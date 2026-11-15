@@ -338,6 +338,8 @@ fn	10c0:37f6	visibility	scene_object_hide
 fn	10c0:3844	occupancy	scene_object_occupy
 fn	10c0:3870	occupancy	scene_object_vacate
 fn	10c0:38b6	occupancy	scene_object_is_step_blocked
+fn	10c0:38ea	animation	scene_object_next_frame_default
+fn	10c0:393a	animation	scene_object_prev_frame_default
 fn	10c0:3ade	position	scene_object_set_position
 fn	10c0:3b1e	position	scene_object_is_scroll_target
 fn	10c0:41de	backdrop	backdrop_ctor
