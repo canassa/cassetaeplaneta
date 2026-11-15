@@ -73,7 +73,12 @@ inferno-walk.png); on a touch screen the pad shows the four arrows and a
 held ▶ does the same (inferno-touch.png). Then "Jogo" = Sauna Mista:
 SAUNA starts alone and Left runs Pacman along his row, eating peanuts:
 the score box changes (sauna.png, sauna-run.png); on a touch screen the
-pad shows the four arrows and ◀ does the same (sauna-touch.png).
+pad shows the four arrows and ◀ does the same (sauna-touch.png). Then
+"Jogo" = Jardim: JARDIM starts alone, a held Up walks the player: the
+minimap's square moves (jardim.png, jardim-walk.png), and a held Ctrl
+shows the fists' punch (jardim-punch.png); on a touch screen the pad shows
+the arrows, Abrir (SPACE) and Tiro (CTRL), and a held ▲ walks
+(jardim-touch.png).
 Exits non-zero on the first failed check or on a page error.
 """
 
@@ -957,6 +962,80 @@ def main():
             check(not terrors, "touch Sauna Mista: no page errors")
             tctx.close()
 
+        # JARDIM's minimap (114x160 at 513, 42): the player's red square
+        # moves with every step; the hands (145-495, 261-341) punch while
+        # Ctrl is held.
+        def region_js(x, y, w, h):
+            return """() => {
+                const d = document.getElementById("screen").getContext("2d").getImageData(%d, %d, %d, %d).data;
+                let sum = 0;
+                for (let i = 0; i < d.length; i += 4) sum = (sum * 31 + d[i] + 7 * d[i + 1] + 13 * d[i + 2]) %% 1000000007;
+                return sum;
+            }""" % (x, y, w, h)
+        minimap_js = region_js(513, 42, 114, 160)
+        hands_js = region_js(145, 261, 350, 80)
+
+        def jardim_alone():
+            """Jogo: Jardim alone. It starts, a held Up walks the player (the
+            minimap's square moves), a held Ctrl punches, no page errors."""
+            page.goto(url)
+            load()
+            check(not page.is_disabled("#jogo option[value=jardim]"), "the loader offers Jardim alone")
+            page.select_option("#jogo", "jardim")
+            page.check('input[name="versao"][value="original"]')
+            play()
+            time.sleep(1.5)
+            shot("jardim.png")
+            before = page.evaluate(minimap_js)
+            page.keyboard.down("ArrowUp")
+            time.sleep(0.6)
+            page.keyboard.up("ArrowUp")
+            time.sleep(0.3)
+            after = page.evaluate(minimap_js)
+            shot("jardim-walk.png")
+            check(before is not None and after is not None and before != after,
+                  "Jardim runs: a held Up walks the player on the minimap")
+            hands = page.evaluate(hands_js)
+            page.keyboard.down("Control")
+            time.sleep(0.3)
+            punch = page.evaluate(hands_js)
+            shot("jardim-punch.png")
+            page.keyboard.up("Control")
+            check(punch != hands, "Jardim: a held Ctrl punches")
+            check(not errors, "Jardim: no page errors")
+
+        def jardim_touch():
+            """Jardim alone on a touch screen: the pad's keys are the arrows,
+            Abrir (SPACE) and Tiro (CTRL), and a held ▲ walks."""
+            tctx = browser.new_context(viewport={"width": 844, "height": 390}, has_touch=True, is_mobile=True)
+            tpage = tctx.new_page()
+            terrors = []
+            tpage.on("pageerror", lambda e: terrors.append(str(e)))
+            tpage.goto(url)
+            tpage.wait_for_function("window.noite.ready || window.noite.failure", timeout=600_000)
+            tpage.select_option("#jogo", "jardim")
+            tpage.click("#play")
+            tpage.wait_for_function("window.noite.started || window.noite.failure", timeout=60_000)
+            time.sleep(1.5)
+            shown = tpage.evaluate("""() => Array.from(document.querySelectorAll('#dpad button'))
+                .filter((b) => !b.hidden).map((b) => [Number(b.dataset.key), b.textContent])""")
+            keys = sorted(k for k, _ in shown)
+            check(keys == [17, 32, 37, 38, 39, 40], f"touch Jardim: the pad shows the arrows, SPACE and CTRL ({shown})")
+            labels = dict(shown)
+            check(labels.get(32) == "Abrir" and labels.get(17) == "Tiro", f"touch Jardim: SPACE opens, CTRL fires ({labels})")
+            before = tpage.evaluate(minimap_js)
+            up = tpage.locator('#dpad [data-key="38"]').bounding_box()
+            cdp = tctx.new_cdp_session(tpage)
+            cdp.send("Input.dispatchTouchEvent", {"type": "touchStart",
+                     "touchPoints": [{"x": up["x"] + up["width"] / 2, "y": up["y"] + up["height"] / 2}]})
+            time.sleep(0.6)
+            cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+            time.sleep(0.3)
+            tpage.screenshot(path=str(out / "jardim-touch.png"))
+            check(tpage.evaluate(minimap_js) != before, "touch Jardim: a held ▲ walks the player")
+            check(not terrors, "touch Jardim: no page errors")
+            tctx.close()
+
         def manifest():
             return page.evaluate("""async () => {
                 const html = await (await fetch("./", { cache: "no-cache" })).text();
@@ -1139,6 +1218,8 @@ def main():
         inferno_touch()
         sauna_alone()
         sauna_touch()
+        jardim_alone()
+        jardim_touch()
         browser.close()
     if not args.url:
         httpd.shutdown()
