@@ -87,6 +87,11 @@ build), BUGS.md I1–I2 and its INV Harmless list.
   (an arena freed by `Game.destroy`); every `operator new` / `_nmalloc`
   allocates there, so the original's never-freed objects and strips are
   not a leak of the port.
+- **The playthroughs stay on their route** (the owner's decision).
+  `full.input` and `onebutton.input` take the sportsman's route at
+  `4fbar` and never the esoteric's detour (`4fsacaet`, INV, `4fmarte2`,
+  the `ESOTEBOY` cutscene). INV is tested by its own scripts only
+  (`inv-*.input`, alone and from `--scene 4fsacaet`).
 
 ## Source layout
 
@@ -486,7 +491,7 @@ both versions play the same game.
     -2000`, `4fmarte`, then `4fbar` with a life less and the score lowered.
 - **Playthroughs**: `full.input` and `onebutton.input` take the
   sportsman's route at `4fbar`; INV is on the esoteric's, a detour that
-  comes back to the bar (owner question 2). They stay green with INV
+  comes back to the bar (Decisions). They stay green with INV
   `ready`.
 - **Smoke**: `tools/smoke.py --minigame inv [--fix all] [--monkey SEED]`:
   TIRO's random LEFT/RIGHT and SPACE presses, 110 ms or more apart, for
@@ -658,10 +663,3 @@ both playthroughs and `tools/web/test.py` pass.
    for its whole explosion (420 ms), the arcade behaviour; it is in `all`. If the
    original's cut-short explosion should stay in Corrigida too, the flag
    moves to `Fixes.choices`.
-2. **A playthrough through INV.** `full.input` takes the sportsman's
-   route at `4fbar`; INV is on the esoteric's, a detour (`4fsacaet`, INV,
-   `4fmarte2`, the `ESOTEBOY` cutscene) that comes back to `4fbar`. The
-   scripts test it from `--scene 4fsacaet`. The playthroughs could take
-   the detour before the sportsman (about 50 s longer, with the planner's
-   keys; every later random choice moves, so the rest is retuned): should
-   they?

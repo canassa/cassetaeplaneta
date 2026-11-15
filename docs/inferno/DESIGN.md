@@ -112,6 +112,10 @@ dead code), `QUALITY.md` (the large-model `/Od` build), BUGS.md H1–H8.
 - **The task's heap.** INFERNO's `operator new` is `_fmalloc`; it frees
   little. `Game.local()` (an arena on the task's allocator, freed by
   `Game.destroy`) takes every `new` of INFERNO, as TIRO's.
+- **The playthroughs stay on their route** (the owner's decision).
+  `full.input` and `onebutton.input` never take the pope's door (3fpapmal),
+  so they never start INFERNO. It is tested by its own scripts only
+  (`inferno-*.input`, alone and from `--scene 3fpapmal`).
 
 ## Source layout
 
@@ -502,7 +506,7 @@ standing hero is reached by a hazard every 5.46 s.
     less, the score unchanged, in both versions.
 - **full.input / onebutton.input**: unchanged. Their route takes the
   hall's TIRO, pharaoh and disco doors, never the pope's punishment, so
-  they never start INFERNO (an Owner question asks whether to add it).
+  they never start INFERNO (Decisions).
 - **Smoke**: `tools/smoke.py --minigame inferno [--fix all] [--monkey
   SEED]` (190 s): random holds of LEFT/RIGHT (100–1500 ms) and presses of
   UP/DOWN; a run passes with a result or none (the lives ran out, H3),
@@ -656,16 +660,11 @@ noite -p inferno failed <unit> "why" / release <unit>
    INFERNO's window (End Task; in the port, the window's close while
    INFERNO is on top) a loss, (0, 0), instead of a 500 win. A choice (off
    in `all`) until you say.
-3. **full.input**: add the pope's door with a scripted INFERNO game? The
-   run's route does not take it now; adding it means a 3-minute game, the
-   re-timing of everything after it, and, in the Original, H1/H2 send the
-   run to the prison with two lives lost (`6fsaida` with 2 or fewer), and
-   H8 stops it a second later.
-4. **Numpad + and −** (the original's second jump keys): map them in SDL
+3. **Numpad + and −** (the original's second jump keys): map them in SDL
    and the page (platform code), or leave the arrows only?
-5. **H8 in the Original**: the original hangs a second after the time-out
+4. **H8 in the Original**: the original hangs a second after the time-out
    (every survived game). The port's Original stops there on a panic
    naming H8 (the web page shows its crash report); the alternative is to
    let the Original end as the Corrigida does. Which?
-6. **The touch pad**: the four arrows (UP the high jump, DOWN the low
+5. **The touch pad**: the four arrows (UP the high jump, DOWN the low
    one), a proposal like the other pads.
