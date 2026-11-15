@@ -67,8 +67,12 @@ Then "Jogo" = Xilindro: XILINDRO starts alone and Right and Up pressed in
 turn walk in and kick the opponent until its energy bar gets a tile
 (xilindro.png, xilindro-kick.png); on a touch screen the pad shows the
 eight fight keys and ▶ and ▲ tapped in turn do the same
-(xilindro-touch.png). Then "Jogo" = Inferno: INFERNO starts alone and a
-held Right walks the hero off his starting place (inferno.png,
+(xilindro-touch.png); in the Corrigida on a phone held upright the
+controls screen keeps the clock still, the pad shows the arrows and the
+four named moves, a tap on one takes it down, the clock stands under
+PORRADA's 2 s and then runs, and ▶ and Chute tapped in turn kick
+(xilindro-controls.png, xilindro-corrigida-touch.png). Then "Jogo" =
+Inferno: INFERNO starts alone and a held Right walks the hero off his starting place (inferno.png,
 inferno-walk.png); on a touch screen the pad shows the four arrows and a
 held ▶ does the same (inferno-touch.png). Then "Jogo" = Sauna Mista:
 SAUNA starts alone and Left runs Pacman along his row, eating peanuts:
@@ -672,6 +676,13 @@ def main():
         # the player's blows add them (one per 7 points), so a change there
         # is a kick that landed. Up held 10 s (the game's key repeat kicks
         # again as each move ends) takes 10 or more points.
+        # The fights' clock box (20 x 15 at 310, 22).
+        clock_js = """() => {
+            const d = document.getElementById("screen").getContext("2d").getImageData(310, 22, 20, 15).data;
+            let sum = 0;
+            for (let i = 0; i < d.length; i += 4) sum = (sum * 31 + d[i] + 7 * d[i + 1] + 13 * d[i + 2]) % 1000000007;
+            return sum;
+        }"""
         tiles_js = """() => {
             const d = document.getElementById("screen").getContext("2d").getImageData(333, 18, 240, 24).data;
             let sum = 0;
@@ -728,6 +739,53 @@ def main():
             tpage.screenshot(path=str(out / "salgin-touch.png"))
             check(tpage.evaluate(tiles_js) != before, "touch Porrada: a held ▲ kicks")
             check(not terrors, "touch Porrada: no page errors")
+            tctx.close()
+
+        def xilindro_corrigida_touch():
+            """Xilindro alone in the Corrigida on a phone: the controls screen
+            is up and the clock stands, the pad shows the arrows and the four
+            moves with their names, a tap on one takes the screen down (the
+            clock runs), and ▶ and Chute (S) tapped in turn kick."""
+            tctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+            tpage = tctx.new_page()
+            terrors = []
+            tpage.on("pageerror", lambda e: terrors.append(str(e)))
+            tpage.goto(url)
+            tpage.wait_for_function("window.noite.ready || window.noite.failure", timeout=600_000)
+            tpage.select_option("#jogo", "xilindro")
+            tpage.check('input[name="versao"][value="corrigida"]')
+            tpage.click("#play")
+            tpage.wait_for_function("window.noite.started || window.noite.failure", timeout=60_000)
+            time.sleep(1.5)
+            tpage.screenshot(path=str(out / "xilindro-controls.png"))
+            shown = tpage.evaluate("""() => Array.from(document.querySelectorAll('#dpad button'))
+                .filter((b) => !b.hidden).map((b) => [Number(b.dataset.key), b.textContent])""")
+            check(sorted(k for k, _ in shown) == [37, 38, 39, 40, 65, 68, 70, 83],
+                  f"Corrigida touch Xilindro: the pad shows the arrows and A S D F ({shown})")
+            check(dict(shown).get(68) == "Chute alto" and dict(shown).get(65) == "Soco",
+                  f"Corrigida touch Xilindro: the moves have their names ({shown})")
+            clock = tpage.evaluate(clock_js)
+            time.sleep(1.5)
+            check(tpage.evaluate(clock_js) == clock, "Corrigida touch Xilindro: the clock waits under the controls screen")
+            before = tpage.evaluate(tiles_js)
+            right = tpage.locator('#dpad [data-key="39"]')
+            kick = tpage.locator('#dpad [data-key="83"]')
+            kick.tap()
+            # PORRADA's frozen 2 s, then the clock's first second.
+            time.sleep(1.0)
+            check(tpage.evaluate(clock_js) == clock, "Corrigida touch Xilindro: the clock waits under PORRADA")
+            time.sleep(2.7)
+            check(tpage.evaluate(clock_js) != clock, "Corrigida touch Xilindro: a pad button starts the round (the clock runs)")
+            end = time.time() + 15
+            while time.time() < end:
+                right.tap()
+                time.sleep(0.05)
+                kick.tap()
+                time.sleep(0.05)
+            time.sleep(0.3)
+            tpage.screenshot(path=str(out / "xilindro-corrigida-touch.png"))
+            check(tpage.evaluate(tiles_js) != before, "Corrigida touch Xilindro: ▶ and Chute in turn kick")
+            check(not terrors, "Corrigida touch Xilindro: no page errors")
             tctx.close()
 
         # INV's shot leaves the cannon (x 340, y 380) at x 367, y 350 and
@@ -1214,6 +1272,7 @@ def main():
         inv_touch()
         xilindro_alone()
         xilindro_touch()
+        xilindro_corrigida_touch()
         inferno_alone()
         inferno_touch()
         sauna_alone()

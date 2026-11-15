@@ -49,8 +49,9 @@
     { name: "sauna", title: "Sauna Mista", ready: true },
     { name: "jardim", title: "Noite Animal Jardim", ready: true },
   ];
-  // The keys the page passes on (KeyboardEvent.keyCode = the virtual key).
-  const GAME_KEYS = new Set([13, 16, 17, 20, 27, 32, 33, 35, 36, 37, 38, 39, 40, 45]);
+  // The keys the page passes on (KeyboardEvent.keyCode = the virtual key):
+  // the fights' Corrigida keys A, S, D, F (65, 83, 68, 70) too.
+  const GAME_KEYS = new Set([13, 16, 17, 20, 27, 32, 33, 35, 36, 37, 38, 39, 40, 45, 65, 68, 70, 83]);
   // The on-screen pad's keys (KeyboardEvent.keyCode) while that program's
   // window is on top (`noite_top_program`): TIRO and SERIAL aim with
   // LEFT/RIGHT and fire with SPACE, so their pad has a fire button (32)
@@ -68,6 +69,15 @@
   const PAD_KEYS = { "": [37, 38, 39, 40], encaixe: [37, 38, 39, 40], tiro: [37, 32, 39], serial: [37, 32, 39], salgin: [36, 38, 33, 37, 45, 39, 35, 40], inv: [37, 32, 39], xilindro: [36, 38, 33, 37, 45, 39, 35, 40], inferno: [37, 38, 39, 40], sauna: [37, 38, 39, 40], jardim: [37, 38, 39, 40, 32, 17] };
   // A program's own label for a pad key (text, aria-label); else the page's.
   const PAD_LABELS = { jardim: { 32: ["Abrir", "Abrir porta"] } };
+  // The Corrigida's fights (`fight_keys_asdf`): the four arrows on the left
+  // (UP jumps, DOWN blocks), the four moves on the right, A S over D F, with
+  // each fight's names for them (PAD_FIGHT_LABELS). Any of them also takes
+  // the controls screen down.
+  const PAD_FIGHT_KEYS = [37, 38, 39, 40, 65, 83, 68, 70];
+  const PAD_FIGHT_LABELS = {
+    xilindro: { 65: ["Soco", "Soco"], 83: ["Chute", "Chute"], 68: ["Chute alto", "Chute alto"], 70: ["Rasteira", "Rasteira"] },
+    salgin: { 65: ["Soco", "Soco"], 83: ["Voadora", "Voadora"], 68: ["Salto", "Salto"], 70: ["Rasteira", "Rasteira"] },
+  };
   // The files of the current manifest, by hashed URL. The name must not
   // start with "noite-": loaders before the hashes deleted every
   // "noite-*" cache but their own (their caches are migrated below).
@@ -666,13 +676,18 @@
   }
 
   let padProgram = null;
-  /** Shows the pad's buttons for `program` (PAD_KEYS); a hidden held one is released. */
+  let padLabels = false;
+  /** Shows the pad's buttons for `program` (PAD_KEYS; PAD_FIGHT_KEYS for the
+   *  Corrigida's fights); a hidden held one is released. */
   function padFor(program) {
-    if (program === padProgram) return;
+    const fightLabels = prefs.version === "corrigida" ? PAD_FIGHT_LABELS[program] : null;
+    if (program === padProgram && !!fightLabels === padLabels) return;
     padProgram = program;
-    const keys = PAD_KEYS[program] || PAD_KEYS[""];
-    const labels = PAD_LABELS[program] || {};
-    for (const b of $("dpad").querySelectorAll("button")) {
+    padLabels = !!fightLabels;
+    const keys = fightLabels ? PAD_FIGHT_KEYS : PAD_KEYS[program] || PAD_KEYS[""];
+    const labels = fightLabels || PAD_LABELS[program] || {};
+    const pad = $("dpad");
+    for (const b of pad.querySelectorAll("button")) {
       const show = keys.includes(Number(b.dataset.key));
       if (!show) b.dispatchEvent(new Event("lostpointercapture"));
       b.hidden = !show;
@@ -685,6 +700,11 @@
       b.textContent = own ? own[0] : b.dataset.text;
       b.setAttribute("aria-label", own ? own[1] : b.dataset.aria);
       b.classList.toggle("word", own ? true : b.dataset.wordDefault === "1");
+    }
+    const fight = !!fightLabels;
+    if (pad.classList.contains("fight") !== fight) {
+      pad.classList.toggle("fight", fight);
+      fit();
     }
   }
 

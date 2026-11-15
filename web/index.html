@@ -74,6 +74,17 @@
   #dpad [data-key="35"] { grid-area: 3 / 1; }
   #dpad [data-key="17"] { grid-area: 3 / 3; }
   #dpad button.word { font-size: 11px; }
+  /* The Corrigida's fights (PAD_FIGHT_KEYS): the arrows on the left, the
+     moves (A S / D F) on the right, with their names. */
+  #dpad.fight { grid-template: repeat(6, 21px) / repeat(3, 44px) 10px repeat(2, 58px); }
+  #dpad.fight [data-key="38"] { grid-area: 1 / 2 / 3 / 3; }
+  #dpad.fight [data-key="37"] { grid-area: 3 / 1 / 5 / 2; }
+  #dpad.fight [data-key="39"] { grid-area: 3 / 3 / 5 / 4; }
+  #dpad.fight [data-key="40"] { grid-area: 5 / 2 / 7 / 3; }
+  #dpad.fight [data-key="65"] { grid-area: 1 / 5 / 4 / 6; }
+  #dpad.fight [data-key="83"] { grid-area: 1 / 6 / 4 / 7; }
+  #dpad.fight [data-key="68"] { grid-area: 4 / 5 / 7 / 6; }
+  #dpad.fight [data-key="70"] { grid-area: 4 / 6 / 7 / 7; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -143,6 +154,10 @@
   <button data-key="45" class="word" aria-label="Pulo" hidden>Pulo</button>
   <button data-key="35" class="word" aria-label="Defesa" hidden>Defesa</button>
   <button data-key="17" class="word" aria-label="Atirar" hidden>Tiro</button>
+  <button data-key="65" class="word" aria-label="Soco" hidden>Soco</button>
+  <button data-key="83" class="word" aria-label="Chute" hidden>Chute</button>
+  <button data-key="68" class="word" aria-label="Chute alto" hidden>Chute alto</button>
+  <button data-key="70" class="word" aria-label="Rasteira" hidden>Rasteira</button>
 </div>
 <script src="noite.js"></script>
 </body>
