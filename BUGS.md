@@ -127,6 +127,10 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
 - **Effect:** in opaque blits whose width is not a multiple of 4, palette index 0 in the rightmost 1–3 columns
   keeps whatever was underneath.
 - **Evidence:** disassembly; reproduced by running the original routine in an emulator against a row-copy model.
+- **1995 source:** Microsoft's WinG sample code, present in Oct 1995: `CopyDIBBits` in
+  `ref/src1995/ped1/FAST32CP.ASM` ("(C) Copyright 1994 Microsoft Corp.") is a copy of `TransCopyDIBBits` that keeps
+  the odd-pixel `cmp al, ah / je` (`:327-337`) and never loads AH; NE segment 1 is byte-identical in the 1995
+  DEMO.EXE.
 - **Confidence:** 9 (code); the visible effect depends on index 0 appearing in those columns.
 
 ### B13. A bitmap file that is not a readable DIB stays open (file-handle leak)
@@ -137,6 +141,8 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
 - **Effect:** each such load leaves one DOS handle open. The shipped BMPs all read fine, so the game is not
   expected to hit it; a corrupt or truncated asset would leak a handle per load (Win16 default: 20).
 - **Evidence:** disassembly of 1010:04c4–04d7 and 1010:05c6.
+- **1995 source:** the SDK DIB sample, present in Oct 1995: `DibOpenFile` returns NULL when `DibReadBitmapInfo`
+  fails, before the `_lclose` (`UTILS.CPP:143-146`).
 - **Confidence:** 9 (code); 3 (that the shipped game ever reaches it).
 
 ### B14. Every cutscene leaks its animation and bitmaps
@@ -152,6 +158,8 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   `Fixes.free_scene_animation` deletes it in the scene destructor.
 - **Evidence:** disassembly of 1018:2896; xrefs of +0x94 (scene_ctor, ini_scene_create,
   ini_scene_handle_message, handler_1fcozin0, two object helpers — none frees it).
+- **1995 source:** present in Oct 1995: `~scene` deletes only `LocalObjects` and `Screen` (`SCENE.CPP:37-52`); the
+  cutscene's `AutoExit` is only `DefExit`ed (`GENSCENE.CPP:148-156`).
 - **Confidence:** 9 (code); 5 (that the growth is ever noticed).
 
 ### B15. 3fhall: a right click on anything but a door takes the last door again
@@ -218,6 +226,9 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   69 alone gives 10 000 on use) plus nine minigames' scores, so passing 32767 is plausible.
 - **Port:** reproduced (`src/panels.zig`, `src/save.zig`); `Fixes.score_32bit` shows, writes and reads the
   whole long.
+- **1995 source:** the score was meant to be 32-bit: `long Score` in `_3D_player`, `player` and `actor`
+  (`3DOBJECT.HPP:631`, `OBJECT.HPP:1724`). 1995 never shows or saves it, so the 16-bit display and save are later
+  slips.
 - **Confidence:** 9 (code); 6 (that a normal playthrough passes 32767).
 
 ### B20. Giving the bible to the driver of the Beetle ride freezes the game (2fshardi)
@@ -275,6 +286,8 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   --minigame-startup 0 --minigame-reply 0` hits it (`--scene 3fhall`: the sauna door, a right click in the sauna, then the
   pharaoh door).
 - **Evidence:** port traces (`noite --trace`); the code paths above.
+- **1995 source:** present in Oct 1995: the AutoExit ticks on any `wParam == AutoExit->Timer()`
+  (`GENSCENE.CPP:370-373`) and `~scene` kills no timers (`SCENE.CPP:37-52`).
 - **Confidence:** 8 (code, port traces); 5 (how often the timings line up on a period machine).
 
 ### B22. 2ftaxi keeps handling a click on the scene it has just deleted (use after free)
@@ -348,6 +361,8 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   stays drawn there once the reply has handed it back (`tools/smoke.py --offers` without the fix).
 - **Port:** reproduced (`game_input.rightUp`); `Fixes.drop_syncs_previous_position` sets the previous
   position to the dropped one, as `mover_show` does.
+- **1995 source:** present in Oct 1995: `moveable::SetPosition` keeps `OldX/OldY` (`OBJECT.HPP:1447-1455`), only
+  `EndMove` syncs them (`OBJECT.CPP:1003-1004`), and the drop uses `SetPosition` (`APPLICAT.CPP:389`).
 - **Confidence:** 9 (code, port repro).
 
 ### B26. A walk that is still going on when the scene changes resumes in the new scene (and leaves a frame behind)
@@ -364,6 +379,8 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   scene's target. It stays until something repaints that area.
 - **Port:** reproduced (`game_scenes.enterScene`, `save.loadGame`); `Fixes.scene_entry_stops_walk` cancels
   the walk on arrival (no 0x404, the timer keeps running for the idle animation).
+- **1995 source:** present in Oct 1995: `SetCurrentScene` does `SetPosition`, `Appear` and `InitAnimP` with no
+  `EndMove` (`APPLICAT.CPP:544-565`).
 - **Confidence:** 8 (code, port repro; the click timing in the original).
 
 ### B27. The lives and score drift inside their boxes as the control panel slides
@@ -378,6 +395,9 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   by 1 px only (5, 4, 3 below its box).
 - **Port:** reproduced (`src/panels.zig`); `Fixes.panel_text_follows_art` takes the y per frame from the
   art — lives 2 px below the badge (the closed look), score 4 px below its box (glyphs centred).
+- **1995 source:** present in Oct 1995, for another text: `PanelHeight()` is `40 + CurrentFrame*20`
+  (`CTRPANEL.HPP:129-132`), the y of the panel's message line (`CTRPANEL.CPP:159`); the lives and score boxes came
+  later and kept it.
 - **Confidence:** 9 (code constants and art measurements; cosmetic).
 
 ### B28. A door sounds when it is right-clicked from too far away to take it
@@ -389,6 +409,9 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
 - **Effect:** the door-opening sound plays but the door does not open and the player stays.
 - **Port:** reproduced (`src/scene.zig`); `Fixes.exit_sound_needs_reach` plays an exit's wave only when
   `game_input.exitTakesClick` says the click takes it. Other objects keep their sound on every click.
+- **1995 source:** the reach test is 1995's `abs(centre difference) < 3*Player->BoundWidth()/2`
+  (`APPLICAT.CPP:325`); the same test for portables and animations is commented out (`:339`, `:360`), and
+  `MIN_EXIT_DIST 100` (`APPLICAT.HPP:10`) is unused. 1995 has no sound.
 - **Confidence:** 9 (code).
 
 ### B29. Picking up an item can leave the item under it (or the door behind it) unclickable
@@ -412,6 +435,10 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
 - **Port:** reproduced (`src/grid.zig`); `Fixes.vacate_keeps_other_occupants` points those cells back at a
   remaining occupant after each vacate (`grid.repointOccupants`, from `backdrop.vacate`: the visible scene
   and global objects covering the cell, the last in list order winning like the last occupy).
+- **1995 source:** present in Oct 1995, a known limitation: one `Obj[][]` per cell, cleared by `DecrOccup`
+  (`SCREEN.HPP:95-97`); the to-do at `OBJECT.CPP:602-603` reads "procurar quais os objetos que ocupam a posicão e
+  verificar se algum colide com this" ("find which objects occupy the position and check whether any collides with
+  this").
 - **Confidence:** 9 (code, port repro).
 
 ### B30. A dropped item can stay in mid-air or rise instead of falling
@@ -451,6 +478,10 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   it was released, in the character's hands, while the reply plays. (The original's drop can move an offer:
   in 2fportdi the bible released on the mouth walks 100 rows down to a support's top.) `tools/smoke.py
   --offers` checks that with the fix an offered item stays put until it is taken back and leaves no image.
+- **1995 source:** intended rule, present in Oct 1995: `_3D_object::Find_z` takes the first visible local, then
+  portable, that `IsOver` it or collides (`3DOBJECT.CPP:511-542`); an overlap means "already on it" (`Selected =
+  NULL`), otherwise the item walks to the middle of the support's top face, or to `ScreenHeight-100`
+  (`APPLICAT.CPP:400-424`). What the shipped data adds is the size-0 and misplaced boxes.
 - **Confidence:** 9 (code, port repro).
 
 ### B31. The sitting room's package is cut in half by the table when the player walks by
@@ -468,6 +499,9 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   again. The other items with an elevation (48, 54) do not rest on a box top.
 - **Port:** reproduced (`space3d.isInFrontOf`); `Fixes.item_on_support_in_front` puts an object whose
   elevation is the top of another's non-flat box, with overlapping hit boxes, in front of it.
+- **1995 source:** a stated assumption that fails: after the drop the source says "it is not necessary to treat
+  collision here because the portable object will always be in front of any object" (`APPLICAT.CPP:426-427`), while
+  `IsCloserThan` tests depth first (`3DOBJECT.CPP:546-560`).
 - **Confidence:** 9 (code, port repro).
 
 ### B32. The sitting room's cat is drawn over the open control panel
@@ -494,6 +528,10 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   first is a matter of timing).
 - **Port:** reproduced (`src/scene.zig`); `Fixes.bars_over_scene_animation` draws the panel and status
   bar into the backdrop after each such tick, before the flush (both effects).
+- **1995 source:** a NOITE regression. In Oct 1995 the scene's sprite-timer tick returns false
+  (`GENSCENE.CPP:375-409`) and `application::MessageHandling` puts the control panel and status bar into the buffer
+  before it flushes the dirty bag (`APPLICAT.CPP:270-287`). NOITE flushes inside the scene dispatcher, before the
+  bars; `Fixes.bars_over_scene_animation` is the 1995 order.
 - **Confidence:** 9 (code, port repro).
 
 ### B33. The kitchen's cockroach is missing when the player comes back
@@ -556,6 +594,10 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   (every other step only moves sideways).
 - **Port:** reproduced (`game_input.rightUp`); `Fixes.drop_walk_straight` walks the item down its own
   column (`movement.fallTo`). B30's fall (`fallToRest`, not in the original) always does.
+- **1995 source:** present in Oct 1995, likely a slip: the drop passes `_X - FrameWidth()/2`
+  (`APPLICAT.CPP:389,396`) and `InitMove` subtracts `FrameWidth()/2` again (`OBJECT.CPP:794-798`); INI portables are
+  built with `PORTAB_DELTA_X 0` (`GAMES.HPP:81`) where the hand-made 1995 ones used `PORTAB_DELTAX 10`
+  (`CASSETA.HPP:18`); `FinishedMovement` tests only x on an x-major line (`OBJECT.CPP:665-675`).
 - **Confidence:** 9 (code, port repro).
 
 ### B37. Two doors that finish on the same tick: the second takes the next scene's exit (3fprisao → the hall with the street video playing, then a GPF)
@@ -579,6 +621,8 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   (220, 200).
 - **Evidence:** port traces (`noite --trace`: 0x403/0x402 for both doors on one tick, the second 0x402 after the
   sent 0x401); the code paths above. Unlike B21's 3fstreet case, it needs no stale timer.
+- **1995 source:** the 1995 design: an exit posts its index (`3DOBJECT.CPP:1020-1028`) and two static `Exiting`
+  flags gate `WM_EXITSCENE` (`APPLICAT.CPP:32,446`; `GENSCENE.CPP:310,414`).
 - **Confidence:** 8 (code, port repro); 6 (how often a player double-clicks two doors inside 200 ms).
 
 ### B38. 3fhall: a right click low on a door with the control panel open takes the door's INI exit (JPASSARA: a fatal INI error)
@@ -603,7 +647,7 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
 
 ### B39. The player's feet show, and animate, in the slots of the open control panel
 - **Where:** `control_panel_draw` 1018:1f1c → `animation_draw` 1010:26fc → `scene_object_draw_dirty_to`
-  1010:b746 blits the panel frame with `dib_copy_transparent` 1010:0000 (key `g_unk001C`); the eight inventory
+  1010:b746 blits the panel frame with `dib_copy_transparent` 1010:0000 (key `g_transparentColor`); the eight inventory
   slots of the panel bitmap are key-coloured holes. `game_handle_message` 1018:0000 (WM_SYSTIMER) ticks the
   player (1018:04a7 timer test, 04e5 slot 34 tick / 050a slot 3C move tick: `player_tick` 1010:65ee →
   `animated3d_tick` 1010:631e → `scene_object_redraw` 1010:173e), then draws the panel (1018:0616, slot 1B) and
@@ -622,6 +666,8 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   `Fixes.panel_slots_show_background` fills the slots with the pristine background picture each time the
   panel is drawn. A slot is a key-coloured region of the frame of at least 64 pixels that no key-coloured path
   joins to the top row, so the gaps and small pockets of the torn top edge still show the scene.
+- **1995 source:** present in Oct 1995: the panel timer ticks or puts the player, then puts the panel, then flushes
+  (`APPLICAT.CPP:209-237`).
 - **Confidence:** 8 (code, port repro).
 
 ### B40. Green bushes show through the taxi driver's face
@@ -696,6 +742,9 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
 - **Port:** reproduced (`--scene 3fhall --take 98 --fix pope_closet_reachable`: `offer 0 420 60`, then a right
   click on the closet door at once); `Fixes.scene_change_lands_item` ends the fall in the old scene before a
   switch (`game_scenes.landFallingItem`: the remaining steps run at once; one that never arrives is stopped).
+- **1995 source:** present in Oct 1995: the falling item is `static portable *Selected` of
+  `application::MessageHandling` (`APPLICAT.CPP:34,259-267`, NOITE's `g_dropSupportHeight` is its neighbour
+  `Under_h`), and `SetCurrentScene` never clears it.
 - **Confidence:** 9 (code, port repro).
 
 ### B44. The pope's closet: a drawer closed without a pick leaves the last pick in the closet, over the drawers
@@ -780,6 +829,8 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
 - **Port:** reproduced (`--scene 1fquarbo`: a walk down, the panel opened, a move up 30 ms off the timers'
   phase); `Fixes.panel_close_keeps_open_frame` starts the slide down on the open frame and keeps it for the
   first step (same steps, same timing). `tools/web/test.py` checks the frames the page presents.
+- **1995 source:** present in Oct 1995: `InitAnim` sets `CurrentFrame = 0` for both directions and the down slide
+  uses `PreviousFrame` (`CTRPANEL.CPP:171-200`).
 - **Confidence:** 9 (code, port repro, web frames).
 
 ### B49. The inventory icons vanish while the control panel slides
@@ -792,6 +843,7 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
 - **Port:** reproduced; `Fixes.panel_icons_while_sliding` draws them during the slide too, lowered by the
   art's offset (`panels.drawInventorySliding`; the open frame's visible height minus the current one),
   clipped at the screen's bottom.
+- **1995 source:** intended: `if( On && !Animating ) PutObjects(...)` (`CTRPANEL.CPP:100-114`).
 - **Confidence:** 9 (code, port frames).
 
 ### B50. Releasing an arrow while another is held stops the player for good
@@ -804,6 +856,8 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   held; it must be released and pressed again.
 - **Port:** reproduced (`tools/play/b50-arrow-overlap.input`); `Fixes.arrow_release_resumes_held` walks
   on towards an arrow still held after the release.
+- **1995 source:** present in Oct 1995: static `InKey*` flags (NOITE's `g_keyLeft..Down`), and any arrow key-up
+  calls `EndMove` (`APPLICAT.CPP:26-160`).
 - **Confidence:** 9 (code, port repro).
 
 ### B51. The bible is invisible wherever it lies (its scene picture is not on the disc)
@@ -827,7 +881,7 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
 ### B52. A column of the player's pixels stays on the corridor's Mona Lisa after he walks past it
 - **Where:** `mover_restore_background` 1010:b3fa (the player's erase) and `scene_object_restore_background`
   1010:b366 restore the pristine background over the object's rectangle with `dib_copy_transparent` 1010:0000
-  (→ `dib_rows_copy_transparent32` 1000:0024), key `g_unk001C` (DGROUP data 0x0b, never written), the index the
+  (→ `dib_rows_copy_transparent32` 1000:0024), key `g_transparentColor` (DGROUP data 0x0b, never written), the index the
   sprites use for "not drawn"; the loop skips every source byte equal to the key (`CMP AL,AH; JE` before each store).
 - **What the code does:** a background pixel of index 11 is not copied back. `FASE1\1FCORRED\1FCORRED.BMP`
   has 306 of them: the dithered right edge of the Mona Lisa picture (x 436 on even rows, 437 on odd ones, y 17-188;
@@ -839,12 +893,17 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   3fhall 44, ...) do the same where an object passes over them.
 - **Port:** reproduced (`render.copyBackground`; `tools/play/b52-corridor-frame-speck.input` checks the screen's
   pixels after three walks); `Fixes.restore_copies_key_pixels` restores the rectangle with a copy that has no key.
+- **1995 source:** half a regression. `moveable::RestoreBackGround` already restored with `TranspDIBits(...,
+  TransparentColor)` (`OBJECT.CPP:219-224`), so the player's column is in Oct 1995; `object::RestoreBackGround` used
+  an opaque `PutDIBits`, with the transparent call commented out just above it (`:152-165`), so the scene objects'
+  transparent restore is later. The key is `TransparentColor = 11; //6` (`GAMES.HPP:43`, NOITE's
+  `g_transparentColor`).
 - **Confidence:** 9 (code, disc data, port repro).
 
 ### B53. Sprites have holes: stray pixels of the transparent index inside the art
 - **Where:** the sprite bitmaps on the disc; every object draw (`scene_object_draw_dirty_to` 1010:b746,
   `mover_draw_dirty_to` 1010:b8a0, the inventory icons) copies with `dib_copy_transparent` 1010:0000, key
-  `g_unk001C` = 0x0b.
+  `g_transparentColor` = 0x0b.
 - **What the code does:** it skips every source pixel of index 11, the blue (0,136,208) backdrop of the sprites.
   The art has index-11 pixels inside it too, mostly single ones, a palette-reduction accident against that
   blue: 1174 such pixels in 42 of the 300 bitmaps NOITE draws as sprites (the INI objects, portables and their
@@ -860,6 +919,8 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   horseshoe icon's nail holes, the gun smoke in `2SASSM`, a hidden AVI exit's picture) with the reason in the
   list. `tools/key_review.py` rebuilds the list and its review sheets; `tools/play/b53-sala-table-specks.input`
   checks the coffee table (`-orig.input`: the Original's holes).
+- **1995 source:** the key index changed while the art was made: `TransparentColor = 11; //6` (`GAMES.HPP:43`), 10
+  in the older `ped1/GAMEDEFS.HPP:55`, 20 in `DEMO.C:60`.
 - **Confidence:** 9 (disc data, port repro); the fill/keep calls are judgement.
 
 ---
@@ -902,6 +963,8 @@ Confidence 8–9.
   at `p-2` — inside the object, not the block header — so every deleted scene object's block (~1.5 KB)
   stays in use: roughly 1 MB over a long session, no corruption. The port frees the objects (memory is not
   observable), keeping the skipped derived destructors (portable icons, inventories: see B14's parking).
+  1995 source: present in Oct 1995 (`~object` is not virtual, `OBJECT.HPP:921`; `~scene` deletes `object*`,
+  `SCENE.CPP:42-48`).
 - **`loadObjects` keeps x/y across lines** (`ini_game_load_objects` 1018:4c8e, locals BP-0x12/-0x14): an
   `Invent=` line for an item already carried (inventory is not cleared before a load) gets the position of
   the previous `Stat=`/`Portab=` line (4e8a–4e97). The writer always emits those lines first and dropping
@@ -909,6 +972,8 @@ Confidence 8–9.
 - **RealizePalette's result is read from an uninitialised local** in `AppWndProc` (WM_ACTIVATE 1018:3400–3462,
   WM_QUERYNEWPALETTE/WM_PALETTECHANGED 1018:3567–35cf) when the scene has no backdrop; that only happens
   between the scene constructor and `ini_scene_create`, when no message is pumped. The port uses 0.
+  1995 source: a NOITE regression; 1995 calls `RealizePalette` unconditionally and only `SelectPalette` sits
+  under the `if` (`GENGAME.CPP:413-429`).
 Confidence 8–9.
 
 ---
@@ -920,15 +985,22 @@ Confidence 8–9.
   StatusBar vtable (1018:5f7e) has no draw override (it draws only its bitmap). The only caller is the Moveable
   debug overlay (1010:5716, "(%03d,%03d)=>(%03d,%03d,%03d)" coordinates). `textColor` is also never read.
 - Confidence 9.
+- **1995 source:** present in Oct 1995: `status_bar::Update` exists (`CTRPANEL.CPP:44-62`) and nothing calls it; its
+  only text was `_3D_moveable::Show`'s debug coordinates (`3DOBJECT.CPP:409-419`).
 
 ### U2. Control-panel message line is never filled
 - `ControlPanel.message` (+0x11e) is tested by `control_panel_draw_texts` (1018:20dc) but no code writes text into
   it. Confidence 8.
+- **1995 source:** a working 1995 feature that was dropped: on `WM_INITSCENE` the scene set the panel's message line
+  to its name (`Game->ControlPanel->SetText(Name)`, `GENSCENE.CPP:331`), and `control_panel::Put` drew it in yellow
+  (`CTRPANEL.CPP:100-167`).
 
 ### U3. Game.clearWidth / clearHeight are never set
 - `PatBlt(hdc, 0, 0, clearWidth, clearHeight, BLACKNESS)` before a scene is built (1010:ea26, 1018:4019, 1018:53b7),
   but neither field (Game +0x676/+0x678) is written anywhere, including the constructor. The values are whatever
   the heap block held (most likely 0 → no-op). Confidence 9 (no writer); 6 (actual value at run time).
+- **1995 source:** present in Oct 1995: the `PatBlt` uses `DefaultScreenWidth/Height`, whose setter
+  `SetScreenDimensions` is never called (`APPLICAT.HPP:114,162`).
 
 ---
 
@@ -977,11 +1049,15 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
   NULL set by `game_ctor`; the panel is created only at 1010:eaa7. Writing through a NULL selector would fault.
 - Not reached: the game object is a NoiteGame, whose slot 07 is `ini_game_init` (which creates the panel first).
 - Confidence 9.
+- **1995 source:** a NOITE regression: 1995's `application::Init` creates the panel and then `Init`s it, with no
+  reset (`APPLICAT.HPP:122-126`).
 
 ### L4. `draw_list_invalidate_nodes` would recurse forever
 - 1018:2b72 recurses into `node->next` before clearing it and then into `node->prev`; on the doubly linked draw
   list the child's `prev` leads back to the parent, whose `next` is still set → unbounded recursion / stack
   overflow. No caller except itself. Confidence 8.
+- **1995 source:** tree code kept for a list: this is `object_tree::Show` (`VTREE.CPP:202-214`), which recurses into
+  `r` and `l` and then clears them, right on the binary tree the draw list once was; `object_ordlist` reused it.
 
 ### L5. Removing from a full draw list writes through a NULL free-list head
 - `draw_list_remove` 1018:2e88 puts the removed node back on the free list with `LES SI,[DI+0x4b0]` /
@@ -990,6 +1066,8 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
 - Not reached: no shipped scene has 100 visible 3D objects (`draw_list_insert` refuses the 101st with
   "Estouro no número maximo de objetos visíveis na cena").
 - Port: `draw_list.remove` panics with this id (its callers cannot return errors). Confidence 9.
+- **1995 source:** present in Oct 1995: `object_ordlist::Extract` does `New->l = Node` without testing `New`
+  (`VTREE.CPP:369-374`).
 
 ### L6. Long message-box texts overrun the shared 100-byte buffer
 - `message_box_printf` 1018:3644 `sprintf`s into DGROUP 1050:7cd6 (100 bytes) with no bound, then shows it.
@@ -1002,6 +1080,8 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
 - Not reached: the lists never fill with the shipped data and every shipped bitmap path is short.
 - Port: `ini.messageBoxPrintf` truncates to 99 bytes. Confidence 9 (code); the effect after the box is
   inferred.
+- **1995 source:** present in Oct 1995: `static char Out[100]` and an unbounded `sprintf` (`GENGAME.CPP:470-477`);
+  the same long `MAX_OBJECT_QTY` text (`OBJECT.HPP:1828`).
 
 ### L7. A background larger than 1295×1039 overflows the occupancy grid
 - `occupancy_grid_ctor` 1010:0ba6 sizes the grid to `(bgHeight >> 4) + 1` rows × `(bgWidth >> 4) + 1`
@@ -1011,6 +1091,8 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
   ends at `g_game` 1050:7ae0). Later occupy/query calls index past them the same way.
 - Not reached: every shipped `Screen=` background is 640×480 (41×41 cells).
 - Port: out-of-range cells read as free and writes are dropped (`grid` module notes). Confidence 9.
+- **1995 source:** present in Oct 1995: `MAX_Y 1024`, `MAX_X 1280`, a message box and no return
+  (`SCREEN.HPP:20-24,132-140`).
 
 ### L8. A fourth closet pick overruns `Game.pickedItems`
 - `noite_game_handle_message_hook` 1018:c49c–c52b writes `pickedItems[pickedCount]` (Game +0x69a, 3 × 12
@@ -1028,6 +1110,9 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
   a 26th exit overwrites `exitCount`, then `name`.
 - Not reached: exit indexes come only from the add functions; the most exits in a shipped scene is 20
   (3fpapclo). Port: a NULL slot panics (`src/game.zig`). Confidence 9.
+- **1995 source:** present in Oct 1995, a slip: `gen_scene::CreateNewScene` tests `ExitNum <= NumExits`
+  (`GENSCENE.CPP:58`) while `scene::Exit()` uses `<` (`SCENE.HPP:199-202`); `VetExits[NumExits++]` is unchecked
+  (`GENSCENE.CPP:457-459`, `MAX_EXITS` 10 then).
 
 ### L10. Perspective view and axis divisors are not checked for zero
 - `perspective_backdrop_set_view` 1010:ada1–adbe divides by `view3d_z − (viewHeight − view_y)`;
@@ -1035,6 +1120,8 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
   is an integer-divide fault.
 - Not reached: no shipped `Screen=` line (116) makes either divisor 0 (none is within ±4). Port: panics
   with a message (`src/backdrop.zig`). Confidence 9.
+- **1995 source:** present in Oct 1995: `_3D_screen::SetViewPoint` and `SetyAxisShift` divide unchecked
+  (`3DSCREEN.CPP:26-46`).
 
 ### L11. Vacating a cell that was not occupied leaves a phantom occupant
 - `occupancy_grid_vacate_cell` 1010:d884 (only caller `occupancy_grid_vacate` 1010:d9be) clears the cell's
@@ -1045,6 +1132,10 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
   test `visible`); the cell then blocks like an invisible obstacle until the scene is rebuilt. No such
   double vacate was found in the shipped scenes (needs a trace). Port: reproduced (`src/grid.zig`).
   Confidence 9 (arithmetic); 4 (reached).
+- **1995 source:** half intended. Walls are negative counts: `WALL` is −1 (`SCREEN.HPP:29`), `IncrOccup` decrements
+  a negative cell, and `Occupation` decodes `-occ-1` occupants (`SCREEN.CPP:118-122`); so `DecrOccup`'s `else ++`
+  (`SCREEN.HPP:95-108`, a `//return WALL;` left commented out) is meant for occupied walls. Only the 0 → 1 (and bare
+  −1 → 0) cases are the slip. `Disappear` does not test `IsVisible` in 1995 either (`OBJECT.HPP:553-562`).
 
 ---
 
