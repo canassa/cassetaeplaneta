@@ -35,6 +35,14 @@ pub fn StripTable(comptime n: usize) type {
     };
 }
 
+/// Platform emulation, not a fix (both versions): what one game tick's frame cost a period
+/// PC (a 486DX2-66 drawing the 480×300 raycast view, ~10 frames a second). Windows 3.1
+/// makes a timer's message only when the queue is empty and never queues missed periods, so
+/// a frame slower than the timer lowers the tick rate; the port draws at once. After a tick
+/// the game's timers (1 and 10) give no message for this long (`labyrinth_input`,
+/// `Queue.postpone`). One place to tune it (docs/jardim/DESIGN.md "Platform: frame cost").
+pub const render_cost_ms: u32 = 100;
+
 pub const Game = struct {
     gpa: std.mem.Allocator,
     plat: Platform,

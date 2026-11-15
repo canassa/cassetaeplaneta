@@ -8,7 +8,8 @@
 const std = @import("std");
 const msg = @import("../core/msg.zig");
 const Msg = msg.Msg;
-const Game = @import("core/game.zig").Game;
+const game = @import("core/game.zig");
+const Game = game.Game;
 const object = @import("core/object.zig");
 const Object = object.Object;
 const world = @import("core/world.zig");
@@ -26,6 +27,20 @@ const vk_control: u16 = 0x11;
 const vk_capital: u16 = 0x14;
 const vk_escape: u16 = 0x1b;
 const vk_space: u16 = 0x20;
+
+/// The game tick's system timer (`labyrinth.create`).
+pub const game_timer_id: u16 = 1;
+/// AppWndProc's FindWindow timer, which ticks the game too (BUGS.md J8).
+const find_timer_id: u16 = 10;
+
+/// Not in the original: a period PC's frame cost (`render_cost_ms`, both versions). The
+/// tick's frame keeps the task busy that long: neither timer that ticks the game comes due
+/// before it ends (Windows coalesces a timer's missed periods into one message).
+fn frameCost(g: *Game) void {
+    const until = g.plat.ticks() +% game.render_cost_ms;
+    g.queue.postpone(.system, game_timer_id, until);
+    g.queue.postpone(.system, find_timer_id, until);
+}
 
 /// `_aFldiv`: signed 32-bit division; a zero divisor is the original's #DE.
 fn aFldiv(a: i32, b: i32) i32 {
@@ -468,6 +483,7 @@ pub fn handleMessage(g: *Game, bd: *Backdrop, m: Msg) u16 {
         },
         msg.wm.systimer => {
             tick(g, bd);
+            frameCost(g);
             return 1;
         },
         else => return 0,

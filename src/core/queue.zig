@@ -108,6 +108,16 @@ pub const Queue = struct {
     }
 
     /// The armed timer `id` of that kind, or null.
+    /// Not Windows' API: the task was busy until `until` (a period PC's frame
+    /// cost, `jardim/core/game.zig` `render_cost_ms`): the timer's next
+    /// message comes no earlier. Missed periods do not pile up (one message
+    /// when due, as `next` always does).
+    pub fn postpone(q: *Queue, kind: TimerKind, id: u16, until: u32) void {
+        for (q.timers[0..q.timer_count]) |*t| {
+            if (t.kind == kind and t.id == id and @as(i32, @bitCast(until -% t.due)) > 0) t.due = until;
+        }
+    }
+
     pub fn findTimer(q: *const Queue, kind: TimerKind, id: u16) ?Timer {
         for (q.timers[0..q.timer_count]) |t| {
             if (t.kind == kind and t.id == id) return t;
