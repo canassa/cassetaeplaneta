@@ -161,6 +161,8 @@ pub const MoverPart = struct {
     timerPeriod: i16 = 0,
     // @orig Mover+0x34
     moving: i16 = 0,
+    // @orig Mover+0x36 (only `portable_ctor_zoom` writes it, 0)
+    unk36: i16 = 0,
 };
 
 /// Actor and Player parts (structs `Actor` 0x56, `Player` 0x5c): the
@@ -178,9 +180,9 @@ pub const ActorPart = struct {
 /// Portable part (struct `Portable`, 0x48; a skeleton in Ghidra: the
 /// fields are the engine's, to be confirmed by `object_create`).
 pub const PortablePart = struct {
-    // @orig Portable+0x38 (the carrier; game_input's pick-up path)
-    owner: ?*Object = null,
-    // @orig Portable+0x3c
+    // @orig Portable+0x38 (`portable_ctor_zoom` zeroes it; nothing reads it)
+    unk38: i16 = 0,
+    // @orig Portable+0x3a (far pointer: the current strip's DIB at construction)
     icon: ?*Dib = null,
     // @orig Portable+0x40
     iconW: i16 = 0,
@@ -199,6 +201,8 @@ pub const ExitPart = struct {
     hasPlayer: i16 = 0,
     hasControlPanel: i16 = 0,
     hasStatusBar: i16 = 0,
+    // @orig Exit+0x34 (zeroed by `exit_ctor`; nothing reads it)
+    unk34: [2]u16 = @splat(0),
     condition: ?*anyopaque = null,
     framesLeft: i16 = 0,
     playing: i16 = 0,
