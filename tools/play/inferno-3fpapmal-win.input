@@ -1,0 +1,55 @@
+# NOITE's pope's punishment (3fpapmal) starts the real INFERNO, which
+# survives the 3 minutes: NOITE gets 0x40c (hides), then the time-out's
+# 0x40a (5 lives, 500), shows itself, adds 500 and goes to the hall.
+#
+#   zig-out/bin/noite --headless --scene 3fpapmal --ms 198300 --input tools/play/inferno-3fpapmal-win.input
+#   zig-out/bin/noite --headless --scene 3fpapmal --ms 198300 --fix all --input tools/play/inferno-3fpapmal-win.input
+#
+# The pope's video ends at 15903 (the WinExec); INFERNO starts 1500 ms
+# later (17403). The keys are `tools/inferno_plan.py --start 17403`
+# (inferno-alone-win.input's game shifted); the time-out is at 197403.
+# - Original: INFERNO keeps posting 0x40c after its result (BUGS.md H1):
+#   the hall takes them for its TIRO game, hides NOITE and, finding no
+#   TIRO window, counts two lost TIRO games (197453, 197503: 3 lives -> 1);
+#   then the time-out's repost (H2) is the hall's TIRO win: +500 more and
+#   the prison (3fprisao), lives 1, score 1000. A second after the
+#   time-out INFERNO spins on WM_DESTROY (H8: the port panics at 198403),
+#   hence --ms 198300.
+# - `--fix all`: one 0x40c, one 0x40a: the hall, 3 lives, score 500.
+10000 dump video
+20970 key up
+26431 key up
+31836 key up
+37283 key up
+42761 key up
+48217 key up
+53795 key up
+59198 key up
+64591 key up
+69989 key up
+75567 key up
+80976 key up
+86493 key up
+91954 key up
+97408 key up
+102813 key up
+108267 key up
+113790 key up
+119307 key up
+124712 key up
+130105 key up
+135566 key up
+141083 key up
+146486 key up
+152008 key up
+157523 key up
+162926 key up
+168275 key up
+173854 key up
+179304 key up
+184774 key up
+190233 key up
+100000 dump inferno
+197900 result won 500
++0 state
++0 expect 3fprisao | 3fhall

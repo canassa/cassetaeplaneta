@@ -1,0 +1,11 @@
+# INFERNO alone, a loss: no key at all. A hazard walks into the standing
+# hero every 5.46 s and each costs a life (-500, the death strip); the
+# fifth, at 27300, posts WM_DESTROY with no report (BUGS.md H3), so the
+# game ends with no result in both versions (`inferno_loss_reports`, a
+# choice left out of `--fix all`, would report lost -3500).
+#
+#   zig-out/bin/noite --minigame inferno --headless --ms 30000 --input tools/play/inferno-alone-lose.input
+#   zig-out/bin/noite --minigame inferno --headless --ms 30000 --fix all --input tools/play/inferno-alone-lose.input
+5000 dump start
+20000 dump dying
+29000 result none

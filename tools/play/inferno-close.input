@@ -1,0 +1,10 @@
+# INFERNO alone, the window closed at 2 s (Windows' End Task, the web
+# page's tab closed: WM_CLOSE, then WM_DESTROY). WM_CLOSE posts the
+# time-out's report, (5 lives, 500): a win with a life left (BUGS.md H4),
+# in both versions. `inferno_close_forfeits` (a choice left out of `--fix
+# all`) makes it a loss: `--fix all,inferno_close_forfeits` gets lost 0.
+#
+#   zig-out/bin/noite --minigame inferno --headless --ms 3000 --input tools/play/inferno-close.input
+#   zig-out/bin/noite --minigame inferno --headless --ms 3000 --fix all --input tools/play/inferno-close.input
+2000 close
+2500 result won 500

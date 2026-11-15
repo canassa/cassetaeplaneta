@@ -1,0 +1,50 @@
+# INFERNO alone, the 3 minutes survived with every life.
+#
+#   zig-out/bin/noite --minigame inferno --headless --ms 180900 --input tools/play/inferno-alone-win.input
+#   zig-out/bin/noite --minigame inferno --headless --ms 180900 --fix all --input tools/play/inferno-alone-win.input
+#
+# The keys are `tools/inferno_plan.py` (planned against the port): the hero
+# stands at x 153, under no platform, and jumps (UP) 1.9 s before each
+# hazard would reach him, so he lands on it from above: 32 stomps, +150
+# each, 4800 points. He never walks (no scroll zone: H7 never matters),
+# never runs into a hazard from the side (H5) and loses no life (H6), so
+# the Original and the Corrigida play the same game. At 180000 the clock
+# reports (5 lives, 500): the flat win, whatever the score. The Original
+# reposts it every 100 ms (H2) and a second later spins on WM_DESTROY for
+# good (BUGS.md H8: the port panics at 181000), hence --ms 180900; with
+# `--fix all` INFERNO quits at 181000.
+1000 dump start
+3567 key up
+9028 key up
+14433 key up
+19880 key up
+25358 key up
+30814 key up
+36392 key up
+41795 key up
+47188 key up
+52586 key up
+58164 key up
+63573 key up
+69090 key up
+74551 key up
+80005 key up
+85410 key up
+90864 key up
+96387 key up
+101904 key up
+107309 key up
+112702 key up
+118163 key up
+123680 key up
+129083 key up
+134605 key up
+140120 key up
+145523 key up
+150872 key up
+156451 key up
+161901 key up
+167371 key up
+172830 key up
+90000 dump middle
+180500 result won 500
