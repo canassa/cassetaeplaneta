@@ -95,6 +95,15 @@
         69: ["Abrir", "Abrir porta"], 17: ["Tiro", "Atirar"], 81: ["Arma", "Trocar de arma"] },
     },
   };
+  // The MK3 fight's pad (?mk3=1): the arrows, A S D F as the four blows and
+  // Space (the middle of the arrows) as the block. Down + a blow: the low
+  // moves (crouching punch, uppercut, kick, sweep); Back + HK: the roundhouse.
+  const PAD_MK3 = {
+    cls: "fight",
+    keys: [37, 38, 39, 40, 65, 83, 68, 70, 32],
+    labels: { 65: ["Soco", "Soco fraco"], 83: ["Soco+", "Soco forte"], 68: ["Chute", "Chute fraco"],
+      70: ["Chute+", "Chute forte"], 32: ["Def.", "Defender"] },
+  };
   // The files of the current manifest, by hashed URL. The name must not
   // start with "noite-": loaders before the hashes deleted every
   // "noite-*" cache but their own (their caches are migrated below).
@@ -310,6 +319,8 @@
   }
 
   /** { version: "original" | "corrigida", skip: bool, oneButton: bool } */
+  let mk3 = false; // ?mk3=1: the MK3 fight (XILINDRO's Corrigida)
+  let autoPlay = false; // ?auto=1
   function readPrefs() {
     const prefs = { version: "original", skip: true, oneButton: coarsePointer(), minigame: "" };
     try {
@@ -319,8 +330,16 @@
       if (typeof p.oneButton === "boolean") prefs.oneButton = p.oneButton;
       if (MINIGAMES.some((m) => m.ready && m.name === p.minigame)) prefs.minigame = p.minigame;
     } catch {}
+    // The MK3 fight prototype (`fight_mk3`, docs/fights/MK3.md): ?mk3=1 turns
+    // it on (it needs the private sprite pack in the site's files), ?jogo=NAME
+    // picks the minigame alone, ?auto=1 presses Jogar when the files are in.
+    const q = new URLSearchParams(location.search);
+    if (q.get("mk3") === "1") mk3 = true;
+    if (q.get("auto") === "1") autoPlay = true;
+    const jogoAsked = q.get("jogo");
+    if (jogoAsked && MINIGAMES.some((m) => m.ready && m.name === jogoAsked)) prefs.minigame = jogoAsked;
     // "Trocar versão" reloads with ?versao=… (works without localStorage).
-    const asked = new URLSearchParams(location.search).get("versao");
+    const asked = q.get("versao");
     if (asked in SAVE_PREFIXES) {
       prefs.version = asked;
       try {
@@ -710,7 +729,7 @@
   /** Shows the pad's buttons for `program` (PAD_KEYS; PAD_CORRIGIDA for the
    *  Corrigida's fights and JARDIM); a hidden held one is released. */
   function padFor(program) {
-    const alt = prefs.version === "corrigida" ? PAD_CORRIGIDA[program] : null;
+    const alt = prefs.version === "corrigida" ? (mk3 && program === "xilindro" ? PAD_MK3 : PAD_CORRIGIDA[program]) : null;
     if (program === padProgram && !!alt === padLabels) return;
     padProgram = program;
     padLabels = !!alt;
@@ -1110,6 +1129,7 @@
       await loadAll();
       ready = true;
       $("status").textContent = "Pronto.";
+      if (autoPlay && !$("play").disabled) $("play").click();
       if ($("play").disabled) $("play").textContent = "Iniciando…";
       const snap = await Promise.race([play.then(() => null), restore]);
       const bytes = await wasmBytes;
@@ -1149,7 +1169,7 @@
       attachInput();
       if (!snap) {
         const minigame = MINIGAMES.findIndex((m) => m.name === prefs.minigame) + 1;
-        const rc = wasm.noite_start(prefs.version === "corrigida" ? 1 : 0, prefs.skip ? 1 : 0, prefs.oneButton ? 1 : 0, minigame);
+        const rc = wasm.noite_start(prefs.version === "corrigida" ? 1 : 0, prefs.skip ? 1 : 0, prefs.oneButton ? 1 : 0, minigame, mk3 ? 1 : 0);
         if (rc === 3) throw new Error("este minijogo ainda não foi portado");
         if (rc !== 0) throw new Error(`o jogo não iniciou (${rc})`);
       }

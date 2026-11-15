@@ -53,6 +53,9 @@ pub const Game = struct {
     /// The Corrigida's smooth motion (`fight_smooth_motion`; not in the
     /// original): the presented picture (`core/fight_smooth.zig`).
     smooth: @import("../../core/fight_smooth.zig").State = .{},
+    /// The MK3 fight (`fight_mk3`, a prototype; `core/fight_mk3/`): null
+    /// without the flag or the sprite pack.
+    mk3: ?*@import("../../core/fight_mk3.zig").Match = null,
 
     // ---- struct Game ----
     // @orig Game+0x2
@@ -254,6 +257,7 @@ pub const Game = struct {
     /// e.g. the strips `scene_object_dtor` leaves, is not a leak here).
     pub fn destroy(g: *Game) void {
         g.smooth.deinit(g.gpa);
+        @import("../../core/fight_mk3/xilindro.zig").stop(g);
         g.heap.deinit();
         g.gpa.destroy(g);
     }

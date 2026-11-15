@@ -13,6 +13,13 @@
 # `explorer` dev shell: Pillow and ffmpeg; its media are cached in
 # zig-out/explorer/cache); the game's manifest does not list it.
 # OUT is replaced. Serve it as is (see docs/WEB.md for the headers).
+#
+# Two opt-in variables, for a private build with the MK3 fight prototype
+# (docs/fights/MK3.md; never the public deploy):
+#   NOITE_SPRITES=DIR       adds the files under DIR (zig-out/sprites: the
+#                           Ryu pack, not in git) as sprites/<path>, keyed
+#                           `<path>` (ryu/pack.bin) in the manifest;
+#   NOITE_SKIP_EXPLORER=1   leaves out the asset explorer (slow to build).
 set -euo pipefail
 root=$(cd "$(dirname "$0")/../.." && pwd)
 out=${1:-$root/zig-out/site}
@@ -35,10 +42,25 @@ for f in m["files"]:
     dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(src, dst)
     assert dst.stat().st_size == f["size"], url
+extra = os.environ.get("NOITE_SPRITES")
+if extra:
+    import hashlib
+    from urllib.parse import quote
+    base = pathlib.Path(extra)
+    for src in sorted(p for p in base.rglob("*") if p.is_file()):
+        rel = src.relative_to(base).as_posix()
+        dst = out / "sprites" / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(src, dst)
+        m["keys"][rel.lower()] = len(m["files"])
+        m["files"].append({"url": "sprites/" + quote(rel), "size": src.stat().st_size})
+    m["total"] = sum(f["size"] for f in m["files"])
+    m["version"] = hashlib.sha256("".join(f"{f['url']} {f['size']}\n" for f in m["files"]).encode()).hexdigest()[:16]
+    (out / "manifest.json").write_text(json.dumps(m, separators=(",", ":")))
 print(f"{out}: {len(m['files'])} files, {m['total'] / 1e6:.1f} MB")
 EOF
 # The commit the page reports (tools/web/stamp.py); -dirty when the tree
 # has uncommitted changes.
 NOITE_COMMIT=$(git describe --always --dirty --abbrev=12 2>/dev/null || true) python3 tools/web/stamp.py "$out"
 # The asset explorer (docs/WEB.md, "Asset explorer").
-nix develop "$root#explorer" --command python3 tools/explorer/build.py "$out/explorer" --cache "$root/zig-out/explorer/cache"
+[ -n "${NOITE_SKIP_EXPLORER:-}" ] || nix develop "$root#explorer" --command python3 tools/explorer/build.py "$out/explorer" --cache "$root/zig-out/explorer/cache"

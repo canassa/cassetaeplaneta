@@ -76,9 +76,11 @@ export fn __main_argc_argv(argc: c_int, argv: ?*anyopaque) c_int {
 /// (`--skip-videos`), `one_button` plays with the left button or touch
 /// alone (`--one-button`); `minigame` (0: NOITE) runs that minigame alone
 /// (1: ENCAIXE, `--minigame encaixe`; 2: TIRO; 3 when it is not ported yet).
-export fn noite_start(fixes: bool, skip_videos: bool, one_button_mode: bool, minigame: u32) i32 {
+export fn noite_start(fixes: bool, skip_videos: bool, one_button_mode: bool, minigame: u32, extra: u32) i32 {
     backend.init(gpa, skip_videos);
-    const fx: @import("core/fixes.zig").Fixes = if (fixes) .all() else .{};
+    var fx: @import("core/fixes.zig").Fixes = if (fixes) .all() else .{};
+    // `extra` bit 0: the MK3 fight prototype (`?mk3=1`), not in `all`.
+    if (extra & 1 != 0) fx.fight_mk3 = true;
     const prog: ?*const host.Program = if (minigame >= 1 and minigame <= minigames.len) minigames[minigame - 1] else null;
     hs.init(gpa, backend.platform(), &backend.sim, .{ .real = &minigames, .fixes = fx }, if (prog) |p| p.title else "Noite Animal", prog);
     if (prog) |p| {
@@ -90,7 +92,7 @@ export fn noite_start(fixes: bool, skip_videos: bool, one_button_mode: bool, min
     }
     const g = Game.create(gpa, hs.primary()) catch return 1;
     game = g;
-    if (fixes) g.fixes = .all();
+    g.fixes = fx;
     if (one_button_mode) one_button.enable(g);
     g.wndProc = units.app.wndProc;
     units.app.start(g) catch |e| {
@@ -194,14 +196,20 @@ export fn noite_audio_rate() u32 {
 }
 
 /// Test hook (tools/web/test.py): the options `noite_start` got, as bits
-/// (1: every fix on, 2: skip videos, 4: one button, 8: a minigame alone);
+/// (1: every fix on, 2: skip videos, 4: one button, 8: a minigame alone, 16: the MK3 fight);
 /// -1 before the start.
 export fn noite_options() i32 {
-    if (alone != null) return @as(i32, @intFromBool(std.meta.eql(hs.opts.fixes, .all()))) | @as(i32, @intFromBool(backend.sim.opts.skip_videos)) << 1 | 8;
+    if (alone != null) return optionBits(hs.opts.fixes) | @as(i32, @intFromBool(backend.sim.opts.skip_videos)) << 1 | 8;
     const g = game orelse return -1;
-    const all = std.meta.eql(g.fixes, .all());
-    return @as(i32, @intFromBool(all)) | @as(i32, @intFromBool(backend.sim.opts.skip_videos)) << 1 |
+    return optionBits(g.fixes) | @as(i32, @intFromBool(backend.sim.opts.skip_videos)) << 1 |
         @as(i32, @intFromBool(g.oneButton.filter != null)) << 2;
+}
+
+/// Bit 0: every fix on (the MK3 prototype flag, not in `all`, apart: bit 4).
+fn optionBits(fixes: @import("core/fixes.zig").Fixes) i32 {
+    var f = fixes;
+    f.fight_mk3 = false;
+    return @as(i32, @intFromBool(std.meta.eql(f, .all()))) | @as(i32, @intFromBool(fixes.fight_mk3)) << 4;
 }
 
 /// The program whose window is on top, for the page's on-screen pad

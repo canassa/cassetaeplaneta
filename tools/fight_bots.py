@@ -11,7 +11,8 @@ round and the port prints the result (`xilindro: won, score N`) and the
 bot's end line (`fightbot: end ...`). The harness is deterministic by
 virtual time, so a run varies with the bot's seed and the epoch (the
 games' srand). `--fixes` is a list of NAME=ARG pairs, ARG being the
-`--fix` argument (`orig` for none): by default `orig`, `fair`
+`--fix` argument (`orig` for none; `mk3=all,fight_mk3` for the MK3 prototype,
+which needs its private sprite pack, docs/fights/MK3.md): by default `orig`, `fair`
 (`all,-fight_easy_ai`, when that fix exists) and `easy` (`all`).
 
 Use a ReleaseFast build for speed:

@@ -159,7 +159,7 @@ pub fn gate(st: *State, fixes: Fixes, m: Msg, now: u32) Gate {
 
 // ---- the screen ----------------------------------------------------------
 
-pub const Fight = enum { salgin, xilindro };
+pub const Fight = enum { salgin, xilindro, xilindro_mk3 };
 
 /// The panel, in the window (and backdrop) coordinates: under the clock and
 /// the energy bar (y 20-38), over most of the arena band.
@@ -180,6 +180,16 @@ pub const fill = screen.fill;
 fn rows(fight: Fight, asdf: bool) []const Row {
     const walk: Row = .{ .caps = &.{ .left, .right }, .text = "andar" };
     return switch (fight) {
+        .xilindro_mk3 => &[_]Row{
+            walk,
+            .{ .caps = &.{.up}, .text = "pular" },
+            .{ .caps = &.{.down}, .text = "abaixar" },
+            .{ .caps = &.{.a}, .text = "soco fraco" },
+            .{ .caps = &.{.s}, .text = "soco forte" },
+            .{ .caps = &.{.d}, .text = "chute fraco" },
+            .{ .caps = &.{.f}, .text = "chute forte" },
+            .{ .caps = &.{.space}, .text = "defender" },
+        },
         .xilindro => if (asdf) &[_]Row{
             walk,
             .{ .caps = &.{.up}, .text = "pular" },
@@ -219,7 +229,7 @@ fn rows(fight: Fight, asdf: bool) []const Row {
 
 fn title(fight: Fight) []const u8 {
     return switch (fight) {
-        .xilindro => "XILINDRO",
+        .xilindro, .xilindro_mk3 => "XILINDRO",
         .salgin => "PORRADA NA SALA DE GIN\xc1STICA",
     };
 }
@@ -237,6 +247,8 @@ pub fn draw(plat: Platform, s: Surface, fight: Fight, asdf: bool) void {
         .panel = .{ .x = panel.x, .y = panel.y, .w = panel.w, .h = panel.h },
         .title = title(fight),
         .rows = rows(fight, asdf),
+        // Eight rows (MK3's) need the space between them.
+        .row_gap = if (fight == .xilindro_mk3) 1 else 6,
         .goal = &goal,
     });
 }

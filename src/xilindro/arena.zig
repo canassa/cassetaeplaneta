@@ -38,6 +38,7 @@ const fight_controls = @import("../core/fight_controls.zig");
 const fight_fair = @import("../core/fight_fair.zig");
 const fight_easy = @import("../core/fight_easy.zig");
 const fight_bot = @import("../core/fight_bot.zig");
+const fight_mk3 = @import("../core/fight_mk3/xilindro.zig");
 
 const VK_PGUP: u16 = 0x21;
 const VK_END: u16 = 0x23;
@@ -383,10 +384,14 @@ pub fn handleMessage(g: *Game, scene: *Scene, m: Msg) i16 {
 
 fn handleOne(g: *Game, scene: *Scene, m: Msg) i16 {
     if (fight_fair.isToggle(g.fixes, m)) {
-        toggleOverlay(g, scene);
+        // The MK3 fight's F9 draws the boxes (no fair-fight overlay).
+        if (g.mk3 != null) g.fair.overlay = !g.fair.overlay else toggleOverlay(g, scene);
         return 1;
     }
-    switch (fight_controls.gate(&g.controls, g.fixes, m, g.plat.ticks())) {
+    // The MK3 fight takes the raw keys (A S D F, Space, the arrows).
+    var fixes = g.fixes;
+    if (g.mk3 != null) fixes.fight_keys_asdf = false;
+    switch (fight_controls.gate(&g.controls, fixes, m, g.plat.ticks())) {
         .swallow => return 1,
         .dismissed => {
             hud.hideControls(g, scene);
@@ -456,10 +461,17 @@ fn run(g: *Game, scene: *Scene, m: Msg, frozen: bool) i16 {
     switch (m.id) {
         msg.wm.keydown => {
             if (g.fightOver != 0) return 1;
-            handled = keyDown(g, scene, m.wparam);
+            if (g.mk3) |mk| {
+                mk.key(m.wparam, true);
+                handled = 1;
+            } else handled = keyDown(g, scene, m.wparam);
         },
         msg.wm.keyup => {
             if (g.fightOver != 0) return 1;
+            if (g.mk3) |mk| {
+                mk.key(m.wparam, false);
+                return 1;
+            }
             handled = 1;
             switch (m.wparam) {
                 VK_LEFT, VK_RIGHT => keyUpWalk(g, bdOf(scene), m.wparam),
@@ -527,6 +539,12 @@ fn run(g: *Game, scene: *Scene, m: Msg, frozen: bool) i16 {
         else => handled = 0,
     }
 
+    // The MK3 fight has no beat: its own clock runs the round.
+    if (g.mk3) |mk| {
+        if (!frozen) mk3Update(g, scene, mk);
+        return handled;
+    }
+
     // PART 3: the beat (never while frozen: `beat` is false).
     if (!beat) return handled;
     const bd = bdOf(scene);
@@ -575,6 +593,51 @@ fn run(g: *Game, scene: *Scene, m: Msg, frozen: bool) i16 {
     hud.redrawArena(g, scene);
     if (g.fair.overlay) showOverlay(g, scene);
     return handled;
+}
+
+// ---- the MK3 fight (Corrigida prototype, `fight_mk3`; core/fight_mk3/) --------
+
+/// Runs the match up to now on every message (the 50-ms timer at the
+/// least; the picture advances it too, at the display rate): its sounds,
+/// the energies the clock's tie-break and the score read, the KO.
+fn mk3Update(g: *Game, scene: *Scene, mk: *fight_mk3.Match) void {
+    const now = g.plat.ticks();
+    if (!mk.started) mk.begin(now);
+    mk.advance(now);
+    const bar = &g.energyBar.?.energyBar;
+    const bd = bdOf(scene);
+    var evs: [16]@TypeOf(mk.sim.events[0]) = undefined;
+    const n = mk.sim.takeEvents(&evs);
+    for (evs[0..n]) |ev| switch (ev.kind) {
+        .hit_light => if (ev.who == 1) fighters.playPunchDor1(g) else fighters.playPunchDor3(g),
+        .hit_heavy => if (ev.who == 1) fighters.playKickDor1(g) else fighters.playKickDor3(g),
+        .block => _ = sound.play(g, 0, g.socoWave),
+        .knockdown, .ko => fighters.playSoco2(g),
+        else => {},
+    };
+    if (g.fightOver == 0) {
+        bar.fighterEnergy = fight_mk3.energyOf(mk.sim.f[0].health);
+        bar.opponentEnergy = fight_mk3.energyOf(mk.sim.f[1].health);
+        // A KO: the fall plays, then the old end of the round.
+        if (mk.sim.over and mk.sim.since_over >= 40) {
+            if (mk.sim.ko_winner == 0) fighterWins(g, bd) else opponentWins(g, bd);
+            g.setSystemTimer(0xc, 100);
+        }
+    } else if (!mk.sim.over) {
+        // The clock ended it (PART 1): the better energy wins.
+        mk.sim.finishOnTime(if (bar.fighterEnergy < bar.opponentEnergy) 1 else 0);
+    }
+    if (g.fightOver != 0 and fight_bot.config != null and !g.bot.ended) {
+        g.bot.ended = true;
+        var landed: u32 = 0;
+        var taken: u32 = 0;
+        for (mk.sim.landed[0]) |v| landed += v;
+        for (mk.sim.landed[1]) |v| taken += v;
+        std.debug.print("[{d}] fightbot: end profile={t} seed={d} clock={d} fighter={d} opponent={d} landed={d} taken={d}\n", .{
+            now, fight_bot.config.?.profile, fight_bot.config.?.seed, scene.secondsLeft, bar.fighterEnergy, bar.opponentEnergy, landed, taken,
+        });
+        std.debug.print("[{d}] mk3: landed by move (lp hp lk hk roundhouse c_lp uppercut c_lk sweep j_lp j_hp j_lk j_hk throw) player={any} cpu={any} blocked player={any} cpu={any}\n", .{ now, mk.sim.landed[0], mk.sim.landed[1], mk.sim.blocked[0], mk.sim.blocked[1] });
+    }
 }
 
 // ---- the fair fight (Corrigida, `fight_fair`; core/fight_fair.zig) ----------
@@ -1026,6 +1089,15 @@ fn botView(g: *Game, scene: *Scene) fight_bot.View {
 /// On each timer message the bot sends the keys a player would (the 1995
 /// codes, through the gate like a keyboard's).
 fn botTick(g: *Game, scene: *Scene, m: Msg) void {
+    // The MK3 fight's bot is its own (`fight_mk3/bot.zig`).
+    if (g.mk3 != null) {
+        // Only the controls screen: a key takes it down.
+        const c = fight_bot.config orelse return;
+        if (m.id == msg.wm.systimer and g.controls.phase == .screen and g.plat.ticks() >= c.after +| 400) {
+            _ = handleMessage(g, scene, .{ .id = msg.wm.keydown, .wparam = 0x0d });
+        }
+        return;
+    }
     const cfg = fight_bot.config orelse return;
     if (m.id != msg.wm.systimer or g.energyBar == null or g.fighter == null or g.opponent == null) return;
     if (g.plat.ticks() < cfg.after) return;
