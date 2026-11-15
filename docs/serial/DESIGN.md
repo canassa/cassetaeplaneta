@@ -86,7 +86,9 @@ BUGS.md K1–K6.
 - **The owner's decisions on the Corrigida's K-fixes:**
   - **K1, survive = win.** `serial_result_won_by_lives` reports a game
     with lives left after the two minutes as a win, one that loses every
-    life as a loss; not TIRO's `g_score > 0`.
+    life as a loss; not TIRO's `g_score > 0`. The same rule was checked
+    for every other minigame's won flag (BUGS.md "The won flag of the
+    other minigames"): none needs a fix.
   - **K2, a flat 500 for a survived game.** `serial_score_in_low_word`
     keeps what the high word holds: 500 whatever `g_score` is, `g_score`
     after a lost game (BUGS.md lists the flat 500 as design).

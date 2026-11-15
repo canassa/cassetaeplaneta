@@ -1650,9 +1650,10 @@ consistent code with a plausible intent, and none is reached by a slip.
 - **Confidence:** 9.
 - **Port:** ported and reproduced (unit `gallery`, src/serial/); the fix is
   `Fixes.serial_result_won_by_lives` (`--fix serial_result_won_by_lives`, on in the Corrigida version: won = lives
-  left). The owner's rule: surviving the two minutes is the win, not TIRO's `g_score > 0`. NOITE's side stays as
-  the original (`src/handlers/3farmcai.zig`). `tools/play/serial-3farmcai-lose.input` shows it: the lost game
-  keeps NOITE's three lives in the Original, takes one with the fixes.
+  left). The owner's rule: surviving the two minutes is the win, not TIRO's `g_score > 0` (the other minigames
+  were checked against it: "The won flag of the other minigames" below). NOITE's side stays as the original
+  (`src/handlers/3farmcai.zig`). `tools/play/serial-3farmcai-lose.input` shows it: the lost game keeps NOITE's
+  three lives in the Original, takes one with the fixes.
 
 ### K2. The score is packed into the high word of the result
 - **Where:** `serial_scene_handle_message`, `WM_DESTROY` 1068:1598–15be; NOITE `handler_3farmcai`
@@ -1732,6 +1733,23 @@ consistent code with a plausible intent, and none is reached by a slip.
   (`--fix serial_close_forfeits`, on in the Corrigida version): after `WM_CLOSE` the result is a lost
   game's, wParam 0 and `g_score` (packed as K2 unless `serial_score_in_low_word`).
   `tools/play/serial-close.input`: `won 32768004 | lost 200`.
+
+### The won flag of the other minigames (checked)
+
+The owner's K1 rule, survive = win, was checked against every minigame's 0x40a wParam. None needs a fix: each
+won flag already follows survival or completion, or the game has nothing to survive.
+- **TIRO:** `g_score > 0` (T-section). No lives and no clock: `lives` is the crossbow's 16 arrows and the game
+  always ends when they are spent, so nothing can be survived or failed but the score.
+- **ENCAIXE:** wParam 0xffff when the score reaches 1000 (ten rows), 0 when a piece lands in the top three rows
+  or the window is closed. No lives or clock: completion.
+- **SALGIN, XILINDRO:** won = the player's energy not below the opponent's, at a KO or when the 90-s clock runs
+  out (a tie wins). A KO is the fight's completion; a player who lasts the clock but is behind on energy loses
+  on points, a boxing decision rather than a survival clock (the owner may say otherwise).
+- **INV:** 0xffff once every invader is gone, 0 at the fourth bomb hit or the landing: completion.
+- **INFERNO:** `g_lives` at the 3-minute time-out (non-zero: a win): survival already. The last life lost
+  reports nothing in the Original (H3) and a loss in the Corrigida.
+- **SAUNA:** 0xffff when the last dot is eaten, 0 at the third catch: completion.
+- **JARDIM:** 1 when the final enemy is reached with lives left, 0 otherwise: completion.
 
 ### Harmless (SERIAL)
 

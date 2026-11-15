@@ -131,6 +131,8 @@ dead code), `QUALITY.md` (the large-model `/Od` build), BUGS.md H1–H8.
   `key 109`).
 - **The touch pad** (the owner's decision): the four arrows, UP the high
   jump and DOWN the low one (`PAD_KEYS.inferno`, Integration).
+- **The won flag (the owner's SERIAL rule, survive = win, checked here):**
+  the won flag is already survival: `g_lives` at the 3-minute time-out. BUGS.md "The won flag of the other minigames".
 
 ## Source layout
 

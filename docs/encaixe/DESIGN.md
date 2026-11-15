@@ -40,6 +40,9 @@ globals), `FUNCTIONS.md` (names, dead code), BUGS.md E1–E11.
   ENCAIXE are tasks with their own state, queue, timers, window and screen;
   the protocol (0x40b/0x40c/0x40a, FindWindow, the hidden NOITE window, the
   vanished-window loss) runs through the platform as in Windows.
+- **The won flag (the owner's SERIAL rule, survive = win, checked here):**
+  the won flag stays as it is: 0xffff at 1000 points (ten rows), 0 when the
+  stack reaches the top. No lives or clock: the win is completion. BUGS.md "The won flag of the other minigames".
 
 ## Source layout
 

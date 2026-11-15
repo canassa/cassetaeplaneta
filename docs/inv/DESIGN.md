@@ -94,6 +94,9 @@ build), BUGS.md I1–I2 and its INV Harmless list.
   (`inv-*.input`, alone and from `--scene 4fsacaet`).
 - **The touch pad** (the owner's decision): ◀, a fire button (SPACE)
   and ▶ (`PAD_KEYS.inv`).
+- **The won flag (the owner's SERIAL rule, survive = win, checked here):**
+  the won flag stays WM_DESTROY's wParam: 0xffff once every invader is gone,
+  0 at the fourth bomb hit or the landing. The win is completion. BUGS.md "The won flag of the other minigames".
 
 ## Source layout
 

@@ -108,6 +108,11 @@ and X1–X11.
 - **The stand-off and the walls stay bug fixes** (S10 / X10, S11 / X11, in
   Corrigida); XILINDRO's recoil after a landed blow stops at x 0 (shorter
   from x 51–99) instead of being skipped.
+- **The won flag (the owner's SERIAL rule, survive = win, checked here):**
+  the won flag stays `playerEnergy >= opponentEnergy`, at a KO or at the
+  90-s clock (XILINDRO's is the same). The KO is completion; losing on
+  energy after lasting the clock is a points decision, not a survival clock,
+  so it is left for the owner to confirm. BUGS.md "The won flag of the other minigames".
 
 ## Source layout
 
@@ -638,3 +643,11 @@ option (`KEYS_FOR` in `tools/smoke.py`), `full.input` re-tuned, the web
 entries; then `ready = true` in `src/<n>/root.zig` and the README's
 minigame list. BUGS.md's S/X "Port:" lines then say "ported". Both are
 finished (the keys, the script key names and `close` came with SALGIN).
+
+## Owner questions
+
+1. **The won flag at the clock** (SERIAL's K1 rule, survive = win): both
+   fights report won = the player's energy not below the opponent's. A
+   player who lasts the 90 s but is behind on energy loses on points.
+   Left as it is (a KO, or the points at the bell, is the fight's
+   completion); say if lasting the clock should be a win.

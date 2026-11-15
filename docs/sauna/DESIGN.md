@@ -100,6 +100,9 @@ show`) is the specification; `GAME.md` (rules, protocol), `DATA.md`
 - **The touch pad** (the owner's decision): the four arrows, each
   running Pacman to the next wall (`PAD_KEYS.sauna`); taps on the maze
   walk him as well.
+- **The won flag (the owner's SERIAL rule, survive = win, checked here):**
+  the won flag stays WM_DESTROY's wParam: 0xffff when the last dot is eaten,
+  0 at the third catch. The win is completion. BUGS.md "The won flag of the other minigames".
 
 ## Source layout
 

@@ -83,6 +83,9 @@ protocol), `DATA.md` (classes, vtables, globals), `FUNCTIONS.md` (names, dead co
 - **The touch pad** (the owner's decision): the four arrows, SPACE (open) in the centre and CTRL
   (fire) bottom right; running (SHIFT) and strafing (CAPS LOCK) are left out
   (`PAD_KEYS.jardim` at the integration, Integration).
+- **The won flag (the owner's SERIAL rule, survive = win, checked here):**
+  the won flag stays 1 when the final enemy is reached with lives left, 0
+  otherwise. The win is completion. BUGS.md "The won flag of the other minigames".
 
 ## Source layout
 

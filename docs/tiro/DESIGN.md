@@ -93,6 +93,10 @@ show`) is the specification; `GAME.md` (rules, protocol), `DATA.md`
   and ▶ (`PAD_KEYS.tiro`).
 - **A close is a loss** (the owner's decision, the rule of every
   minigame): T7's fix is in the Corrigida.
+- **The won flag (the owner's SERIAL rule, survive = win, checked here):**
+  the won flag stays `g_score > 0`. TIRO has no lives and no clock (`lives`
+  is the 16 arrows, and the game always ends when they are spent), so there
+  is nothing to survive. BUGS.md "The won flag of the other minigames".
 
 ## Source layout
 
