@@ -1,6 +1,6 @@
 # Full playthrough, title screen to the sportsman ending (see README.md).
 #
-#   zig-out/bin/noite --headless --ms 600000 --input tools/play/full.input [--dump DIR]
+#   zig-out/bin/noite --headless --ms 660000 --input tools/play/full.input [--dump DIR]
 #
 # The run is deterministic (headless virtual clock): the random choices
 # (roadblock cop, hall doors, TIRO's targets, ENCAIXE's pieces, bar quiz question) depend
@@ -8,9 +8,10 @@
 # change them. With the fixes, leave out the two that change the route
 # (README.md):
 #   --fix all,-avi_exit_ignores_timer
-# The hall's TIRO and the pharaoh's ENCAIXE are the real minigames (scripted
-# wins, tools/tiro_plan.py and tools/encaixe_plan.py); with
-# `--minigame-stub` the run fails at their `result` lines.
+# The hall's TIRO, the pharaoh's ENCAIXE and the gym's SALGIN are the real
+# minigames (scripted wins, tools/tiro_plan.py, tools/encaixe_plan.py and a
+# held Up for SALGIN); with `--minigame-stub` the run fails at their
+# `result` lines.
 
 # Title menu: JOGAR, then NOVO JOGO; the opening video ends in the bedroom.
 22000 dump title
@@ -326,7 +327,16 @@
 +2000 rclick 396 290
 +1500 dump quiz
 +200 rclick 440 288
-+0 wait espquete 41000
++0 wait 4fsalgin 41000
+# The gym: the sportsman's animation ends 8733 ms into the scene (the
+# WinExec) and SALGIN starts 1500 ms later. Up is held from 11000 into the
+# scene (tools/play/salgin-4fsalgin-win.input): the key repeat kicks as
+# soon as each move ends, a KO about 50 s later; the hold ends after it
+# and before the window closes.
++11000 hold up 52000
++1000 dump salgin
++59000 result won
++0 wait espquete 10000
 +1000 wait 6fsai1 51000
 +0 wait fundinic 48000
 +1000 dump end

@@ -1,7 +1,8 @@
 # Full playthrough in the one-button mode (src/one_button.zig): the left
-# button only, no keys but TIRO's, title screen to the sportsman ending.
+# button only, no keys but TIRO's and SALGIN's, title screen to the
+# sportsman ending.
 #
-#   zig-out/bin/noite --headless --ms 480000 --one-button --input tools/play/onebutton.input [--dump DIR]
+#   zig-out/bin/noite --headless --ms 540000 --one-button --input tools/play/onebutton.input [--dump DIR]
 #
 # full.input's route, but doors are clicked from wherever the player
 # stands (the player walks over first), the keyboard walks are clicks, and
@@ -185,7 +186,16 @@
 +2000 click 396 290
 +1500 dump quiz
 +200 click 440 183
-+0 wait espquete 41000
++0 wait 4fsalgin 41000
+# The gym: the sportsman's animation ends 8733 ms into the scene (the
+# WinExec) and SALGIN starts 1500 ms later. Up is held from 11000 into the
+# scene (tools/play/salgin-4fsalgin-win.input): the key repeat kicks as
+# soon as each move ends, a KO about 50 s later; the hold ends after it
+# and before the window closes.
++11000 hold up 52000
++1000 dump salgin
++59000 result won
++0 wait espquete 10000
 +1000 wait 6fsai1 51000
 +0 wait fundinic 48000
 +1000 dump end
