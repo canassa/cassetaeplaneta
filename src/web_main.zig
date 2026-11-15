@@ -27,6 +27,10 @@ const inv = @import("inv/root.zig");
 const xilindro = @import("xilindro/root.zig");
 const inferno = @import("inferno/root.zig");
 const sauna = @import("sauna/root.zig");
+const jardim = @import("jardim/root.zig");
+
+/// `main.busy_messages`: a frame given back to the page in a ping-pong.
+const main_busy_messages = 64;
 
 /// The minigames ported (as `main.zig`'s `minigames`); `noite_start`'s
 /// `minigame` is an index into it plus one.
@@ -106,9 +110,14 @@ export fn noite_frame() i32 {
     // the page its frame back after a while instead.
     var budget: u32 = 50_000;
     while (!g.quit and budget > 0) : (budget -= 1) {
-        while (g.plat.poll()) |ev| deliver(g, ev);
+    var cross = false;
+        while (g.plat.poll()) |ev| {
+            if (ev == .message) cross = true;
+            deliver(g, ev);
+        }
         if (!g.dispatchPending()) break;
     }
+        if (cross and 50_000 - budget >= main_busy_messages) break;
     if (budget == 0) std.log.warn("message storm: 50000 messages in one frame", .{});
     if (g.quit) {
         game = null;
