@@ -65,6 +65,11 @@ Saves go to `save/` (`--save DIR`).
   segfault prints the scene and the last 64 messages; a message loop that
   stops the clock is reported as a hang (`timeout -s SEGV` gives the stack
   of any other hang).
+- **All scripts**: `nix develop -c tools/play_all.py [-j N] [NAME…]` builds once and runs every
+  `tools/play/*.input` in parallel (about 20 s on 32 cores, 110 s serial). Each script's header comment
+  lists its commands (the `zig-out/bin/noite …` lines; `[--dump DIR]` is dropped) and, for a run that must
+  crash or exit nonzero as the original does, `expect-panic` / `expect-exit: N`. Logs in
+  `zig-out/play-logs/`. Run it after touching engine, handler or minigame code.
 - **Smoke test**: `nix develop -c python3 tools/smoke.py [--offers|--monkey SEED [--freeze]|--minigame-result lose] [SCENE…]`
   starts every INI scene and clicks around (`--freeze`: with random time jumps); failures keep their log in
   `zig-out/smoke/`. `--offers` gives the key items to every object (in the one-button mode by dragging and

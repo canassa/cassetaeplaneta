@@ -128,7 +128,9 @@ headless harness (`--input` scripts, `--dump` frames, `--scene` jumps with
 deterministic: random choices depend on the virtual time, so editing an
 early line can change later outcomes — re-tune the script then). Run all
 three after touching engine or handler code; a smoke "orig" line is a crash
-the original has too (its panic names the BUGS.md entry).
+the original has too (its panic names the BUGS.md entry). `tools/play_all.py` runs every
+`tools/play/*.input` script (commands in their headers) in parallel: run it after touching engine,
+handler or minigame code.
 
 ## Binary facts (NOITE.EXE — the minigames share the toolchain)
 
