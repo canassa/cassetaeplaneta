@@ -13,7 +13,7 @@
 //! nearest entry (`nearestIndex`).
 //!
 //! The HUD text colour is COLORREF 0x0000ffff (the original pushes the
-//! dwords 0, -1): yellow, although GAME.md says white.
+//! dwords 0, -1): yellow (red and green).
 
 const std = @import("std");
 const Game = @import("core/game.zig").Game;

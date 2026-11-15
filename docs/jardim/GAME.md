@@ -151,7 +151,7 @@ subtree; it clears the links as it goes) and resets the root and `nextFree` = 1.
   redraws it); `labyrinth_minimap_player` a 4×4 red square at (x/16 + 513, 202 − y/16), drawn on
   the window after each step, once the minimap rectangle has been copied from the surface (which
   erases the old one). Objects are not shown.
-- **HUD** (`labyrinth_draw_hud` 1028:43e9, `labyrinth_present_hud` 438d): white transparent text
+- **HUD** (`labyrinth_draw_hud` 1028:43e9, `labyrinth_present_hud` 438d): yellow transparent text (`SetTextColor` 0x0000ffff: red and green)
   at y 410: level `%2.2d` at x 225, ammo `%3.3d` at 308, health `%3.3d%%` at 392, score `%3.3d` at
   493, lives `%2.2d` at 582. The face (`rostoN`, 5 frames at (33, 382)): frame 0 at 80 % health and
   above, one worse per 20 points, frame 0 again above 100. The control panel strip
@@ -302,9 +302,9 @@ destroys it with wParam 0: a loss.
 
 | Msg | Direction | wParam | lParam | Meaning |
 |---|---|---|---|---|
-| `0x40b` | NOITE → JARDIM | the variant (1 `espquete`, 0 `4fjarvamp`) | NOITE's window | hello; JARDIM stores `g_noiteWnd` and `g_variant` and posts `0x40c` |
+| `0x40b` | NOITE → JARDIM | the variant (1 `espquete`, 0 `4fjarvamp`) | NOITE's window | hello; AppWndProc's case would store `g_noiteWnd` and `g_variant` and post `0x40c`, but once `WM_CREATE` has run `game_handle_message` takes it first and answers 1: it never runs (`BUGS.md` J7) |
 | `0x40c` | JARDIM → NOITE | JARDIM's window | 0 | ready; posted on **every** message until NOITE's `0x40a` arrives (`g_noiteAcked`); JARDIM also looks NOITE up itself (`FindWindow("Noite Animal")`, retried on timer 10) |
-| `0x40a` | NOITE → JARDIM | 0 | 0 | NOITE's answer to `0x40c`: stops the re-posting |
+| `0x40a` | NOITE → JARDIM | 0 | 0 | NOITE's answer to `0x40c`: would stop the re-posting (`g_noiteAcked`), swallowed as the hello |
 | `0x40a` | JARDIM → NOITE | 1 won, 0 lost | the score | the result |
 
 NOITE's side (`src/handlers/espquete.zig`, `src/handlers/4fjarvamp.zig`):
@@ -312,10 +312,13 @@ NOITE's side (`src/handlers/espquete.zig`, `src/handlers/4fjarvamp.zig`):
   (`MM_MCINOTIFY`) it `_chdir`s to `<CD>jardim`, `WinExec`s `<CD>jardim\jardim.exe` and starts timer
   0x14 (100 ms); the timer finds "Noite Animal Jardim", hides the main window and posts `0x40b`
   with **variant 1** (the final enemy is `espanf`). JARDIM's own 0x40c gets there first and the handler
-  kills the timer, so this hello is never sent and the final enemy is `vamanf` (`BUGS.md` J7).
+  kills the timer, so this hello is never sent; JARDIM would not read it anyway, and the final enemy is
+  `vamanf` (`BUGS.md` J7).
 - `handler_4fjarvamp` (1028:0d80), the vampire's garden: the same at the scene start (0x401), with
   **variant 0** (`vamanf`).
-- Both answer each `0x40c` with `0x40a` (`espquete` to window 0: it never learns JARDIM's), and on
+- Both answer each `0x40c` with `0x40a` (`espquete` to window 0: it never learns JARDIM's;
+  `4fjarvamp` to JARDIM, which posts another 0x40c for each: the two bounce messages for the whole
+  game and the result is lost, `BUGS.md` J7), and on
   `WM_SYSTIMER` post themselves `(0x40a, 0, 0)` if the window has gone (the only report after ESC: a
   loss with no score change).
 - The result (`0x40a`): shows the main window, `g_score += lParam`, then the scene switch:
@@ -323,9 +326,9 @@ NOITE's side (`src/handlers/espquete.zig`, `src/handlers/4fjarvamp.zig`):
   `4fjarvamp` → `6fsai2` (the second ending) on a win, `6fsaida` on a loss. No life is taken: a
   loss ends the game. The CD directory is not restored (`BUGS.md` B11).
 
-The port has NOITE's side (the two handlers above); JARDIM itself is not ported: the headless
-minigame stub (`src/platform/sim.zig`) answers the hello and reports the result set in
-`Options.minigame`.
+The port has both sides: NOITE's handlers above and JARDIM (`src/jardim/`,
+`docs/jardim/DESIGN.md`); `--minigame-stub` keeps the headless stub (`src/platform/sim.zig`),
+which answers the hello and reports the result set in `Options.minigame`.
 
 ## Timers
 

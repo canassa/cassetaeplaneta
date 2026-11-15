@@ -75,6 +75,15 @@ protocol), `DATA.md` (classes, vtables, globals), `FUNCTIONS.md` (names, dead co
   task with its own state, queue, timers, window and screen; the protocol runs through the
   platform as in Windows. The host needs nothing new for JARDIM; the platform needs the keys and
   `GetKeyState` ("Platform" below).
+- **The playthroughs leave JARDIM out** (owner decision: each minigame is tested by its own
+  scripts only). `full.input` and `onebutton.input` end in `espquete`, which launches JARDIM:
+  they run with `--minigame-stub=jardim` (the stub's win, then `6fsai1`), and JARDIM is played by
+  the `jardim-*.input` scripts ("Tests").
+- **The Backdrop's perspective getters stay constants in `space3d`.** `getVanishX`/`Y`,
+  `getEyeDistance` and `getAxisX` return the Backdrop defaults' 0 directly instead of going
+  through backdrop dispatchers: JARDIM's only backdrop class (the LabyrinthBackdrop) overrides
+  none of them and its `setVanishPoint`/`setView`/`setAxis` calls are the defaults too, so a
+  dispatch would always land on the same 0 (and JARDIM's `backdrop` unit declares no such slots).
 - **The heap.** JARDIM never frees most of what it allocates: the seven tables per backdrop
   (three backdrops, `_fmalloc`, 71 KB each), the backdrops, the phase scenes' Portables (their
   destructors never run). `Game.local()` is the task's heap (an arena freed by `Game.destroy`):
@@ -403,18 +412,23 @@ hit across a cell boundary. They depend on nothing but constants.
 
 **The generator** `tools/jardim_tables.py` (unit `tables`, committed with it):
 1. The reference model, from the asm of 1028:003b and 1028:0077 (not the decompile, which the plate
-   calls garbled): the angle is `FILD` (2·(i|1)) → `FMUL m64` [10d0:13ee] (π/2880 as stored) →
-   `FADD m64` [13f6] (0.0003272 as stored), each rounded to the x87's 64-bit significand
-   (round to nearest even), then `FSTP m32` into `g_angleRadians`: **the angle is a binary32**,
-   which moves many entries by far more than an ulp; then each table's sequence with its exact
-   roundings: the transcendental of that binary32 value evaluated to well beyond 64 bits (Python
-   `decimal`, 60 digits, Taylor series), rounded to the 64-bit significand as `_trandisp1`
-   returns it on ST(0); the operations with `g_fixedOne16`/`g_cellSize`/`g_wallHeightK` in
-   extended precision; the double stores the asm makes (`fabs` takes and returns a double in
-   `__fac` 10d0:0c3e, so [2] and [3] round to binary64 before the last multiply); the clamp; the
-   truncation toward zero of `_ftol` (`FISTP m64` with RC = chop), low 32 bits kept. The
-   precision control is the x87's power-on 64 bits (to confirm from the CRT's `_fpinit` in `10b8`
-   by the `tables` agent).
+   calls garbled) and the CRT's `tan`/`sin`/`cos`/`fabs`/`_ftol`:
+   - the angle: `FILD` (2·(i|1)) → `FMUL m64` [10d0:13ee] (π/2880 as stored) → `FADD m64` [13f6]
+     (0.0003272 as stored), each rounded to the x87's 64-bit significand (round to nearest even;
+     the precision control is 64 bits: WIN87EM's init, and the FP library forces it itself at
+     10b8:319e), then `FSTP m32` into `g_angleRadians`: **the angle is a binary32**, which moves
+     many entries by far more than an ulp;
+   - the transcendental of that binary32 value evaluated to well beyond 64 bits (Python
+     `decimal`, 60 digits, Taylor series), rounded to the 64-bit significand on ST(0), then
+     **`FSTP m64` into `__fac`** (10d0:0c3e) by `_trandisp`: the result the caller gets back is a
+     **binary64**;
+   - every `FMUL`/`FDIVR` with `g_fixedOne16`/`g_cellSize`/`g_wallHeightK` in extended; [2] and [3]
+     go through `fabs`, which takes and returns a binary64 (another round to 53 bits before the
+     last multiply);
+   - **`FSTP m32` of the scaled value**: each table entry is a binary32 before `_ftol`; the clamps
+     against the f32 constants ±2³¹ (only the lower bound for [0], [1], [5], [6]), `FCHS` for the
+     signed [2]/[3], and the truncation toward zero of `_ftol` (`FISTP m64` with RC = chop), the
+     low 32 bits kept.
 2. The oracle: `raycast_build_tables` itself run in `tools/oracle` (with `_fmalloc` stubbed to a
    scratch selector, or the CRT heap with its two KERNEL imports stubbed), the seven tables read
    back. Unicorn computes the transcendental instructions on host doubles, so where the model and
@@ -443,145 +457,169 @@ oracle's `g_angleRadians` for 20 indices including 0, 1, 719, 720, 1439, 2879, 2
 | J4 wall textures stay on the screen | `jardim_wall_texture_on_wall` | raycast | `raycast_render_view` passes the hit coordinate & ~3 for a wall too (as for a door), so the texture column follows the wall | yes |
 | J5 a sprite with its top on row 478 crashes | `jardim_sprite_last_rows` | scaled | the magnifying row loop draws the 1–2 rows left on the surface; the Original port panics "BUGS.md J5" where the original faults | yes |
 | J6 a held key into a life-taking enemy takes a life every tick | `jardim_enemy_blocks_walk` | labyrinth_input | a step undone by `touch` ends the held key's walk (the tick does not repeat it until the key is pressed again): one life, or 5 health, per press | **no: a choice** |
-| J7 the variant never reaches JARDIM from `espquete` | `jardim_variant_hello` | app | AppWndProc posts 0x40c only after NOITE's 0x40b (the FindWindow branches post nothing), so `espquete`'s timer finds JARDIM, sends the hello and variant 1 arrives: the final enemy is `espanf` | yes |
+| J7 the variant (and NOITE's ack) never reaches JARDIM | `jardim_variant_hello` | app | AppWndProc posts 0x40c only after NOITE's 0x40b (the FindWindow branches post nothing) and lets 0x40b and 0x40a reach its own cases before `game_handle_message`, so `espquete`'s timer finds JARDIM, sends the hello and variant 1 arrives (the final enemy is `espanf`), and the ack stops the 0x40c | yes |
 
 Each unit ports the buggy code and keeps the fixed path only under its flag
 (`g.fixes.jardim_…`). The Latent entries get no flag: where the port would run them it panics
 naming the entry (the sprite queue's 101st node, a border door's read outside the map, the
-1-row source of `blit_scaled_column`) or behaves as the original's data allows (a short map
+1-row source of `blit_scaled_column`, every other unchecked cell, table entry and divisor) or behaves as the original's data allows (a short map
 file: `_filbuf`'s −1, i.e. 0xff, as the cell value). The Harmless entries get none either
-(the 0x40c re-posting, the blit's off-by-one rows, the overwritten placements, the constructor
+(the blit's off-by-one rows, the overwritten placements, the constructor
 positions in walls, the phase destructors, `passo1.bmp`, phase 3's dead exit branch, Chato's
 silent attack, the repeated loss reports, `WinMain`'s return).
 
 ## Integration
 
-JARDIM is wired (`src/main.zig` `minigames`) and switched off (`src/jardim/root.zig` `ready =
-false`) until every unit is ported and the tests below pass: until then NOITE's WinExec runs the
-stub and `--minigame jardim` says it is not ported.
+**Finished**: every unit is ported, `ready = true`; NOITE's `espquete` and `4fjarvamp` run the
+real JARDIM, `--minigame jardim` plays it alone and the web loader offers it ("Jogo" = Jardim,
+the owner's touch pad). Port bugs found while integrating:
+- **The phase handlers never ran.** `game_input.handleMessage` called the base
+  `labyrinth_scene.handleMessage` instead of the scene's slot 00 (`CALLF [BX]` at 1058:003b), so
+  the phases' own cases were dead: SPACE on an exit door did nothing (no phase 2 or 3), the
+  scream's end never respawned the player, the music never restarted and `WM_DESTROY` left the
+  waves and MCI open. It now dispatches through the scene.
+- **J7's fix lost every result.** `jardim_variant_hello` stopped the FindWindow posts but left
+  the hello to AppWndProc's 0x40b case, which never runs once `WM_CREATE` has run: every message
+  goes to `game_handle_message` first, whose labyrinth scene answers 1 for 0x40b and 0x40a. So
+  `g_noiteWnd` stayed 0 and the result went nowhere: in the Corrigida NOITE found the window gone
+  and reported a loss with no score, a win included. The fix now also lets 0x40b and 0x40a reach
+  their cases. (The same swallowing is the original's: it is part of J7.)
 
 ### The launch from NOITE
 
-Two scenes launch it (NOITE's side is ported and does not change):
-- `handler_espquete` (`src/handlers/espquete.zig`), the garden cutscene: at the video's
-  successful end (`MM_MCINOTIFY`) `WinExec("<CD>jardim\jardim.exe")` and timer 0x14 (100 ms),
-  whose tick posts **0x40b with variant 1** once `FindWindow("Noite Animal Jardim")` succeeds;
-- `handler_4fjarvamp` (`src/handlers/4fjarvamp.zig`), the vampire's garden: the same at the
-  scene start (0x401), **variant 0**.
+Two scenes launch it (`src/handlers/espquete.zig`, `src/handlers/4fjarvamp.zig`, as ported):
+- `handler_espquete`, the garden cutscene: at the video's end (`MM_MCINOTIFY`, 19665 into
+  `--scene espquete`) `WinExec("<CD>jardim\jardim.exe")` and timer 0x14 (100 ms), whose tick
+  posts **0x40b with variant 1** once `FindWindow("Noite Animal Jardim")` succeeds;
+- `handler_4fjarvamp`, the vampire's garden: the same at the scene start (0x401), **variant 0**.
 
 The host matches `jardim` to `jardim.program` and starts the task `--minigame-startup` ms later
-(1500; its WinMain: `app.start`, after `init_static_conditions` as `_cinit` runs it).
-JARDIM's AppWndProc (unlike TIRO's) does not wait for the hello: at the top of **every** message,
-while `g_noiteWnd` is 0 it calls `FindWindow("Noite Animal")` (task 0's title) and posts **0x40c**
-(wParam its window) to what it found; then, until NOITE's 0x40a ack (`g_noiteAcked`), it posts
-0x40c again on every message; timer 10 (50 ms) retries the FindWindow. Its first message is sent
-inside CreateWindow, so the first 0x40c is in NOITE's queue before NOITE's timer can find the
-window (in Windows 3.1 too: NOITE does not run until JARDIM's WinMain yields):
-- `4fjarvamp` ignores a 0x40c while it does not know JARDIM's window; its timer then finds it and
-  posts 0x40b (0); JARDIM stores the variant and NOITE's window and posts 0x40c; NOITE acks with
-  0x40a, kills the timer and hides;
-- `espquete` takes the first 0x40c as the reply: it kills the timer and hides, and its ack goes to
-  window 0. The hello is never sent, `g_variant` keeps its initial 0 and the final enemy is
-  `vamanf` (BUGS.md J7); JARDIM re-posts 0x40c to NOITE on every message until it ends, each one
-  a no-op for NOITE.
+(1500; its WinMain: `app.start`, after `init_static_conditions` as `_cinit` runs it): WM_CREATE
+at 21165 from `espquete`, 1500 from `4fjarvamp`. JARDIM's AppWndProc (unlike TIRO's) does not
+wait for the hello: at the top of **every** message, while `g_noiteWnd` is 0 it calls
+`FindWindow("Noite Animal")` (task 0's title) and posts **0x40c** (wParam its window) to what it
+found; then, until `g_noiteAcked`, it posts 0x40c again on every message; timer 10 (50 ms)
+retries the FindWindow. Once `WM_CREATE` has run, 0x40b and 0x40a go to `game_handle_message`
+first and are swallowed (BUGS.md J7): the variant stays 0 and the ack is never seen. So, in the
+Original:
+- `espquete` takes JARDIM's first 0x40c (queued inside CreateWindow, before NOITE's timer can find
+  the window) as the reply: it kills timer 0x14, hides itself and acks to window 0; the hello is
+  never sent. JARDIM re-posts 0x40c on every message, each a no-op for NOITE. Final enemy `vamanf`.
+- `4fjarvamp` ignores a 0x40c while it does not know JARDIM's window; its timer finds it and posts
+  the hello (swallowed) and, from then on, answers every 0x40c with an ack (swallowed, so JARDIM
+  posts 0x40c again): the two tasks bounce messages for the whole game. Windows keeps running
+  (its clock moves and timers fire when a queue is momentarily empty); the port's headless loop
+  moves its clock 1 ms per `main.busy_messages` (64) messages at one tick with a message from
+  another task among them, and the web loop gives the page its frame back as soon (a busy loop
+  otherwise freezes the virtual clock: "message storm"). The 8-message queues stay full, posts
+  fail, and JARDIM's result is lost; NOITE's `WM_SYSTIMER` then finds the window gone and posts
+  itself a loss with no score: game over, whatever JARDIM's result (BUGS.md J7).
+With `jardim_variant_hello` JARDIM posts nothing until the hello, which `espquete`'s and
+`4fjarvamp`'s timers send every 100 ms (neither kills its timer when the 0x40c follows the
+hello): JARDIM stores the variant and NOITE's window and answers 0x40c, NOITE acks, JARDIM stops.
 
 **The result.** The win (touching phase 3's final enemy) posts JARDIM's own `WM_DESTROY` with
 wParam 0xffff; a loss (lives 0, at an enemy's attack or a touch) posts it with 0. The phase
 handler stops and frees the waves, closes WaveMix and `close musica`, and the backdrop's case
 posts **0x40a** to `g_noiteWnd` (won: wParam 1, lParam score + the J1 bonus; lost: wParam 0,
 score − 1000); AppWndProc kills timer 10 and posts WM_QUIT, which comes after the posted
-messages (`core/queue.zig`), so the further `WM_DESTROY`s of a loss (harmless list) post their
-0x40a too. The host then runs `app.exit`, destroys the window and activates NOITE, which shows
-itself, adds the score and goes to `6fsai1` (espquete won), `6fsai2` (4fjarvamp won) or
-`6fsaida` (lost; no life is taken). ESC quits JARDIM without a result (`PostQuitMessage` from the
-backdrop): NOITE's `WM_SYSTIMER` check finds the window gone and posts itself a loss with no
-score change; closing the window is a loss with −1000. `--minigame-stub` keeps the stub.
+messages (`core/queue.zig`), so the further `WM_DESTROY`s of a loss post their 0x40a too (lost
+−2000 in `jardim-alone-lose.input`). The host then runs `app.exit`, destroys the window and
+activates NOITE, which shows itself, adds the first result's score and goes to `6fsai1`
+(espquete won), `6fsai2` (4fjarvamp won) or `6fsaida` (lost; no life is taken); the second report
+finds `6fsaida` and is ignored. ESC quits JARDIM without a result (`PostQuitMessage` from the
+backdrop): NOITE's `WM_SYSTIMER` check finds the window gone and posts itself a loss with no score
+change; closing the window is a loss with −1000. `--minigame-stub` (or `--minigame-stub=jardim`)
+keeps the stub.
 
 ### Standalone
 
 - `noite --minigame jardim [--headless …]`: JARDIM alone (task 0, its title, `\JARDIM`); its
   FindWindow("Noite Animal") fails on every message (nothing is posted), the variant stays 0;
   the result (0x40a to window 0) is recorded and printed by the host.
-- Web: `web_main.minigames` and `MINIGAMES` in `web/noite.js` get JARDIM ("Noite Animal
-  Jardim") when `ready`; the "Jogo" select offers "Jogar só o minijogo: Jardim";
-  `tools/web/files.py` finds its files in `JARDIM\` (as TIRO's). **Touch pad** (one-button mode,
-  or a minigame alone on a touch screen; `PAD_KEYS` follows the program on top): JARDIM needs
-  turn (LEFT/RIGHT), walk (UP/DOWN), fire (CTRL) and open (SPACE). The owner's decision
-  (Decisions): the four arrows where they are, SPACE (open, a door glyph) in the centre, CTRL
-  (fire, a crosshair) in the bottom-right corner of the 3×3 grid, i.e. `PAD_KEYS.jardim = [37, 38,
-  39, 40, 32, 17]` with `#dpad [data-key="17"] { grid-area: 3 / 3; }`; running (SHIFT) and
-  strafing (CAPS LOCK held) left out.
+- Web: `web_main.minigames` has JARDIM as `noite_start`'s minigame 9 (after SAUNA), `MINIGAMES` in
+  `web/noite.js` ("Noite Animal Jardim") and the "Jogo" select an entry ("Jogar só o minijogo:
+  Jardim"); `tools/web/files.py` `MINIGAMES` `"jardim"` finds its names in `JARDIM\` (`DOOM.MID`
+  at the root). **The touch pad** (one-button mode, or a minigame alone on a touch screen;
+  `PAD_KEYS` follows the program on top), the owner's: the four arrows (turn, walk), SPACE in the
+  centre relabelled "Abrir" (a door; `PAD_LABELS`), CTRL bottom right ("Tiro", fire): `PAD_KEYS.jardim
+  = [37, 38, 39, 40, 32, 17]`, `#dpad [data-key="17"] { grid-area: 3 / 3; }`. Running (SHIFT) and
+  strafing (CAPS LOCK held) are left out.
 
 ### The harness, smoke and full.input
 
-- Script keys: `key`/`hold` get `ctrl` (0x11), `shift` (0x10) and `capslock` (0x14); `hold
-  shift 3000` with `hold up 3000` runs.
-- `tools/smoke.py --minigame jardim [--fix all] [--monkey SEED]`: random arrows, CTRL and SPACE
-  (no ESC), holds of 55–1000 ms, for 60 s, seeds 1–5: no panic but an "orig" J5 line, no leak;
-  a result or none (a monkey seldom wins or loses in 60 s).
-- `tools/play/full.input` and `onebutton.input` reach `espquete` (the first ending); once JARDIM is
-  ready they play its scripted win (below) instead of the stub's, re-planned from the start time
-  the run gives it; the timeline after it moves and the rest of the script is re-tuned.
+- Script keys: `key`/`hold` take `ctrl` (0x11), `shift` (0x10) and `capslock` (0x14); `hold
+  shift 3000` with `hold up 3000` runs. The scripts walk with `hold KEY 1` presses: a press with no
+  tick while the key is down is one 16-unit step or one 48-unit turn (`key` holds 50 ms, over a
+  tick or two).
+- `tools/smoke.py --minigame jardim [--fix all] [--monkey SEED]`: random presses and holds of the
+  arrows, CTRL and SPACE, some under a held SHIFT or CAPS LOCK (no ESC), 60 s: no panic but an
+  "orig" one (J5, a latent entry), no leak; a result or none (a monkey seldom wins or loses in
+  60 s). The scene smoke starts JARDIM from `espquete` (after its 19.7-s video: not within the 6-s
+  run) and from `4fjarvamp` (at 1.5 s; the Original's ping-pong runs on).
+- `full.input` and `onebutton.input` reach `espquete` and keep the stub there
+  (`--minigame-stub=jardim`, Decisions).
 
 ## Platform
 
-What JARDIM needs that ENCAIXE and TIRO did not, done on main outside the tracker (the platform
-is NOITE's tree, so no JARDIM unit can change it), before the `labyrinth_input` agent tests
-interactively:
+What JARDIM needed that the other minigames did not (on main, outside the tracker):
 - **Keys.** The minigame task gets VK_CONTROL (0x11, fire), VK_SHIFT (0x10) and VK_CAPITAL
   (0x14) as WM_KEYDOWN/WM_KEYUP, besides the arrows, Space, Enter and Esc: SDL (LCTRL/RCTRL,
-  LSHIFT/RSHIFT, CAPSLOCK), the web page (`Control`, `Shift`, `CapsLock`) and the script's names;
-  `Sim.filterInput` passes them to a minigame and drops them for NOITE (which ignores them).
-- **`GetKeyState`.** `Platform.getKeyState(vk) i16` (bit 15: down, bit 0: toggled), per task, as
-  of the last input message the task's queue handed out (Windows' synchronous key state):
-  JARDIM reads SHIFT (run) on the tick and CAPS LOCK **held down** (`< 0`, strafe) on the turn
-  keys. The Caps Lock key's events: some systems (macOS, some browsers) report only the toggles
-  (down on the first press, up on the second); then strafing needs Caps Lock locked, an accepted
-  difference (an owner question if it matters).
+  LSHIFT/RSHIFT, CAPSLOCK), the web page (`GAME_KEYS` 16, 17, 20; `web.Key`) and the script's
+  names; `Sim.filterInput` passes them to a minigame and drops them for NOITE (`minigame_keys`:
+  NOITE ignores them).
+- **`GetKeyState`** is the task queue's synchronous key state, `Queue.keyState(vk)` (bit 15:
+  down, bit 0: toggled), as of the key messages the queue has handed out (Windows' rule), so it
+  is the same in SDL, the web and headless runs. JARDIM reads SHIFT (run) on the tick and CAPS LOCK
+  **held down** (`< 0`, strafe) on the turn keys (`labyrinth_input.keyHeld`). The Caps Lock key's
+  events: some systems (macOS, some browsers) report only the toggles (down on the first press, up
+  on the second); then strafing needs Caps Lock locked, an accepted difference.
 - **Repeats.** The backdrop latches each key (`g_keyLeftDown` …): a repeat only records
   `g_keyAltContext`; the 55-ms tick drives held keys. The `Sim` repeat generator needs nothing.
 - **Timers.** The game tick is `WM_SYSTIMER` from system timer 1 (55 ms) **and** from timer 10
   (50 ms, AppWndProc's FindWindow retry): the backdrop does not check the id, so the game ticks
   about 38 times a second (the queue's exact periods). In Windows 3.1 both fire on the 55-ms
-  hardware tick (36 a second, in pairs). The port keeps the queue as it is (NOITE's and TIRO's
-  scripts and planners rely on it); the planner models the port's timers.
+  hardware tick (36 a second, in pairs). The port keeps the queue as it is (an owner question).
+- **A busy ping-pong moves the clock** (`main.busy_messages`, above): only the Original's
+  `4fjarvamp` does it.
 
 ## Tests
 
-- **Planner** `tools/jardim_plan.py --start MS (--win|--lose) [--variant 0|1]` (MS: JARDIM's
-  WM_CREATE: 0 alone, WinExec + 1500 from NOITE). It knows the three maps (`raymapN.dat`), the
-  starts, the doors, the placements (`phaseN_scene_place_objects`, transcribed once into a
-  table) and the movement model exactly: a `key up`/`key down` press moves 16 units (`0x100000 /
-  tables[5|6]` at the view angle, the integer quotient), a `key left`/`right` press turns 48
-  units (6°), the start angle 480 and the axes (0, 720, 1440, 2160) are multiples of 48, so a
-  route of presses on cell centres and axis-aligned headings is exact (no held keys: no tick
-  ramps, no coasting). The **win**: a cell path (BFS) from each start to the exit door (phase 1:
-  `8` at row 77 col 0; phase 2: `7` at row 79 col 42), opening the `9`–`C` doors on the way with
-  SPACE, and in phase 3 to the final enemy (row 78 col 2), choosing routes and headings that keep
-  enemies out of view (each visible enemy costs 1 health per animation cycle, about 9 a second
-  at 38 frames a second) and shooting the ones in the way with the weapons picked up; its
-  `--check FILE` runs the port headless on the script (`--minigame jardim --input FILE --trace`)
-  and reads the result and the deaths. The win must not land where the low word of the virtual
-  tick equals the start tick (J1: a division by zero in the Original). The **loss**: phase 1's
-  nearest Seios (a life per touch), held into: three lives in 165 ms in the Original (J6), three
-  presses with `jardim_enemy_blocks_walk`.
-- **Scripts** (`tools/play/`), each Original and `--fix all`, the same script (the result's
-  score differs by J1's bonus):
-  - `jardim-alone-win.input` (`--minigame jardim --ms 600000`): the three phases, `result won N`;
-  - `jardim-alone-lose.input`: `result lost -1000` (plus the beers drunk on the way);
-  - `jardim-espquete-win.input` / `-lose.input` (`--scene espquete`): the video ends, JARDIM
-    starts, NOITE hidden (`dump`), the final enemy `vamanf` in the Original and `espanf` with the
-    fixes (J7; a `pixel` check on the sprite), `6fsai1` with the score added / `6fsaida`;
-  - `jardim-4fjarvamp-win.input` (`--scene 4fjarvamp`): `vamanf` in both, `6fsai2`;
-  - `full.input`, `onebutton.input`: espquete's JARDIM with the planner's win.
+- **Planning.** The wins and the loss were planned against the port with a temporary probe (not
+  committed): a ReleaseFast build of the worktree (LLVM: 15× faster than the self-hosted Debug
+  build) printing JARDIM's state on every change (position, angle, health, lives, ammo, level,
+  score, weapon, shot, variant) and the object and wall map on every change, driven by a
+  closed-loop planner: each step re-runs the script so far and reads the end state; a BFS over the
+  current walls and objects (enemies are obstacles) gives the next cell; the planner turns there
+  (48-unit presses) and walks two 16-unit presses, opens a door on the way with SPACE, shoots
+  (CTRL, after turning) the first Bussuf/Alemão in a line ahead when armed, picks up the
+  crossbow first, and in phase 3 walks into the final enemy wherever it has moved. Enemies on
+  screen step toward the player one cell a frame, so a plan made blind runs into them (the first
+  route lost its lives to the Bussuf that rushed down row 77). Both versions play the same
+  game (2100 points before J1's bonus, checked by the `result` lines): the route never shoots
+  Chato (J2) and no other fix changes it.
+- **Scripts** (`tools/play/`), each Original and `--fix all`:
+  - `jardim-alone-win.input` (`--minigame jardim --ms 82000`): the three phases (lives 3, health
+    115, 2100 points), the final enemy touched at 79870: `result won 6328 | won 14620` (J1);
+  - `jardim-alone-lose.input` (`--ms 8000`): the walk meets two Seios and a Bussuf; Up held into
+    them from 5710 takes two lives at once (J6) and the third at 6250: lost −1000, then the
+    repeated report −2000 (checked);
+  - `jardim-close.input` (`--ms 3000`): the window closed at 2 s, `lost -1000`;
+  - `jardim-espquete-win.input` (`--scene espquete --ms 104000`): JARDIM from 21165, the alone
+    win's presses shifted, `result won -17430 | won 14620` (J1's penalty: the start tick is 21165),
+    NOITE goes to `6fsai1` with the score;
+  - `jardim-espquete-lose.input` (`--ms 30000`): the alone loss's presses shifted, NOITE gets
+    −1000 and goes to `6fsaida`;
+  - `jardim-4fjarvamp-win.input` (`--scene 4fjarvamp --ms 84000`): the alone win from 1500; the
+    Original's result is lost in the ping-pong and NOITE ends in `6fsaida` with no score (J7), the
+    Corrigida gets +14620 and `6fsai2`.
+  JARDIM has no randomness: the plans depend only on the presses' times relative to its
+  WM_CREATE (its timers run from there), so a script moves with JARDIM's start time by a shift.
 - **Smoke**: `tools/smoke.py --minigame jardim` (above).
-- **Web**: `tools/web/test.py` plays "Jogo" = Jardim: JARDIM starts and UP moves the minimap's
-  player square.
-- **Unit tests**: required for the six 32-bit routines and the tables (above); optional
-  elsewhere, as worth it: `labyrinth_load_map` (`asset`, the three maps: the exit doors and the
-  starts of GAME.md), `sprite_queue_insert`/`draw_tree` (the order of a known set), the step's
-  collision push (`labyrinth_move_and_render` on a map fragment, `documented`), the HUD's text
-  (`asset` with `labinter.bmp`).
+- **Web**: `tools/web/test.py` plays "Jogo" = Jardim: JARDIM starts, a held Up moves the
+  minimap's square and a held Ctrl punches; on a touch screen the pad shows the arrows, Abrir and
+  Tiro, and a held ▲ walks.
+- **Unit tests**: the six 32-bit routines and the tables (`oracle=emulated`), `Queue.keyState`.
 
 ## Units
 
@@ -693,25 +731,19 @@ noite -p jardim failed <unit> "why" / release <unit>
    (`oracle=emulated` from tools/oracle, `asset` from `assets/JARDIM/`, `documented` from Ghidra).
 8. `noite test`, commit (commit skill), `noite -p jardim finish <unit>` from the main checkout.
 
-## Finishing
-
-When every unit is ported: the platform work above, the planner and the scripts, the web entry;
-then `ready = true`, `full.input`/`onebutton.input` re-planned, the smoke and web tests, and the
-README's "Running the port"/"Testing the port" entries.
-
 ## Owner questions
 
 1. **J6** (`jardim_enemy_blocks_walk`, a choice): is "a blocked step ends the held walk" the
    Corrigida rule you want (one life, or 5 health, per press into an enemy), or another (an enemy
    hits once per contact until the player has moved away, or one life per scream)?
-2. **J7**: the reading is that `espquete` never sends the hello, so its final enemy is always the
-   vampire's `vamanf`. The fix is on JARDIM's side (post 0x40c only after 0x40b, as TIRO does);
-   it could instead be on NOITE's (`espquete` ignoring a 0x40c from an unknown window, as
-   `4fjarvamp` does). Which side, and is `espanf` in the Corrigida's first ending what you want?
+2. **J7**: the fix is on JARDIM's side (post 0x40c only after 0x40b, and let the hello and the ack
+   reach AppWndProc's cases); the `espquete` part could instead be on NOITE's (`espquete` ignoring
+   a 0x40c from an unknown window, as `4fjarvamp` does), but JARDIM would still swallow the hello
+   and the ack. Which side, and is `espanf` in the Corrigida's first ending what you want?
 3. **J4** in Corrigida: every wall looks different (the texture moves with the wall). It is in
    `all` as a clear bug; say if you would rather keep the original look.
-4. **Timers**: keep the queue's exact 50/55-ms periods (≈ 38 ticks a second), or quantise
+4. **J5 in the Original**: the port panics where the original crashes (a smoke "orig" line), as
+   NOITE's latent faults. Keep it a crash, or draw the rows silently in both versions?
+5. **Timers**: keep the queue's exact 50/55-ms periods (≈ 38 ticks a second), or quantise
    timers to Windows 3.1's 55-ms tick (36 a second; would apply to every program and replan
    TIRO's and ENCAIXE's scripts)?
-5. **J5 in the Original**: the port panics where the original crashes (a smoke "orig" line), as
-   NOITE's latent faults. Keep it a crash, or draw the rows silently in both versions?

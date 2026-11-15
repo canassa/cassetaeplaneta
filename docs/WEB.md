@@ -141,13 +141,13 @@ map $arg_h $noite_cache {
   file the static rules missed — run over the playthrough and six smoke
   runs (plain, `--offers`, `--minigame-result lose`, `--monkey 1-3`), none was missing.
   A ported minigame's names (`src/encaixe/`, `src/tiro/`, `src/serial/`,
-  `src/salgin/`, `src/inv/`, `src/xilindro/`, `src/inferno/`, `src/sauna/`) are looked for at the disc root, then in its
+  `src/salgin/`, `src/inv/`, `src/xilindro/`, `src/inferno/`, `src/sauna/`, `src/jardim/`) are looked for at the disc root, then in its
   EXE's directory, as the host does (`ENCAIXE/TETRFUN.BMP`, `PECA*.BMP`,
   `TIRO/FUNDTIRO.BMP`, `TIRO/*.WAV`, `SERIAL/FUNDO.BMP`, `SERIAL/3S*.BMP`,
   `SALGIN/FUNDLUTA.BMP`, `SALGIN/VB*.BMP`, `SALGIN/MA*.BMP`,
   `INV/ESPACO.BMP`, `INV/*.WAV`, `XILINDRO/FUNDLUTA.BMP`, `XILINDRO/S[AB]*.BMP`,
-  `INFERNO/FUNDO.BMP`, `INFERNO/SONIC*.WAV`, `SAUNA/3FPAC2.BMP`, `SAUNA/PACMAN*.WAV`…; `DOOM1.MID`, `DOOM2.MID`, `PAC.MID`,
-  `PORRADA.MID` and `MARIO.MID` are found at the root first).
+  `INFERNO/FUNDO.BMP`, `INFERNO/SONIC*.WAV`, `SAUNA/3FPAC2.BMP`, `SAUNA/PACMAN*.WAV`, `JARDIM/RAYMAP*.DAT`, `JARDIM/PAREDES*.BMP`…; `DOOM.MID`, `DOOM1.MID`,
+  `DOOM2.MID`, `PAC.MID`, `PORRADA.MID` and `MARIO.MID` are found at the root first).
   Left out: the EXEs and DLLs, the stubbed minigames' directories,
   installers, drivers, the other fonts, unreferenced files.
   `manifest.py` downloads identical files once: `HD\*.AVI` clips that are
@@ -164,7 +164,7 @@ map $arg_h $noite_cache {
   gesture) once the files are loaded; the choice is kept in localStorage
   (`noite:prefs`, the page works without it) and passed to
   `noite_start(fixes, skip_videos, one_button, minigame)`; "Jogo" sets
-  `minigame` (0 the whole game, 1 Encaixe Perfeito, 2 Tiro ao Álvaro, 3 Serial Killer, 4 Porrada na Sala de Ginástica, 5 Invasores, 6 Xilindro, 7 Inferno, 8 Sauna Mista alone: `MINIGAMES` in
+  `minigame` (0 the whole game, 1 Encaixe Perfeito, 2 Tiro ao Álvaro, 3 Serial Killer, 4 Porrada na Sala de Ginástica, 5 Invasores, 6 Xilindro, 7 Inferno, 8 Sauna Mista, 9 Noite Animal Jardim alone: `MINIGAMES` in
   noite.js, disabled until its `ready`; `noite_start` returns 3 for an
   unported one). A line under the canvas names the
   version and reloads into the other one (`?versao=corrigida|original`,
@@ -211,8 +211,8 @@ map $arg_h $noite_cache {
   `PAD_KEYS` in noite.js): for TIRO, SERIAL and INV ◀, a fire button (Space) and ▶;
   for SALGIN and XILINDRO their eight keys laid out as on the numeric keypad (Home ▲ PgUp /
   ◀ Insert ▶ / End ▼, the four new ones labelled Salto, Pulo, Soco,
-  Defesa); for INFERNO the four arrows (UP the high jump, DOWN the low one); for SAUNA the four arrows (each runs Pacman to the wall; a tap on the maze walks him there too). Keys pass to the game as pressed (`GAME_KEYS`: the arrows, Enter,
-  Esc, Space, and the fights' PgUp, End, Home and Insert), the browser's
+  Defesa); for INFERNO the four arrows (UP the high jump, DOWN the low one); for SAUNA the four arrows (each runs Pacman to the wall; a tap on the maze walks him there too); for JARDIM the arrows, Abrir (Space, a door) in the middle and Tiro (Ctrl, fire) bottom right (`PAD_LABELS` relabels the middle key; running and strafing are left out). Keys pass to the game as pressed (`GAME_KEYS`: the arrows, Enter,
+  Esc, Space, the fights' PgUp, End, Home and Insert, and JARDIM's Shift, Ctrl and Caps Lock), the browser's
   repeats dropped: `Sim` repeats a held key (500 ms, then every 33 ms).
 - **Loop.** `noite_frame` (`src/web_main.zig`), called on every
   `requestAnimationFrame`, is one turn of `main.zig`'s message loop

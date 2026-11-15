@@ -35,18 +35,22 @@ item is tapped then placed with the next click, or dragged. ENCAIXE
 (4fsalgin's gym fight, `src/salgin/`, `docs/salgin/DESIGN.md`), INV
 (4fsacaet's space invaders, `src/inv/`, `docs/inv/DESIGN.md`), XILINDRO
 (3fstreet's jail fight, `src/xilindro/`, `docs/xilindro/DESIGN.md`), INFERNO
-(3fpapmal's platformer in hell, `src/inferno/`, `docs/inferno/DESIGN.md`) and SAUNA
-(3fsauna's Pac-Man, `src/sauna/`, `docs/sauna/DESIGN.md`) are
+(3fpapmal's platformer in hell, `src/inferno/`, `docs/inferno/DESIGN.md`), SAUNA
+(3fsauna's Pac-Man, `src/sauna/`, `docs/sauna/DESIGN.md`) and JARDIM (the garden's
+first-person labyrinth after espquete and 4fjarvamp, `src/jardim/`, `docs/jardim/DESIGN.md`) are
 ported: NOITE runs them as second programs (`src/platform/host.zig`), and
-`--minigame encaixe|tiro|serial|salgin|inv|xilindro|inferno|sauna` plays one alone. The other minigames (separate
-EXEs) are stubbed, and the ported ones too with `--minigame-stub`: they
+`--minigame encaixe|tiro|serial|salgin|inv|xilindro|inferno|sauna|jardim` plays one alone. The other minigames (separate
+EXEs) are stubbed, and the ported ones too with `--minigame-stub` (only some with
+`--minigame-stub=NAME,…`): they
 report a win, or a loss with `--minigame-result lose`; their window shows 1.5 s
 after `WinExec` and answers the game's hello after 100 ms
 (`--minigame-startup MS`, `--minigame-reply MS`). A held key repeats as on
 Windows (500 ms, then every 33 ms; `--key-repeat DELAY,PERIOD|off`), in
 the window, the browser and headless runs. A minigame gets every key
 (TIRO, SERIAL and INV: LEFT, RIGHT, SPACE; SALGIN and XILINDRO: the arrows, PgUp,
-Home, End, Insert; INFERNO and SAUNA: the arrows; SAUNA also the left button); NOITE gets Enter, Esc and Space only to skip videos.
+Home, End, Insert; INFERNO and SAUNA: the arrows; SAUNA also the left button; JARDIM: the arrows,
+Ctrl to fire, Space for doors, Shift to run and Caps Lock held to strafe, read with `GetKeyState`); NOITE
+gets Enter, Esc and Space only to skip videos, and never Shift, Ctrl or Caps Lock.
 Saves go to `save/` (`--save DIR`).
 
 ## Testing the port
@@ -82,14 +86,14 @@ Saves go to `save/` (`--save DIR`).
   pixels do not stay on the corridor's Mona Lisa (B52; the Original fails it).
   `--fix all --ms 4000 --input tools/play/sala-street-door.input` checks that a click at (20, 120) takes the
   living room's street exit (a Corrigida addition); `sala-street-door-orig.input` is the Original's miss.
-- **Playthrough**: `./zig-out/bin/noite --headless --ms 660000 --input tools/play/full.input`
+- **Playthrough**: `./zig-out/bin/noite --headless --minigame-stub=jardim --ms 660000 --input tools/play/full.input`
   plays from the title screen to the sportsman ending, checking every scene
   (the hall's TIRO, the pharaoh's ENCAIXE and the gym's SALGIN with scripted wins; the
-  street's XILINDRO runs unplayed over the hall, B21).
+  street's XILINDRO runs unplayed over the hall, B21; the garden's JARDIM stays the stub's win).
   With the fixes: add `--fix all,-avi_exit_ignores_timer`
   (the script follows this run's hall doors and the 3fstreet shortcut of BUGS.md B21;
   both versions play the same timeline, TIRO's 16 presses included).
-  One-button: `--one-button --ms 600000 --input tools/play/onebutton.input` (the
+  One-button: `--minigame-stub=jardim --one-button --ms 600000 --input tools/play/onebutton.input` (the
   whole game with left clicks only and the minigames' keys, XILINDRO fought and won
   over the disco, doors clicked from afar, items dropped and offered by tap-tap and
   by dragging; the same with `--fix all,-avi_exit_ignores_timer`) and
@@ -200,6 +204,21 @@ Saves go to `save/` (`--save DIR`).
   the score): rerun it when SAUNA's start time moves (4100 from `--scene 3fsauna`'s click at
   1000). `tools/smoke.py --minigame sauna [--fix all] [--monkey SEED]` presses and holds random
   arrows and clicks the maze for 120 s. The playthroughs never enter the sauna.
+- **JARDIM**: `--minigame jardim --ms 82000 --input tools/play/jardim-alone-win.input` (the three
+  labyrinths and the final enemy at 79870: `result won 6328 | won 14620`, BUGS.md J1),
+  `--ms 8000 --input tools/play/jardim-alone-lose.input` (Up held into two Seios and a Bussuf: lost,
+  reported twice, -1000 then -2000) and `--ms 3000 --input tools/play/jardim-close.input` (the
+  window closed at 2 s: `lost -1000`); from NOITE, `--scene espquete --ms 104000 --input
+  tools/play/jardim-espquete-win.input` (the video ends, JARDIM starts at 21165, NOITE hides, gets
+  the win with J1's penalty, `won -17430 | won 14620`, and plays the first ending `6fsai1`), `--ms
+  30000 --input tools/play/jardim-espquete-lose.input` (-1000, game over `6fsaida`) and `--scene
+  4fjarvamp --ms 84000 --input tools/play/jardim-4fjarvamp-win.input` (the Original loses the win
+  in the 0x40c/0x40a ping-pong, BUGS.md J7: `6fsaida`; the fixed run `6fsai2`). Each the same
+  with `--fix all`. JARDIM has no randomness; the moves were planned against the port with a
+  temporary state probe (docs/jardim/DESIGN.md "Tests") and depend only on JARDIM's start: the
+  NOITE scripts are the alone ones shifted to it. `tools/smoke.py --minigame jardim [--fix all]
+  [--monkey SEED]` presses and holds random arrows, Ctrl, Space, Shift and Caps Lock for 60 s. The
+  playthroughs keep JARDIM's stub (`--minigame-stub=jardim`).
 - **SDL without a display**: `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy`
   (or `disk` with `SDL_AUDIO_DISK_OUTPUT_FILE=out.raw` to capture the mix).
 
@@ -221,8 +240,9 @@ default) and the one-button control (on by default on touch screens), then
 runs the game; saves go to localStorage, apart per version. "Jogo" picks
 the whole game or one ported minigame alone (Encaixe Perfeito, Tiro ao
 Álvaro, Serial Killer, Porrada na Sala de Ginástica, Invasores, Xilindro,
-Inferno, Sauna Mista).
+Inferno, Sauna Mista, Jardim).
 On a touch screen the on-screen pad shows the keys of the window on top: for
 TIRO, SERIAL and INV ◀, a fire button and ▶; for SALGIN and XILINDRO their eight keys as on the numeric keypad
 (Salto = Home, ▲, Soco = PgUp; ◀, Pulo = Insert, ▶; Defesa = End, ▼); for
-INFERNO and SAUNA the four arrows.
+INFERNO and SAUNA the four arrows; for JARDIM the arrows, Abrir (Space: a door) in the middle and Tiro (Ctrl:
+fire) bottom right.

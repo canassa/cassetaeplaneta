@@ -2207,8 +2207,8 @@ object, and a message after that would reach a freed object; no path to one is k
 
 ## JARDIM.EXE (the "Noite Animal Jardim" first-person labyrinth)
 
-Addresses are Ghidra `seg:off` in `/JARDIM.EXE`; the game is described in `docs/jardim/GAME.md`.
-`labyrinth_backdrop_handle_message` is 1028:2609. The letter is J (for Jardim; free). B11 is
+Addresses are Ghidra `seg:off` in `/JARDIM.EXE`; the game is described in `docs/jardim/GAME.md`;
+the port is `src/jardim/` (docs/jardim/DESIGN.md). `labyrinth_backdrop_handle_message` is 1028:2609. The letter is J (for Jardim; free). B11 is
 NOITE's side of the launch. Left out as design: ESC quits without a result, which NOITE's poll
 reports as a loss with no score change, and closing the window (End Task: it has no system menu)
 reports a loss with −1000 (both forfeits); health has no cap; a blocked step does not
@@ -2229,8 +2229,10 @@ Each is consistent code with a plausible intent.
   Windows, −278 after an hour, never positive; it does not depend on the time played. A difference
   of 0 would divide by zero in `_aFldiv`, which needs the labyrinth to start within 33 s of Windows.
 - **Confidence:** 10 (code); 8 (that a bonus for speed was meant: 10⁹ / elapsed ms).
-- **Port:** unit `labyrinth_input` (src/jardim/, docs/jardim/DESIGN.md), not ported yet; the fix is
-  `Fixes.jardim_time_bonus` (`--fix jardim_time_bonus`, on in the Corrigida version).
+- **Port:** reproduced (unit `labyrinth_input`, src/jardim/labyrinth_input.zig `destroy`); the fix is
+  `Fixes.jardim_time_bonus` (`--fix jardim_time_bonus`, on in the Corrigida version), and a difference
+  of 0 panics naming J1 in the Original. The scripted wins show it: the Original's bonus is about
+  −10⁹/`g_startTick` (the run's start tick), the Corrigida's 10⁹ / the milliseconds played.
 
 ### J2. Phase 3's Chato can be shot again and again
 - **Where:** `phase3_scene_hit` 10b0:264c.
@@ -2239,7 +2241,7 @@ Each is consistent code with a plausible intent.
 - **Effect:** Chato stays where it is (and keeps hitting), and each shot at it scores 200 again:
   the score can be farmed with the ammunition, which comes back with every death.
 - **Confidence:** 9 (code); 8 (that the clear is missing: phases 1 and 2 have it).
-- **Port:** unit `phase3` (src/jardim/, docs/jardim/DESIGN.md), not ported yet; the fix is
+- **Port:** reproduced (unit `phase3`, src/jardim/phase3.zig `hit`); the fix is
   `Fixes.jardim_chato_removed` (`--fix jardim_chato_removed`, on in the Corrigida version).
 
 ### J3. A weapon picked up while a shot flies is lost
@@ -2251,8 +2253,9 @@ Each is consistent code with a plausible intent.
 - **Effect:** walking over a crossbow, bra or bazooka during the second or so a shot needs to reach
   a wall makes it vanish with no effect, until the next death puts it back.
 - **Confidence:** 9 (code); 7 (that a deferred or refused pickup was meant).
-- **Port:** units `phase1`, `phase2`, `phase3` (src/jardim/, docs/jardim/DESIGN.md), not ported yet; the fix is
-  `Fixes.jardim_weapon_waits_for_shot` (`--fix jardim_weapon_waits_for_shot`, on in the Corrigida version).
+- **Port:** reproduced (units `phase1`, `phase2`, `phase3`, src/jardim/phase1.zig, phase2.zig, phase3.zig
+  `touch`); the fix is `Fixes.jardim_weapon_waits_for_shot` (`--fix jardim_weapon_waits_for_shot`, on in
+  the Corrigida version).
 
 ### J4. The wall textures stay on the screen instead of on the walls
 - **Where:** `raycast_render_view` 1028:0951, the calls of `wall_strip_draw_wall_a/b`
@@ -2264,7 +2267,7 @@ Each is consistent code with a plausible intent.
   or walks, the walls move and their texture does not, it slides over them. Doors are textured
   right.
 - **Confidence:** 9 (code); 7 (that the hit coordinate was meant: the door path uses it).
-- **Port:** unit `raycast` (src/jardim/, docs/jardim/DESIGN.md), not ported yet; the fix is
+- **Port:** reproduced (unit `raycast`, src/jardim/raycast.zig `drawColumn`); the fix is
   `Fixes.jardim_wall_texture_on_wall` (`--fix jardim_wall_texture_on_wall`, on in the Corrigida version).
 
 ### J5. A sprite whose top lands on row 478 crashes the game
@@ -2279,8 +2282,10 @@ Each is consistent code with a plausible intent.
   Such a sprite is a short pickup seen from under a cell (the medkit at a depth of about 27 units,
   the bombs, the açaí, the shrimp), so it needs an exact distance while approaching one: rare.
 - **Confidence:** 9 (code); 5 (how often it happens).
-- **Port:** unit `scaled` (src/jardim/, docs/jardim/DESIGN.md), not ported yet; the fix is
-  `Fixes.jardim_sprite_last_rows` (`--fix jardim_sprite_last_rows`, on in the Corrigida version; the Original port panics naming J5 where the original faults).
+- **Port:** reproduced (unit `scaled`, src/jardim/scaled.zig `blitScaledSpriteTransparent`): the Original
+  port panics naming J5 where the original faults (a smoke "orig" line); the fix is
+  `Fixes.jardim_sprite_last_rows` (`--fix jardim_sprite_last_rows`, on in the Corrigida version), which
+  draws the rows left on the surface.
 
 ### J6. Running into a life-taking enemy takes a life every tick
 - **Where:** `labyrinth_move_and_render` 1028:3e23; the held-key branch of
@@ -2293,25 +2298,48 @@ Each is consistent code with a plausible intent.
 - **Effect:** holding UP into Seios, Siri or Bicho for 165 ms costs three lives, the whole game; the
   5-health enemies drain a life in about a second.
 - **Confidence:** 9 (code); 6 (that one life per contact was meant).
-- **Port:** unit `labyrinth_input` (src/jardim/, docs/jardim/DESIGN.md), not ported yet; the fix is
-  `Fixes.jardim_enemy_blocks_walk` (`--fix jardim_enemy_blocks_walk`, a choice: left out of the Corrigida version (`Fixes.choices`) until the owner decides).
+- **Port:** reproduced (unit `labyrinth_input`, src/jardim/labyrinth_input.zig `tickHeld` and
+  `moveAndRender`); the fix is `Fixes.jardim_enemy_blocks_walk` (`--fix jardim_enemy_blocks_walk`, a
+  choice: left out of the Corrigida version (`Fixes.choices`) until the owner decides). The scripts walk
+  by presses and never press into an enemy, so they play the same game with or without it.
 
-### J7. From `espquete` the variant never reaches JARDIM: the final enemy is always the vampire's
-- **Where:** `APPWNDPROC` 1020:0353 (the `FindWindow("Noite Animal")` branch at the top of every message
-  and its WM_SYSTIMER retry); NOITE's `handler_espquete` 1028:0a88, `0x40c` case.
-- **What the code does:** JARDIM does not wait for NOITE's hello: on its first message, sent inside
-  CreateWindow, it finds NOITE's window and posts `0x40c`. NOITE cannot run before JARDIM's WinMain yields,
-  so this `0x40c` is queued before NOITE's timer 0x14 can find JARDIM's window. `handler_espquete` takes any
-  first `0x40c` as the reply: it kills timer 0x14 and hides itself, and its ack goes to window 0. The hello
-  (`0x40b`, wParam = variant 1) is never posted and `g_variant` keeps its initial 0. `handler_4fjarvamp`
-  ignores a `0x40c` while it does not know JARDIM's window, so its hello (variant 0) does arrive.
-- **Effect:** after the garden cutscene the final enemy of phase 3 is `vamanf` (the vampire's picture, meant
-  for `4fjarvamp`) instead of `espanf`. JARDIM never gets NOITE's ack either and posts `0x40c` on every
-  message until it ends (each one a no-op for NOITE).
-- **Confidence:** 9 (code); 8 (the order: Windows 3.1 runs the new task's WinMain until it first yields).
-- **Port:** unit `app` (src/jardim/, docs/jardim/DESIGN.md), not ported yet; the fix is
+### J7. The variant and NOITE's ack never reach JARDIM: the final enemy is always the vampire's, and from `4fjarvamp` the result is lost
+- **Where:** `APPWNDPROC` 1020:0353 (the `FindWindow("Noite Animal")` branch at the top of every message,
+  its WM_SYSTIMER retry, and the dispatch to `game_handle_message` at 1020:03b9 before its own cases);
+  `labyrinth_scene_handle_message` 1028:5dba (answers 1 for 0x40a and 0x40b); NOITE's `handler_espquete`
+  1028:0a88 and `handler_4fjarvamp` 1028:0d80, `0x40c` cases.
+- **What the code does:** once `WM_CREATE` has run (`g_started`), AppWndProc hands every message to
+  `game_handle_message` first and returns at once if it answers non-zero; the labyrinth scene answers 1
+  for everything but a few messages, 0x40a and 0x40b included. So AppWndProc's 0x40b case (store the
+  variant and NOITE's window, post 0x40c) and its 0x40a case (`g_noiteAcked` = 1) never run: `g_variant`
+  keeps its initial 0 and JARDIM posts 0x40c to the window its FindWindow found on every message until it
+  ends. NOITE's side: JARDIM's first 0x40c, posted inside CreateWindow, is in NOITE's queue before NOITE's
+  timer 0x14 can find JARDIM's window (NOITE cannot run before JARDIM's WinMain yields).
+  `handler_espquete` takes any first 0x40c as the reply: it kills timer 0x14, hides itself and acks to
+  window 0, and the hello (variant 1) is never even sent. `handler_4fjarvamp` ignores a 0x40c while it
+  does not know JARDIM's window; its timer then finds it, sends the hello (variant 0) and from then on
+  acks every 0x40c to JARDIM, whose every ack (swallowed) posts another 0x40c.
+- **Effect:** the final enemy of phase 3 is always `vamanf` (the vampire's picture): `espanf`, meant for
+  the garden cutscene's ending, is never shown. After `espquete` the 0x40c posts are no-ops for NOITE.
+  After `4fjarvamp` the two windows bounce 0x40c and 0x40a for the whole game: Windows stays busy, the
+  two 8-message queues fill (JARDIM adds a 0x40c for each of its own messages too) and posts start to
+  fail, JARDIM's result among them; NOITE's `WM_SYSTIMER` then finds JARDIM's window gone and reports a
+  loss with no score: the vampire's garden ends in game over (`6fsaida`) even after a win.
+- **Confidence:** 10 (the swallowed hello and ack: asm 1020:03b9–03fe, 1028:5dba); 8 (espquete's order:
+  Windows 3.1 runs the new task's WinMain until it first yields); 6 (the lost result from `4fjarvamp`:
+  it follows from Windows 3.1's default queue of 8 posted messages and its scheduling, as the port
+  models them).
+- **Port:** reproduced (unit `app`, src/jardim/app.zig `wndProc`; NOITE's src/handlers/espquete.zig and
+  4fjarvamp.zig, unchanged). The headless loop moves its clock 1 ms per 64 messages at one tick when
+  another task's messages are among them (`main.busy_messages`: Windows' clock runs on while the two
+  tasks bounce), and the web loop gives the page its frame back as soon. The fix is
   `Fixes.jardim_variant_hello` (`--fix jardim_variant_hello`, on in the Corrigida version): JARDIM posts
-  `0x40c` only after `0x40b`, as TIRO does.
+  0x40c only after 0x40b, as TIRO does, and lets 0x40b and 0x40a reach AppWndProc's cases; NOITE's
+  timers send the hello every 100 ms (neither scene kills its timer when the 0x40c follows the hello),
+  JARDIM stores the variant (`espanf` after `espquete`) and acks, NOITE's ack stops the 0x40c. The
+  scripts show it: `jardim-espquete-win.input` (a win in both, the Corrigida with `espanf`) and
+  `jardim-4fjarvamp-win.input` (the Original's win lost, `6fsaida`; the Corrigida's `6fsai2`). Which side
+  the fix belongs on is an owner question (docs/jardim/DESIGN.md).
 
 ### Latent (JARDIM)
 
@@ -2331,12 +2359,34 @@ Each is consistent code with a plausible intent.
   for every source width below 200 and destination width below 400). Confidence 8.
 - **`labyrinth_load_map` 1028:056c does not check the file's length:** a short map would fill the
   rest with `_filbuf`'s −1. The shipped maps are complete. Confidence 9.
+- **Unchecked cells, table entries and divisors:** the step's collision push and midpoint test
+  (`labyrinth_move_and_render`; the landing cell of a running step is harmless, below), the shot, the door and exit probes, the enemies' moves and the sprite
+  depths (`labyrinth_draw_sprite_entry`), the placements (`labyrinth_place_object`) and the phase
+  handlers index `wallRows`/`objectRows`/`g_columnDepth` and the angle tables with no bound, and divide
+  with no zero check: `_aFldiv` by entries of tables [4]–[6] and by sprite depths and scales, and the
+  perspective math (`perspective_project_point`/`unproject_point`, whose eye distance, vanishing point
+  and axis are the Backdrop defaults, all 0, so a depth of 0 divides by 0). None is reached in the
+  shipped game: the maps are closed by walls (the border doors above aside), the view angle stays in
+  0–2879 and the strafe's ±720 in 0–2880 (2881 entries: strafing left at 2160 reads entry 2880), no
+  entry of [4]–[6] is 0 or −2³¹ (checked on the whole of `tables.bin`), the unprojection divides by
+  the screen row, which it returns early on when it is 0, and the projection runs only in code JARDIM
+  never reaches (`game_handle_message`'s mouse cases, an Exit or the control panel dropped). Where the
+  port would run one it panics naming this entry. Confidence 8.
 
 ### Harmless (JARDIM)
 
-- **`0x40c` is re-posted on every message until NOITE answers** (`APPWNDPROC` 1020:0353): after
-  `4fjarvamp`'s hello NOITE acks the first one and a few more follow; after `espquete` NOITE never acks (J7)
-  and the posts go on until JARDIM ends, each ignored. Confidence 9.
+- **`0x40c` is re-posted on every message until NOITE's ack is seen** (`APPWNDPROC` 1020:0353): it
+  never is (J7), so the posts go on until JARDIM ends; after `espquete` each is ignored (after
+  `4fjarvamp` see J7). Confidence 9.
+- **A running step from beside the border reads a cell outside the map:** with Shift a step is 64
+  units, so from a cell next to the border (phase 1 starts on row 1) it lands on row −1 or 80, or
+  column −1 or 57. `labyrinth_move_and_render` 1028:3e23 reads that cell with no bound and no fault:
+  row −1 is the far pointer before `wallRows`, `cscAt`, so a byte of the 1/sin table at the view
+  angle; row 80 is `objectRows[0]`; a column −1 or 57 the bytes around a row. The byte only picks the
+  collision push (and may drop the speed to 16, which the next tick sets again): the midpoint of the
+  step is always in the border row or column, a wall or an exit door, so the step is undone. The port
+  reads row −1 as the original does and the others as 0 (`labyrinth_input.stepCell`); the smoke's
+  random Shift and Down from the start do it in every run. Confidence 9.
 - **The wall column blit is off by one row:** `blit_scaled_column` 1000:0024 writes one row more
   than the slice (above it, over the sky) when the wall is less than half the texture's height
   (beyond about 4.7 cells), and for an odd slice height taller than the view it draws the column
@@ -2363,6 +2413,6 @@ Each is consistent code with a plausible intent.
   every phase and never played. Confidence 9.
 - **The loss can be reported several times:** while lives are 0 every visible enemy's attack and
   every touch post `WM_DESTROY` again, and each one posts another `0x40a` (another −1000) before
-  `WM_QUIT` ends the program. NOITE has switched to `6fsaida` on the first (not traced further).
-  Confidence 6.
+  `WM_QUIT` ends the program. NOITE has switched to `6fsaida` on the first, and the next ones find
+  the new scene and are ignored (`jardim-espquete-lose.input`: −1000, then −2000). Confidence 8.
 - **`WinMain` 1020:021a returns an uninitialised word,** as TIRO's. Confidence 9.
