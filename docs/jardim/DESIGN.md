@@ -253,6 +253,31 @@ protocol), `DATA.md` (classes, vtables, globals), `FUNCTIONS.md` (names, dead co
   - `jardim_shot_substeps` (`labyrinth_input.shotSubsteps`): the 32-unit flight a tick in four
     8-unit steps to the same end point, each new cell met as the original's step meets its one.
     The 1995-control scripts aim along the axes and keep their results with it.
+- **Weapon inventory** (the owner's request; GAME.md "Weapons (Corrigida)" has the rules): one flag,
+  `jardim_weapon_inventory` (`src/jardim/weapons.zig`, not a port unit; in `all`).
+  - **State.** `Game.weapons` (owned, ammunition per weapon, "fists by running dry"), carried across
+    phases with the `Game`; `bd.ammo` stays the counter of the weapon in the hands (the shot's
+    decrement, the HUD and the log read it), the others' counters are `State.ammo`, swapped in by
+    `setHands`. The hands' strip (`hands.curStrip`) is still the weapon in the hands, so drawing,
+    the fire sound and the phases need no change.
+  - **The phases' `touch`** have an `inv` branch in each weapon, arrow and bomb case; the original's
+    branches are untouched (the Original and the 1995-control runs keep them).
+  - **Kills use the weapon that fired.** The phases' `hit` reads `hands.curStrip`; `shotHit` runs it
+    with the strip set to `Game.shotWeapon` (set at the firing, with the shot's frame) and puts the
+    held weapon back, so switching in flight changes nothing about a kill. `afterShot` replaces
+    "0 ammunition: the fists" (and `nextFrame`: the rest frame is set to 0).
+  - **Choices made** (the request left them open): arrows and bombs not owned stay in the cell (the
+    original's rule); "the best other weapon" is the highest slot with ammunition; an owned weapon
+    picked up does not take the hands (only a new one does, Wolf3D's), except that fists reached
+    by a weapon running dry or being lost go back to the weapon that gets ammunition; a weapon
+    at 0 stays owned; the lost bra → fists (the original's rule, not "the best other"); a lost life
+    empties the inventory, as the original's respawn (fists, 0 ammunition) does.
+  - **Input.** Keys 1, 2, 3 and Q (VK 0x31–0x33, 0x51) are passed on by the SDL backend and the web
+    page (`web.Key`, `GAME_KEYS`), kept from NOITE (`Sim.minigame_keys`), and read in
+    `labyrinth_input.keyDown` (with `jardim_wolf_keys` or without). The web wheel sends Q; the
+    pad's "Arma" button (`PAD_CORRIGIDA.jardim`, key 81) sits under "Abrir" and "Tiro" (two more
+    grid rows, `#dpad.jardim`; the Original's pad is unchanged). The controls screen gets a "1 2 3 Q"
+    row (`controls.rowsFor`).
 - **Two programs in one process**, as ENCAIXE and TIRO (`src/platform/host.zig`): JARDIM is a
   task with its own state, queue, timers, window and screen; the protocol runs through the
   platform as in Windows. The host needs nothing new for JARDIM; the platform needs the keys and
@@ -275,7 +300,8 @@ protocol), `DATA.md` (classes, vtables, globals), `FUNCTIONS.md` (names, dead co
   (fire) bottom right; running (SHIFT) and strafing (CAPS LOCK) are left out
   (`PAD_KEYS.jardim` at the integration, Integration). The Corrigida's (`PAD_CORRIGIDA.jardim`, the
   fights' 6-row grid): the arrows on the left (▲ ▼ walk, ◀ ▶ turn), on the right "◁ Lado" and
-  "Lado ▷" (A, D: strafe) over "Abrir" (E) and "Tiro" (CTRL); running is left out.
+  "Lado ▷" (A, D: strafe) over "Abrir" (E) and "Tiro" (CTRL); running is left out. With `jardim_weapon_inventory` the Corrigida's pad adds "Arma" (Q, the next
+weapon) under "Abrir" and "Tiro".
 - **The won flag (the owner's SERIAL rule, survive = win, checked here):**
   the won flag stays 1 when the goal is reached with lives left, 0
   otherwise. The win is completion. BUGS.md "The won flag of the other minigames".
@@ -847,6 +873,14 @@ What JARDIM needed that the other minigames did not (on main, outside the tracke
   - `jardim-controls.input` (`--ms 7500`): the controls screen up until Enter (its frame's pixel),
     then ← to north, W 1 s, D (strafe east), → twice, Shift+W back: the minimap marker's pixels
     after each move.
+  - `jardim-corrigida-weapons.input` (`--ms 25500`, planned by `jardim_plan.py --weapons`): the
+    crossbow, then the bra with the crossbow kept (HUD pixels), a Bussuf shot with the crossbow while
+    3 is pressed in flight (+200) and a Seios with the bra while 2 is pressed in flight (+100), a
+    second bra that only adds its round, Q, 1 and 2 on the HUD's ammunition digits: `lost -700`.
+    `jardim-corrigida-weapons-carry.input` (`--ms 66000`, `--weapons --carry`): on to phase 2 with the
+    bra in the hands: the fists (HUD 000), 3 refused, 2 the crossbow with its 18: `lost 200`.
+    The other `jardim-corrigida-*` scripts keep their results (their routes pick up one weapon, the
+    crossbow, and never meet the changed rules).
   - `jardim-close.input` (`--ms 3000`), both versions: the window closed at 2 s (in the Corrigida
     with the controls screen up), `lost -1000`.
   JARDIM has no randomness (the fair enemies' reaction times use the CRT's rand(), never

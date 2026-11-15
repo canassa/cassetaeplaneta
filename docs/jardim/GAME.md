@@ -209,7 +209,8 @@ health ≤ 0 (→ 100, a life) and lives = 0 (→ `WM_DESTROY`) checked, besides
   calls scene slot 0x10 (`hit`) with that cell and object; then at 0 ammo the hands go back to the
   fists. The shot frame is 0 (an arrow) for the crossbow, 1 for the bra or the bazooka.
 - **A weapon picked up** while the other one is held leaves the old one in the cell (a swap); one
-  picked up while a shot flies is lost (`BUGS.md` J3).
+  picked up while a shot flies is lost (`BUGS.md` J3). The Corrigida's weapons are "Weapons
+  (Corrigida)".
 
 ## The phases
 
@@ -322,6 +323,47 @@ distance, steps along the view axis into and past the player) stay in the Origin
 - **Debug** (Debug builds): F9 shows the nearest enemy's state and the player's in the view and logs
   every tick's (`[ms] fair player …`); `zig build -Djardim-probe` logs from the start, with the
   map's objects, and skips the motion frames (`tools/jardim_plan.py`).
+
+## Weapons (Corrigida)
+
+Not the original's rules: the Corrigida's `jardim_weapon_inventory` (`src/jardim/weapons.zig`;
+Wolfenstein 3D's weapons). The Original's one weapon at a time ("Weapons and shots") stays there.
+
+- **Inventory.** The fists, always, and the crossbow and the bra (phase 1) or bazooka (phases
+  2–3, the hands' strip 2) once picked up, each with its own ammunition. `LabyrinthBackdrop.ammo`
+  stays the counter of the weapon in the hands (the shot and the HUD read it); the others' are
+  kept aside. The HUD shows the weapon in the hands (the hands' picture) and its ammunition (000
+  with the fists, which have none).
+- **Pickups.** A weapon not owned is taken, loaded (crossbow +6, bra +1, bazooka +3) and taken
+  into the hands (Wolf3D's). One owned only adds its ammunition (the same amounts) and nothing is
+  dropped or swapped; the hands keep what they hold. Arrows (+3) go to the crossbow and bombs
+  (+1) to the bazooka whenever it is owned, held or not; without it they stay in the cell (the
+  original's refusal). A pickup is never lost to a shot in flight (`BUGS.md` J3: the J3 fix
+  `jardim_weapon_waits_for_shot` is superseded).
+- **Switching.** 1 the fists, 2 the crossbow, 3 the bra or the bazooka: only a weapon owned and
+  with ammunition, nothing otherwise; Q the next of fists, crossbow, bra/bazooka that is usable
+  (not on the keyboard's repeat); on the web the mouse wheel sends a Q (one step per 150 ms), and
+  the touch pad has an "Arma" button for Q. A switch resets the hands to their rest frame.
+- **A shot in flight.** Switching is allowed meanwhile. The shot is the weapon that fired it: the
+  frame (arrow or the bra's and bazooka's) is set at the firing, and the phases' `hit` runs with the
+  hands' strip set to the weapon that fired (the original reads whatever is in the hands, which in
+  the original is always that weapon). When it lands the hands' rest frame comes back unless
+  they hold the fists.
+- **No ammunition.** The shot that leaves the weapon in the hands with 0 switches to the best
+  other weapon with ammunition (the highest strip: bra/bazooka, then crossbow), else the fists
+  (the original: always the fists). Fists reached this way, or by losing the bra, go back to a
+  weapon as soon as ammunition for it is picked up (Wolf3D's `GiveAmmo`); fists chosen with 1 or
+  Q stay. A weapon with 0 stays owned, not selectable until it has ammunition again.
+- **Phases.** The crossbow and every count carry into phase 2 and 3. Phase 1's bra stays behind
+  (phase 2 has none): if it was in the hands they become the fists (the original's bra → fists)
+  and the crossbow comes back with ammunition picked up or key 2. The original carries the bra's
+  count as the ammunition of the fists; here it is dropped. The bazooka of phase 2 goes on to
+  phase 3.
+- **A lost life.** As the original's respawn: the fists in the hands, every ammunition 0, and every
+  pickup on the map again (`placeObjects`), so nothing is kept: the inventory is emptied the same
+  way (the weapons are in their old cells).
+- **Kills** are the original's tables: only the weapon that fired matters (above).
+- Native SDL has the keys but no wheel.
 
 ## Lives and deaths
 

@@ -1098,6 +1098,19 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
   objects' visibility, `g_columnDepth`, so the 1995 enemies' logic and every script's result are the
   original's): only the pixels are new. It supersedes `jardim_texture_per_pixel`, `jardim_wall_height_exact`
   and `jardim_wall_odd_height_row` (which stay for the 1995 renderer, and are not used with it).
+- `Fixes.jardim_weapon_inventory` (JARDIM): Wolfenstein 3D's weapons (`src/jardim/weapons.zig`,
+  docs/jardim/GAME.md "Weapons (Corrigida)"). The original holds one weapon (fists, crossbow, bra or
+  bazooka), swaps it for another picked up (the old one is left in the cell), has one ammunition counter,
+  takes arrows and bombs only with the matching weapon in hand and goes back to the fists at 0. Here the
+  crossbow and the bra (phase 1) or bazooka (phases 2–3) are owned together, each with its own
+  ammunition: a new weapon takes the hands, one owned adds its ammunition (nothing dropped), arrows and
+  bombs go to the owned weapon held or not (else stay in the cell); 1 (fists), 2 (crossbow), 3 (bra or
+  bazooka) and Q (the next; the web's mouse wheel and the touch pad's "Arma" button send it) switch, also
+  with a shot in flight (the weapon that fired it kills: `shotWeapon`); at 0 the best other weapon with
+  ammunition, else the fists; the crossbow and the counts carry into the next phase, the bra is left behind
+  (the fists, as the original); a lost life empties the inventory as the original's respawn does. A weapon
+  picked up while a shot flies is no longer lost (J3, whose fix it supersedes). The kill tables are the
+  original's. Keys 1, 2, 3 and Q; the controls screen lists them.
 
 ---
 
@@ -2430,7 +2443,8 @@ Each is consistent code with a plausible intent. The Corrigida replaces the enem
 - **Confidence:** 9 (code); 7 (that a deferred or refused pickup was meant).
 - **Port:** reproduced (units `phase1`, `phase2`, `phase3`, src/jardim/phase1.zig, phase2.zig, phase3.zig
   `touch`); the fix is `Fixes.jardim_weapon_waits_for_shot` (`--fix jardim_weapon_waits_for_shot`, on in
-  the Corrigida version).
+  the Corrigida version). `Fixes.jardim_weapon_inventory` (a Corrigida addition) supersedes it: with the
+  inventory a weapon is always taken, shot in flight or not.
 
 ### J4. The wall textures stay on the screen instead of on the walls
 - **Where:** `raycast_render_view` 1028:0951, the calls of `wall_strip_draw_wall_a/b`
