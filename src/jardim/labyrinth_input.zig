@@ -223,8 +223,39 @@ fn fire(g: *Game, bd: *Backdrop) void {
     }
 }
 
+/// Not in the original (`jardim_shot_substeps`): the tick's 32-unit flight in four 8-unit
+/// steps (to the same end point), each new cell met as the original's step meets its one, so a
+/// diagonal shot cannot step over a cell's corner.
+fn shotSubsteps(g: *Game, bd: *Backdrop) void {
+    const shot = bd.shot.?;
+    const sx = shot.worldX;
+    const sy = shot.worldY;
+    const dx: i16 = @truncate(aFldiv(0x200000, g.shotSec));
+    const dy: i16 = @truncate(aFldiv(0x200000, g.shotCsc));
+    var k: i16 = 1;
+    while (k <= 4) : (k += 1) {
+        const old = shotCell(shot);
+        shot.worldX = sx +% @divTrunc(dx * k, 4);
+        shot.worldY = sy +% @divTrunc(dy * k, 4);
+        const c = shotCell(shot);
+        if (c.row == old.row and c.col == old.col) continue;
+        objectAt(bd, old.row, old.col).* = g.shotCellObject;
+        g.shotCellObject = objectAt(bd, c.row, c.col).*;
+        if (wallAt(bd, c.row, c.col) >= 1) return shotHit(g, bd, c.row, c.col, true);
+        if (g.shotCellObject) |obj| {
+            if (shotHitsObject(shot, obj)) return shotHit(g, bd, c.row, c.col, true);
+        }
+        objectAt(bd, c.row, c.col).* = shot;
+    }
+    if (g.shotCellObject) |obj| {
+        obj.worldX = shot.worldX;
+        obj.worldY = shot.worldY;
+    }
+}
+
 /// WM_SYSTIMER part 1: the shot flies one cell.
 fn shotStep(g: *Game, bd: *Backdrop) void {
+    if (g.fixes.jardim_shot_substeps) return shotSubsteps(g, bd);
     const shot = bd.shot.?;
     const old = shotCell(shot);
     objectAt(bd, old.row, old.col).* = g.shotCellObject;

@@ -515,6 +515,10 @@ pub const Fixes = struct {
     /// Not a bug but a Corrigida addition: a screen listing the controls and
     /// the goal from WM_CREATE until a key or a click; nothing runs before.
     jardim_controls_screen: bool = false,
+    /// Not a bug but a Corrigida addition: the shot's 32-unit flight per
+    /// tick is tried in four 8-unit steps, so a diagonal shot cannot step
+    /// over a cell's corner.
+    jardim_shot_substeps: bool = false,
     /// U1: draw the status-bar text.
     status_bar_text: bool = false,
     /// `ini_fatal_error` ("Erro Fatal!") quits (`error.Fatal`) instead of
