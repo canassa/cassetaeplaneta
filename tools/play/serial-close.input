@@ -9,7 +9,7 @@
 #   MAKELONG(4, 500) (BUGS.md K1, K2, K6);
 # - `--fix all`: the close forfeits, a loss with the 200 points.
 # shot 1: straight, 3sbabt (figure 2, kind 2)
-16060 key right
-16180 key space
+16200 key right
+16320 key space
 19500 close
 20000 result won 32768004 | lost 200
