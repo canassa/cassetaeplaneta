@@ -426,6 +426,103 @@ pub fn tryDibBlitScaledColumn(
     );
 }
 
+/// Not in the original (`jardim_texture_per_pixel`): `blitScaledColumn`'s row stepping with
+/// each of the 4 destination pixels of a row read from its own source column: `src_off` is
+/// the first byte of the source row, `cols` the 4 columns. The shading is added per byte.
+pub fn blitScaledColumnPerPixel(
+    dst: []u8,
+    dst_off: u32,
+    src: []const u8,
+    src_off: u32,
+    cols: [4]u8,
+    dst_rows: i32,
+    src_rows: i32,
+    dst_stride: i32,
+    src_stride: i32,
+    dist: i32,
+) Error!void {
+    const k: i32 = if (dist > 3 << 6) 3 else dist >> 6;
+    const delta: u8 = @intCast(k * 0x17);
+    const Row = struct {
+        fn copy(d: []u8, di: u32, s_: []const u8, si: u32, c: [4]u8, add: u8) Error!void {
+            for (c, 0..) |col, i| try wrByte(d, di +% @as(u32, @intCast(i)), (try rdByte(s_, si +% col)) +% add);
+        }
+    };
+    var si = src_off;
+    var di = dst_off;
+    if (src_rows <= 1 or dst_rows <= 0) return;
+    if (src_rows >= dst_rows) {
+        const two_d = dst_rows << 1;
+        var d = two_d -% src_rows;
+        const d2 = d -% src_rows;
+        try Row.copy(dst, di, src, si, cols, delta);
+        var count: i32 = src_rows - 1;
+        while (count > 0) : (count -= 1) {
+            if (d > 0) {
+                d +%= d2;
+                si = step(si, src_stride);
+                di = step(di, dst_stride);
+                try Row.copy(dst, di, src, si, cols, delta);
+            } else {
+                d +%= two_d;
+                si = step(si, src_stride);
+            }
+        }
+    } else {
+        const m2s = -%(src_rows << 1);
+        var d = m2s +% dst_rows;
+        const db = dst_rows +% d;
+        const skip = ((dst_rows -% src_rows) >> 1) +% (dst_rows & 1);
+        if (skip > 0) {
+            di +%= @bitCast((skip -% 1) *% dst_stride);
+            const q: i64 = @divTrunc(@as(i64, src_rows) * skip, dst_rows);
+            si +%= @bitCast(@as(i32, @intCast(q)) *% src_stride);
+        }
+        var count: i32 = src_rows;
+        while (count > 0) : (count -= 1) {
+            if (d <= 0) {
+                d +%= db;
+                si = step(si, src_stride);
+                di = step(di, dst_stride);
+            } else {
+                d +%= m2s;
+                di = step(di, dst_stride);
+            }
+            try Row.copy(dst, di, src, si, cols, delta);
+        }
+    }
+}
+
+/// Not in the original (`jardim_texture_per_pixel`): `dibBlitScaledColumn`'s offsets for
+/// `blitScaledColumnPerPixel` (the 4 pixels from the texture columns `cols`).
+pub fn dibBlitScaledColumnPerPixel(
+    dst_hdr: *const BitmapInfoHeader,
+    dst_bits: []u8,
+    x: i16,
+    y: i16,
+    slice_h: i16,
+    src_bits: []const u8,
+    src_hdr: *const BitmapInfoHeader,
+    cols: [4]u8,
+    tex_row: i16,
+    tex_h: i16,
+    dist: i32,
+) void {
+    const dst_height: i32 = dst_hdr.biHeight;
+    var dst_stride: i32 = rowStride(dst_hdr.biWidth, dst_hdr.biBitCount);
+    const src_stride: i32 = @as(i16, @bitCast(rowStride(src_hdr.biWidth, src_hdr.biBitCount)));
+    const src_start: i32 = (src_hdr.biHeight - (@as(i32, tex_h) + tex_row)) * src_stride;
+    var dst_start: i32 = undefined;
+    if (dst_height < 0) {
+        dst_start = (@as(i32, slice_h) + y - 1) * dst_stride + x;
+        dst_stride = -dst_stride;
+    } else {
+        dst_start = (dst_height - (@as(i32, slice_h) + y)) * dst_stride + x;
+    }
+    blitScaledColumnPerPixel(dst_bits, @bitCast(dst_start), src_bits, @bitCast(src_start), cols, slice_h, tex_h, dst_stride, src_stride, dist) catch
+        @panic("jardim scaled: the per-pixel wall column left its buffers");
+}
+
 // @orig 1068:1336 dib_stretch_copy_transparent
 /// Clipped, stretched, transparent copy of the `src_w` x `src_h` rectangle at (`src_x`, `src_y`)
 /// of the 8-bit DIB `src_bits`/`src_hdr` to the `dst_w` x `dst_h` rectangle at (`dst_x`,
@@ -665,6 +762,29 @@ test "dib_blit_scaled_column against the original" {
             std.debug.print("case {d} (seed {d}) crc\n", .{ n, c.seed });
             return e;
         };
+    }
+}
+
+test "the per-pixel wall column draws the original's rows, each pixel from its own column" {
+    const bufs = try testing.allocator.create(Bufs);
+    defer testing.allocator.destroy(bufs);
+    // A 32-wide texture whose texel is its column + 1; slices shorter and taller than it.
+    for (&bufs.src, 0..) |*p, i| p.* = @intCast(i % 32 + 1);
+    const src_hdr = hdr(32, 600);
+    const dst_hdr = hdr(64, -480);
+    for ([_]i16{ 37, 150, 299, 300, 301, 302, 451 }) |h| {
+        const top: i16 = 42 + @divTrunc(300 - h, 2);
+        @memset(&bufs.dst, 0xee);
+        try tryDibBlitScaledColumn(&dst_hdr, &bufs.dst, 8, top, h, &bufs.src, &src_hdr, 8, 0, 300, 70);
+        const want = try testing.allocator.dupe(u8, bufs.dst[0 .. 64 * 480]);
+        defer testing.allocator.free(want);
+        @memset(&bufs.dst, 0xee);
+        dibBlitScaledColumnPerPixel(&dst_hdr, &bufs.dst, 8, top, h, &bufs.src, &src_hdr, .{ 8, 9, 10, 11 }, 0, 300, 70);
+        try testing.expectEqualSlices(u8, want, bufs.dst[0 .. 64 * 480]);
+        @memset(&bufs.dst, 0xee);
+        dibBlitScaledColumnPerPixel(&dst_hdr, &bufs.dst, 8, top, h, &bufs.src, &src_hdr, .{ 3, 3, 30, 0 }, 0, 300, 70);
+        const row: usize = 192 * 64 + 8;
+        try testing.expectEqualSlices(u8, &.{ 4 + 0x17, 4 + 0x17, 31 + 0x17, 1 + 0x17 }, bufs.dst[row..][0..4]);
     }
 }
 

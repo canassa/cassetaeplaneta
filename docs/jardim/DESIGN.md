@@ -6,7 +6,7 @@ Zig, next to NOITE's, ENCAIXE's and TIRO's ports. NOITE's `docs/DESIGN.md`, TIRO
 does not override. Ghidra (program `JARDIM.EXE`, through the tracker snapshot `noite -p jardim
 show`) is the specification; `GAME.md` (the raycaster, the map, the rules, the phases, the
 protocol), `DATA.md` (classes, vtables, globals), `FUNCTIONS.md` (names, dead code),
-`QUALITY.md` (the large-model `/Od` build), BUGS.md J1–J7.
+`QUALITY.md` (the large-model `/Od` build), `TEXTURES.md` (the walls up close), BUGS.md J1–J8.
 
 ## Decisions
 
@@ -121,6 +121,26 @@ protocol), `DATA.md` (classes, vtables, globals), `FUNCTIONS.md` (names, dead co
   - `jardim_wall_margin`: at least 8 units from every wall face (the 1995 step is undone if it
     comes nearer; the Wolf3D box keeps 11), for the textures up close (the owner approved it
     after a texture investigation; the textures themselves are another change).
+- **The walls up close** (the owner approved the texture investigation's fixes 1–3;
+  `docs/jardim/TEXTURES.md` has its findings and how to make the frames):
+  - `jardim_texture_per_pixel` (J4, replacing the first fix `jardim_wall_texture_on_wall`, which
+    passed the hit & ~3 for a wall as for a door and turned the walls into combs): each of a
+    column's 4 pixels gets its own texture column from the exact 16.16 hit, interpolated towards
+    the next column's hit when it is on the same plane (same walk, same grid line, both walls or
+    both doors), else extrapolated from the previous one. Walls repeat their 32-texel texture **4
+    times a cell** (the owner's pick, "d32 x4 per cell looks best": the bricks keep the
+    Original's size at 1–3 cells, now fixed to the wall); doors once a cell (a texture is a whole
+    door). `renderView` keeps its walks in the original order (the sprite queue is built the same)
+    and, with the flag, draws the 120 columns after the last walk. The pixels are gathered by a
+    fix-only blit, `scaled.blitScaledColumnPerPixel`, with `blit_scaled_column`'s row stepping
+    (a test checks it draws the 1995 blit's rows); the oracle-tested blit is untouched. No mirror
+    on the −x/−y faces (the door handles are drawn as the texture has them, in both versions).
+  - `jardim_wall_height_exact`: the walks also return their length before the `>> 16`, without
+    the 32-bit wrap (`raycast.Exact`, null for the 1995 callers and the oracle tests); the height
+    is table 4's entry / that length, at most 0x65ae. `g_columnDepth` and the shading keep the
+    whole units.
+  - `jardim_wall_odd_height_row`: a slice taller than the view with an odd height gets its top a
+    row lower (BUGS.md "Harmless (JARDIM)", the blit's off-by-one rows).
   - `jardim_wolf_keys` (`src/jardim/controls.zig`): W/S or ↑/↓ walk, A/D strafe, ←/→ turn, Shift
     runs, Ctrl or Space fire, E opens a door or takes an exit, Esc quits. Translated in front of the
     game (AppWndProc, before the phase handler): Space is passed on as VK_CONTROL and E as the
@@ -521,7 +541,8 @@ oracle's `g_angleRadians` for 20 indices including 0, 1, 719, 720, 1439, 2879, 2
 | J1 the win's time bonus is a penalty | `jardim_time_bonus` | labyrinth_input | the WM_DESTROY win branch subtracts the whole 32-bit `g_startTick` from the whole 32-bit tick: score += 10⁹ / ms played (16-bit truncation kept) | yes |
 | J2 Chato is never removed | `jardim_chato_removed` | phase3 | `phase3_scene_hit` clears Chato's cell (`objectRows[row][col] = NULL`) as every other kill | yes |
 | J3 a weapon picked up while a shot flies is lost | `jardim_weapon_waits_for_shot` | phase1, phase2, phase3 | the weapon branches of `touch`, with `shotInFlight`, leave the pickup in its cell and play nothing (as a refused pickup), so it can be taken once the shot has stopped | yes |
-| J4 wall textures stay on the screen | `jardim_wall_texture_on_wall` | raycast | `raycast_render_view` passes the hit coordinate & ~3 for a wall too (as for a door), so the texture column follows the wall | yes |
+| J4 wall textures stay on the screen | `jardim_texture_per_pixel` | raycast, scaled | every pixel of a wall or door column takes its texture column from its own point on the wall (the exact hit, interpolated towards the next column's on the same plane): walls 4 textures a cell, doors 1; a fix-only blit gathers the 4 bytes of a row | yes |
+| Harmless: an odd slice taller than the view sits a row high | `jardim_wall_odd_height_row` | raycast | the slice's top one row lower, so its 300 rows land on the view's | yes |
 | J5 a sprite with its top on row 478 crashes | `jardim_sprite_last_rows` | scaled | the magnifying row loop draws the 1–2 rows left on the surface; the Original port panics "BUGS.md J5" where the original faults | yes |
 | J6 a held key into a life-taking enemy takes a life every tick | `jardim_enemy_once_per_contact` | labyrinth_input (and `wolf.zig`) | an enemy touched becomes the contact; a step into it again is blocked without `touch` until the player is more than 16 units from its cell or it has left: one life, or 5 health, per contact (the owner's rule) | yes |
 | J7 the variant (and NOITE's ack) never reaches JARDIM | `jardim_variant_hello` | app | AppWndProc posts 0x40c only after NOITE's 0x40b (the FindWindow branches post nothing) and lets 0x40b and 0x40a reach its own cases before `game_handle_message`, so `espquete`'s timer finds JARDIM, sends the hello and variant 1 arrives (the final enemy is `espanf`), and the ack stops the 0x40c | yes |

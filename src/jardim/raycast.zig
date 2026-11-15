@@ -60,6 +60,12 @@ fn shl16(v: i32) i32 {
     return @bitCast(@as(u32, @bitCast(v)) << 16);
 }
 
+/// Not in the original: what the Corrigida's walls need beyond a walk's outputs (null in the
+/// 1995 code): the ray's length before the `>> 16` and without the 32-bit wrap
+/// (`jardim_wall_height_exact`), and the grid line the hit lies on (`jardim_texture_per_pixel`:
+/// two columns hitting the same line in the same walk see the same plane).
+pub const Exact = struct { len: i64 = 0, line: i32 = 0 };
+
 /// The body both segments share; `vertical` follows the lines x = 32k (1010), else y = 32k (1008).
 /// `own` is the coordinate across the lines (x for 1010), `along` the other one.
 fn walk(
@@ -77,6 +83,7 @@ fn walk(
     dist: *i32,
     cell: *i32,
     hit: *i32,
+    exact: ?*Exact,
 ) Error!void {
     const own = if (vertical) x else y;
     const along = if (vertical) y else x;
@@ -123,6 +130,7 @@ fn walk(
             dist.* = ((line -% own) *% s) >> 16;
             cell.* = c;
             hit.* = pos;
+            if (exact) |e| e.* = .{ .len = @as(i64, line -% own) * s, .line = line };
             return;
         }
         // A door: odd values are see-through for 1010, even ones for 1008; the others are a plane
@@ -133,12 +141,14 @@ fn walk(
             dist.* = ((half +% line -% own) *% s) >> 16;
             cell.* = c;
             hit.* = half *% t +% pos;
+            if (exact) |e| e.* = .{ .len = @as(i64, half +% line -% own) * s, .line = line +% half };
             return;
         }
         dist.* = ((line -% own) *% s) >> 16;
         const next = (line +% step) >> 5;
         cell.* = if (vertical) try wallAt(wall_rows, row, next) else try wallAt(wall_rows, next, col);
         hit.* = pos;
+        if (exact) |e| e.* = .{ .len = @as(i64, line -% own) * s, .line = line };
         return;
     }
 }
@@ -163,7 +173,7 @@ pub fn walkHorizontal(
     cell: *i32,
     hit: *i32,
 ) Error!void {
-    return walk(false, gw, angle, x, y, cot, csc, x_step, queue, wall_rows, object_rows, dist, cell, hit);
+    return walk(false, gw, angle, x, y, cot, csc, x_step, queue, wall_rows, object_rows, dist, cell, hit, null);
 }
 
 // @orig 1010:0024 raycast_walk_vertical
@@ -184,7 +194,7 @@ pub fn walkVertical(
     cell: *i32,
     hit: *i32,
 ) Error!void {
-    return walk(true, gw, angle, x, y, tan, sec, y_step, queue, wall_rows, object_rows, dist, cell, hit);
+    return walk(true, gw, angle, x, y, tan, sec, y_step, queue, wall_rows, object_rows, dist, cell, hit, null);
 }
 
 // @orig 1028:4b81 object_set_visible_from32
@@ -253,29 +263,100 @@ const latent_border = "BUGS.md latent (JARDIM): a ray walk read outside the map 
 
 /// A column of the nearer hit: the height (`_aFldiv` of the fisheye entry by the distance, the
 /// high word), the top, the cell value forced into 1..12, the drawer, the depth.
-fn drawColumn(g: *Game, bd: *Backdrop, comptime horizontal: bool, dist: i32, cell_in: i32, hit: i32, fisheye: i32, col_x: i32, col_idx: i32) void {
+fn drawColumn(g: *Game, bd: *Backdrop, comptime horizontal: bool, dist: i32, cell_in: i32, hit: i32, fisheye: i32, col_x: i32, col_idx: i32, exact: Exact, texels: ?[4]u8) void {
     var wall_h: i32 = 0x65ae;
-    if (dist != 0) {
+    if (g.fixes.jardim_wall_height_exact) {
+        // Not in the original: the height from the unrounded length (the original's whole-unit
+        // distance makes it up to 1/dist too tall, bending the courses up close); no taller
+        // than the original's at distance 0.
+        if (exact.len > 0) wall_h = @intCast(@min(@divTrunc(@as(i64, fisheye), exact.len), 0x65ae));
+    } else if (dist != 0) {
         if (dist == -1 and fisheye == std.math.minInt(i32))
             @panic("BUGS.md latent (JARDIM): unchecked cells, table entries and divisors (raycast_render_view: a divide fault)");
         wall_h = lo16(@divTrunc(fisheye, dist) >> 16); // MOV AX,DX; CWD
     }
-    const top: i32 = ((@as(i32, bd.viewH) -% wall_h) >> 1) +% bd.viewY;
+    var top: i32 = ((@as(i32, bd.viewH) -% wall_h) >> 1) +% bd.viewY;
+    // Not in the original: an odd slice taller than the view skips one more row at the top
+    // (`blit_scaled_column`'s `+ (D & 1)`), so the floor-ward rounding puts it a row too high.
+    if (g.fixes.jardim_wall_odd_height_row and wall_h > bd.viewH and wall_h & 1 != 0) top +%= 1;
     var cell = cell_in;
     if (cell < 1 or cell > 12) cell = 1;
     // The hit's integer part & ~3, sign-extended (AND AX,0xfffc; CWD).
     const hit_col: i32 = @as(i16, @truncate(hit >> 16)) & @as(i16, @bitCast(@as(u16, 0xfffc)));
     const strip = bd.wallStrip.?;
-    if (cell > 6) {
+    if (texels) |u| {
+        drawStripPerPixel(strip, dist, u, lo16(cell), lo16(wall_h), lo16(top), lo16(col_x), bd);
+    } else if (cell > 6) {
         const draw = if (horizontal) drawDoorA else drawDoorB;
         draw(strip, dist, hit_col, lo16(cell), lo16(wall_h), lo16(top), lo16(col_x), bd);
     } else {
         // J4: a wall gets the screen x as its texture column, so the texture stays on the screen.
-        const tex_col = if (g.fixes.jardim_wall_texture_on_wall) hit_col else col_x;
         const draw = if (horizontal) drawWallA else drawWallB;
-        draw(strip, dist, tex_col, lo16(cell), lo16(wall_h), lo16(top), lo16(col_x), bd);
+        draw(strip, dist, col_x, lo16(cell), lo16(wall_h), lo16(top), lo16(col_x), bd);
     }
     g.columnDepth[@intCast(col_idx)] = dist;
+}
+
+/// Not in the original (`jardim_texture_per_pixel`): the drawers' column with each of its 4
+/// pixels from its own texture column `texels[k]`.
+fn drawStripPerPixel(strip: *Object, dist: i32, texels: [4]u8, value: i16, slice_h: i16, slice_top: i16, screen_x: i16, bd: *Backdrop) void {
+    const tex_h = strip.framesLeft;
+    const tex_row = (@divTrunc(value +% 1, 2) -% 1) *% strip.framesLeft;
+    var cols = texels;
+    for (&cols) |*c| c.* &= @intCast((position.hitW(strip) -% 1) & 0xff);
+    const d = position.dib(strip).?;
+    scaled.dibBlitScaledColumnPerPixel(&bd.bmiHeader, bd.pixels, screen_x, slice_top, slice_h, d.bits, &d.header, cols, tex_row, tex_h, dist);
+}
+
+/// Not in the original (`jardim_texture_per_pixel`): one column's nearer hit, kept until its
+/// neighbours are known.
+const ColumnHit = struct {
+    horizontal: bool,
+    dist: i32,
+    cell: i32,
+    hit: i32,
+    fish: i32,
+    exact: Exact,
+
+    fn door(c: ColumnHit) bool {
+        return c.cell > 6 and c.cell <= 12;
+    }
+
+    /// The same plane: the same walk, grid line and kind (a door is recessed or seen through).
+    fn samePlane(a: ColumnHit, b: ColumnHit) bool {
+        return a.horizontal == b.horizontal and a.exact.line == b.exact.line and a.door() == b.door();
+    }
+};
+
+/// How many times a texture repeats across one cell (`jardim_texture_per_pixel`): the wall
+/// textures (bricks, hedge, mosaic, 32 texels wide) were drawn 1 texel per screen pixel, about 4
+/// per cell at mid distance (the owner's choice); a door is one whole door per cell.
+pub const wall_tiling = 4;
+pub const door_tiling = 1;
+
+/// The texture column of a 16.16 coordinate along the wall.
+fn texel(along: i64, door: bool) u8 {
+    const shift: u6 = if (door) 16 else 16 - std.math.log2_int(u32, wall_tiling);
+    return @intCast((along >> shift) & 31);
+}
+
+/// The 4 pixels' texture columns of column `i` (`hits[i]`, the screen's column i from the
+/// left): each pixel's own point on the wall, interpolated towards the next column's hit on the
+/// right (or extrapolated from the left one at the right edge of a plane).
+fn texelsOf(hits: *const [world.view_columns]ColumnHit, i: usize) [4]u8 {
+    const c = hits[i];
+    const h: i64 = c.hit;
+    var step: i64 = 0;
+    if (i + 1 < hits.len and c.samePlane(hits[i + 1])) {
+        step = @as(i64, hits[i + 1].hit) - h;
+    } else if (i > 0 and c.samePlane(hits[i - 1])) {
+        step = h - hits[i - 1].hit;
+    }
+    // A neighbour more than a cell away along the plane is another wall seen past an edge.
+    if (step > 32 << 16 or step < -(32 << 16)) step = 0;
+    var u: [4]u8 = undefined;
+    for (&u, 0..) |*t, k| t.* = texel(h + @divTrunc(step * @as(i64, @intCast(k)), 4), c.door());
+    return u;
 }
 
 /// A table entry at a ray angle (the original's pointers into the tables; the angle stays in
@@ -312,6 +393,11 @@ pub fn renderView(g: *Game, bd: *Backdrop, x: i32, y: i32, angle_in: i32) void {
     var h_dist: i32 = 0;
     var h_cell: i32 = 0;
     var h_hit: i32 = 0;
+    var v_exact: Exact = .{};
+    var h_exact: Exact = .{};
+    // Not in the original: `jardim_texture_per_pixel` draws once every column's hit is known.
+    const per_pixel = g.fixes.jardim_texture_per_pixel;
+    var hits: [world.view_columns]ColumnHit = undefined;
     const gw: Gateways = .{};
     var col_idx: i32 = 0x77;
     var col_x: i32 = 0x1f0;
@@ -319,17 +405,34 @@ pub fn renderView(g: *Game, bd: *Backdrop, x: i32, y: i32, angle_in: i32) void {
         col_idx -%= 1;
         col_x -%= 4;
     }) {
-        walkVertical(gw, angle, x, y, at(t[0], angle), at(t[5], angle), at(t[2], angle), bd.spriteQueue, &bd.wallRows, &bd.objectRows, &v_dist, &v_cell, &v_hit) catch @panic(latent_border);
-        walkHorizontal(gw, angle, x, y, at(t[1], angle), at(t[6], angle), at(t[3], angle), bd.spriteQueue, &bd.wallRows, &bd.objectRows, &h_dist, &h_cell, &h_hit) catch @panic(latent_border);
+        walk(true, gw, angle, x, y, at(t[0], angle), at(t[5], angle), at(t[2], angle), bd.spriteQueue, &bd.wallRows, &bd.objectRows, &v_dist, &v_cell, &v_hit, &v_exact) catch @panic(latent_border);
+        walk(false, gw, angle, x, y, at(t[1], angle), at(t[6], angle), at(t[3], angle), bd.spriteQueue, &bd.wallRows, &bd.objectRows, &h_dist, &h_cell, &h_hit, &h_exact) catch @panic(latent_border);
         const fish = at(t[4], fisheye);
-        if (h_dist <= v_dist) {
-            drawColumn(g, bd, true, h_dist, h_cell, h_hit, fish, col_x, col_idx);
+        const near_h = h_dist <= v_dist;
+        if (per_pixel) {
+            hits[@intCast(col_idx)] = if (near_h)
+                .{ .horizontal = true, .dist = h_dist, .cell = h_cell, .hit = h_hit, .fish = fish, .exact = h_exact }
+            else
+                .{ .horizontal = false, .dist = v_dist, .cell = v_cell, .hit = v_hit, .fish = fish, .exact = v_exact };
+        } else if (near_h) {
+            drawColumn(g, bd, true, h_dist, h_cell, h_hit, fish, col_x, col_idx, h_exact, null);
         } else {
-            drawColumn(g, bd, false, v_dist, v_cell, v_hit, fish, col_x, col_idx);
+            drawColumn(g, bd, false, v_dist, v_cell, v_hit, fish, col_x, col_idx, v_exact, null);
         }
         fisheye += 4;
         angle +%= 4;
         if (angle >= 0xb40) angle -%= 0xb40;
+    }
+    if (per_pixel) {
+        for (&hits, 0..) |c, i| {
+            const cx: i32 = 0x14 + 4 * @as(i32, @intCast(i));
+            const u = texelsOf(&hits, i);
+            if (c.horizontal) {
+                drawColumn(g, bd, true, c.dist, c.cell, c.hit, c.fish, cx, @intCast(i), c.exact, u);
+            } else {
+                drawColumn(g, bd, false, c.dist, c.cell, c.hit, c.fish, cx, @intCast(i), c.exact, u);
+            }
+        }
     }
     const hands = bd.hands.?;
     if (!g.viewOnly) hands.y +%= g.handsBobStep;
@@ -499,8 +602,9 @@ test "renderView: the nearer walk per column, the depths, the hands' sway and J4
     const px: i32 = 48;
     const py: i32 = 80;
     const ang: i32 = 720;
-    // The texture column each screen column shows (each texture pixel is its column + 1), in the
-    // original (J4: the screen x for a wall, the hit & ~3 for a door) and with the fix.
+    // The texture column each screen column's first pixel shows (each texture pixel is its
+    // column + 1), in the original (J4: the screen x for a wall, the hit & ~3 for a door) and
+    // with the fix (the exact hit, 4 textures a cell on a wall, 1 on a door).
     var want_orig: [120]u8 = undefined;
     var want_fix: [120]u8 = undefined;
     var depth: [120]i32 = undefined;
@@ -525,7 +629,9 @@ test "renderView: the nearer walk per column, the depths, the hands' sway and J4
         const hit_col: u8 = @intCast(((if (h) hh else vh) >> 16) & 0x1c);
         const sx: u8 = @intCast((20 + 4 * col) & 31);
         want_orig[col] = 1 + if (cell > 6 and cell <= 12) hit_col else sx;
-        want_fix[col] = 1 + hit_col;
+        const hv: i32 = if (h) hh else vh;
+        const door = cell > 6 and cell <= 12;
+        want_fix[col] = 1 + @as(u8, @intCast(if (door) (hv >> 16) & 31 else (hv >> 14) & 31));
         a += 4;
     }
     renderView(g, bd, px, py, ang);
@@ -535,7 +641,7 @@ test "renderView: the nearer walk per column, the depths, the hands' sway and J4
     // The middle row of the view (192) is in every column's slice.
     const mid = 192 * 640;
     for (0..120) |c| try testing.expectEqual(want_orig[c] +% shade(depth[c]), fx.pixels[mid + 20 + 4 * c]);
-    g.fixes.jardim_wall_texture_on_wall = true;
+    g.fixes.jardim_texture_per_pixel = true;
     @memset(fx.pixels, 0);
     renderView(g, bd, px, py, ang);
     try testing.expectEqual(@as(i16, 4), g.handsBobPos);

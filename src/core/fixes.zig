@@ -451,7 +451,7 @@ pub const Fixes = struct {
     /// the WM_DESTROY included, and spins there for good (the Original port
     /// panics naming H8).
     inferno_destroy_once: bool = false,
-    // ---- JARDIM.EXE (BUGS.md J1–J7). The src/jardim/ units port each bug
+    // ---- JARDIM.EXE (BUGS.md J1–J8). The src/jardim/ units port each bug
     // as it is and keep the fix only behind its flag
     // (docs/jardim/DESIGN.md "Fixes"). ----
     /// J1: the win's bonus subtracts the whole 32-bit start tick from the
@@ -464,10 +464,19 @@ pub const Fixes = struct {
     /// J3: a weapon (crossbow, bra, bazooka) touched while a shot flies
     /// stays in its cell, as a refused pickup does, instead of vanishing.
     jardim_weapon_waits_for_shot: bool = false,
-    /// J4: a wall's texture column comes from the ray's hit coordinate, as
-    /// a door's does, so the texture stays on the wall when the player
-    /// turns or walks.
-    jardim_wall_texture_on_wall: bool = false,
+    /// J4: the texture stays on the walls: every screen pixel of a wall or
+    /// door column takes its texture column from its own point on the wall
+    /// (the ray's exact hit, interpolated across the column's 4 pixels), the
+    /// wall textures repeated 4 times a cell, a door once (`raycast.zig`).
+    jardim_texture_per_pixel: bool = false,
+    /// Not a bug but a Corrigida addition: a wall column's height from the
+    /// ray's exact length instead of the whole units the walks round it to,
+    /// so the brick courses stay straight up close.
+    jardim_wall_height_exact: bool = false,
+    /// A wall slice taller than the view with an odd height is placed one
+    /// row lower, so its 300 rows cover the view's 300 (the original's skip
+    /// of `D & 1` leaves the bottom row to the floor).
+    jardim_wall_odd_height_row: bool = false,
     /// J5: the magnified sprite copy draws the one or two rows left on the
     /// surface when its top is on row 478 or 479 (the original's row loop
     /// counts down from -1 and faults; the Original port panics naming J5).

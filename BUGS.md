@@ -1049,6 +1049,11 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
   come nearer is undone), as the original's push leaves him from the wall he walks into; up close the view's
   whole-unit distances bend the bricks and the wall fills the view. `jardim_smooth_movement`'s 11-unit box keeps
   more than that anyway, so in the Corrigida it only matters to the 1995 movement.
+- `Fixes.jardim_wall_height_exact` (JARDIM): a wall column's height is 22500 / (cos · the ray's exact length),
+  from the walks' unshifted 16.16 length, instead of the whole units they round it down to (which makes a
+  column up to 1/dist too tall: 12 % at a quarter cell, so the brick courses bend and step up close). The
+  column depths the sprites clip against and the shading keep the whole units; the oracle-tested walks'
+  outputs are unchanged (`raycast.Exact` is an extra output).
 - `Fixes.jardim_wolf_keys` (JARDIM): W / S or ↑ / ↓ walk, A / D strafe, ← / → turn, Shift runs, Ctrl or Space
   fire, E opens a door or takes an exit, Esc quits (`src/jardim/controls.zig`: Space is passed on as Ctrl and E
   as the original's Space, in front of the phase handler). Space no longer opens doors (E does): Space as fire
@@ -2403,7 +2408,15 @@ Each is consistent code with a plausible intent.
   right.
 - **Confidence:** 9 (code); 7 (that the hit coordinate was meant: the door path uses it).
 - **Port:** reproduced (unit `raycast`, src/jardim/raycast.zig `drawColumn`); the fix is
-  `Fixes.jardim_wall_texture_on_wall` (`--fix jardim_wall_texture_on_wall`, on in the Corrigida version).
+  `Fixes.jardim_texture_per_pixel` (`--fix jardim_texture_per_pixel`, on in the Corrigida version): every
+  screen pixel of a wall or door column takes its texture column from its own point on the wall (the ray's
+  exact 16.16 hit, interpolated across the column's 4 pixels towards the next column's hit on the same
+  plane), the wall textures repeated 4 times a cell (the owner's choice: their bricks keep the Original's
+  size at mid distance), a door once. A fix-only blit (`scaled.dibBlitScaledColumnPerPixel`, the same row
+  stepping as `blit_scaled_column`) gathers the 4 bytes of a row; the 1995 blit is unchanged. Only passing
+  the hit for a wall too (the first fix) turned the walls into combs: the 32-bit blit copies 4 adjacent
+  texels per 4-px column, and `hit & ~3` gives 8 start columns a cell, so up close each 4-texel slice was
+  repeated a dozen times. The doors' "IIII" slices up close in the Original are the same cause.
 
 ### J5. A sprite whose top lands on row 478 crashes the game
 - **Where:** `blit_scaled_sprite_transparent` 1018:0024 (the magnifying row loops at +0x177 and
@@ -2561,7 +2574,10 @@ Each is consistent code with a plausible intent.
 - **The wall column blit is off by one row:** `blit_scaled_column` 1000:0024 writes one row more
   than the slice (above it, over the sky) when the wall is less than half the texture's height
   (beyond about 4.7 cells), and for an odd slice height taller than the view it draws the column
-  1 px high and leaves the view's bottom row with the floor. Confidence 9.
+  1 px high and leaves the view's bottom row with the floor (`raycast_render_view` 1028:0c93–0cb7 puts
+  the top at `42 + ((300 − h) >> 1)`, rounded down, while the blit skips `((h − 300) >> 1) + (h & 1)`
+  rows: up to 46 of the 120 columns at one unit from a wall). The second is fixed in the Corrigida
+  (`Fixes.jardim_wall_odd_height_row`: such a slice's top one row lower). Confidence 9.
 - **Magnified sprites lose their last column and their last two rows** (the clip extents minus one,
   `dib_stretch_copy_transparent` 1068:1336). Confidence 9.
 - **Two placements are overwritten:** phase 1 puts a crossbow and then arrows on row 6 column 53,
