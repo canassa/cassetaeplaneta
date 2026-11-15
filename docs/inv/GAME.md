@@ -107,7 +107,8 @@ is one shot, so at most one is in flight.
 (the fourth hit) the game is lost (`WM_DESTROY`, wParam 0). Otherwise the cannon stops and plays
 `Brocha.bmp`: the cannon branch counts `hitFrame` up to 7 frames of 60 ms, then goes back to
 `Canhao.bmp`, sets `hitFrame` −1 and resumes a held arrow key. A direction key pressed during the
-explosion moves the cannon instead and resets `hitFrame` (BUGS I2).
+explosion moves the cannon instead and resets `hitFrame`; until the cannon's first tick after the
+hit `hitFrame` is still −1, so SPACE fires then too (BUGS I2).
 
 ## The shot and the hit test
 
@@ -203,7 +204,7 @@ NOITE reaches the minigame from the bar: the right answer to the esoteric's ques
     its animation and wave; when the wave ends a life is taken, and the game goes back to `4fbar`,
     or to `6fsaida` (game over) when the lives reach exactly 0;
   - `4fmarte2` (1028:04e6; `src/handlers/4fmarte2.zig`), the winning scene: the Martian (0xf1)
-    speaks; when its wave ends, the `ESOTEBOY` cutscene.
+    speaks; when its wave ends, the `ESOTEBOY` cutscene, which goes back to `4fbar`.
   Neither handles `0x40a`, so the extra results of a landing (BUGS.md, INV Harmless) are ignored.
 
 ## Keys and mouse

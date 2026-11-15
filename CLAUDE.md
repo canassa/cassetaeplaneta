@@ -28,7 +28,8 @@ Reverse-engineering the 1995 ATR Multimedia point-and-click adventure
   (`docs/encaixe/DESIGN.md`); `src/platform/host.zig` runs it as a second program.
   `src/tiro/` — TIRO.EXE's port (`docs/tiro/DESIGN.md`), run the same way;
   `src/serial/` — SERIAL.EXE's (`docs/serial/DESIGN.md`); `src/salgin/` —
-  SALGIN.EXE's (`docs/salgin/DESIGN.md`).
+  SALGIN.EXE's (`docs/salgin/DESIGN.md`); `src/inv/` — INV.EXE's
+  (`docs/inv/DESIGN.md`).
 - `tools/cli/` — the `noite` port tracker (uv workspace member);
   `db/port.sqlite` — its database (local, not in git; `noite import` builds it).
 

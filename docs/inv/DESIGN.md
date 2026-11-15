@@ -340,7 +340,7 @@ specifics:
 | Bug | Flag | Unit | What the fix changes | In `all` |
 |---|---|---|---|---|
 | I1 SPACE latch never set | `inv_space_latch` | invasion | the SPACE key-down branch, taken when `g_keySpaceHeld` is 0, sets it to 1 (WM_KEYUP already clears it): a held SPACE fires at most once, on the press; key repeats do nothing (TIRO's T1 fix) | yes |
-| I2 a direction key cuts the cannon's explosion short | `inv_explosion_holds_cannon` | invasion | while `g_cannon.hitFrame != -1`, LEFT/RIGHT key-down set their latch and key-up clears it, but neither moves, resumes or stops the cannon: it stays put for the whole `Brocha.bmp` explosion (7 frames of 60 ms), cannot fire (the gate already tests `hitFrame`), and the explosion's end resumes a held key, as the original's already does | yes (owner question 1) |
+| I2 a direction key cuts the cannon's explosion short | `inv_explosion_holds_cannon` | invasion | while the explosion strip is on (`curStrip` 1, from `cannon_lose_life` to the last frame; `hitFrame` is still −1 until the cannon's first tick), LEFT/RIGHT key-down set their latch and key-up clears it, but neither moves, resumes or stops the cannon, and SPACE does not fire: the cannon stays put for the whole `Brocha.bmp` explosion (7 frames of 60 ms), and the explosion's end resumes a held key, as the original's already does | yes (owner question 1) |
 
 Each unit ports the buggy code and keeps the fixed path only under its
 flag (`g.fixes.inv_…`). I1 matters only with key repeats (on by default:
@@ -374,9 +374,12 @@ what the original does, with these notes for the units:
 
 ## Integration
 
-INV is laid out but not ported: `src/inv/root.zig` `ready = false`, so
-NOITE's WinExec keeps the stub and `--minigame inv` refuses to run it
-(`main.minigames` already lists it, as TIRO's did during its port).
+Every unit is ported and `src/inv/root.zig` has `ready = true`: NOITE's
+WinExec runs INV and `--minigame inv` plays it alone. The check of the
+finished port found one port bug: `game_init` called the base Scene's
+`create` instead of the InvScene's slot 07 (`invasion.create`), so the
+music, WaveMix, the waves and the score box were never set up (and the
+first WM_ACTIVATE showed "Erro Wave Mix"); fixed.
 
 ### The launch from NOITE
 
@@ -406,9 +409,10 @@ kills timer 1 and posts WM_QUIT, which comes after the posted messages and
 before any timer (`core/queue.zig`): no INV timer runs again. The host
 then runs `app.exit`, destroys the window and activates NOITE, which shows
 itself, adds lParam to the score (a negative score lowers it) and goes to
-`4fmarte2` (won: the Martian speaks, then the `ESOTEBOY` cutscene) or
-`4fmarte` (lost: the Martian, then a life less and `4fbar`, or `6fsaida`
-at 0 lives). A landing's extra 0x40a reach NOITE after the scene switch;
+`4fmarte2` (won: the Martian speaks, then the `ESOTEBOY` cutscene and
+back to `4fbar`) or `4fmarte` (lost: the Martian, then a life less and
+`4fbar`, or `6fsaida` at 0 lives). From `--scene 4fsacaet` the saucer's
+wave ends at 25308 ms (the WinExec) and INV's WM_CREATE is at 26808. A landing's extra 0x40a reach NOITE after the scene switch;
 `4fmarte`/`4fmarte2` ignore them (GAME.md), so the score is added once.
 NOITE's WM_SYSTIMER check (window gone without a result → 0x40a loss) is
 covered by the host's window lifetime. Nothing changes in NOITE.
@@ -419,15 +423,15 @@ covered by the host's window lifetime. Nothing changes in NOITE.
 - `noite --minigame inv [--headless …]`: INV alone (task 0, its title,
   `\INV` directory); prints its result (0x40a to hwnd 0 goes nowhere; the
   host records it, the last one wins).
-- Web (Finishing): `web_main.minigames` gets INV after the minigames
-  already there (its index + 1 is `noite_start`'s `minigame`), `MINIGAMES`
-  in `web/noite.js` the same entry at the same position (`{ name: "inv",
-  title: "Invasores", ready: true }`), the "Jogo" select of
-  `web/index.html` "Jogar só o minijogo: Invasores"; `tools/web/files.py`
-  already looks a minigame's names up in its directory (`INV\`). The
-  on-screen pad (one-button mode, or a minigame alone on a touch screen)
-  follows the program on top (`noite_top_program`): `PAD_KEYS.inv = [37,
-  32, 39]`, ◀, a fire button and ▶, as TIRO's.
+- Web: `web_main.minigames` lists INV after SALGIN (its index + 1 is
+  `noite_start`'s `minigame`), `MINIGAMES` in `web/noite.js` the same
+  entry at the same position (`{ name: "inv", title: "Invasores", ready:
+  true }`), the "Jogo" select of `web/index.html` "Jogar só o minijogo:
+  Invasores"; `tools/web/files.py` looks INV's names up at the root, then
+  in `INV\` (`DOOM1.MID` is at the root). The on-screen pad (one-button
+  mode, or a minigame alone on a touch screen) follows the program on top
+  (`noite_top_program`): `PAD_KEYS.inv = [37, 32, 39]`, ◀, a fire button
+  and ▶, as TIRO's.
 
 ## Platform
 
@@ -448,59 +452,49 @@ Nothing new: INV uses what TIRO needed.
 ## Tests
 
 INV has no randomness: a game follows from the key times relative to
-INV's WM_CREATE (0 alone, the disco wave's end + 1500 from 4fsacaet). The
-scripts are checked in both versions (Original and `--fix all`) with the
-same keys and the same result, so they press each key (no `hold`, no
-repeat: I1 never matters) and press no direction key during the cannon's
-explosion (I2 never matters; a win plan takes no bomb hit at all).
-- **Planner** `tools/inv_plan.py --start MS (--win|--lose)
-  [--relative-to MS]` (recommended, TIRO's precedent): simulates the game
-  on the virtual clock, in USER's timer-table order (TIRO's planner has
-  that part): the formation (500 → 400 → 300 → 200 → 55 ms, the leading
-  column first, the edge turns, the 22-px right-edge descent, the
-  landing), the shot (20 px per 55 ms from (cannon.x + 27, cannon.y −
-  30), the occupancy grid's first stage and the handler's second stage),
-  the bombs (drop timers 2 s and 5 s, the first live column within 88 px,
-  20 px per 55 ms, the hit box), the saucer (10 s launches, 20 px per 60
-  ms, x ≥ 518), the cannon (20 px per 60 ms, one step at once on a
-  press). It plans key presses (LEFT/RIGHT to stand under the column
-  whose bottom invader the shot will meet, SPACE once the shot is free,
-  110 ms or more apart) that win with no bomb hit, or lose; `--check
-  FILE` / `--trace FILE` simulate a script, checked tick for tick against
-  the port's `--trace`. A cheaper start, if the planner lags: author the
-  scripts by hand against the port (it is deterministic) and keep the
-  planner for re-tuning when a start time moves.
+INV's WM_CREATE (0 alone, 26808 from `--scene 4fsacaet`), and a script
+moved by that offset plays the same game. The scripts are checked in
+both versions (Original and `--fix all`); the plans press each key (SPACE
+never held: I1 never matters) and take no bomb hit (I2 never matters), so
+both versions play the same game.
+- **Planner** `tools/inv_plan.py (--win|--lose) [--start MS]
+  [--relative-to MS]`: instead of a simulation (TIRO's and SERIAL's
+  planners model `rand()`), it probes the port: a run of `--minigame inv`
+  with the keys so far and a `close` at a time T reports `g_score` at T
+  (WM_CLOSE → WM_DESTROY wParam 0 → 0x40a with the score). A depth-first
+  search, one kill at a time, from 600 ms (after the first formation step:
+  an earlier kill shows the `init_cells` Harmless): wait, then nothing / an
+  arrow pressed or held, then SPACE, shortest first; the first that kills
+  one invader (+100, +600 with the saucer) with no bomb hit is kept, its
+  kill time bisected, and it backs up a kill when none works. It checks
+  the plan in both versions. `--win`: 20 kills in 10.6 s, `won 2000`;
+  `--lose`: no key, four bomb hits, `lost -2000` at 12275 ms.
 - **Scripts** (`tools/play/`), each Original and `--fix all`, the same
-  script, its result checked after the later end:
-  - `inv-alone-win.input` (`--minigame inv --ms 90000`): 20 invaders, no
-    bomb hit, `result won 2000` (+500 per saucer the plan hits);
-  - `inv-alone-lose.input` (`--ms 30000`): no key: the bombs hit the
-    cannon four times, `result lost -2000` (or the landing, if the run
-    says so: the script records what the original does);
-  - `inv-held-space.input` (`--minigame inv --key-repeat 500,33`): SPACE
-    held under a column. The Original fires on the repeats (I1) and kills
-    more than the Corrigida, which fires once: two result lines, one per
-    version (`inv-held-space-fix.input` with `--fix all`);
-  - `inv-explosion-move.input`: a bomb hit, LEFT during the explosion,
-    SPACE: the Original drives off with the frozen frame and fires (I2),
-    the Corrigida holds; two result lines, as above;
+  script, the result checked after the later end (README.md, "INV"):
+  - `inv-alone-win.input`, `inv-alone-lose.input` (the planner's);
+  - `inv-held-space.input` (`--key-repeat 500,33`): one step left, SPACE
+    held 4 s. The Original fires on the repeats (I1) and the formation
+    lands at 19762 ms with +500; the Corrigida fires once, -1900 at 14330
+    (`result lost 500 | lost -1900`);
+  - `inv-explosion-move.input`: the first bomb hit (2370–2390 ms), LEFT
+    held from 2400 (the explosion's first tick) and SPACE at 2600: the
+    Original drives off and fires, a kill (-1900 at 8440); the Corrigida
+    holds still and cannot fire (-2000 at 12275);
   - `inv-4fsacaet-win.input` / `inv-4fsacaet-lose.input` (`--scene
-    4fsacaet`): NOITE hidden while INV runs (`dump`), the planner's keys
-    (`--start` = the disco wave's end + 1500), `result won 2000` and
-    `4fmarte2` with the score added / `result lost -2000`, `4fmarte`,
-    then `4fbar` with a life less and the score lowered.
-- **full.input** does not pass through INV: it takes the sportsman's
-  route at `4fbar`; INV is on the esoteric's (owner question 2). It must
-  stay green (INV `ready` changes nothing on its route).
-- **Smoke**: `tools/smoke.py --minigame inv [--fix all] [--monkey
-  SEED]`: random LEFT/RIGHT and SPACE presses 110 ms or more apart for 60
-  s, seeds 1–5 (`KEYS_FOR["inv"]` = TIRO's `tiro_keys_for`); no panic or
-  leak, and a result (the bombs or the landing end any game in well under
-  60 s). The scene sweep's `4fsacaet` then runs the real INV too (it
-  ends by itself).
-- **Web**: `tools/web/test.py` plays "Jogo" = Invasores: INV starts and
-  SPACE fires (the shot leaves the cannon, a screenshot); on a touch
-  screen the pad shows ◀, fire, ▶.
+    4fsacaet`): the planner's keys from 26808, `result won 2000`, then
+    `4fmarte2`, `ESOTEBOY` and `4fbar` with the score added / `result lost
+    -2000`, `4fmarte`, then `4fbar` with a life less and the score lowered.
+- **Playthroughs**: `full.input` and `onebutton.input` take the
+  sportsman's route at `4fbar`; INV is on the esoteric's, a detour that
+  comes back to the bar (owner question 2). They stay green with INV
+  `ready`.
+- **Smoke**: `tools/smoke.py --minigame inv [--fix all] [--monkey SEED]`:
+  TIRO's random LEFT/RIGHT and SPACE presses, 110 ms or more apart, for
+  60 s; the bombs or the landing end every game in 10 to 30 s. The scene
+  sweep's `4fsacaet` runs the real INV too (it ends by itself).
+- **Web**: `tools/web/test.py` plays "Jogo" = Invasores: SPACE sends the
+  shot up from the cannon, and on a touch screen the pad shows ◀, fire,
+  ▶ and its fire button fires.
 - **Unit tests** (optional, tagged): `oracle=emulated` from tools/oracle
   (far code, DGROUP 1090, `_aFchkstk` 1080:00e4 runs as is), as worth it:
   `missile_can_step` (the blocker classes), `invader_column_step` /
@@ -651,20 +645,23 @@ file carries INV's address (`noite -p inv show <name>`).
 
 ## Finishing
 
-Once every unit is `done`: `ready = true` in `src/inv/root.zig`; the web
-entries (Standalone, above); `KEYS_FOR["inv"]` in `tools/smoke.py`; the
-planner and the scripts (Tests); the INV lines of README.md ("Running the
-port", "Testing the port"); BUGS.md I1/I2 "Port:" lines naming the flags.
-Then run the INV scripts, `smoke.py --minigame inv` (both versions), the
-scene sweep, `full.input` and `tools/web/test.py`, and deploy.
+Done: `ready = true` in `src/inv/root.zig`; the web entries
+(Standalone, above); `KEYS_FOR["inv"]` in `tools/smoke.py`; the planner
+and the scripts (Tests); the INV lines of README.md ("Running the port",
+"Testing the port"); BUGS.md I1/I2 "Port:" lines naming the flags. The
+INV scripts, `smoke.py --minigame inv` (both versions), the scene sweep,
+both playthroughs and `tools/web/test.py` pass.
 
 ## Owner questions
 
-1. **I2 in Corrigida.** The fix holds the cannon still for its whole
-   explosion (420 ms), the arcade behaviour; it is in `all`. If the
+1. **I2 in Corrigida.** The fix holds the cannon still, and its fire,
+   for its whole explosion (420 ms), the arcade behaviour; it is in `all`. If the
    original's cut-short explosion should stay in Corrigida too, the flag
    moves to `Fixes.choices`.
 2. **A playthrough through INV.** `full.input` takes the sportsman's
-   route at `4fbar`; INV (and the `ESOTEBOY` ending) is on the esoteric's.
-   The plan tests INV from `--scene 4fsacaet`; should a second full
-   playthrough take the esoteric route?
+   route at `4fbar`; INV is on the esoteric's, a detour (`4fsacaet`, INV,
+   `4fmarte2`, the `ESOTEBOY` cutscene) that comes back to `4fbar`. The
+   scripts test it from `--scene 4fsacaet`. The playthroughs could take
+   the detour before the sportsman (about 50 s longer, with the planner's
+   keys; every later random choice moves, so the rest is retuned): should
+   they?

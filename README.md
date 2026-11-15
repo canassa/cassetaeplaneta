@@ -31,17 +31,18 @@ item he hides), anything else walks; an inventory
 item is tapped then placed with the next click, or dragged. ENCAIXE
 (3ffarao's Tetris, `src/encaixe/`, `docs/encaixe/DESIGN.md`), TIRO
 (3fhall's shooting gallery, `src/tiro/`, `docs/tiro/DESIGN.md`), SERIAL
-(3farmcai's Serial Killer, `src/serial/`, `docs/serial/DESIGN.md`) and SALGIN
-(4fsalgin's gym fight, `src/salgin/`, `docs/salgin/DESIGN.md`) are
+(3farmcai's Serial Killer, `src/serial/`, `docs/serial/DESIGN.md`), SALGIN
+(4fsalgin's gym fight, `src/salgin/`, `docs/salgin/DESIGN.md`) and INV
+(4fsacaet's space invaders, `src/inv/`, `docs/inv/DESIGN.md`) are
 ported: NOITE runs them as second programs (`src/platform/host.zig`), and
-`--minigame encaixe|tiro|serial|salgin` plays one alone. The other minigames (separate
+`--minigame encaixe|tiro|serial|salgin|inv` plays one alone. The other minigames (separate
 EXEs) are stubbed, and the ported ones too with `--minigame-stub`: they
 report a win, or a loss with `--minigame-result lose`; their window shows 1.5 s
 after `WinExec` and answers the game's hello after 100 ms
 (`--minigame-startup MS`, `--minigame-reply MS`). A held key repeats as on
 Windows (500 ms, then every 33 ms; `--key-repeat DELAY,PERIOD|off`), in
 the window, the browser and headless runs. A minigame gets every key
-(TIRO and SERIAL: LEFT, RIGHT, SPACE; SALGIN: the arrows, PgUp, Home, End,
+(TIRO, SERIAL and INV: LEFT, RIGHT, SPACE; SALGIN: the arrows, PgUp, Home, End,
 Insert); NOITE gets Enter, Esc and Space only to skip videos.
 Saves go to `save/` (`--save DIR`).
 
@@ -129,6 +130,21 @@ Saves go to `save/` (`--save DIR`).
   with `--fix all`. A held attack key is all a win takes, so the scripts need no planner.
   `tools/smoke.py --minigame salgin [--fix all] [--monkey SEED]` presses and holds random fight
   keys for 110 s.
+- **INV**: `--minigame inv --ms 15000 --input tools/play/inv-alone-win.input` (the 20 invaders
+  and no bomb hit, `result won 2000` at 10.6 s) and `--input tools/play/inv-alone-lose.input` (no
+  key: four bomb hits, `lost -2000`); `--key-repeat 500,33 --ms 25000 --input
+  tools/play/inv-held-space.input` holds SPACE (BUGS.md I1: the Original fires on every repeat,
+  `lost 500 | lost -1900`); `--input tools/play/inv-explosion-move.input` moves and fires during
+  the cannon's explosion (I2, `lost -1900 | lost -2000`); from NOITE, `--scene 4fsacaet --ms 76000
+  --input tools/play/inv-4fsacaet-win.input` (NOITE hides, adds the score, the Martian's thanks
+  `4fmarte2`, the `ESOTEBOY` cutscene and back to `4fbar`) and `--ms 46000 --input
+  tools/play/inv-4fsacaet-lose.input` (-2000, `4fmarte`, a life less, back to `4fbar`). Each the
+  same with `--fix all`. INV has no randomness, so `tools/inv_plan.py --win|--lose [--start MS]`
+  plans a game by probing the port (it closes INV at a time and reads the score it reports);
+  `--start` is INV's WM_CREATE in the target run (0 alone, 26808 from `4fsacaet`): rerun it when
+  that moves. `tools/smoke.py --minigame inv [--fix all] [--monkey SEED]` presses random
+  LEFT/RIGHT and SPACE for 60 s. The playthroughs take the sportsman's route at `4fbar`; INV is
+  the esoteric's, a detour that comes back to the bar.
 - **SDL without a display**: `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy`
   (or `disk` with `SDL_AUDIO_DISK_OUTPUT_FILE=out.raw` to capture the mix).
 
@@ -149,7 +165,7 @@ Corrigida = `--fix all`), whether videos can be skipped (on by
 default) and the one-button control (on by default on touch screens), then
 runs the game; saves go to localStorage, apart per version. "Jogo" picks
 the whole game or one ported minigame alone (Encaixe Perfeito, Tiro ao
-Álvaro, Serial Killer, Porrada na Sala de Ginástica). On a touch screen the
-on-screen pad shows the keys of the window on top: for TIRO and SERIAL ◀, a
-fire button and ▶; for SALGIN its eight keys as on the numeric keypad
+Álvaro, Serial Killer, Porrada na Sala de Ginástica, Invasores). On a touch
+screen the on-screen pad shows the keys of the window on top: for TIRO,
+SERIAL and INV ◀, a fire button and ▶; for SALGIN its eight keys as on the numeric keypad
 (Salto = Home, ▲, Soco = PgUp; ◀, Pulo = Insert, ▶; Defesa = End, ▼).

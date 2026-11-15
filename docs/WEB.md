@@ -141,11 +141,12 @@ map $arg_h $noite_cache {
   file the static rules missed — run over the playthrough and six smoke
   runs (plain, `--offers`, `--minigame-result lose`, `--monkey 1-3`), none was missing.
   A ported minigame's names (`src/encaixe/`, `src/tiro/`, `src/serial/`,
-  `src/salgin/`) are looked for at the disc root, then in its EXE's
-  directory, as the host does (`ENCAIXE/TETRFUN.BMP`, `PECA*.BMP`,
+  `src/salgin/`, `src/inv/`) are looked for at the disc root, then in its
+  EXE's directory, as the host does (`ENCAIXE/TETRFUN.BMP`, `PECA*.BMP`,
   `TIRO/FUNDTIRO.BMP`, `TIRO/*.WAV`, `SERIAL/FUNDO.BMP`, `SERIAL/3S*.BMP`,
-  `SALGIN/FUNDLUTA.BMP`, `SALGIN/VB*.BMP`, `SALGIN/MA*.BMP`…;
-  `DOOM2.MID`, `PAC.MID` and `PORRADA.MID` are found at the root first).
+  `SALGIN/FUNDLUTA.BMP`, `SALGIN/VB*.BMP`, `SALGIN/MA*.BMP`,
+  `INV/ESPACO.BMP`, `INV/*.WAV`…; `DOOM1.MID`, `DOOM2.MID`, `PAC.MID` and
+  `PORRADA.MID` are found at the root first).
   Left out: the EXEs and DLLs, the stubbed minigames' directories,
   installers, drivers, the other fonts, unreferenced files.
   `manifest.py` downloads identical files once: `HD\*.AVI` clips that are
@@ -206,7 +207,7 @@ map $arg_h $noite_cache {
   leaves on its right or below it, whichever keeps the game larger): held, they hold
   the arrow keys, for the walks a click's straight line can't make (past
   the cat in 1fsala). They follow the window on top (`noite_top_program`,
-  `PAD_KEYS` in noite.js): for TIRO and SERIAL ◀, a fire button (Space) and ▶;
+  `PAD_KEYS` in noite.js): for TIRO, SERIAL and INV ◀, a fire button (Space) and ▶;
   for SALGIN its eight keys laid out as on the numeric keypad (Home ▲ PgUp /
   ◀ Insert ▶ / End ▼, the four new ones labelled Salto, Pulo, Soco,
   Defesa). Keys pass to the game as pressed (`GAME_KEYS`: the arrows, Enter,
@@ -245,7 +246,7 @@ map $arg_h $noite_cache {
   The Corrigida version keeps its own (`noite:corrigida:save:…`): a save
   can hold what only one version produces (a 32-bit score, B19; a scene
   only the fixes reach), so the versions never load each other's.
-- **Minigames.** ENCAIXE, TIRO, SERIAL and SALGIN run in the same wasm as a second task
+- **Minigames.** ENCAIXE, TIRO, SERIAL, SALGIN and INV run in the same wasm as a second task
   (`src/platform/host.zig`, docs/encaixe/DESIGN.md) and the canvas shows
   its window. The others are stubbed as in the native port (a win after a
   few seconds); while one "runs" the page shows a note instead of the
@@ -382,7 +383,10 @@ the bullet up from the gun (`serial.png`, `serial-fire.png`), and the touch
 pad's fire button does (`serial-touch.png`); then "Jogo" = Porrada na Sala
 de Ginástica: Up held 10 s kicks until the opponent's energy bar gets a
 tile (`salgin.png`, `salgin-kick.png`), and on a touch screen the pad shows
-the eight fight keys and a held ▲ does the same (`salgin-touch.png`).
+the eight fight keys and a held ▲ does the same (`salgin-touch.png`);
+then "Jogo" = Invasores: SPACE sends the shot up from the cannon
+(`inv.png`, `inv-fire.png`), and the touch pad's fire button does
+(`inv-touch.png`).
 Screenshots go to
 `zig-out/web-test/` (`title.png`, `bedroom.png`, `drawer.png`,
 `window-*.png`, `cache.png`).

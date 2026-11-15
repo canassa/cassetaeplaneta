@@ -1717,8 +1717,8 @@ Harmless, the last kill's speed-up) and `WM_QUIT` comes first.
 - **Effect:** holding SPACE fires again as soon as the shot has landed, on every auto-repeat: a held
   key is an automatic gun.
 - **Confidence:** 9 (code); 8 (effect, depends on the keyboard repeat rate).
-- **Port:** not ported yet (`src/inv/`); the fix will be `Fixes.inv_space_latch` (`--fix
-  inv_space_latch`, on in the Corrigida version).
+- **Port:** ported and reproduced (unit `invasion`, src/inv/; `tools/play/inv-held-space.input`); the
+  fix is `Fixes.inv_space_latch` (`--fix inv_space_latch`, on in the Corrigida version).
 
 ### I2. A direction key during the cannon's explosion cuts it short and lets the cannon fire
 - **Where:** `inv_scene_handle_message`, the cannon branch of `WM_SYSTIMER` (isRunning 1068:220b,
@@ -1728,12 +1728,15 @@ Harmless, the last kill's speed-up) and `WM_QUIT` comes first.
   counts the frames in `hitFrame` only while the cannon is not moving. A fresh LEFT or RIGHT press
   (or the release of one with the other held) starts it moving with no explosion test; the branch
   then takes the walking path, which steps the cannon and sets `hitFrame` to −1 on every tick.
+  `cannon_lose_life` 1068:07a6 itself leaves `hitFrame` at −1 until the cannon's next tick (up to 60 ms),
+  so in that tick the fire gate passes even with no key moving the cannon.
 - **Effect:** the cannon drives on showing the frozen explosion frame, and with `hitFrame` −1 the
   fire gate lets it shoot; the explosion resumes from its start only when the cannon stops.
 - **Confidence:** 9 (code); 7 (that the explosion was meant to hold the cannon).
-- **Port:** not ported yet (`src/inv/`); the fix will be `Fixes.inv_explosion_holds_cannon`
-  (`--fix inv_explosion_holds_cannon`, on in the Corrigida version: the cannon stays put for the
-  whole explosion).
+- **Port:** ported and reproduced (unit `invasion`, src/inv/; `tools/play/inv-explosion-move.input`);
+  the fix is `Fixes.inv_explosion_holds_cannon` (`--fix inv_explosion_holds_cannon`, on in the Corrigida
+  version): while the explosion strip is on, from `cannon_lose_life` to its last frame, the arrows only
+  set their latches and SPACE does not fire.
 
 ### Harmless (INV)
 
@@ -1765,7 +1768,19 @@ Harmless, the last kill's speed-up) and `WM_QUIT` comes first.
   `invader_column_set_cell` 1088:69d6, which adds 44·i itself, so cell i starts at y 60 + 88·i. The
   hit test uses the column's y, not the cells'; only the explosion is placed from the cell. The first
   formation step (500 ms) rewrites the cells right, and a kill before it needs SPACE within the first
-  ~0.28 s. Confidence 9 (code); 7 (effect).
+  ~0.28 s. Such a kill bursts the explosion at y 412, over the cannon: the dead invader stays drawn (a
+  column restores only the rows down to its lowest live one, and only the explosion's own restore wipes a
+  dead cell), and the explosion's end restores the background over the part of the cannon it covered,
+  until the cannon moves. Confidence 9 (code); 7 (effect).
+- **A shot flagged '2' 44 px or more above an emptied column would kill `cells[-1]`:** the second hit stage
+  (`IDIV` 1068:2e95, the match 2ea6, the cell 2ead–2ec1) computes the row as (shot.y − col.y) / 44,
+  truncated, for every column whose x range holds the shot, and takes row == `lowestAlive`. An emptied
+  column (`lowestAlive` −1) stops stepping where it was, so the live columns pass under it, and a shot can
+  be flagged '2' above its top; row −1 would then clear `cells[-1].alive` (the column's word at +0x50),
+  move the invader explosion to +0x4c (`hitState`) / +0x4e (never written), add 100 and count a kill, so
+  the game could be won with an invader left. In ~4500 random games of the port such shots came at most
+  36 px above an emptied column's top, never 44. The port skips row −1 (`invaderHit` in
+  `src/inv/invasion.zig`): it has no such memory to read. Confidence 9 (code); 5 (that it can happen).
 - **A bomb can be dropped during its impact animation:** the drop test (1068:25c1, 2732) checks only
   `moving`; `bomb_shot_down` stops the bomb and plays `Bomtir.bmp` for one 55-ms tick, so a drop in
   that tick restarts the bomb with the animation still running. Confidence 8.
