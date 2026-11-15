@@ -68,7 +68,9 @@ On each target tick (`tiro_scene_handle_message`, `WM_SYSTIMER`), when the targe
 hit animation:
 1. the edge test `target_wrap_at_edge` (`TargetVtbl.checkEdge`, `1068:1037`) runs, except while
    the pair guard holds: `[0]` waits while `[1]` is 0–87 px ahead of it (to its right), `[3]`
-   waits while `[2]` is 0–175 px ahead of it (to its left); `[1]` and `[2]` never wait;
+   waits while `[2]` is 0–175 px ahead of it (to its left); `[1]` and `[2]` never wait. The guard
+   goes on holding while the leader's hit animation plays, so the follower pauses then: by design
+   (the owner's decision), not a bug;
 2. `target_wrap_at_edge`: a left-moving target at x ≤ 37 (half its width) or a right-moving one at
    x ≥ 490 (background width − 2 widths) stops and is erased; otherwise it takes one step
    (`target_move_tick`);

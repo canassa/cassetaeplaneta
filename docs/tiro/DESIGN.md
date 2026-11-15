@@ -89,6 +89,11 @@ show`) is the specification; `GAME.md` (rules, protocol), `DATA.md`
   `_nmalloc` of TIRO allocates there and `operator delete` is what the
   original does (the units may free into it, or not, as the code does).
   So the faithful leak is not a leak of the port.
+- **The pair guard pauses the follower during the leader's hit animation**
+  (the owner's decision): a target that waits behind the pair guard keeps
+  waiting while the leader (`[1]` for `[0]`, `[2]` for `[3]`) plays its hit
+  animation, as the original does. The pause is the guard, by design, not a
+  bug; no code change (docs/tiro/GAME.md, the tick's step 1).
 - **The touch pad** (the owner's decision): ◀, a fire button (SPACE)
   and ▶ (`PAD_KEYS.tiro`).
 - **A close is a loss** (the owner's decision, the rule of every

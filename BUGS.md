@@ -1753,7 +1753,7 @@ won flag already follows survival or completion, or the game has nothing to surv
   or the window is closed. No lives or clock: completion.
 - **SALGIN, XILINDRO:** won = the player's energy not below the opponent's, at a KO or when the 90-s clock runs
   out (a tie wins). A KO is the fight's completion; a player who lasts the clock but is behind on energy loses
-  on points, a boxing decision rather than a survival clock (the owner may say otherwise).
+  on points, a boxing decision rather than a survival clock (the owner's decision).
 - **INV:** 0xffff once every invader is gone, 0 at the fourth bomb hit or the landing: completion.
 - **INFERNO:** `g_lives` at the 3-minute time-out (non-zero: a win): survival already. The last life lost
   reports nothing in the Original (H3) and a loss in the Corrigida.
@@ -1821,7 +1821,8 @@ Harmless, the last kill's speed-up) and `WM_QUIT` comes first.
 - **Port:** ported and reproduced (unit `invasion`, src/inv/; `tools/play/inv-explosion-move.input`);
   the fix is `Fixes.inv_explosion_holds_cannon` (`--fix inv_explosion_holds_cannon`, on in the Corrigida
   version): while the explosion strip is on, from `cannon_lose_life` to its last frame, the arrows only
-  set their latches and SPACE does not fire.
+  set their latches and SPACE does not fire. Kept in `all` by the owner's decision: the cannon is frozen,
+  and cannot fire, for its whole explosion.
 
 ### Harmless (INV)
 
@@ -1864,8 +1865,8 @@ Harmless, the last kill's speed-up) and `WM_QUIT` comes first.
   be flagged '2' above its top; row −1 would then clear `cells[-1].alive` (the column's word at +0x50),
   move the invader explosion to +0x4c (`hitState`) / +0x4e (never written), add 100 and count a kill, so
   the game could be won with an invader left. In ~4500 random games of the port such shots came at most
-  36 px above an emptied column's top, never 44. The port skips row −1 (`invaderHit` in
-  `src/inv/invasion.zig`): it has no such memory to read. Confidence 9 (code); 5 (that it can happen).
+  36 px above an emptied column's top, never 44. The port keeps skipping row −1 (`invaderHit` in
+  `src/inv/invasion.zig`), the owner's decision: it has no such memory to read and the kill is unreachable. Confidence 9 (code); 5 (that it can happen).
 - **A bomb can be dropped during its impact animation:** the drop test (1068:25c1, 2732) checks only
   `moving`; `bomb_shot_down` stops the bomb and plays `Bomtir.bmp` for one 55-ms tick, so a drop in
   that tick restarts the bomb with the animation still running. Confidence 8.
@@ -2219,7 +2220,7 @@ object, and a message after that would reach a freed object; no path to one is k
 Addresses are Ghidra `seg:off` in `/JARDIM.EXE`; the game is described in `docs/jardim/GAME.md`;
 the port is `src/jardim/` (docs/jardim/DESIGN.md). `labyrinth_backdrop_handle_message` is 1028:2609. The letter is J (for Jardim; free). B11 is
 NOITE's side of the launch. Left out as design: ESC quits without a result, which NOITE's poll
-reports as a loss with no score change, and closing the window (End Task: it has no system menu)
+reports as a loss with no score change (kept, the owner's decision), and closing the window (End Task: it has no system menu)
 reports a loss with −1000 (both forfeits); health has no cap; a blocked step does not
 slide along the wall and drops the speed to 16; every enemy on screen, at any distance, costs 1
 health per animation cycle; enemies move only while on screen; a death restores every pickup and

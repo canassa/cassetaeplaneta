@@ -76,7 +76,7 @@ build), BUGS.md I1–I2 and its INV Harmless list.
   unit's commit; the INV wrapper carries INV's `@orig` tag.
 - **Faithful first, the owner's rule.** I1 and I2 are reproduced as they
   are by default; each fix exists only behind its own `Fixes` flag (off
-  by default). Corrigida (`Fixes.all()`) takes both (owner question 1).
+  by default). Corrigida (`Fixes.all()`) takes both.
   The Harmless items get no flag (Fixes, below).
 - **Two programs in one process**, as ENCAIXE and TIRO
   (`src/platform/host.zig`, docs/encaixe/DESIGN.md "Running two
@@ -92,6 +92,11 @@ build), BUGS.md I1–I2 and its INV Harmless list.
   `4fbar` and never the esoteric's detour (`4fsacaet`, INV, `4fmarte2`,
   the `ESOTEBOY` cutscene). INV is tested by its own scripts only
   (`inv-*.input`, alone and from `--scene 4fsacaet`).
+- **I2 in the Corrigida** (the owner's decision): `inv_explosion_holds_cannon`
+  stays in `all`. The cannon is frozen, and cannot fire, for its whole
+  explosion (420 ms), the arcade behaviour.
+- **`cells[-1]`** (the owner's decision): the port keeps skipping the
+  unreachable row −1 kill (BUGS.md, Harmless (INV)).
 - **The touch pad** (the owner's decision): ◀, a fire button (SPACE)
   and ▶ (`PAD_KEYS.inv`).
 - **The won flag (the owner's SERIAL rule, survive = win, checked here):**
@@ -350,7 +355,7 @@ specifics:
 | Bug | Flag | Unit | What the fix changes | In `all` |
 |---|---|---|---|---|
 | I1 SPACE latch never set | `inv_space_latch` | invasion | the SPACE key-down branch, taken when `g_keySpaceHeld` is 0, sets it to 1 (WM_KEYUP already clears it): a held SPACE fires at most once, on the press; key repeats do nothing (TIRO's T1 fix) | yes |
-| I2 a direction key cuts the cannon's explosion short | `inv_explosion_holds_cannon` | invasion | while the explosion strip is on (`curStrip` 1, from `cannon_lose_life` to the last frame; `hitFrame` is still −1 until the cannon's first tick), LEFT/RIGHT key-down set their latch and key-up clears it, but neither moves, resumes or stops the cannon, and SPACE does not fire: the cannon stays put for the whole `Brocha.bmp` explosion (7 frames of 60 ms), and the explosion's end resumes a held key, as the original's already does | yes (owner question 1) |
+| I2 a direction key cuts the cannon's explosion short | `inv_explosion_holds_cannon` | invasion | while the explosion strip is on (`curStrip` 1, from `cannon_lose_life` to the last frame; `hitFrame` is still −1 until the cannon's first tick), LEFT/RIGHT key-down set their latch and key-up clears it, but neither moves, resumes or stops the cannon, and SPACE does not fire: the cannon stays put for the whole `Brocha.bmp` explosion (7 frames of 60 ms), and the explosion's end resumes a held key, as the original's already does | yes (owner's decision) |
 
 Each unit ports the buggy code and keeps the fixed path only under its
 flag (`g.fixes.inv_…`). I1 matters only with key repeats (on by default:
@@ -661,10 +666,3 @@ and the scripts (Tests); the INV lines of README.md ("Running the port",
 "Testing the port"); BUGS.md I1/I2 "Port:" lines naming the flags. The
 INV scripts, `smoke.py --minigame inv` (both versions), the scene sweep,
 both playthroughs and `tools/web/test.py` pass.
-
-## Owner questions
-
-1. **I2 in Corrigida.** The fix holds the cannon still, and its fire,
-   for its whole explosion (420 ms), the arcade behaviour; it is in `all`. If the
-   original's cut-short explosion should stay in Corrigida too, the flag
-   moves to `Fixes.choices`.

@@ -16,6 +16,11 @@ and X1–X11.
 
 ## Decisions
 
+- **The won flag at the clock** (the owner's decision; SERIAL's K1 rule,
+  survive = win): both fights report won = the player's energy not below the
+  opponent's. At the time-out the player with less energy loses on points
+  (the arcade rule). Kept; a KO, or the points at the bell, is the fight's
+  completion.
 - **Two trees, one per program; TIRO's Zig as the engine template.**
   SALGIN and XILINDRO are TIRO's build (medium model, `/Od`, stack probes,
   the same 19 segments in the same order): every engine function of
@@ -696,11 +701,3 @@ option (`KEYS_FOR` in `tools/smoke.py`), `full.input` re-tuned, the web
 entries; then `ready = true` in `src/<n>/root.zig` and the README's
 minigame list. BUGS.md's S/X "Port:" lines then say "ported". Both are
 finished (the keys, the script key names and `close` came with SALGIN).
-
-## Owner questions
-
-1. **The won flag at the clock** (SERIAL's K1 rule, survive = win): both
-   fights report won = the player's energy not below the opponent's. A
-   player who lasts the 90 s but is behind on energy loses on points.
-   Left as it is (a KO, or the points at the bell, is the fight's
-   completion); say if lasting the clock should be a win.

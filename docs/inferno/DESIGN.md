@@ -118,7 +118,8 @@ dead code), `QUALITY.md` (the large-model `/Od` build), BUGS.md H1–H8.
 - **H3 and H4 in the Corrigida** (the owner's decision): a loss on lives
   reports `(0, g_score − 1000)`, so INFERNO's points reach NOITE, and
   closing the window (End Task) is a loss reported the same way, not the
-  time-out's 500 win. The same rule for every minigame: a loss reports
+  time-out's 500 win. The loss score is INFERNO's own, `g_score − 1000` (−1000
+  in `inferno-close.input`), kept by the owner's decision. The same rule for every minigame: a loss reports
   the game's points, and a close is a loss (TIRO T7, SERIAL K6, SALGIN
   S7, XILINDRO X6; ENCAIXE, INV, SAUNA and JARDIM already do both).
 - **H8 stays in the Original** (the owner's decision): the original
