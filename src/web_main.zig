@@ -26,10 +26,11 @@ const salgin = @import("salgin/root.zig");
 const inv = @import("inv/root.zig");
 const xilindro = @import("xilindro/root.zig");
 const inferno = @import("inferno/root.zig");
+const sauna = @import("sauna/root.zig");
 
 /// The minigames ported (as `main.zig`'s `minigames`); `noite_start`'s
 /// `minigame` is an index into it plus one.
-const minigames = [_]*const host.Program{ &encaixe.program, &tiro.program, &serial.program, &salgin.program, &inv.program, &xilindro.program, &inferno.program };
+const minigames = [_]*const host.Program{ &encaixe.program, &tiro.program, &serial.program, &salgin.program, &inv.program, &xilindro.program, &inferno.program, &sauna.program };
 
 pub const std_options: std.Options = .{ .logFn = log };
 

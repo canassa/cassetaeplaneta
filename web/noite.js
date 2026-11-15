@@ -46,6 +46,7 @@
     { name: "inv", title: "Invasores", ready: true },
     { name: "xilindro", title: "Xilindro", ready: true },
     { name: "inferno", title: "Inferno", ready: true },
+    { name: "sauna", title: "Sauna Mista", ready: true },
   ];
   // The keys the page passes on (KeyboardEvent.keyCode = the virtual key).
   const GAME_KEYS = new Set([13, 27, 32, 33, 35, 36, 37, 38, 39, 40, 45]);

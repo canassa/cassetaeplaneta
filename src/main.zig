@@ -2,7 +2,7 @@
 //!
 //!     noite [--headless] [--ms N] [--assets DIR] [--save DIR] [--trace FILE]
 //!           [--input FILE] [--dump DIR] [--dump-every MS] [--bmp]
-//!           [--scene NAME [--take ID,ID…]] [--minigame encaixe|tiro|serial|salgin|inv|xilindro|inferno]
+//!           [--scene NAME [--take ID,ID…]] [--minigame encaixe|tiro|serial|salgin|inv|xilindro|inferno|sauna]
 //!           [--minigame-stub] [--minigame-result win|lose] [--minigame-startup MS] [--minigame-reply MS] [--quiet]
 //!           [--fix NAME,…|all[,-NAME…]] [--skip-videos] [--one-button]
 //!           [--key-repeat DELAY,PERIOD|off]
@@ -13,9 +13,9 @@
 //! and on `dump` commands, `--scene` starts in an INI scene instead of the
 //! opening. A panic prints the scene and the last messages first.
 //!
-//! `--minigame encaixe|tiro|serial|salgin|inv|xilindro|inferno` runs
-//! ENCAIXE.EXE, TIRO.EXE, SERIAL.EXE, SALGIN.EXE, INV.EXE, XILINDRO.EXE or
-//! INFERNO.EXE alone
+//! `--minigame encaixe|tiro|serial|salgin|inv|xilindro|inferno|sauna` runs
+//! ENCAIXE.EXE, TIRO.EXE, SERIAL.EXE, SALGIN.EXE, INV.EXE, XILINDRO.EXE,
+//! INFERNO.EXE or SAUNA.EXE alone
 //! (`runAlone`);
 //! `--minigame-result win|lose` is the result of the stubbed minigames, and
 //! `--minigame-stub` stubs the ported ones too (`platform/host.zig`).
@@ -186,7 +186,7 @@ pub fn main(init: std.process.Init) !void {
             if (findMinigame(v)) |prog| {
                 args.alone = prog;
             } else {
-                std.log.err("--minigame {s}: want a ported minigame (encaixe, tiro, serial, salgin, inv, xilindro, inferno)", .{v});
+                std.log.err("--minigame {s}: want a ported minigame (encaixe, tiro, serial, salgin, inv, xilindro, inferno, sauna)", .{v});
                 return error.BadArgument;
             }
         } else if (std.mem.eql(u8, a, "--minigame-result")) {
