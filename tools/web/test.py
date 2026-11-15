@@ -52,6 +52,10 @@ Then "Jogo" = Tiro ao Álvaro: TIRO starts alone and SPACE fires: the
 crossbow turns to its unloaded picture (tiro.png, tiro-fire.png); on a
 touch screen the pad shows ◀, a fire button and ▶, and the fire button
 fires (tiro-touch.png).
+Then "Jogo" = Serial Killer: SERIAL starts alone and SPACE fires: the
+bullet leaves the gun (serial.png, serial-fire.png); on a touch screen
+the pad shows ◀, a fire button and ▶, and the fire button fires
+(serial-touch.png).
 Exits non-zero on the first failed check or on a page error.
 """
 
@@ -587,6 +591,60 @@ def main():
             check(not terrors, "touch TIRO: no page errors")
             tctx.close()
 
+        # SERIAL's flight area above the gun (x 0-639, y 200-374): empty
+        # road and grass until the first figures walk in at 5 s, so a
+        # change there is the bullet.
+        flight_js = """() => {
+            const d = document.getElementById("screen").getContext("2d").getImageData(0, 200, 640, 175).data;
+            let sum = 0;
+            for (let i = 0; i < d.length; i += 4) sum = (sum * 31 + d[i] + 7 * d[i + 1] + 13 * d[i + 2]) % 1000000007;
+            return sum;
+        }"""
+
+        def serial_alone():
+            """Jogo: Serial Killer alone. It starts, SPACE fires (the bullet
+            flies above the gun), no page errors."""
+            page.goto(url)
+            load()
+            check(not page.is_disabled("#jogo option[value=serial]"), "the loader offers Serial Killer alone")
+            page.select_option("#jogo", "serial")
+            page.check('input[name="versao"][value="original"]')
+            play()
+            time.sleep(1.5)
+            shot("serial.png")
+            before = page.evaluate(flight_js)
+            page.keyboard.press("Space")
+            time.sleep(0.3)
+            after = page.evaluate(flight_js)
+            shot("serial-fire.png")
+            check(before is not None and after is not None and before != after,
+                  "Serial Killer runs: SPACE fires (the bullet flies)")
+            check(not errors, "Serial Killer: no page errors")
+
+        def serial_touch():
+            """Serial Killer alone on a touch screen: the pad's keys are
+            SERIAL's (LEFT, fire, RIGHT) and the fire button fires."""
+            tctx = browser.new_context(viewport={"width": 844, "height": 390}, has_touch=True, is_mobile=True)
+            tpage = tctx.new_page()
+            terrors = []
+            tpage.on("pageerror", lambda e: terrors.append(str(e)))
+            tpage.goto(url)
+            tpage.wait_for_function("window.noite.ready || window.noite.failure", timeout=600_000)
+            tpage.select_option("#jogo", "serial")
+            tpage.click("#play")
+            tpage.wait_for_function("window.noite.started || window.noite.failure", timeout=60_000)
+            time.sleep(1.5)
+            shown = tpage.evaluate("""() => Array.from(document.querySelectorAll('#dpad button'))
+                .filter((b) => !b.hidden).map((b) => Number(b.dataset.key))""")
+            check(sorted(shown) == [32, 37, 39], f"touch SERIAL: the pad shows LEFT, fire and RIGHT ({shown})")
+            before = tpage.evaluate(flight_js)
+            tpage.locator('#dpad [data-key="32"]').tap()
+            time.sleep(0.3)
+            tpage.screenshot(path=str(out / "serial-touch.png"))
+            check(tpage.evaluate(flight_js) != before, "touch SERIAL: the fire button fires")
+            check(not terrors, "touch SERIAL: no page errors")
+            tctx.close()
+
         def manifest():
             return page.evaluate("""async () => {
                 const html = await (await fetch("./", { cache: "no-cache" })).text();
@@ -757,6 +815,8 @@ def main():
         minigame_alone()
         tiro_alone()
         tiro_touch()
+        serial_alone()
+        serial_touch()
         browser.close()
     if not args.url:
         httpd.shutdown()
