@@ -492,7 +492,11 @@ pub const Harness = struct {
 
     /// `pixel X Y INDEX [| INDEX]`: fails the run unless the screen shows
     /// that index there (the one after `|` with a `--fix` on).
+    /// The active window's screen: NOITE's, or a minigame's while it is on top.
     fn checkPixel(h: *Harness, g: *Game, px: script.Pixel) void {
+        if (h.otherActive()) if (h.host.?.active) |a| {
+            return h.checkScreenPixel(h.host.?.tasks[a].screen, g.plat.ticks(), px);
+        };
         h.checkScreenPixel(g.plat.screen(), g.plat.ticks(), px);
     }
 

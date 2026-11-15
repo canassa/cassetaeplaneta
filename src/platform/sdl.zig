@@ -239,10 +239,11 @@ pub const Sdl = struct {
                     // The fair fight's debug overlay (Debug builds,
                     // `core/fight_fair.zig`); nothing else reads it.
                     c.key_f9 => 0x78,
-                    // The fights' Corrigida keys (`fight_keys_asdf`): SDLK_A
-                    // ... are the lower-case letters, the virtual keys the
-                    // upper-case ones.
-                    'a', 's', 'd', 'f' => @intCast(key - 0x20),
+                    // The fights' Corrigida keys (`fight_keys_asdf`) and
+                    // JARDIM's (`jardim_wolf_keys`: W, E too): SDLK_A ... are
+                    // the lower-case letters, the virtual keys the upper-case
+                    // ones.
+                    'a', 's', 'd', 'f', 'w', 'e' => @intCast(key - 0x20),
                     // SDLK_RETURN/ESCAPE/SPACE are the virtual keys
                     // (`Sim.filterInput` decides who gets them).
                     0x0d, 0x1b, 0x20 => @intCast(key),
