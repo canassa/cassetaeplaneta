@@ -1,0 +1,11 @@
+# XILINDRO alone, the window closed before the first blow (Windows' End
+# Task, the web page's tab closed: WM_CLOSE, then WM_DESTROY).
+#
+#   zig-out/bin/noite --minigame xilindro --headless --ms 2000 --input tools/play/xilindro-close.input
+#   zig-out/bin/noite --minigame xilindro --headless --ms 2000 --fix all --input tools/play/xilindro-close.input
+#
+# - Original: WM_DESTROY reports won = !(91 < 91), a win of 91 x 150 =
+#   13650, the best score (BUGS.md X6);
+# - `--fix all`: the round is not over, a loss of -1000.
+500 close
+1000 result won 13650 | lost -1000

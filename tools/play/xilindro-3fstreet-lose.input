@@ -1,0 +1,16 @@
+# NOITE's street escape (3fstreet) starts the real XILINDRO, which loses:
+# no key (xilindro-alone-lose.input). NOITE shows itself, adds -1000 and
+# goes to the 3fstree1 cutscene, which takes a life (2 left) and goes back
+# to the prison (3fprisao).
+#
+#   zig-out/bin/noite --headless --scene 3fstreet --ms 80000 --input tools/play/xilindro-3fstreet-lose.input
+#   zig-out/bin/noite --headless --scene 3fstreet --ms 80000 --fix all --input tools/play/xilindro-3fstreet-lose.input
+#
+# XILINDRO starts at 26295 (xilindro-3fstreet-win.input); its window
+# closes at 64645 (Original) or 70045 (`--fix all`: X3's single seed picks
+# other attacks, which take longer).
+40000 dump fight
++0 wait 3fstree1 40000
++0 result lost -1000
++0 wait 3fprisao 10000
++0 state

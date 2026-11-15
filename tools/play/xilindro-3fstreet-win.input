@@ -1,0 +1,157 @@
+# NOITE's street escape (3fstreet) starts the real XILINDRO, which wins:
+# NOITE gets 0x40c (hides), then 0x40a, shows itself, adds the score and
+# goes to the 3fstree2 cutscene, then back to the prison (3fprisao): the
+# prison-escape SERIAL (minigameWon[2]) is not won here
+# (xilindro-serial-hall.input wins both).
+#
+#   zig-out/bin/noite --headless --scene 3fstreet --ms 93000 --input tools/play/xilindro-3fstreet-win.input
+#   zig-out/bin/noite --headless --scene 3fstreet --ms 93000 --fix all --input tools/play/xilindro-3fstreet-win.input
+#
+# The street video ends at 24795 (the WinExec); XILINDRO starts 1500 ms
+# later (26295) and beats at once (alone, its first beat is 200 ms in), so
+# the keys are xilindro-alone-win.input's, 26095 ms later:
+# The keys follow one rule (planned against the port, beat by beat): the
+# opponent walks in 32 px a beat and attacks on the beat after it comes
+# within 130 px; in that 200-ms window the fighter steps Right (a 20-ms
+# hold, released before the blow, so X4 never cuts it) when the opponent
+# is beyond its 100-px reach, then kicks (Up, 2 points). The kick lands
+# first and the opponent reels instead of attacking. Left steps back to
+# x 0 while the opponent is far, so the fighter is never past x 50 when it
+# kicks: no recoil (X11 never matters) and Right never meets the stand-off
+# clamp (X10). The opponent never attacks, so `rand()` is never drawn (X3)
+# and the Original and the Corrigida play the same fight: a KO with the
+# fighter untouched, 91 x 150 = 13650 points.
+# KO at 81895, XILINDRO closes at 86445.
+20000 dump street
+26715 hold right 20
+26755 key up
+27315 hold left 20
+27915 hold right 20
+27955 key up
+28515 hold left 20
+29115 hold right 20
+29155 key up
+29715 hold left 20
+30000 dump fight
+30315 hold right 20
+30355 key up
+30915 hold left 20
+31515 hold right 20
+31555 key up
+32115 hold left 20
+32715 hold right 20
+32755 key up
+33315 hold left 20
+33915 hold right 20
+33955 key up
+34515 hold left 20
+35315 key up
+36515 hold right 20
+36555 key up
+37115 hold left 20
+37715 hold right 20
+37755 key up
+38315 hold left 20
+38915 hold right 20
+38955 key up
+39515 hold left 20
+40115 hold right 20
+40155 key up
+40715 hold left 20
+41315 hold right 20
+41355 key up
+41915 hold left 20
+42515 hold right 20
+42555 key up
+43115 hold left 20
+43715 hold right 20
+43755 key up
+44315 hold left 20
+45115 key up
+46315 hold right 20
+46355 key up
+46915 hold left 20
+47515 hold right 20
+47555 key up
+48115 hold left 20
+48715 hold right 20
+48755 key up
+49315 hold left 20
+49915 hold right 20
+49955 key up
+50515 hold left 20
+51115 hold right 20
+51155 key up
+51715 hold left 20
+52315 hold right 20
+52355 key up
+52915 hold left 20
+53515 hold right 20
+53555 key up
+54115 hold left 20
+54915 key up
+56115 hold right 20
+56155 key up
+56715 hold left 20
+57315 hold right 20
+57355 key up
+57915 hold left 20
+58515 hold right 20
+58555 key up
+59115 hold left 20
+59715 hold right 20
+59755 key up
+60315 hold left 20
+60915 hold right 20
+60955 key up
+61515 hold left 20
+62115 hold right 20
+62155 key up
+62715 hold left 20
+63315 hold right 20
+63355 key up
+63915 hold left 20
+64715 key up
+65915 hold right 20
+65955 key up
+66515 hold left 20
+67115 hold right 20
+67155 key up
+67715 hold left 20
+68315 hold right 20
+68355 key up
+68915 hold left 20
+69515 hold right 20
+69555 key up
+70115 hold left 20
+70715 hold right 20
+70755 key up
+71315 hold left 20
+71915 hold right 20
+71955 key up
+72515 hold left 20
+73115 hold right 20
+73155 key up
+73715 hold left 20
+74515 key up
+75715 hold right 20
+75755 key up
+76315 hold left 20
+76915 hold right 20
+76955 key up
+77515 hold left 20
+78115 hold right 20
+78155 key up
+78715 hold left 20
+79315 hold right 20
+79355 key up
+79915 hold left 20
+80515 hold right 20
+80555 key up
+81115 hold left 20
+81715 hold right 20
+81755 key up
+87000 result won 13650
+87000 expect 3fstree2
+92000 expect 3fprisao
+92000 state

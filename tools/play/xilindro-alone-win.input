@@ -1,0 +1,150 @@
+# XILINDRO alone, a win by KO.
+#
+#   zig-out/bin/noite --minigame xilindro --headless --ms 62000 --input tools/play/xilindro-alone-win.input
+#   zig-out/bin/noite --minigame xilindro --headless --ms 62000 --fix all --input tools/play/xilindro-alone-win.input
+#
+# The keys follow one rule (planned against the port, beat by beat): the
+# opponent walks in 32 px a beat and attacks on the beat after it comes
+# within 130 px; in that 200-ms window the fighter steps Right (a 20-ms
+# hold, released before the blow, so X4 never cuts it) when the opponent
+# is beyond its 100-px reach, then kicks (Up, 2 points). The kick lands
+# first and the opponent reels instead of attacking. Left steps back to
+# x 0 while the opponent is far, so the fighter is never past x 50 when it
+# kicks: no recoil (X11 never matters) and Right never meets the stand-off
+# clamp (X10). The opponent never attacks, so `rand()` is never drawn (X3)
+# and the Original and the Corrigida play the same fight: a KO with the
+# fighter untouched, 91 x 150 = 13650 points.
+#
+# The 46th kick (55660) takes the opponent's energy below 1; the KO is on
+# the next beat (55800) and the window closes 31 end ticks later (60350).
+620 hold right 20
+660 key up
+1000 dump start
+1220 hold left 20
+1820 hold right 20
+1860 key up
+2420 hold left 20
+3020 hold right 20
+3060 key up
+3620 hold left 20
+4220 hold right 20
+4260 key up
+4820 hold left 20
+5420 hold right 20
+5460 key up
+6020 hold left 20
+6620 hold right 20
+6660 key up
+7220 hold left 20
+7820 hold right 20
+7860 key up
+8420 hold left 20
+9220 key up
+10420 hold right 20
+10460 key up
+11020 hold left 20
+11620 hold right 20
+11660 key up
+12220 hold left 20
+12820 hold right 20
+12860 key up
+13420 hold left 20
+14020 hold right 20
+14060 key up
+14620 hold left 20
+15220 hold right 20
+15260 key up
+15820 hold left 20
+16420 hold right 20
+16460 key up
+17020 hold left 20
+17620 hold right 20
+17660 key up
+18220 hold left 20
+19020 key up
+20220 hold right 20
+20260 key up
+20820 hold left 20
+21420 hold right 20
+21460 key up
+22020 hold left 20
+22620 hold right 20
+22660 key up
+23220 hold left 20
+23820 hold right 20
+23860 key up
+24420 hold left 20
+25020 hold right 20
+25060 key up
+25620 hold left 20
+26220 hold right 20
+26260 key up
+26820 hold left 20
+27420 hold right 20
+27460 key up
+28020 hold left 20
+28820 key up
+30000 dump fight
+30020 hold right 20
+30060 key up
+30620 hold left 20
+31220 hold right 20
+31260 key up
+31820 hold left 20
+32420 hold right 20
+32460 key up
+33020 hold left 20
+33620 hold right 20
+33660 key up
+34220 hold left 20
+34820 hold right 20
+34860 key up
+35420 hold left 20
+36020 hold right 20
+36060 key up
+36620 hold left 20
+37220 hold right 20
+37260 key up
+37820 hold left 20
+38620 key up
+39820 hold right 20
+39860 key up
+40420 hold left 20
+41020 hold right 20
+41060 key up
+41620 hold left 20
+42220 hold right 20
+42260 key up
+42820 hold left 20
+43420 hold right 20
+43460 key up
+44020 hold left 20
+44620 hold right 20
+44660 key up
+45220 hold left 20
+45820 hold right 20
+45860 key up
+46420 hold left 20
+47020 hold right 20
+47060 key up
+47620 hold left 20
+48420 key up
+49620 hold right 20
+49660 key up
+50220 hold left 20
+50820 hold right 20
+50860 key up
+51420 hold left 20
+52020 hold right 20
+52060 key up
+52620 hold left 20
+53220 hold right 20
+53260 key up
+53820 hold left 20
+54420 hold right 20
+54460 key up
+55020 hold left 20
+55620 hold right 20
+55660 key up
+57000 dump won
+61000 result won 13650
