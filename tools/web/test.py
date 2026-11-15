@@ -83,6 +83,10 @@ minimap's square moves (jardim.png, jardim-walk.png), and a held Ctrl
 shows the fists' punch (jardim-punch.png); on a touch screen the pad shows
 the arrows, Abrir (SPACE) and Tiro (CTRL), and a held ▲ walks
 (jardim-touch.png).
+Before the game: /explorer/ (the asset explorer) lists the unused files
+and opens one on a click, on a desktop and a phone (explorer.png,
+explorer-detail.png, explorer-phone.png); the game page later loads none of
+its files.
 Exits non-zero on the first failed check or on a page error.
 """
 
@@ -153,6 +157,40 @@ def deploy_copy(site, dst, changed_url):
     stamp(dst)
 
 
+def explorer(browser, url, out, check):
+    """/explorer/ (tools/explorer/): the grid lists the unused files by
+    default, a click opens a file's picture and details, on a desktop and a
+    phone-sized touch screen (explorer.png, explorer-detail.png,
+    explorer-phone.png), without page errors."""
+    for name, opts in (("explorer", {"viewport": {"width": 1280, "height": 900}}),
+                       ("explorer-phone", {"viewport": {"width": 390, "height": 844}, "has_touch": True,
+                                           "is_mobile": True, "device_scale_factor": 2})):
+        ctx = browser.new_context(**opts)
+        page = ctx.new_page()
+        errors = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.goto(url + "explorer/")
+        page.wait_for_selector(".card", timeout=30_000)
+        n = page.locator(".card").count()
+        total = page.evaluate("ITEMS.length")
+        unused = page.evaluate("ITEMS.filter((i) => i.status === 'unused').length")
+        check(n == unused and 0 < n < total, f"{name}: /explorer/ lists the {n} unused files of {total}")
+        width = page.evaluate("document.documentElement.scrollWidth")
+        check(width <= opts["viewport"]["width"], f"{name}: no horizontal scroll ({width} px)")
+        page.wait_for_function("[...document.querySelectorAll('.card img')].slice(0, 4).every((i) => i.complete && i.naturalWidth)",
+                               timeout=30_000)
+        page.screenshot(path=str(out / f"{name}.png"))
+        card = page.locator(".card").first
+        card.tap() if opts.get("has_touch") else card.click()
+        page.wait_for_function("(() => { const i = document.querySelector('#d-stage img, #d-stage canvas, #d-stage video');"
+                               " return i && (i.tagName !== 'IMG' || (i.complete && i.naturalWidth)); })()", timeout=30_000)
+        check(page.locator("#d-meta dd").count() >= 5, f"{name}: a click opens the file's details")
+        if name == "explorer":
+            page.screenshot(path=str(out / "explorer-detail.png"))
+        check(not errors, f"{name}: no page errors ({errors[:2]})")
+        ctx.close()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--site", default=str(ROOT / "zig-out" / "site"))
@@ -180,6 +218,7 @@ def main():
         # browser from the web shell.
         env = {k: v for k, v in os.environ.items() if k != "LD_LIBRARY_PATH"}
         browser = pw.chromium.launch(headless=not args.headed, env=env)
+        explorer(browser, url, out, check)
         # One context for both loads, so the second one sees the cache.
         ctx = browser.new_context(viewport={"width": 1280, "height": 960}, accept_downloads=True)
         page = ctx.new_page()
@@ -1132,6 +1171,8 @@ def main():
         if not args.url:
             plain = [r for r in Handler.requests if r not in ("/", "/favicon.ico") and "?h=" not in r]
             check(not plain, f"every request but the page's carries ?h= ({plain[:3]})")
+            check(not any(r.startswith("/explorer/") for r in Handler.requests),
+                  "the game page downloads none of the asset explorer's files")
             got = {urlsplit(r).path for r in Handler.requests}
             check(not any(("/" + u) in got for u in seeded[:2]) and ("/" + seeded[2]) in got,
                   "the old cache's good files are migrated, the corrupted one downloaded")

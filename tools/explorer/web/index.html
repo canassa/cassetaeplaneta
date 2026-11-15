@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Noite Animal Asset Explorer</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="title">
+    <h1>Noite Animal <span>asset explorer</span></h1>
+    <p class="sub" id="summary">Loading…</p>
+  </div>
+  <a class="back" href="../">Play the game</a>
+</header>
+
+<section class="colls" aria-label="Collections">
+  <h2>Top finds</h2>
+  <div id="colls" class="chips scroll"></div>
+</section>
+
+<section class="filters" aria-label="Filters">
+  <input id="q" type="search" placeholder="Search name or description" autocomplete="off" spellcheck="false">
+  <div id="statuses" class="chips" role="group" aria-label="Status"></div>
+  <details id="more" class="more">
+  <summary>Folder, program, type, sort</summary>
+  <div class="selects">
+    <label>Folder <select id="folder"></select></label>
+    <label>Program <select id="program"></select></label>
+    <label>Type <select id="type"></select></label>
+    <label>Sort <select id="sort">
+      <option value="path">Path</option>
+      <option value="size">Size</option>
+      <option value="area">Pixels</option>
+    </select></label>
+  </div>
+  </details>
+</section>
+
+<div id="collinfo" class="collinfo" hidden></div>
+<p id="count" class="count"></p>
+<main id="grid" class="grid"></main>
+
+<div id="detail" class="detail" hidden role="dialog" aria-modal="true" aria-labelledby="d-title">
+  <div class="panel">
+    <div class="d-head">
+      <h2 id="d-title"></h2>
+      <button id="d-prev" class="icon" title="Previous (←)" aria-label="Previous">‹</button>
+      <button id="d-next" class="icon" title="Next (→)" aria-label="Next">›</button>
+      <button id="d-close" class="icon" title="Close (Esc)" aria-label="Close">×</button>
+    </div>
+    <div class="d-tools" id="d-tools"></div>
+    <div class="stage checker" id="d-stage"></div>
+    <div class="d-strip" id="d-strip" hidden></div>
+    <dl class="d-meta" id="d-meta"></dl>
+    <div class="d-pal" id="d-pal"></div>
+  </div>
+</div>
+
+<script src="app.js" data-data="data.json"></script>
+</body>
+</html>

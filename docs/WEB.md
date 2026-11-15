@@ -32,6 +32,7 @@ OUT/
   manifest.json       files to download (with their hashes), DOS path → file
   assets/…            753 disc files under their real (upper-case) names
   soundfont/GeneralUser-GS.sf2
+  explorer/…          the asset explorer (below); not in the manifest
 ```
 
 Download: **753 files, 188.5 MB** (156 MB of disc files + the 32 MB
@@ -337,6 +338,48 @@ example, `location ~ ^/releases/([0-9TZ]+)/(index\.html|noite\.js|noite\.wasm|ma
 { alias /var/www/cassetaeplaneta/releases/$1/$2; }` (with the same
 caching headers); the tool would then fetch from there.
 
+## Asset explorer
+
+https://cassetaeplaneta.canassa.com/explorer/ browses every image, icon and
+clip of the disc (and of the images in `PAN/WAV/PED1.ZIP`, `PED2.ZIP`),
+unused art first. `tools/explorer/`, built by `build-site.sh` into
+`OUT/explorer/`:
+
+```sh
+nix develop .#explorer -c python3 tools/explorer/build.py OUT/explorer
+```
+
+- **Classification** (`analyze.py`, `near.py`, `finish.py`, into
+  `zig-out/explorer/data/`: `result.json`, `unused.tsv`, `redundant.tsv`):
+  a file is *used* when a loader resolves a name to it the way the engine
+  does (CASSETA.INI's `Screen`, `Exit`, `Animated`, `Player`, `Portable`…
+  lines through the `pan\bmp` / `hd\` / `pan\avi` fallbacks, a minigame
+  EXE's strings, INSTALAR's `sample.avi`); *redundant* when it has the
+  bytes of a used file; *only unreachable scene* when only scenes no exit,
+  start scene or handler string leads to name it; *port fix only* for the
+  two files only a BUGS.md fix loads; *unused* otherwise (with a
+  confidence: a name that appears elsewhere as text makes it "probably").
+  `near.py` finds same-size files whose 4 KB blocks mostly match (another
+  palette, a few damaged bytes); `finish.py` holds the hand-written
+  descriptions.
+- **Media** (`build.py`, cached by content in `zig-out/explorer/cache/`):
+  BMPs become 8-bit PNGs with their exact palette and indices (the page
+  adds a `tRNS` chunk to make the key index transparent: 11, JARDIM's 10,
+  or any index picked in the palette), plus a ≤200 px thumbnail (a strip's
+  first frame); ICO/CUR become PNGs; AVIs become H.264/AAC MP4s with a JPEG
+  poster (the middle frame), decoded by the port's FLIC decoder
+  (`tools/explorer/avidump.zig` over `src/platform/flic.zig`, which keeps
+  the frames of the damaged files that ffmpeg drops), SAMPLE.AVI
+  (Cinepak) by ffmpeg. A strip's frame height comes from CASSETA.INI's
+  FrameH, the minigames' DATA.md, the description, else a guess (the
+  divisor whose consecutive frames match best); the page lets one pick
+  another.
+- **Page** (`web/`: plain HTML, CSS and JS, no build step): `data.json`
+  lists the items; filters (status, folder, program, type, text) and the
+  open item live in the URL hash. Every URL but `index.html` carries
+  `?h=`; the media are named by content. The game's page loads none of
+  it. ~1,640 items, ~50 MB.
+
 ## Testing
 
 ```sh
@@ -346,7 +389,9 @@ nix develop .#web -c python3 tools/web/test.py
 
 `tools/web/test.py` serves the site on a local port, with the headers
 above, and drives headless Chromium (Playwright, from the `web` dev
-shell): index.html loads noite.js, the wasm and the manifest by hash and
+shell): /explorer/ lists the unused files and opens one, at desktop and
+phone sizes (`explorer*.png`), and the game page loads none of its files;
+index.html loads noite.js, the wasm and the manifest by hash and
 every other request carries `h=`; a seeded cache of the loader before the
 hashes is migrated (good files reused, a corrupted one downloaded) and
 deleted; the loader finishes, no

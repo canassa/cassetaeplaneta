@@ -54,6 +54,14 @@
             export PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=true
           '';
         };
+        # The asset explorer's media (tools/explorer/build.py, run by
+        # tools/web/build-site.sh): Pillow for the thumbnails, ffmpeg for
+        # the clips. Separate, so the default shell stays small.
+        explorer = pkgs.mkShell {
+          inputsFrom = [ self.devShells.${system}.default ];
+          packages = [ (pkgs.python3.withPackages (ps: [ ps.pillow ])) pkgs.ffmpeg-headless ];
+          shellHook = self.devShells.${system}.default.shellHook;
+        };
       });
     };
 }
