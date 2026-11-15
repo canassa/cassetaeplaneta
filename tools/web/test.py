@@ -60,6 +60,9 @@ Then "Jogo" = Porrada na Sala de Ginástica: SALGIN starts alone and a
 held Up kicks the opponent until its energy bar gets a tile (salgin.png,
 salgin-kick.png); on a touch screen the pad shows the eight fight keys
 and a held ▲ does the same (salgin-touch.png).
+Then "Jogo" = Invasores: INV starts alone and SPACE fires: the shot
+leaves the cannon (inv.png, inv-fire.png); on a touch screen the pad
+shows ◀, a fire button and ▶, and the fire button fires (inv-touch.png).
 Exits non-zero on the first failed check or on a page error.
 """
 
@@ -711,6 +714,61 @@ def main():
             check(not terrors, "touch Porrada: no page errors")
             tctx.close()
 
+        # INV's shot leaves the cannon (x 340, y 380) at x 367, y 350 and
+        # climbs 20 px per 55 ms; the strip above the cannon, under the
+        # invaders' bottom row (y 280) and right of the third column, is
+        # still until then, and no bomb falls before the first drop at 2 s.
+        shot_js = """() => {
+            const d = document.getElementById("screen").getContext("2d").getImageData(361, 285, 22, 90).data;
+            let sum = 0;
+            for (let i = 0; i < d.length; i += 4) sum = (sum * 31 + d[i] + 7 * d[i + 1] + 13 * d[i + 2]) % 1000000007;
+            return sum;
+        }"""
+
+        def inv_alone():
+            """Jogo: Invasores alone. It starts, SPACE fires (the shot climbs
+            above the cannon), no page errors."""
+            page.goto(url)
+            load()
+            check(not page.is_disabled("#jogo option[value=inv]"), "the loader offers Invasores alone")
+            page.select_option("#jogo", "inv")
+            page.check('input[name="versao"][value="original"]')
+            play()
+            time.sleep(0.8)
+            shot("inv.png")
+            before = page.evaluate(shot_js)
+            page.keyboard.press("Space")
+            time.sleep(0.15)
+            after = page.evaluate(shot_js)
+            shot("inv-fire.png")
+            check(before is not None and after is not None and before != after,
+                  "Invasores runs: SPACE fires (the shot climbs)")
+            check(not errors, "Invasores: no page errors")
+
+        def inv_touch():
+            """Invasores alone on a touch screen: the pad's keys are INV's
+            (LEFT, fire, RIGHT) and the fire button fires."""
+            tctx = browser.new_context(viewport={"width": 844, "height": 390}, has_touch=True, is_mobile=True)
+            tpage = tctx.new_page()
+            terrors = []
+            tpage.on("pageerror", lambda e: terrors.append(str(e)))
+            tpage.goto(url)
+            tpage.wait_for_function("window.noite.ready || window.noite.failure", timeout=600_000)
+            tpage.select_option("#jogo", "inv")
+            tpage.click("#play")
+            tpage.wait_for_function("window.noite.started || window.noite.failure", timeout=60_000)
+            time.sleep(0.8)
+            shown = tpage.evaluate("""() => Array.from(document.querySelectorAll('#dpad button'))
+                .filter((b) => !b.hidden).map((b) => Number(b.dataset.key))""")
+            check(sorted(shown) == [32, 37, 39], f"touch INV: the pad shows LEFT, fire and RIGHT ({shown})")
+            before = tpage.evaluate(shot_js)
+            tpage.locator('#dpad [data-key="32"]').tap()
+            time.sleep(0.15)
+            tpage.screenshot(path=str(out / "inv-touch.png"))
+            check(tpage.evaluate(shot_js) != before, "touch INV: the fire button fires")
+            check(not terrors, "touch INV: no page errors")
+            tctx.close()
+
         def manifest():
             return page.evaluate("""async () => {
                 const html = await (await fetch("./", { cache: "no-cache" })).text();
@@ -885,6 +943,8 @@ def main():
         serial_touch()
         salgin_alone()
         salgin_touch()
+        inv_alone()
+        inv_touch()
         browser.close()
     if not args.url:
         httpd.shutdown()
