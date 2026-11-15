@@ -1,9 +1,8 @@
 //! Port unit `labyrinth_input` (module) of JARDIM.EXE. LabyrinthBackdrop slot 17 handleMessage (the keys, the 55-ms tick, the shot, doors, the result 0x40a; BUGS.md J1, J6) and labyrinth_move_and_render (a step and its collisions).
 //!
-//! hwnd and hdc are dropped (GetDC/ReleaseDC have no counterpart). The original reads
-//! `GetKeyState(VK_SHIFT)` and `GetKeyState(VK_CAPITAL)`; the platform has no such call, so the
-//! state is what the last WM_KEYDOWN/WM_KEYUP of those keys left in `g.keyShiftDown` /
-//! `g.keyCapsDown` (`keyHeld`, the one place to swap for `plat.getKeyState`).
+//! hwnd and hdc are dropped (GetDC/ReleaseDC have no counterpart). `GetKeyState(VK_SHIFT)` and
+//! `GetKeyState(VK_CAPITAL)` are the task queue's synchronous key state (`Queue.keyState`: the
+//! key messages it has handed out, as in Windows).
 //! The map and table reads the original makes unchecked panic here when outside their arrays.
 
 const std = @import("std");
@@ -54,9 +53,9 @@ fn objectAt(bd: *Backdrop, row: i32, col: i32) *?*Object {
     return &bd.objectRows[@intCast(row)][@intCast(col)];
 }
 
-/// GetKeyState(vk) < 0 for Shift and Caps Lock.
+/// GetKeyState(vk) < 0: Shift (run) and Caps Lock held down (strafe).
 fn keyHeld(g: *Game, vk: u16) bool {
-    return if (vk == vk_shift) g.keyShiftDown else g.keyCapsDown;
+    return g.queue.keyState(vk) < 0;
 }
 
 fn speed32(bd: *const Backdrop) i32 {
@@ -426,12 +425,6 @@ fn destroy(g: *Game, bd: *Backdrop, m: Msg) void {
 // @orig 1028:2609 labyrinth_backdrop_handle_message
 /// LabyrinthBackdropVtbl slot 17 handleMessage (labyrinth_backdrop_handle_message; hwnd dropped).
 pub fn handleMessage(g: *Game, bd: *Backdrop, m: Msg) u16 {
-    // Stand-in for GetKeyState (see the file header); the original ignores these keys.
-    if (m.id == msg.wm.keydown or m.id == msg.wm.keyup) {
-        const down = m.id == msg.wm.keydown;
-        if (m.wparam == vk_shift) g.keyShiftDown = down;
-        if (m.wparam == vk_capital) g.keyCapsDown = down;
-    }
     if (bd.active == 0) return 0;
     switch (m.id) {
         msg.wm.destroy => {

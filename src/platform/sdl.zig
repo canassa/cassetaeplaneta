@@ -43,6 +43,11 @@ const c = struct {
     const key_home: u32 = 0x4000004a;
     const key_pageup: u32 = 0x4000004b;
     const key_end: u32 = 0x4000004d;
+    const key_capslock: u32 = 0x40000039;
+    const key_lctrl: u32 = 0x400000e0;
+    const key_lshift: u32 = 0x400000e1;
+    const key_rctrl: u32 = 0x400000e4;
+    const key_rshift: u32 = 0x400000e5;
     /// SDL_Event is a 128-byte union; fields are read at their offsets.
     const Event = extern struct { bytes: [128]u8 align(8) };
 
@@ -225,6 +230,11 @@ pub const Sdl = struct {
                     c.key_home => 0x24,
                     c.key_end => 0x23,
                     c.key_insert => 0x2d,
+                    // JARDIM's fire (VK_CONTROL), run (VK_SHIFT) and strafe
+                    // (VK_CAPITAL held); NOITE never gets them.
+                    c.key_lctrl, c.key_rctrl => 0x11,
+                    c.key_lshift, c.key_rshift => 0x10,
+                    c.key_capslock => 0x14,
                     // SDLK_RETURN/ESCAPE/SPACE are the virtual keys
                     // (`Sim.filterInput` decides who gets them).
                     0x0d, 0x1b, 0x20 => @intCast(key),

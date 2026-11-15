@@ -213,6 +213,10 @@ pub const skip_grace_ms = 750;
 /// The keys that skip a video: VK_RETURN, VK_ESCAPE, VK_SPACE.
 pub const skip_keys = [_]u16{ 0x0d, 0x1b, 0x20 };
 
+/// The keys only a minigame gets (JARDIM's VK_SHIFT, VK_CONTROL and
+/// VK_CAPITAL): NOITE ignores them, so they never reach it.
+pub const minigame_keys = [_]u16{ 0x10, 0x11, 0x14 };
+
 pub const Sim = struct {
     gpa: std.mem.Allocator,
     io: std.Io,
@@ -1149,6 +1153,7 @@ pub const Sim = struct {
             if (s.swallowed.rbutton) out.wparam &= ~msg.mk.rbutton;
         }
         if (s.forMinigame()) return out;
+        if ((m.id == wm.keydown or m.id == wm.keyup) and std.mem.indexOfScalar(u16, &minigame_keys, m.wparam) != null) return null;
         const key = std.mem.indexOfScalar(u16, &skip_keys, m.wparam);
         if (!s.opts.skip_videos) {
             const is_key = m.id == wm.keydown or m.id == wm.keyup;

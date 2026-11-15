@@ -39,6 +39,10 @@ pub const Queue = struct {
     paint_pending: bool = false,
     /// PostQuitMessage was called: WM_QUIT comes after the posted messages.
     quit_pending: bool = false,
+    /// The synchronous key state (`GetKeyState`) by virtual key: bit 7 down,
+    /// bit 0 toggled. It follows the WM_KEYDOWN/WM_KEYUP `next` has handed
+    /// out, as Windows' state follows the messages the task has read.
+    keys: [256]u8 = @splat(0),
 
     /// PostMessage to the main window; false when the queue is full (the
     /// original ignores the result, so the message is simply lost).
@@ -118,7 +122,10 @@ pub const Queue = struct {
             q.quit_pending = false;
             return .{ .id = wm.quit };
         }
-        if (q.input.pop()) |m| return m;
+        if (q.input.pop()) |m| {
+            q.trackKey(m);
+            return m;
+        }
         if (q.paint_pending) {
             q.paint_pending = false;
             return .{ .id = wm.paint };
@@ -133,6 +140,29 @@ pub const Queue = struct {
             }
         }
         return null;
+    }
+
+    /// A key message read: down sets bit 7, a press that was up toggles
+    /// bit 0 (Caps Lock's light), up clears bit 7.
+    fn trackKey(q: *Queue, m: Msg) void {
+        if (m.wparam > 0xff) return;
+        const k = &q.keys[m.wparam];
+        switch (m.id) {
+            wm.keydown => {
+                if (k.* & 0x80 == 0) k.* ^= 1;
+                k.* |= 0x80;
+            },
+            wm.keyup => k.* &= 0x7f,
+            else => {},
+        }
+    }
+
+    /// GetKeyState(vk): negative while the key is down (as of the last key
+    /// message read), bit 0 set while it is toggled.
+    pub fn keyState(q: *const Queue, vk: u16) i16 {
+        if (vk > 0xff) return 0;
+        const k = q.keys[vk];
+        return @as(i16, k & 1) | (if (k & 0x80 != 0) @as(i16, std.math.minInt(i16)) else 0);
     }
 
     /// When the earliest timer is due (for the platform's wait), or null.
@@ -222,4 +252,23 @@ test "dropPosted removes one kind and keeps the order of the rest" {
     try std.testing.expectEqual(@as(u16, 1), q.next(0).?.wparam);
     try std.testing.expectEqual(@as(u16, 2), q.next(0).?.wparam);
     try std.testing.expectEqual(@as(?Msg, null), q.next(0));
+}
+
+test "GetKeyState follows the key messages read" {
+    var q: Queue = .{};
+    q.postInput(.{ .id = wm.keydown, .wparam = 0x14 });
+    try std.testing.expectEqual(@as(i16, 0), q.keyState(0x14)); // not read yet
+    _ = q.next(0);
+    try std.testing.expect(q.keyState(0x14) < 0);
+    try std.testing.expectEqual(@as(i16, 1), q.keyState(0x14) & 1);
+    q.postInput(.{ .id = wm.keydown, .wparam = 0x14, .lparam = 0x40000000 }); // a repeat
+    q.postInput(.{ .id = wm.keyup, .wparam = 0x14 });
+    _ = q.next(0);
+    try std.testing.expectEqual(@as(i16, 1), q.keyState(0x14) & 1);
+    _ = q.next(0);
+    try std.testing.expectEqual(@as(i16, 1), q.keyState(0x14));
+    q.postInput(.{ .id = wm.keydown, .wparam = 0x14 });
+    _ = q.next(0);
+    try std.testing.expect(q.keyState(0x14) < 0);
+    try std.testing.expectEqual(@as(i16, 0), q.keyState(0x14) & 1);
 }

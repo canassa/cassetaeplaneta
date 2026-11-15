@@ -49,7 +49,7 @@
     { name: "sauna", title: "Sauna Mista", ready: true },
   ];
   // The keys the page passes on (KeyboardEvent.keyCode = the virtual key).
-  const GAME_KEYS = new Set([13, 27, 32, 33, 35, 36, 37, 38, 39, 40, 45]);
+  const GAME_KEYS = new Set([13, 16, 17, 20, 27, 32, 33, 35, 36, 37, 38, 39, 40, 45]);
   // The on-screen pad's keys (KeyboardEvent.keyCode) while that program's
   // window is on top (`noite_top_program`): TIRO and SERIAL aim with
   // LEFT/RIGHT and fire with SPACE, so their pad has a fire button (32)
@@ -558,10 +558,11 @@
     canvas.addEventListener("contextmenu", (e) => e.preventDefault());
     const key = (down) => (e) => {
       startAudio();
-      // The arrows, Enter, Esc and Space, and the fights' PgUp, End, Home
-      // and Insert (the game decides who gets them: NOITE only to skip a
-      // video, a minigame always). The browser's own repeats are dropped:
-      // the game repeats a held key on its clock.
+      // The arrows, Enter, Esc and Space, the fights' PgUp, End, Home and
+      // Insert, and JARDIM's Shift, Ctrl and Caps Lock (the game decides who
+      // gets them: NOITE only to skip a video, a minigame always). The
+      // browser's own repeats are dropped: the game repeats a held key on
+      // its clock.
       if (GAME_KEYS.has(e.keyCode)) {
         if (!(down && e.repeat)) wasm.noite_key(down, e.keyCode);
         e.preventDefault();

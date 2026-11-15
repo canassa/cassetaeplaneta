@@ -361,12 +361,13 @@ fn num(comptime T: type, word: ?[]const u8, line: usize) ParseError!T {
 
 fn keyCode(k: []const u8) ?u16 {
     if (std.fmt.parseInt(u16, k, 0)) |v| return v else |_| {}
-    // The arrows, Enter, Esc, Space and the fights' PgUp, Home, End and
-    // Insert (SALGIN, XILINDRO).
+    // The arrows, Enter, Esc, Space, the fights' PgUp, Home, End and
+    // Insert (SALGIN, XILINDRO) and JARDIM's Ctrl, Shift and Caps Lock.
     const names = [_]struct { []const u8, u16 }{
-        .{ "left", 0x25 },   .{ "up", 0x26 },     .{ "right", 0x27 },  .{ "down", 0x28 },
-        .{ "return", 0x0d }, .{ "escape", 0x1b }, .{ "space", 0x20 },  .{ "pgup", 0x21 },
-        .{ "home", 0x24 },   .{ "end", 0x23 },    .{ "insert", 0x2d },
+        .{ "left", 0x25 },   .{ "up", 0x26 },       .{ "right", 0x27 },  .{ "down", 0x28 },
+        .{ "return", 0x0d }, .{ "escape", 0x1b },   .{ "space", 0x20 },  .{ "pgup", 0x21 },
+        .{ "home", 0x24 },   .{ "end", 0x23 },      .{ "insert", 0x2d }, .{ "ctrl", 0x11 },
+        .{ "shift", 0x10 },  .{ "capslock", 0x14 },
     };
     for (names) |n| if (std.ascii.eqlIgnoreCase(n[0], k)) return n[1];
     if (k.len >= 2 and (k[0] == 'f' or k[0] == 'F')) {

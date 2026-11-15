@@ -113,11 +113,6 @@ pub const Game = struct {
     lastMoveKey: i16 = 0,
     // @orig g_keyAltContext (written only)
     keyAltContext: i16 = 0,
-    // No counterpart: GetKeyState(VK_SHIFT) / GetKeyState(VK_CAPITAL) as the
-    // last WM_KEYDOWN / WM_KEYUP of those keys left them (labyrinth_input;
-    // the platform has no `getKeyState` yet).
-    keyShiftDown: bool = false,
-    keyCapsDown: bool = false,
     // No counterpart: J6's latch (`fixes.jardim_enemy_blocks_walk`): the last
     // step was undone by `touch`; the tick does not repeat a walk until an
     // arrow is pressed again.
