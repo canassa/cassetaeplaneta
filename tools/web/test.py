@@ -63,6 +63,11 @@ and a held ▲ does the same (salgin-touch.png).
 Then "Jogo" = Invasores: INV starts alone and SPACE fires: the shot
 leaves the cannon (inv.png, inv-fire.png); on a touch screen the pad
 shows ◀, a fire button and ▶, and the fire button fires (inv-touch.png).
+Then "Jogo" = Xilindro: XILINDRO starts alone and Right and Up pressed in
+turn walk in and kick the opponent until its energy bar gets a tile
+(xilindro.png, xilindro-kick.png); on a touch screen the pad shows the
+eight fight keys and ▶ and ▲ tapped in turn do the same
+(xilindro-touch.png).
 Exits non-zero on the first failed check or on a page error.
 """
 
@@ -769,6 +774,67 @@ def main():
             check(not terrors, "touch INV: no page errors")
             tctx.close()
 
+        # XILINDRO's opponent stops 99-130 px away, out of the fighter's
+        # 100-px reach, so a held Up never lands: Right (one 32-px step a
+        # press) and Up pressed in turn, every 100-200 ms for 15 s, land
+        # 8 to 14 points (the port, headless), a tile (one per 7) on
+        # XILINDRO's opponent bar, at SALGIN's place (tiles_js).
+        def xilindro_alone():
+            """Jogo: Xilindro alone. It starts, Right and Up in turn kick (the
+            opponent's energy bar gets a tile), no page errors."""
+            page.goto(url)
+            load()
+            check(not page.is_disabled("#jogo option[value=xilindro]"), "the loader offers Xilindro alone")
+            page.select_option("#jogo", "xilindro")
+            page.check('input[name="versao"][value="original"]')
+            play()
+            time.sleep(1.5)
+            shot("xilindro.png")
+            before = page.evaluate(tiles_js)
+            end = time.time() + 15
+            while time.time() < end:
+                page.keyboard.press("ArrowRight")
+                time.sleep(0.06)
+                page.keyboard.press("ArrowUp")
+                time.sleep(0.06)
+            time.sleep(0.3)
+            after = page.evaluate(tiles_js)
+            shot("xilindro-kick.png")
+            check(before is not None and after is not None and before != after,
+                  "Xilindro runs: Right and Up kick (the opponent's energy bar loses a tile)")
+            check(not errors, "Xilindro: no page errors")
+
+        def xilindro_touch():
+            """Xilindro alone on a touch screen: the pad's keys are the eight
+            fight keys and ▶ and ▲ tapped in turn kick."""
+            tctx = browser.new_context(viewport={"width": 844, "height": 390}, has_touch=True, is_mobile=True)
+            tpage = tctx.new_page()
+            terrors = []
+            tpage.on("pageerror", lambda e: terrors.append(str(e)))
+            tpage.goto(url)
+            tpage.wait_for_function("window.noite.ready || window.noite.failure", timeout=600_000)
+            tpage.select_option("#jogo", "xilindro")
+            tpage.click("#play")
+            tpage.wait_for_function("window.noite.started || window.noite.failure", timeout=60_000)
+            time.sleep(1.5)
+            shown = tpage.evaluate("""() => Array.from(document.querySelectorAll('#dpad button'))
+                .filter((b) => !b.hidden).map((b) => Number(b.dataset.key))""")
+            check(sorted(shown) == [33, 35, 36, 37, 38, 39, 40, 45], f"touch Xilindro: the pad shows the eight fight keys ({shown})")
+            before = tpage.evaluate(tiles_js)
+            right = tpage.locator('#dpad [data-key="39"]')
+            up = tpage.locator('#dpad [data-key="38"]')
+            end = time.time() + 15
+            while time.time() < end:
+                right.tap()
+                time.sleep(0.05)
+                up.tap()
+                time.sleep(0.05)
+            time.sleep(0.3)
+            tpage.screenshot(path=str(out / "xilindro-touch.png"))
+            check(tpage.evaluate(tiles_js) != before, "touch Xilindro: ▶ and ▲ in turn kick")
+            check(not terrors, "touch Xilindro: no page errors")
+            tctx.close()
+
         def manifest():
             return page.evaluate("""async () => {
                 const html = await (await fetch("./", { cache: "no-cache" })).text();
@@ -945,6 +1011,8 @@ def main():
         salgin_touch()
         inv_alone()
         inv_touch()
+        xilindro_alone()
+        xilindro_touch()
         browser.close()
     if not args.url:
         httpd.shutdown()
