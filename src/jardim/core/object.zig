@@ -113,12 +113,14 @@ pub const AnimationPart = struct {
     timerId: i16 = 0,
     // @orig Animation+0xa
     timerPeriod: i16 = 0,
-    // @orig Animation+0xc
+    // @orig Animation+0xc (play-once frame countdown; animation_play_once sets it)
+    framesLeft: i16 = 0,
+    // @orig Animation+0xe (play-once flag: animation_play_once 1, animation_stop 0)
     playOnce: i16 = 0,
-    // @orig Animation+0xe
+    // @orig Animation+0x10 (play-once rewind flag; nothing in JARDIM sets it)
+    rewinds: i16 = 0,
+    // @orig Animation+0x12 (animation_is_running)
     running: i16 = 0,
-    // @orig Animation+0x10..0x12 (unknown)
-    unk10: [2]u16 = @splat(0),
     // @orig Animation+0x14 (AnimationVtbl lock / isLocked)
     locked: i16 = 0,
 };
