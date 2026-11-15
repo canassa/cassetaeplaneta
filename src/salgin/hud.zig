@@ -148,6 +148,14 @@ pub fn showControls(g: *Game) void {
     g.plat.wingBitBlt(r.x, r.y, r.w, r.h, bd.surface(), r.x, r.y);
 }
 
+/// `dib.copyRect` counts the source row from the bottom of the (bottom-up)
+/// background, not from the top like the destination row; the original only
+/// restores an object's own rectangle, which is not in screen rows. This is
+/// the source row of a screen rectangle (the controls panel, the overlay).
+fn bottomUpY(bg: *const dib.Dib, r: anytype) i16 {
+    return @as(i16, @truncate(bg.header.biHeight)) -% (r.y + r.h);
+}
+
 /// The screen goes (the frozen intro begins): its rectangle back from the
 /// background, the arena (the fighters and PORRADA) drawn again, then
 /// blitted. Nothing else lies under the panel (the clock and the energy
@@ -157,7 +165,7 @@ pub fn hideControls(g: *Game, scene: *Scene) void {
     const r = fight_controls.panel;
     if (bd.background) |bg| {
         if (bd.pixels.len != 0) {
-            _ = dib.copyRect(&bd.bmiHeader, bd.pixels, r.x, r.y, bg.bits, &bg.header, r.x, r.y, r.w, r.h, g.fixes) catch |e|
+            _ = dib.copyRect(&bd.bmiHeader, bd.pixels, r.x, r.y, bg.bits, &bg.header, r.x, bottomUpY(bg, r), r.w, r.h, g.fixes) catch |e|
                 std.debug.panic("salgin hud: controls panel restore left its buffers ({s})", .{@errorName(e)});
         }
     }
@@ -223,7 +231,7 @@ pub fn clearOverlay(g: *Game, scene: *Scene) void {
     const r = fight_fair.box;
     if (bd.background) |bg| {
         if (bd.pixels.len != 0) {
-            _ = dib.copyRect(&bd.bmiHeader, bd.pixels, r.x, r.y, bg.bits, &bg.header, r.x, r.y, r.w, r.h, g.fixes) catch return;
+            _ = dib.copyRect(&bd.bmiHeader, bd.pixels, r.x, r.y, bg.bits, &bg.header, r.x, bottomUpY(bg, r), r.w, r.h, g.fixes) catch return;
         }
     }
     g.plat.wingBitBlt(r.x, r.y, r.w, r.h, bd.surface(), r.x, r.y);

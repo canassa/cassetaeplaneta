@@ -70,7 +70,7 @@ eight fight keys and ▶ and ▲ tapped in turn do the same
 (xilindro-touch.png); in the Corrigida on a phone held upright the
 controls screen keeps the clock still, the pad shows the arrows and the
 four named moves, a tap on one takes it down, the clock stands under
-PORRADA's 2 s and then runs, and ▶ and Chute tapped in turn kick
+PORRADA's 2 s and then runs, and ▶ and Chute tapped each move the fighter
 (xilindro-controls.png, xilindro-corrigida-touch.png). Then "Jogo" =
 Inferno: INFERNO starts alone and a held Right walks the hero off his starting place (inferno.png,
 inferno-walk.png); on a touch screen the pad shows the four arrows and a
@@ -796,7 +796,7 @@ def main():
             """Xilindro alone in the Corrigida on a phone: the controls screen
             is up and the clock stands, the pad shows the arrows and the four
             moves with their names, a tap on one takes the screen down (the
-            clock runs), and ▶ and Chute (S) tapped in turn kick."""
+            clock runs), and ▶ and Chute (S) tapped each move the fighter."""
             tctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
             tpage = tctx.new_page()
             terrors = []
@@ -818,24 +818,36 @@ def main():
             clock = tpage.evaluate(clock_js)
             time.sleep(1.5)
             check(tpage.evaluate(clock_js) == clock, "Corrigida touch Xilindro: the clock waits under the controls screen")
-            before = tpage.evaluate(tiles_js)
+            # The Corrigida's opponent fights back, so whether a kick lands
+            # in a given 15 s depends on its moves (the energy bar is no
+            # check here). A tap on a pad button instead shows in the fighter
+            # at once: ▶ walks it and Chute moves it into the kick. The
+            # fighter's start (x 100-200) is clear of the opponent's reach.
+            fighter_js = region_js(90, 230, 130, 170)
             right = tpage.locator('#dpad [data-key="39"]')
             kick = tpage.locator('#dpad [data-key="83"]')
+
+            def moves_after_tap(button):
+                before = tpage.evaluate(fighter_js)
+                button.tap()
+                end = time.time() + 1.5
+                while time.time() < end:
+                    if tpage.evaluate(fighter_js) != before:
+                        return True
+                    time.sleep(0.03)
+                return False
+
             kick.tap()
             # PORRADA's frozen 2 s, then the clock's first second.
             time.sleep(1.0)
             check(tpage.evaluate(clock_js) == clock, "Corrigida touch Xilindro: the clock waits under PORRADA")
             time.sleep(2.7)
             check(tpage.evaluate(clock_js) != clock, "Corrigida touch Xilindro: a pad button starts the round (the clock runs)")
-            end = time.time() + 15
-            while time.time() < end:
-                right.tap()
-                time.sleep(0.05)
-                kick.tap()
-                time.sleep(0.05)
+            check(moves_after_tap(right), "Corrigida touch Xilindro: ▶ walks the fighter")
+            time.sleep(1.0)
+            check(moves_after_tap(kick), "Corrigida touch Xilindro: Chute moves the fighter into the kick")
             time.sleep(0.3)
             tpage.screenshot(path=str(out / "xilindro-corrigida-touch.png"))
-            check(tpage.evaluate(tiles_js) != before, "Corrigida touch Xilindro: ▶ and Chute in turn kick")
             check(not terrors, "Corrigida touch Xilindro: no page errors")
             tctx.close()
 
