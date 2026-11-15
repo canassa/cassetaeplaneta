@@ -40,10 +40,13 @@
 //!                       dispatches nothing (the web page hidden, its frame
 //!                       loop stopped), then everything due fires at once;
 //!                       later relative times count from the end of it
-//!     result won|lost|none [SCORE]
+//!     result won|lost|none [SCORE] [| won|lost|none [SCORE]]
 //!                       fail the run unless the last minigame result
 //!                       (0x40a, from a real minigame: `host.zig`) is a
-//!                       win / a loss (with that score delta), or none came
+//!                       win / a loss (with that score delta), or none came;
+//!                       the part after `|`, when given, is what a run with
+//!                       a `--fix` on must get instead (a bug that changes
+//!                       the result, as SERIAL's BUGS.md K1/K2)
 //!     quit              end the run
 //!
 //! A minigame run alone (`--minigame encaixe`) takes the input, `dump`,
@@ -76,10 +79,15 @@ pub const Action = union(enum) {
     quit,
 };
 
-/// `result won|lost|none [SCORE]`.
+/// `result won|lost|none [SCORE] [| won|lost|none [SCORE]]`.
 pub const ResultCheck = struct {
-    want: enum { won, lost, none },
+    want: Want,
     score: ?i32 = null,
+    /// The expectation of a run with fixes (after `|`), if it differs.
+    fixed: ?Expect = null,
+
+    pub const Want = enum { won, lost, none };
+    pub const Expect = struct { want: Want, score: ?i32 = null };
 };
 
 pub const Wait = struct { name: []const u8, max_ms: u32 };
@@ -281,9 +289,13 @@ pub fn parse(gpa: std.mem.Allocator, text: []u8) ParseError!Script {
             try s.steps.append(gpa, .{ .at = t, .action = .{ .freeze = ms } });
             t += ms;
         } else if (eq(u8, cmd, "result")) {
-            const w = words.next() orelse return bad(line_no, "missing won|lost|none");
-            var r: ResultCheck = .{ .want = if (eq(u8, w, "won")) .won else if (eq(u8, w, "lost")) .lost else if (eq(u8, w, "none")) .none else return bad(line_no, "want won, lost or none") };
-            if (words.peek() != null) r.score = try num(i32, words.next(), line_no);
+            const first = try resultExpect(&words, line_no);
+            var r: ResultCheck = .{ .want = first.want, .score = first.score };
+            if (words.next()) |sep| {
+                if (!eq(u8, sep, "|")) return bad(line_no, "want `|` before the fixed result");
+                r.fixed = try resultExpect(&words, line_no);
+                if (words.peek() != null) return bad(line_no, "extra words after the fixed result");
+            }
             try s.steps.append(gpa, .{ .at = t, .action = .{ .result = r } });
         } else if (eq(u8, cmd, "quit")) {
             try s.steps.append(gpa, .{ .at = t, .action = .quit });
@@ -302,6 +314,17 @@ pub fn parse(gpa: std.mem.Allocator, text: []u8) ParseError!Script {
 fn bad(line: usize, what: []const u8) ParseError {
     std.debug.print("input script line {d}: {s}\n", .{ line, what });
     return error.BadScript;
+}
+
+/// `won|lost|none [SCORE]` of a `result` line.
+fn resultExpect(words: anytype, line_no: usize) ParseError!ResultCheck.Expect {
+    const eq = std.mem.eql;
+    const w = words.next() orelse return bad(line_no, "missing won|lost|none");
+    var e: ResultCheck.Expect = .{ .want = if (eq(u8, w, "won")) .won else if (eq(u8, w, "lost")) .lost else if (eq(u8, w, "none")) .none else return bad(line_no, "want won, lost or none") };
+    if (words.peek()) |next| {
+        if (!eq(u8, next, "|")) e.score = try num(i32, words.next(), line_no);
+    }
+    return e;
 }
 
 fn num(comptime T: type, word: ?[]const u8, line: usize) ParseError!T {
@@ -339,4 +362,23 @@ test "a script parses into timed input in order" {
     try std.testing.expectEqual(@as(u32, 120), s.steps.items[2].at); // keydown
     try std.testing.expectEqual(@as(u32, 150), s.steps.items[3].at); // lbuttonup
     try std.testing.expectEqual(@as(i16, 200), s.steps.items[6].action.scene.flags.?.y);
+}
+
+test "a result line can carry the fixed run's expectation" {
+    const gpa = std.testing.allocator;
+    const text = try gpa.dupe(u8,
+        \\100 result won 32768004 | won 500
+        \\200 result lost | none
+        \\300 result won
+    );
+    var s = try parse(gpa, text);
+    defer s.deinit(gpa);
+    const a = s.steps.items[0].action.result;
+    try std.testing.expectEqual(@as(?i32, 32768004), a.score);
+    try std.testing.expectEqual(ResultCheck.Want.won, a.fixed.?.want);
+    try std.testing.expectEqual(@as(?i32, 500), a.fixed.?.score);
+    const b = s.steps.items[1].action.result;
+    try std.testing.expectEqual(ResultCheck.Want.lost, b.want);
+    try std.testing.expectEqual(ResultCheck.Want.none, b.fixed.?.want);
+    try std.testing.expectEqual(@as(?ResultCheck.Expect, null), s.steps.items[2].action.result.fixed);
 }

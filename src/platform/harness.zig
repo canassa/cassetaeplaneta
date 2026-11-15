@@ -177,17 +177,20 @@ pub const Harness = struct {
     fn checkResult(h: *Harness, now: u32, r: script.ResultCheck) void {
         const items = if (h.host) |hs| hs.results.items else &.{};
         const last: ?@import("host.zig").Result = if (items.len > 0) items[items.len - 1] else null;
-        const ok = switch (r.want) {
+        // A run with a fix on checks the part after `|`, when the line has one.
+        const fixed = if (h.host) |hs| !std.meta.eql(hs.opts.fixes, @import("../core/fixes.zig").Fixes{}) else false;
+        const e: script.ResultCheck.Expect = if (fixed and r.fixed != null) r.fixed.? else .{ .want = r.want, .score = r.score };
+        const ok = switch (e.want) {
             .none => last == null,
-            .won, .lost => if (last) |l| l.won == (r.want == .won) and (r.score == null or r.score.? == l.score) else false,
+            .won, .lost => if (last) |l| l.won == (e.want == .won) and (e.score == null or e.score.? == l.score) else false,
         };
         if (last) |l| {
             if (ok) {
-                if (h.opts.verbose) std.debug.print("[{d}] result {t}: ok ({s}, score {d})\n", .{ now, r.want, if (l.won) "won" else "lost", l.score });
-            } else std.debug.print("[{d}] result {t}: FAILED, the minigame {s} (score {d})\n", .{ now, r.want, if (l.won) "won" else "lost", l.score });
+                if (h.opts.verbose) std.debug.print("[{d}] result {t}: ok ({s}, score {d})\n", .{ now, e.want, if (l.won) "won" else "lost", l.score });
+            } else std.debug.print("[{d}] result {t}: FAILED, the minigame {s} (score {d})\n", .{ now, e.want, if (l.won) "won" else "lost", l.score });
         } else if (ok) {
             if (h.opts.verbose) std.debug.print("[{d}] result none: ok\n", .{now});
-        } else std.debug.print("[{d}] result {t}: FAILED, no minigame result\n", .{ now, r.want });
+        } else std.debug.print("[{d}] result {t}: FAILED, no minigame result\n", .{ now, e.want });
         if (!ok) h.failed = true;
     }
 
