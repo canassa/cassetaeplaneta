@@ -270,8 +270,9 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   fix out. There the real XILINDRO starts 1500 ms after the video, when the hall's handler already owns
   timer 0x14 (it looks for TIRO's window): no hello reaches XILINDRO, its window stays over the hall
   with NOITE shown below, and its result goes nowhere (full.input leaves it unplayed, onebutton.input
-  fights it). The stub minigames (window after 1.5 s) miss the 3ffarao race; `--minigame-startup 0
-  --minigame-reply 0` hits it (`--scene 3fhall`: the sauna door, a right click in the sauna, then the
+  fights it). The stub minigames (window after 1.5 s) and the real SAUNA (its 0x40c comes 2.97 s after
+  the click, after the attendant's last tick at 1.6 s) miss the 3ffarao race; `--minigame-stub
+  --minigame-startup 0 --minigame-reply 0` hits it (`--scene 3fhall`: the sauna door, a right click in the sauna, then the
   pharaoh door).
 - **Evidence:** port traces (`noite --trace`); the code paths above.
 - **Confidence:** 8 (code, port traces); 5 (how often the timings line up on a period machine).
@@ -1970,8 +1971,8 @@ intent.
 
 ## SAUNA.EXE (the "Sauna Mista" Pac-Man minigame)
 
-Addresses are Ghidra `seg:off` in `/SAUNA.EXE`; the game is described in `docs/sauna/GAME.md`.
-`sauna_scene_handle_message` is 1080:32f7. The letter is P (for Pac-Man): S is SALGIN's. Left out
+Addresses are Ghidra `seg:off` in `/SAUNA.EXE`; the game is described in `docs/sauna/GAME.md`;
+the port is `src/sauna/` (docs/sauna/DESIGN.md). `sauna_scene_handle_message` is 1080:32f7. The letter is P (for Pac-Man): S is SALGIN's. Left out
 as design: closing the window (End Task, or a Windows shutdown: the window has no system menu)
 forfeits, reported as a loss with −1000; the four ghosts share timer 0x11 and step together; an
 arrow's key-up does not stop Pacman and there is no turn buffering; eating a ghost stops Pacman;
@@ -1996,8 +1997,11 @@ object, and a message after that would reach a freed object; no path to one is k
   powered Pacman cannot eat a ghost he chases rightward or downward. A head-on meeting is caught by
   whichever of the two moves left or up.
 - **Confidence:** 9 (code); 8 (effect).
-- **Port:** unit `occupancy` (src/sauna/, docs/sauna/DESIGN.md), not ported yet; the fix is
-  `Fixes.sauna_meet_any_direction` (`--fix sauna_meet_any_direction`, on in the Corrigida version).
+- **Port:** reproduced (unit `occupancy`, src/sauna/behaviour/occupancy.zig `actorCanStep`); the
+  fix is `Fixes.sauna_meet_any_direction` (`--fix sauna_meet_any_direction`, on in the Corrigida
+  version); the fix skips the wall cells, as the grid query does (an actor's occupy writes its object
+  into the walls under its hit box). With P2 and P6 it moves the catches of a standing Pacman:
+  `tools/play/sauna-alone-lose.input` loses at 42.8 s in the Original, 44.8 s with the fixes.
 
 ### P2. An actor that moves clears the cells of any other actor on them
 - **Where:** `pacman_vacate` 1080:01c1, `ghost_vacate` 1080:157f; `pacman_occupy`,
@@ -2010,7 +2014,7 @@ object, and a message after that would reach a freed object; no path to one is k
 - **Effect:** for that tick the other actor is invisible to the collision test: a step into it
   passes through. Occasional missed catches or missed ghost eats.
 - **Confidence:** 9 (code); 5 (how often it shows).
-- **Port:** unit `occupancy` (src/sauna/, docs/sauna/DESIGN.md), not ported yet; the fix is
+- **Port:** reproduced (unit `occupancy`, `actorOccupy`/`actorVacate`); the fix is
   `Fixes.sauna_vacate_own_cells` (`--fix sauna_vacate_own_cells`, on in the Corrigida version).
 
 ### P4. The power mode's start and end turn Pacman to face right
@@ -2022,8 +2026,9 @@ object, and a message after that would reach a freed object; no path to one is k
 - **Effect:** when a cork is eaten and when the 5 s end, Pacman faces right (powered or normal
   picture) while he runs left, up or down, until the next arrow.
 - **Confidence:** 9 (code); 8 (effect).
-- **Port:** unit `animation` (src/sauna/, docs/sauna/DESIGN.md), not ported yet; the fix is
-  `Fixes.sauna_power_keeps_heading` (`--fix sauna_power_keeps_heading`, on in the Corrigida version).
+- **Port:** reproduced (unit `animation`, src/sauna/behaviour/animation.zig `refreshPowerStrip`);
+  the fix is `Fixes.sauna_power_keeps_heading` (`--fix sauna_power_keeps_heading`, on in the
+  Corrigida version). The scripted wins eat the four corks (pictures only: the same game in both).
 
 ### P5. A click shows Pacman facing up or right instead of the way he walks
 - **Where:** `pacman_move_to` 1080:074a (reached from `game_handle_message`'s `WM_LBUTTONDOWN`).
@@ -2033,8 +2038,9 @@ object, and a message after that would reach a freed object; no path to one is k
 - **Effect:** a click to the left walks Pacman left showing the up picture; any other click, up and
   down included, shows the right picture.
 - **Confidence:** 9 (code); 8 (effect).
-- **Port:** unit `movement` (src/sauna/, docs/sauna/DESIGN.md), not ported yet; the fix is
-  `Fixes.sauna_click_faces_walk` (`--fix sauna_click_faces_walk`, on in the Corrigida version).
+- **Port:** reproduced (unit `movement`, src/sauna/behaviour/movement.zig `pacmanMoveTo`); the fix
+  is `Fixes.sauna_click_faces_walk` (`--fix sauna_click_faces_walk`, on in the Corrigida version).
+  The scripted wins walk Pacman by clicks as well as arrows (pictures only).
 
 ### P6. The ghosts keep moving while Pacman dies, and can take another life
 - **Where:** `sauna_scene_handle_message`, the ghosts' timer arm (1080:3b1c, no `g_pacmanDying`
@@ -2048,8 +2054,11 @@ object, and a message after that would reach a freed object; no path to one is k
   death.
 - **Confidence:** 9 (code); 6 (how often: the ghosts walk back along their old lines, toward the
   spot).
-- **Port:** unit `occupancy` (src/sauna/, docs/sauna/DESIGN.md), not ported yet; the fix is
-  `Fixes.sauna_no_catch_while_dying` (`--fix sauna_no_catch_while_dying`, on in the Corrigida version).
+- **Port:** reproduced (the ghosts' arm in src/sauna/maze.zig `sysTimer`, the second catch in unit
+  `occupancy`, `actorCanStep`); the fix is `Fixes.sauna_ghosts_wait_while_dying` (`--fix
+  sauna_ghosts_wait_while_dying`, on in the Corrigida version, the owner's choice): the ghosts, sent
+  home by the catch, wait there until Pacman reappears, as in the arcade game.
+  `tools/play/sauna-alone-lose.input` loses at 44.8 s with it.
 
 ### P7. An arrow during the death restarts it, and Pacman reappears running
 - **Where:** `sauna_scene_handle_message`, `WM_KEYDOWN` (1080:35b8, no `g_pacmanDying` test) and
@@ -2061,8 +2070,9 @@ object, and a message after that would reach a freed object; no path to one is k
 - **Effect:** each new arrow press while dying restarts the 0.7-s death strip, which leaves the
   ghosts more time (P6); at the respawn Pacman runs off in that direction at once.
 - **Confidence:** 9 (code); 8 (effect).
-- **Port:** unit `maze` (src/sauna/, docs/sauna/DESIGN.md), not ported yet; the fix is
-  `Fixes.sauna_no_arrows_while_dying` (`--fix sauna_no_arrows_while_dying`, on in the Corrigida version).
+- **Port:** reproduced (unit `maze`, src/sauna/maze.zig `keyDown` and `deathTick`); the fix is
+  `Fixes.sauna_no_arrows_while_dying` (`--fix sauna_no_arrows_while_dying`, on in the Corrigida
+  version).
 
 ### P8. A score of 10000 or more shows a tenth of its value
 - **Where:** `sauna_draw_score` 1080:426e, `sauna_blit_score_box` 1080:4221.
@@ -2073,8 +2083,10 @@ object, and a message after that would reach a freed object; no path to one is k
   only when the window is repainted, and stays in the backdrop after the score drops below 10000.
   One ghost eaten and no life lost reach it with 95 peanuts.
 - **Confidence:** 9 (code); 7 (effect).
-- **Port:** unit `score` (src/sauna/, docs/sauna/DESIGN.md), not ported yet; the fix is
-  `Fixes.sauna_score_fits_box` (`--fix sauna_score_fits_box`, on in the Corrigida version).
+- **Port:** reproduced (unit `score`, src/sauna/score.zig `drawScore`); the fix is
+  `Fixes.sauna_score_fits_box` (`--fix sauna_score_fits_box`, on in the Corrigida version). The
+  scripted win never shows it: 96 peanuts are 9600 on the screen, and the win's +1000 is never
+  drawn.
 
 ### Harmless (SAUNA)
 

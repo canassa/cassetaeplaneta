@@ -34,10 +34,11 @@ item is tapped then placed with the next click, or dragged. ENCAIXE
 (3farmcai's Serial Killer, `src/serial/`, `docs/serial/DESIGN.md`), SALGIN
 (4fsalgin's gym fight, `src/salgin/`, `docs/salgin/DESIGN.md`), INV
 (4fsacaet's space invaders, `src/inv/`, `docs/inv/DESIGN.md`), XILINDRO
-(3fstreet's jail fight, `src/xilindro/`, `docs/xilindro/DESIGN.md`) and INFERNO
-(3fpapmal's platformer in hell, `src/inferno/`, `docs/inferno/DESIGN.md`) are
+(3fstreet's jail fight, `src/xilindro/`, `docs/xilindro/DESIGN.md`), INFERNO
+(3fpapmal's platformer in hell, `src/inferno/`, `docs/inferno/DESIGN.md`) and SAUNA
+(3fsauna's Pac-Man, `src/sauna/`, `docs/sauna/DESIGN.md`) are
 ported: NOITE runs them as second programs (`src/platform/host.zig`), and
-`--minigame encaixe|tiro|serial|salgin|inv|xilindro|inferno` plays one alone. The other minigames (separate
+`--minigame encaixe|tiro|serial|salgin|inv|xilindro|inferno|sauna` plays one alone. The other minigames (separate
 EXEs) are stubbed, and the ported ones too with `--minigame-stub`: they
 report a win, or a loss with `--minigame-result lose`; their window shows 1.5 s
 after `WinExec` and answers the game's hello after 100 ms
@@ -45,7 +46,7 @@ after `WinExec` and answers the game's hello after 100 ms
 Windows (500 ms, then every 33 ms; `--key-repeat DELAY,PERIOD|off`), in
 the window, the browser and headless runs. A minigame gets every key
 (TIRO, SERIAL and INV: LEFT, RIGHT, SPACE; SALGIN and XILINDRO: the arrows, PgUp,
-Home, End, Insert; INFERNO: the arrows); NOITE gets Enter, Esc and Space only to skip videos.
+Home, End, Insert; INFERNO and SAUNA: the arrows; SAUNA also the left button); NOITE gets Enter, Esc and Space only to skip videos.
 Saves go to `save/` (`--save DIR`).
 
 ## Testing the port
@@ -182,6 +183,20 @@ Saves go to `save/` (`--save DIR`).
   stop before 181 s of INFERNO, where it spins on `WM_DESTROY` for good (H8: the port panics).
   `tools/smoke.py --minigame inferno [--fix all] [--monkey SEED]` holds LEFT/RIGHT and presses
   UP/DOWN at random for 190 s.
+- **SAUNA**: `--minigame sauna --ms 22500 --input tools/play/sauna-alone-win.input` (the
+  planner's arrows and clicks eat the 100 dots with no ghost met, `result won 10600` at
+  21400), `--ms 47000 --input tools/play/sauna-alone-lose.input` (no key: three catches,
+  `lost -1900`) and `--ms 3000 --input tools/play/sauna-close.input` (the window closed at 2 s:
+  `lost -900`); from NOITE, `--scene 3fsauna --ms 28000 --input
+  tools/play/sauna-3fsauna-win.input` (a right click on the attendant, NOITE hides, gets the win,
+  +10600, the hall) and `--ms 25000 --input tools/play/sauna-3fsauna-lose.input` (-1900, a life
+  less, the hall). Each the same with `--fix all`: Pacman never meets a ghost in the wins, so the
+  P-bugs only change pictures there. The ghosts turn at random from `srand(GetTickCount())`, so
+  the moves come from `tools/sauna_plan.py [--scene 3fsauna --prefix FILE --start MS]`, which
+  models Pacman and probes the port for the ghosts (it closes SAUNA after each move and reads
+  the score): rerun it when SAUNA's start time moves (4100 from `--scene 3fsauna`'s click at
+  1000). `tools/smoke.py --minigame sauna [--fix all] [--monkey SEED]` presses and holds random
+  arrows and clicks the maze for 120 s. The playthroughs never enter the sauna.
 - **SDL without a display**: `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy`
   (or `disk` with `SDL_AUDIO_DISK_OUTPUT_FILE=out.raw` to capture the mix).
 
@@ -203,8 +218,8 @@ default) and the one-button control (on by default on touch screens), then
 runs the game; saves go to localStorage, apart per version. "Jogo" picks
 the whole game or one ported minigame alone (Encaixe Perfeito, Tiro ao
 Álvaro, Serial Killer, Porrada na Sala de Ginástica, Invasores, Xilindro,
-Inferno).
+Inferno, Sauna Mista).
 On a touch screen the on-screen pad shows the keys of the window on top: for
 TIRO, SERIAL and INV ◀, a fire button and ▶; for SALGIN and XILINDRO their eight keys as on the numeric keypad
 (Salto = Home, ▲, Soco = PgUp; ◀, Pulo = Insert, ▶; Defesa = End, ▼); for
-INFERNO the four arrows.
+INFERNO and SAUNA the four arrows.

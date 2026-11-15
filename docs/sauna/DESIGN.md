@@ -87,6 +87,16 @@ show`) is the specification; `GAME.md` (rules, protocol), `DATA.md`
   end). `Game.local()` is the task's heap (an arena freed by
   `Game.destroy`), as TIRO's: every `operator new` / `_fmalloc` allocates
   there.
+- **The owner's choices for the Corrigida** (decided after the port):
+  P6's fix freezes the ghosts while Pacman dies (their timer arm skips
+  them until he reappears, `sauna_ghosts_wait_while_dying`), as in the
+  arcade game, rather than letting them walk on with the meeting ignored;
+  P2's fix (`sauna_vacate_own_cells`) stays as designed, in `all`, though
+  it makes catches a little more likely (ghosts that overlap stay
+  detectable).
+- **SAUNA stays out of the playthroughs** (the owner's choice):
+  `full.input` and `onebutton.input` keep their routes, which never take
+  the sauna's hall door; SAUNA is tested by its own scripts (Tests).
 
 ## Source layout
 
@@ -148,7 +158,8 @@ Condition (`game`), Frame (`object_create`).
 A class's override of a SceneObject slot lives in the slot's unit, next to
 its dispatcher (TIRO's rule; it keeps the hard dependencies acyclic):
 Pacman's and the Ghosts' `occupy`/`vacate`/`canStep` are in `occupancy`
-(and with them P1, P2, P6), their `restoreBackground` in `render` (the
+(and with them P1, P2; P6 is the catch there, its fix in `maze`), their
+`restoreBackground` in `render` (the
 eating and the win), their moves and stops in `movement` (the click
 walk: P5), Pacman's `tick`/`playIdle`/`stopAndRedraw(Dc)` in `animation`.
 The class units hold what is no SceneObject slot: `ghost` (the AI and
@@ -337,11 +348,11 @@ and `sauna_blit_score_box` blits the 192×20 box at (416, 437).
 
 | Bug | Flag | Unit | What the fix changes | In `all` |
 |---|---|---|---|---|
-| P1 only a move left or up meets the other actor | `sauna_meet_any_direction` | occupancy | `pacman_can_step`/`ghost_can_step` look through every occupied cell of the 2×2 block of the next position, skipping the mover's own, for the other kind (a ghost for Pacman, Pacman for a ghost); the first one found in row-major order decides as before | yes |
+| P1 only a move left or up meets the other actor | `sauna_meet_any_direction` | occupancy | `pacman_can_step`/`ghost_can_step` look through every occupied cell of the 2×2 block of the next position, skipping the mover's own and the wall cells (as the grid query does: an actor's occupy writes its object into the walls under its hit box), for the other kind (a ghost for Pacman, Pacman for a ghost); the first one found in row-major order decides as before | yes |
 | P2 vacate clears other actors' cells | `sauna_vacate_own_cells` | occupancy | `pacman_vacate`/`ghost_vacate` clear only cells whose object is the mover; `occupy` does not take over a cell held by another actor (count and object stay), and a cell the mover leaves that lies under another actor's hit box is given back to that actor | yes |
 | P4 power start/end face Pacman right | `sauna_power_keeps_heading` | animation | `pacman_refresh_power_strip` sets `g_powerStrip` + the strip of Pacman's heading (`Mover.direction` 1, 2, 4, 8 → strip 0, 1, 2, 3) whatever `dir` | yes |
 | P5 a click shows the up or right picture | `sauna_click_faces_walk` | movement | `pacman_move_to` picks `g_powerStrip` + left 0 / right 1 / up 2 / down 3 by the larger leg of the line (x on a tie) | yes |
-| P6 a ghost can take another life during the death | `sauna_no_catch_while_dying` | occupancy | while `g_pacmanDying`, `pacman_can_step`/`ghost_can_step` take no life (the meeting is ignored: the ghost walks on as through an empty cell) | yes |
+| P6 a ghost can take another life during the death | `sauna_ghosts_wait_while_dying` | maze | while `g_pacmanDying`, the handler's ghosts' timer arm (0x11) does not step them: sent home by the catch, they wait there until Pacman reappears, as in the arcade game (the owner's choice) | yes |
 | P7 an arrow restarts the death | `sauna_no_arrows_while_dying` | maze | while `g_pacmanDying`, `WM_KEYDOWN`'s arrows do nothing (no latch, no moveToEdge): the death strip plays once and Pacman reappears standing | yes |
 | P8 five digits show a tenth of the score | `sauna_score_fits_box` | score | when the text is six characters (10000 or more), `sauna_draw_score` starts at x 428 instead of 460, so all six land inside the restored and blitted box (416–608) | yes |
 
@@ -359,14 +370,19 @@ the game running while inactive) is ported as it is, with no flag.
 
 ## Integration
 
-SAUNA is not ported yet: `src/sauna/root.zig` `ready = false`, so
-NOITE's WinExec keeps the stub (`--minigame-result`), `--minigame sauna`
-refuses with "not ported yet", and the web page does not offer it. The
-root is wired in `src/main.zig`'s `minigames` already, as TIRO's was.
+**Finished**: every unit is ported, `ready = true`; NOITE's `3fsauna` runs
+the real SAUNA, `--minigame sauna` plays it alone, and the web loader
+offers it ("Jogo" = Sauna Mista, the four arrows on the touch pad). One
+port bug was found while integrating, in a fix: P1's
+(`sauna_meet_any_direction`) scanned the wall cells too, where an actor's
+occupy leaves its object, so a ghost at the bottom of its house caught
+Pacman standing below it when he pressed Up (the smoke's seed 15 lost the
+three lives in 1.7 s in the Corrigida). It now skips them, as the grid
+query does.
 
 ### The launch from NOITE
 
-`handler_3fsauna` (`src/handlers/3fsauna.zig`, unchanged): the first right
+`handler_3fsauna` (`src/handlers/3fsauna.zig`, as ported): the first right
 click in the sauna plays the attendant once and its wave (GLOBO2.WAV,
 1.415 s); its `MM_WOM_DONE` runs `WinExec("<CD>sauna\sauna.exe")` and
 timer 0x14 (100 ms). The host matches `sauna` to `sauna.program`
@@ -409,28 +425,34 @@ unit during development). A window closed from outside (the host's
 reported loss with −1000, as on Windows. The stubbed SAUNA (`--minigame-stub`, or `ready = false`)
 keeps the stub's hello/ready/result instead.
 
-The attendant's stale timer (BUGS.md, the 3ffarao `JTETRIS` race) depends
-on when SAUNA's window appears and answers: the real SAUNA answers 0x40b
-within 50 ms (timer 1), a different time than the stub's
-`--minigame-reply`. `full.input` visits the sauna after the
-pharaoh (below), so it never meets the race.
+Traced (`tools/play/sauna-3fsauna-lose.input`, the right click at
+1000): the attendant ticks every 200 ms until 2600, GLOBO2.WAV's end
+launches SAUNA, and NOITE gets 0x40c at 3965. The attendant's stale timer
+(BUGS.md B21, the 3ffarao `JTETRIS` race) needs the 0x40c before the
+attendant's last tick (1.6 s after the click); the real SAUNA's comes
+2.97 s after it, so the race does not happen with it (`--minigame-stub
+--minigame-startup 0 --minigame-reply 0` still shows it).
 
 ### Standalone
 
 - `noite --minigame sauna [--headless …]`: SAUNA alone (task 0, its
   title, `\SAUNA` directory); prints its result (0x40a to hwnd 0 goes
   nowhere; the host records it).
-- Web: `web_main.minigames` gets SAUNA as one of `noite_start`'s
-  minigames; `MINIGAMES` in `web/noite.js` and the "Jogo" select of
-  `web/index.html` ("Jogar só o minijogo: Sauna Mista"); `tools/web/files.py`
-  finds SAUNA's names in `SAUNA\` (the EXE's directory). On the
-  on-screen pad (one-button mode, or a minigame alone on a touch screen)
-  the keys follow the program on top (`noite_top_program`): SAUNA's pad is
-  the four arrows (`PAD_KEYS.sauna = [37, 38, 39, 40]`). A tap on the
-  picture is a left click that SAUNA receives as is (the minigame filter
-  passes the mouse): Pacman walks to it, so a touch screen can play by
-  tapping as well as with the pad. A long press would be a right click on
-  NOITE only; SAUNA's right click (playOnce) is harmless.
+- Web: `web_main.minigames` has SAUNA as `noite_start`'s minigame 8
+  (after INFERNO), `MINIGAMES` in `web/noite.js` and the "Jogo" select of
+  `web/index.html` an entry ("Jogar só o minijogo: Sauna Mista");
+  `tools/web/files.py` `MINIGAMES` `"sauna"` finds SAUNA's names in
+  `SAUNA\` (the EXE's directory; `PAC.MID` is found at the root);
+  `tools/web/test.py` an alone check (it starts; Left, from the keyboard
+  and the pad, runs Pacman over the peanuts of his row and the score box
+  changes). **The touch pad** (one-button mode, or a minigame alone on a
+  touch screen) follows the program on top (`noite_top_program`): SAUNA's
+  is the four arrows (`PAD_KEYS.sauna = [37, 38, 39, 40]`), a proposal
+  for the owner. A tap on the picture is a left click that SAUNA receives
+  as is (the minigame filter passes the mouse): Pacman walks to it, so a
+  touch screen can play by tapping as well as with the pad. A long press
+  would be a right click on NOITE only; SAUNA's right click (playOnce) is
+  harmless.
 
 ### Harness, smoke and full.input
 
@@ -440,21 +462,13 @@ pharaoh (below), so it never meets the race.
   slide, harmless); `result` checks the 0x40a; `dump` frames. Nothing new.
 - **Smoke**: `tools/smoke.py --minigame sauna [--fix all] [--monkey
   SEED]`: random arrow presses and holds plus random left clicks
-  (`KEYS_FOR["sauna"]`), 60 s, seeds 1–5: no panic or leak; a result is
-  not required (random play usually loses its three lives within the
-  minute, and never clears the 100 dots). The scene smoke (`tools/smoke.py`
-  over every scene) reaches `3fsauna` and, once `ready`, starts the real
-  SAUNA when it right-clicks: it must keep running or end without a panic.
-- **full.input**: today it does not enter the sauna. Once SAUNA is ready,
-  the run gets a sauna detour with a planned win, placed after the
-  pharaoh's ENCAIXE (back in the hall, before door 5, the disco): the
-  hall door this run's shuffle gives the sauna, a right click on the
-  attendant, the planner's keys from SAUNA's computed start, `result won`,
-  back in the hall with the score added. Everything after it moves in time:
-  re-plan what depends on the clock (the bar quiz question) and re-check
-  the ending, in both versions (`--fix all,-avi_exit_ignores_timer`).
-  `onebutton.input` stays as it is (optional: SAUNA can be played there by
-  clicks).
+  (`sauna_keys_for`), 120 s, seeds 1–5: no panic or leak, and a result
+  (random play loses its three lives in 2 to 30 s; it never clears the 100
+  dots). The scene smoke (`tools/smoke.py` over every scene) right-clicks
+  in `3fsauna` and starts the real SAUNA, which runs on to the end of the
+  6-s run.
+- **full.input** and **onebutton.input** do not enter the sauna (their
+  routes never take its hall door) and stay so (Decisions).
 
 ## Platform
 
@@ -477,53 +491,56 @@ and `GetTickCount` (`plat.ticks()`) is the task's virtual clock.
 
 ## Tests
 
-- **Planner** `tools/sauna_plan.py --start MS (--win|--lose)
-  [--relative-to MS]` (MS: SAUNA's WM_CREATE: 0 alone, the WinExec time +
-  1500 from NOITE): an independent model of the game on the virtual clock,
-  as `tools/tiro_plan.py` is for TIRO, down to what decides a catch and a
-  turn: USER's timer order (Pacman's 0x10 before the ghosts' 0x11, the
-  power's 10, timer 1), the MSVC `rand()` seeded at 0x401, each ghost's
-  `ghost_choose_direction` (alignment within 16 px, `isNextStepFree`'s
-  wall look-ahead, rule 3), the Bresenham moves in 16-px steps, the
-  occupancy cells with the overwrite and clear of P1/P2, Pacman's dot
-  test (on arrival) and the power's start one message late, the death's
-  ticks.
-  `--check FILE` / `--trace FILE` simulate a script; the trace is the
-  port's, tick for tick (to be checked on random games, Original and
-  Corrigida). The search: a tour of the 100 dots over the maze graph (16-px
-  cells), driven by arrow presses timed to the step when the turn's first
-  cell is free (no turn buffering), with a lookahead that keeps Pacman two
-  cells or more from every ghost; a catch or a near meeting backtracks to
-  the last decision and waits or takes another branch. Corks are eaten
-  when it helps escape (eating ghosts is allowed but not needed).
-  **One script for both versions**: P1, P2, P6, P7 act only when an actor
-  meets Pacman, P4, P5, P8 only on the picture, so a plan that keeps its distance plays the same in the
-  Original and the Corrigida; the planner checks both and rejects a plan
-  whose outcome or score differs. A loss plans three catches spread apart
-  (each one after the previous death has ended, so P6 and P7 cannot add or
-  remove one): the same −1000 in both versions.
-- **Scripts** (`tools/play/`), each run Original and `--fix all`, the same
-  script, its result checked after the later of the two ends:
-  - `sauna-alone-win.input` (`--minigame sauna --ms 300000`): the 100
-    dots, `result won 10600` (9600 + 1000, if no ghost is eaten and no
-    life lost; the planner prints the exact score);
-  - `sauna-alone-lose.input` (`--ms 120000`): three catches, `result lost
-    S` (S = 100 per peanut eaten − 500 − 500 − 1000);
-  - `sauna-held-keys.input` (`--key-repeat 500,33`): arrows held for
-    seconds; the latches swallow the repeats (no change against the same
-    presses without repeat);
-  - `sauna-click.input`: Pacman walked by left clicks, the picture shown
-    (P5, `dump`) in both versions;
-  - `sauna-3fsauna-win.input` / `sauna-3fsauna-lose.input` (`--scene
-    3fsauna`): the right click on the attendant, NOITE hidden (`dump`), the
-    planner's keys (`--start` = the click's time + 1415 + 1500, rounded to
-    the host's step), `result won` and `3fhall` with the score added /
-    `result lost`, `3fhall` with a life less and the score lowered;
-  - `full.input` (and its `--fix` run): the sauna detour (above).
+- **Planner** `tools/sauna_plan.py [--scene 3fsauna --prefix FILE
+  --start MS] [-o FILE]`: the ghosts depend on `srand(GetTickCount())`
+  and on Pacman, so instead of modelling them (the plan once was a full
+  model, as `tools/tiro_plan.py`) it asks the port, as `tools/inv_plan.py`
+  does. It models Pacman alone (the 2×2 wall test, one cell per 55 ms, the
+  dot test, the peanut he is placed on), so it knows the score at the end
+  at any time; a probe runs the target run (SAUNA alone, or `--scene
+  3fsauna` with the `--prefix` lines that launch it) with the moves so far
+  and closes SAUNA's window at the move's horizon (four cells into the new
+  run, or 150 ms after a stop), and the reported score (+1000 back) must be
+  the modelled one, in the Original and with `--fix all` (or a win, when
+  the last dot falls before it). The moves: an arrow pressed 10 ms after
+  Pacman steps onto a junction turns him without a stop (or turns him back
+  anywhere); a run left alone ends at the wall; a left click one cell past
+  a junction, as he reaches the cell before it, stops him there
+  (`mover_at_target` stops a walk within a step); from standing, an arrow
+  after a wait of 0 to 4.4 s. The search is a beam: each level probes the
+  24 best-ranked moves of each of 10 states and keeps the 10 best that
+  pass (fewest dots left, then nearest the next dot, then soonest; at most
+  3 from one state and 2 on one cell). A depth-first search, stopping at
+  every junction, stalled for hours on the last dots: the ghosts follow
+  Pacman's row or column, so a stop lets them close in and one line of
+  play gets cornered. Each plan takes a few minutes on 32 cores (about
+  15,000 probes). Pacman never meets a ghost, so P1, P2, P6 and P7 never
+  act and P4, P5 and P8 change only pictures: one script for both
+  versions.
+- **Scripts** (`tools/play/`), each run in the Original and with `--fix
+  all`:
+  - `sauna-alone-win.input` (`--minigame sauna --ms 22500`): the
+    planner's 52 arrows and 3 clicks eat the 100 dots, `result won 10600`
+    at 21400;
+  - `sauna-alone-lose.input` (`--ms 47000`): no key; the ghosts catch the
+    standing Pacman three times: `result lost -1900` (the Original at
+    42790, the Corrigida at 44825: P1, P2 and P6 move the catches);
+  - `sauna-close.input` (`--ms 3000`): the window closed at 2 s, `result
+    lost -900` (End Task forfeits: design);
+  - `sauna-3fsauna-win.input` (`--scene 3fsauna --ms 28000`): the
+    right click at 1000, NOITE hidden at 3965, the planner's moves (from
+    `--start 4100`), `result won 10600`, NOITE shows itself, adds 10600
+    and goes to `3fhall` with its 3 lives;
+  - `sauna-3fsauna-lose.input` (`--ms 25000`): no key, `result lost
+    -1900`, `3fhall` with a life less (3 → 2) and the score −1900.
+  The plans are tied to SAUNA's start time (the ghosts' `rand` seed): rerun
+  the planner when it moves.
 - **Smoke**: `tools/smoke.py --minigame sauna [--fix all] [--monkey SEED]`
+  (above).- **Smoke**: `tools/smoke.py --minigame sauna [--fix all] [--monkey SEED]`
   (above).
 - **Web**: `tools/web/test.py` plays "Jogo" = Sauna Mista: SAUNA starts and
-  an arrow moves Pacman (two dumps differ).
+  Left, from the keyboard and from the pad, runs Pacman over the peanuts
+  of his row (the score box changes).
 - **Unit tests** (optional, tagged): `oracle=emulated` from tools/oracle
   (large model: far code and data, DGROUP 10b0; `_aFchkstk` 1098:00f8 is
   in the EXE and runs as is), as worth it: `pacman_can_step` and
@@ -679,25 +696,5 @@ noite -p sauna failed <unit> "why" / release <unit>
 
 ## Owner questions
 
-1. **P6's fix: immunity or a pause?** The flag as designed lets the ghosts
-   walk on during the 0.7-s death but takes no life from a meeting then.
-   The alternative is to stop the ghosts' timer arm while Pacman dies (they
-   freeze, as in the arcade game). The first changes less; say if you
-   prefer the second.
-2. **P2's fix** keeps every actor's cells marked (vacate clears only its
-   own, occupy does not overwrite another actor's). With it ghosts that
-   overlap at home (all four start at the same point) stay detectable
-   wherever they are: catches are a little more likely in the Corrigida.
-   It is in `all` as a bug fix; say if that should be a choice.
-3. **full.input**: add the sauna detour (a planned win between the pharaoh
-   and the disco), or keep the full run on its current route and leave
-   SAUNA to its own scripts?
-
-## Finishing
-
-When every unit is ported: the planner and the scripts above, the smoke
-option, then `ready = true` in `src/sauna/root.zig`, SAUNA in
-`web_main.minigames`, `MINIGAMES`/`PAD_KEYS` in `web/noite.js`, the "Jogo"
-option in `web/index.html`, the web manifest (`tools/web/files.py`), the
-README's minigame list, BUGS.md's P-entries' "Port:" lines (ported, the
-script that shows each), and a deploy (the owner's standing rule).
+1. **The touch pad**: the four arrows (each runs Pacman to the next wall),
+   a proposal like the other pads; taps on the maze walk him as well.
