@@ -1610,9 +1610,10 @@ consistent code with a plausible intent, and none is reached by a slip.
   the hall (with the jail minigame won) or back to the prison. Only NOITE's own fallback (the window
   gone without a result) posts a loss.
 - **Confidence:** 9.
-- **Port:** unit `gallery` (src/serial/, docs/serial/DESIGN.md), not ported yet; the fix is
+- **Port:** ported and reproduced (unit `gallery`, src/serial/); the fix is
   `Fixes.serial_result_won_by_lives` (`--fix serial_result_won_by_lives`, on in the Corrigida version: won = lives
-  left). NOITE's side stays as the original (`src/handlers/3farmcai.zig`).
+  left). NOITE's side stays as the original (`src/handlers/3farmcai.zig`). `tools/play/serial-3farmcai-lose.input`
+  shows it: the lost game keeps NOITE's three lives in the Original, takes one with the fixes.
 
 ### K2. The score is packed into the high word of the result
 - **Where:** `serial_scene_handle_message`, `WM_DESTROY` 1068:1598–15be; NOITE `handler_3farmcai`
@@ -1624,9 +1625,10 @@ consistent code with a plausible intent, and none is reached by a slip.
   (negative when the SERIAL score is). NOITE shows and saves only the low word (B19), so on screen the
   score grows by the lives left, or not at all; the hidden high word jumps by 500 or by `g_score`.
 - **Confidence:** 9 (code); 8 (that `MAKELONG(score, …)` or a plain score was meant).
-- **Port:** unit `gallery` (src/serial/, docs/serial/DESIGN.md), not ported yet; the fix is
+- **Port:** ported and reproduced (unit `gallery`, src/serial/); the fix is
   `Fixes.serial_score_in_low_word` (`--fix serial_score_in_low_word`, on in the Corrigida version: lParam = 500 or
-  `g_score`, sign-extended). NOITE's side stays as the original (`g.score +%= m.lparam`).
+  `g_score`, sign-extended). NOITE's side stays as the original (`g.score +%= m.lparam`). The SERIAL scripts in
+  `tools/play/` check both (`result won 32768004 | won 500`).
 
 ### K3. A hit goes to the first figure that overlaps the bullet in x, in any lane
 - **Where:** `projectile_try_step` 1068:12a5 (first stage) and `serial_scene_handle_message`, the bullet
@@ -1642,7 +1644,7 @@ consistent code with a plausible intent, and none is reached by a slip.
   whose left edge is 47–54 px right of the bullet's x as overlapped. With no match the bullet is spent
   with no score.
 - **Confidence:** 9 (code); 7 (how often players see it).
-- **Port:** unit `gallery` (src/serial/, docs/serial/DESIGN.md), not ported yet; the fix is
+- **Port:** ported and reproduced (unit `gallery`, src/serial/); the fix is
   `Fixes.serial_hit_needs_row` (`--fix serial_hit_needs_row`, on in the Corrigida version).
 
 ### K4. The SPACE latch is never set, so a held SPACE fires on every key repeat
@@ -1652,8 +1654,10 @@ consistent code with a plausible intent, and none is reached by a slip.
 - **Effect:** holding SPACE fires again as soon as the bullet is free, on every auto-repeat: a held key
   is an automatic gun. With unlimited shots nothing else limits it.
 - **Confidence:** 9 (code); 8 (effect, depends on the keyboard repeat rate).
-- **Port:** unit `gallery` (src/serial/, docs/serial/DESIGN.md), not ported yet; the fix is
+- **Port:** ported and reproduced (unit `gallery`, src/serial/); the fix is
   `Fixes.serial_space_latch` (`--fix serial_space_latch`, on in the Corrigida version).
+  `tools/play/serial-held-space.input` (`--key-repeat 500,33`) shows it: SPACE held 3 s fires 4 shots
+  in the Original, 1 with the fix.
 
 ### K5. The gun's timer id is also lane 2's spawn timer, whose branch never runs
 - **Where:** `serial_game_create_player` 1048:0029 (gun timer id 10); `serial_create_targets` 1068:013f
@@ -1667,7 +1671,7 @@ consistent code with a plausible intent, and none is reached by a slip.
   timer; until the first aim key the gun is repainted every 5 s instead of every 60 ms (nothing draws
   over it, so this is not seen).
 - **Confidence:** 9 (code); 6 (that lane 2 was meant to spawn on its own timer).
-- **Port:** units `target` and `gallery` (src/serial/, docs/serial/DESIGN.md), not ported yet; the fix is
+- **Port:** ported and reproduced (units `target` and `gallery`, src/serial/); the fix is
   `Fixes.serial_lane2_own_timer` (`--fix serial_lane2_own_timer`, a choice: left out of the Corrigida version
   (`Fixes.choices`) until the owner decides).
 

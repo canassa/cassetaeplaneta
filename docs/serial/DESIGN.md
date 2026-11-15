@@ -341,9 +341,9 @@ nested WM_DESTROY (it does nothing visible).
 
 ## Integration
 
-SERIAL is not ported yet: `src/serial/root.zig` has `ready = false`, so
-NOITE's WinExec keeps the stub and `--minigame serial` refuses to run.
-The root is wired in `main.minigames` (`src/main.zig`) as TIRO's.
+Every unit is ported and `src/serial/root.zig` has `ready = true`: NOITE's
+WinExec runs SERIAL as a task (`main.minigames`, `web_main.minigames`), and
+`--minigame serial` plays it alone; `--minigame-stub` keeps the stub.
 
 ### The launch from NOITE
 
@@ -382,14 +382,13 @@ NOITE. `--minigame-stub` keeps the stub (a win after the hello).
 - `noite --minigame serial [--headless …]`: SERIAL alone (task 0, its
   title, `\SERIAL` directory); prints its result (the host records the
   0x40a to hwnd 0: `won` = wParam ≠ 0, score = lParam as `i32`).
-- Web (at the finish, as TIRO's): `web_main.minigames` gets SERIAL as
-  `noite_start`'s next minigame index; `MINIGAMES` in `web/noite.js` and
-  the "Jogo" select of `web/index.html` ("Jogar só o minijogo: Serial
-  Killer"); `tools/web/files.py`'s `MINIGAMES` gets `serial` (names looked
-  up at the disc root, then in `SERIAL\`); `PAD_KEYS.serial = [37, 32, 39]`
-  (◀, the fire button, ▶: TIRO's pad) for the one-button mode and a
-  minigame alone on a touch screen. These shared files are edited only in
-  the finishing step, not by unit agents and not in this design pass.
+- Web: `web_main.minigames` has SERIAL as `noite_start`'s minigame 3;
+  `MINIGAMES` in `web/noite.js` and the "Jogo" select of `web/index.html`
+  ("Jogar só o minijogo: Serial Killer"); `tools/web/files.py`'s
+  `MINIGAMES` has `serial` (names looked up at the disc root, then in
+  `SERIAL\`: `doom2.mid` comes from the root); `PAD_KEYS.serial = [37,
+  32, 39]` (◀, the fire button, ▶: TIRO's pad) while SERIAL's window is on
+  top, alone or started from 3farmcai.
 
 ## Platform
 
@@ -400,66 +399,60 @@ every key to a minigame task (`Sim.filterInput`), the key repeat (500 ms,
 WaveMix, `SetSystemTimer` periods up to 60 000 ms, the host's task
 lifetime.
 
-One harness addition is needed for the tests, because K1/K2 make the
-Original and the Corrigida report different results for the same game
-(TIRO's scripts check one result for both): `result` takes an optional
-second expectation for runs with fixes, e.g. `result won 32768005 | won
-500` (the part after `|` is checked when the run has a `--fix` flag on).
-It goes in `src/platform/script.zig`/`harness.zig` with the integration
-step (a shared file: one change, its own commit).
+One harness addition serves the tests, because K1/K2 make the Original
+and the Corrigida report different results for the same game (TIRO's
+scripts check one result for both): `result` takes an optional second
+expectation for runs with fixes, e.g. `result won 32768004 | won 500`
+(the part after `|` is checked when the run has any `--fix` on;
+`src/platform/script.zig`, `harness.zig`).
 
 ## Tests
 
 - **Planner** `tools/serial_plan.py --start MS (--win|--lose)
   [--relative-to MS] [-o FILE]`, on `tools/tiro_plan.py`'s model. `MS` is
-  SERIAL's WM_CREATE (0 alone, WinExec + 1500 from NOITE); the seed is
-  `(800000000 + MS / 1000) & 0xffff` (the headless `unixTime`). It
-  simulates on the virtual clock what decides the game: the system timers
-  in USER's table order (a timer set again keeps its slot, a killed one
-  set again goes to the end: id 3 is re-armed by every spawn's
-  `moveToEdgeH`, id 10 by the gun's aim keys), every `rand()` in the
-  game's order (lane 0 `% 7`, lane 1 `% 6`, the lane-2 toggle's `% 2`
-  drawn before its busy test), the walks (20 px per tick, frames with
-  wrap, the edge tests), the killers' shots and `g_lives`, the clock, the
-  bullet's 20-px Bresenham steps every 55 ms toward (0 | 325 | 640, 10),
-  the occupancy grid of the first stage (32-px cells, the wall cells,
-  every occupy/vacate, stale cells included), the second stage in both
-  versions (K3), the hits (score by kind, the lane freed). It plans SPACE
-  presses at least 110 ms apart, with the bullet free and aim keys before
-  them, each with the same outcome in the Original and the Corrigida
-  (`--fix all`: K1–K4):
-  - `--win`: hit killers (kind 2, +200) and kind 1 (+100), never kind 0;
-    kill each killer before its shot when it can, so the game lasts the
-    two minutes with lives left;
-  - `--lose`: shoot nothing (or kind 0 only) until the killers' shots
-    take the five lives; a seed that gives too few killers in 120 s is
-    helped by clearing lanes (a hit frees its lane for the next spawn
-    tick), and the planner says when it cannot.
-  It prints both results (the Original's packed lParam, the Corrigida's)
-  and the end time. `--check FILE` / `--trace FILE` simulate a script
-  (held keys repeating as a run does, `--key-repeat`); the trace is the
-  port's tick for tick, checked on random games in both versions. Rerun
-  it when the start time moves.
+  SERIAL's WM_CREATE (0 alone, WinExec + 1500 from NOITE: 3210 from
+  `--scene 3farmcai`, whose video ends at 1710); the seed is
+  `(800000000 + MS / 1000) & 0xffff` (the headless `time()`). It simulates
+  on the virtual clock what decides the game: the system timers in USER's
+  table order (a timer set again keeps its slot, a killed one set again
+  goes to the end), every `rand()` in the game's order (lane 0 `% 7`, lane
+  1 `% 6`, the lane-2 toggle's `% 2` drawn before its busy test), the
+  walks (20 px a tick, frames with wrap, the edge tests), the killers'
+  shots and `g_lives`, the clock, the bullet's 20-px Bresenham steps every
+  55 ms and the occupancy grid of the first stage (32-px cells, the wall
+  cells, every occupy/vacate, stale cells included; the gun's rows are
+  left out: no query reaches them), the second stage in both versions
+  (K3), the hits. A plan presses SPACE with the bullet free, 110 ms or
+  more after the last press, aim keys before it, and keeps a shot only
+  when both versions hit the same figure with it:
+  - `--win` shoots killers (kind 2) only, as soon as one can be hit: the
+    clock ends the game with lives left (3 shots alone);
+  - `--lose` shoots kinds 0 and 1 only (each hit frees a lane, so more
+    figures, killers among them, come) until the lives run out.
+  It prints both results (the Original's packed lParam, the Corrigida's).
+  `--check FILE` / `--trace FILE` simulate a script, held keys repeating
+  as a run does (`--key-repeat`). The trace was checked tick for tick
+  (every walk step, bullet step and hit) against the port's on 12 random
+  games of 130 s with presses and held keys, Original and Corrigida.
+  Rerun it when the start time moves.
 - **Scripts** (`tools/play/`), each run Original and `--fix all`, one
-  script, the result checked after the later end with the two-part
-  `result` (Platform):
-  - `serial-alone-win.input` (`--minigame serial --ms 130000`): survives
-    the clock with N lives: `result won 32768000+N | won 500`;
-  - `serial-alone-lose.input`: the lives run out: `result won
-    <score·65536> | lost <score>` (the Original's K1 win);
-  - `serial-held-space.input` (`--key-repeat 500,33`): SPACE held a few
-    seconds; the Original fires on every repeat once the bullet is free
-    (K4), the Corrigida once; the planner's `--check` gives each
-    version's score and result;
+  script, the two-part `result` (Platform):
+  - `serial-alone-win.input` (`--minigame serial --ms 125000`): three
+    killers, 4 lives at 120 s: `result won 32768004 | won 500`;
+  - `serial-alone-lose.input` (`--ms 90000`): 34 shots at kinds 0 and 1
+    (+200); the lives run out at 87.6 s: `result won 13107200 | lost 200`
+    (the Original's K1 win);
+  - `serial-held-space.input` (`--ms 125000 --key-repeat 500,33`): SPACE
+    held 3 s, aimed right: 4 shots in the Original (K4: score 0), 1 with
+    the fixes (-100); both survive with 2 lives;
   - `serial-3farmcai-win.input` / `serial-3farmcai-lose.input`
-    (`--scene 3farmcai`): the video, SERIAL started (NOITE hidden: a
-    `dump`), the planner's shots (`--start` = the video's end + 1500,
-    read from a run), the result, then NOITE back in `3fprisao` with
-    `state` showing the score and the lives: the Original adds the packed
-    lParam and keeps the life even on the loss (K1, K2); the Corrigida
-    adds +500, or `g_score` and a life less. (The `3fhall` branch needs
-    XILINDRO's `minigameWon[3]`; it is covered once XILINDRO's route is
-    scripted.)
+    (`--scene 3farmcai`): the video, SERIAL started (a `dump`), the
+    planner's shots (`--start 3210`), the result, then NOITE back in
+    `3fprisao` (`expect`, `state`): the win adds 32768003 in the Original,
+    500 with the fixes; the loss adds 6553600 and keeps the life in the
+    Original (K1, K2), adds 100 and takes a life with the fixes. (The
+    `3fhall` branch needs XILINDRO's `minigameWon[3]`; it is covered once
+    XILINDRO's route is scripted.)
   - `full.input` and `onebutton.input` do not pass `3farmcai` (their
     route leaves the prison by the street escape): unchanged.
 - **Smoke**: `tools/smoke.py --minigame serial [--fix all] [--monkey
@@ -467,8 +460,8 @@ step (a shared file: one change, its own commit).
   130 s (`KEYS_FOR["serial"]` = TIRO's generator), seeds 1–5: no panic or
   leak, and a result (by 120 s, earlier when the lives run out).
 - **Web**: `tools/web/test.py` plays "Jogo" = Serial Killer: SERIAL starts
-  and SPACE fires (the bullet leaves the gun: a checksum of the area
-  above it).
+  and SPACE fires (the area above the gun changes: the bullet), and on a
+  touch screen the pad shows ◀, fire, ▶ and the fire button fires.
 - **Unit tests** (optional, tagged): `oracle=emulated` from tools/oracle
   (far code, DGROUP 1090, `_aFchkstk` 1080:00e4 runs as is), as worth it:
   `target_start_timer` (the index → field map), `target_wrap_at_edge`,
@@ -590,12 +583,3 @@ noite -p serial failed <unit> "why" / release <unit>
    `asset` from `assets/SERIAL/`, `documented` from Ghidra.
 8. `noite test`, commit (commit skill), `noite -p serial finish <unit>`
    from the main checkout.
-
-## Finishing
-
-Once every unit is done: the harness's two-part `result`, the planner and
-the scripts (Tests), `KEYS_FOR["serial"]` in `tools/smoke.py`, the web
-wiring (Integration), then `ready = true` in `src/serial/root.zig`; the
-three suites (`full.input`, smoke, the SERIAL scripts) in both versions;
-BUGS.md K1–K5 "Port:" lines updated to ported; README's "Running the
-port" and "Testing the port" entries.

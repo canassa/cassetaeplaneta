@@ -26,7 +26,8 @@ Reverse-engineering the 1995 ATR Multimedia point-and-click adventure
 - `build.zig`, `src/` — the Zig port; its architecture is `docs/DESIGN.md`.
   `src/units.zig` is generated. `src/encaixe/` — ENCAIXE.EXE's port
   (`docs/encaixe/DESIGN.md`); `src/platform/host.zig` runs it as a second program.
-  `src/tiro/` — TIRO.EXE's port (`docs/tiro/DESIGN.md`), run the same way.
+  `src/tiro/` — TIRO.EXE's port (`docs/tiro/DESIGN.md`), run the same way;
+  `src/serial/` — SERIAL.EXE's (`docs/serial/DESIGN.md`).
 - `tools/cli/` — the `noite` port tracker (uv workspace member);
   `db/port.sqlite` — its database (local, not in git; `noite import` builds it).
 

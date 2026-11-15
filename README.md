@@ -29,17 +29,18 @@ click on a door, an item or a character does what a right click did (the
 player walks over to a door first; a tap on the player walks, even over an
 item he hides), anything else walks; an inventory
 item is tapped then placed with the next click, or dragged. ENCAIXE
-(3ffarao's Tetris, `src/encaixe/`, `docs/encaixe/DESIGN.md`) and TIRO
-(3fhall's shooting gallery, `src/tiro/`, `docs/tiro/DESIGN.md`) are
+(3ffarao's Tetris, `src/encaixe/`, `docs/encaixe/DESIGN.md`), TIRO
+(3fhall's shooting gallery, `src/tiro/`, `docs/tiro/DESIGN.md`) and SERIAL
+(3farmcai's Serial Killer, `src/serial/`, `docs/serial/DESIGN.md`) are
 ported: NOITE runs them as second programs (`src/platform/host.zig`), and
-`--minigame encaixe|tiro` plays one alone. The other minigames (separate
+`--minigame encaixe|tiro|serial` plays one alone. The other minigames (separate
 EXEs) are stubbed, and the ported ones too with `--minigame-stub`: they
 report a win, or a loss with `--minigame-result lose`; their window shows 1.5 s
 after `WinExec` and answers the game's hello after 100 ms
 (`--minigame-startup MS`, `--minigame-reply MS`). A held key repeats as on
 Windows (500 ms, then every 33 ms; `--key-repeat DELAY,PERIOD|off`), in
 the window, the browser and headless runs. A minigame gets every key
-(TIRO: LEFT, RIGHT, SPACE); NOITE gets Enter, Esc and Space only to skip
+(TIRO and SERIAL: LEFT, RIGHT, SPACE); NOITE gets Enter, Esc and Space only to skip
 videos.
 Saves go to `save/` (`--save DIR`).
 
@@ -52,8 +53,8 @@ Saves go to `save/` (`--save DIR`).
   `rclick`, `hold`, `offer`, `wait SCENE`, `expect SCENE`, `drawn ID 0|1`, `pixel X Y INDEX`, `where ID`, `dump`, `state`,
   `report FILE` (the state as JSON, as the web page's Relatório),
   `focus 0|1`, `freeze MS` (a time jump: the clock runs on while nothing is
-  dispatched, as in a hidden web page), `result won|lost|none [SCORE]` (the
-  last real minigame's 0x40a), `quit`…; input goes to the active window's
+  dispatched, as in a hidden web page), `result won|lost|none [SCORE] [| won|lost|none [SCORE]]`
+  (the last real minigame's 0x40a; the part after `|` is what a run with a `--fix` must get), `quit`…; input goes to the active window's
   program), `--dump DIR [--dump-every MS]` writes PNG frames of the screen
   (and of the SDL window), `--scene NAME [--take ID,…]` starts in any INI
   scene carrying those items, `--trace FILE` logs every message. A panic or
@@ -102,6 +103,20 @@ Saves go to `save/` (`--save DIR`).
   `tools/tiro_plan.py --start MS --win|--lose` (it simulates the game; the targets follow from
   TIRO's start time: rerun it when that moves; `--check FILE` simulates a script). `tools/smoke.py
   --minigame tiro [--fix all] [--monkey SEED]` presses random aim keys and SPACE for 60 s.
+- **SERIAL**: `--minigame serial --ms 125000 --input tools/play/serial-alone-win.input` (three
+  killers shot, the clock ends it with 4 lives: `result won 32768004 | won 500`) and `--ms 90000
+  --input tools/play/serial-alone-lose.input` (the killers take the five lives: `won 13107200 |
+  lost 200`); from NOITE, `--scene 3farmcai --ms 126000 --input tools/play/serial-3farmcai-win.input`
+  (NOITE hides, gets the result, the prison) and `--ms 36000 --input
+  tools/play/serial-3farmcai-lose.input` (the Corrigida takes a life); `--minigame serial --ms
+  125000 --key-repeat 500,33 --input tools/play/serial-held-space.input` holds SPACE (BUGS.md K4: 4
+  shots in the Original, 1 with the fixes). Each the same with `--fix all`: one game in both
+  versions, the result differing by BUGS.md K1/K2 only (the Original reports every game as a win,
+  the score packed in the high word), so each `result` line carries both. The shots come from
+  `tools/serial_plan.py --start MS --win|--lose` (it simulates the game; the figures follow from
+  SERIAL's start time: rerun it when that moves; `--check FILE` simulates a script, `--trace FILE`
+  prints every tick). `tools/smoke.py --minigame serial [--fix all] [--monkey SEED]` presses random
+  aim keys and SPACE for 130 s.
 - **SDL without a display**: `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy`
   (or `disk` with `SDL_AUDIO_DISK_OUTPUT_FILE=out.raw` to capture the mix).
 
@@ -122,5 +137,5 @@ Corrigida = `--fix all`), whether videos can be skipped (on by
 default) and the one-button control (on by default on touch screens), then
 runs the game; saves go to localStorage, apart per version. "Jogo" picks
 the whole game or one ported minigame alone (Encaixe Perfeito, Tiro ao
-Álvaro). On a touch screen the on-screen pad shows the keys of the window
-on top: for TIRO ◀, a fire button and ▶.
+Álvaro, Serial Killer). On a touch screen the on-screen pad shows the keys
+of the window on top: for TIRO and SERIAL ◀, a fire button and ▶.

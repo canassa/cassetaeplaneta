@@ -140,9 +140,10 @@ map $arg_h $noite_cache {
   trace=openat` logs of native runs and `--check` fails if one opened a
   file the static rules missed — run over the playthrough and six smoke
   runs (plain, `--offers`, `--minigame-result lose`, `--monkey 1-3`), none was missing.
-  A ported minigame's names (`src/encaixe/`, `src/tiro/`) are looked for
-  at the disc root, then in its EXE's directory, as the host does
-  (`ENCAIXE/TETRFUN.BMP`, `PECA*.BMP`, `TIRO/FUNDTIRO.BMP`, `TIRO/*.WAV`…;
+  A ported minigame's names (`src/encaixe/`, `src/tiro/`, `src/serial/`)
+  are looked for at the disc root, then in its EXE's directory, as the host
+  does (`ENCAIXE/TETRFUN.BMP`, `PECA*.BMP`, `TIRO/FUNDTIRO.BMP`,
+  `TIRO/*.WAV`, `SERIAL/FUNDO.BMP`, `SERIAL/3S*.BMP`…;
   `DOOM2.MID` and `PAC.MID` are found at the root first).
   Left out: the EXEs and DLLs, the stubbed minigames' directories,
   installers, drivers, the other fonts, unreferenced files.
@@ -160,7 +161,7 @@ map $arg_h $noite_cache {
   gesture) once the files are loaded; the choice is kept in localStorage
   (`noite:prefs`, the page works without it) and passed to
   `noite_start(fixes, skip_videos, one_button, minigame)`; "Jogo" sets
-  `minigame` (0 the whole game, 1 Encaixe Perfeito, 2 Tiro ao Álvaro alone: `MINIGAMES` in
+  `minigame` (0 the whole game, 1 Encaixe Perfeito, 2 Tiro ao Álvaro, 3 Serial Killer alone: `MINIGAMES` in
   noite.js, disabled until its `ready`; `noite_start` returns 3 for an
   unported one). A line under the canvas names the
   version and reloads into the other one (`?versao=corrigida|original`,
@@ -204,7 +205,7 @@ map $arg_h $noite_cache {
   leaves on its right or below it, whichever keeps the game larger): held, they hold
   the arrow keys, for the walks a click's straight line can't make (past
   the cat in 1fsala). They follow the window on top (`noite_top_program`,
-  `PAD_KEYS` in noite.js): for TIRO ◀, a fire button (Space) and ▶.
+  `PAD_KEYS` in noite.js): for TIRO and SERIAL ◀, a fire button (Space) and ▶.
   Keys pass to the game as pressed, the browser's repeats dropped: `Sim`
   repeats a held key (500 ms, then every 33 ms).
 - **Loop.** `noite_frame` (`src/web_main.zig`), called on every
@@ -240,7 +241,7 @@ map $arg_h $noite_cache {
   The Corrigida version keeps its own (`noite:corrigida:save:…`): a save
   can hold what only one version produces (a 32-bit score, B19; a scene
   only the fixes reach), so the versions never load each other's.
-- **Minigames.** ENCAIXE and TIRO run in the same wasm as a second task
+- **Minigames.** ENCAIXE, TIRO and SERIAL run in the same wasm as a second task
   (`src/platform/host.zig`, docs/encaixe/DESIGN.md) and the canvas shows
   its window. The others are stubbed as in the native port (a win after a
   few seconds); while one "runs" the page shows a note instead of the
@@ -370,8 +371,10 @@ restamped and served at the same origin; the reload downloads only that
 file, runs the new `noite.js`, drops the stale cache entry and starts the
 game. Then "Jogo" = Encaixe Perfeito starts the minigame alone and a
 left arrow moves its falling piece one column, without page errors
-(`encaixe.png`, `encaixe-left.png`); last, "Jogo" = Tiro ao Álvaro: SPACE
+(`encaixe.png`, `encaixe-left.png`); then "Jogo" = Tiro ao Álvaro: SPACE
 fires (`tiro.png`, `tiro-fire.png`), and on a touch screen the pad's fire
-button does (`tiro-touch.png`). Screenshots go to
+button does (`tiro-touch.png`); last, "Jogo" = Serial Killer: SPACE sends
+the bullet up from the gun (`serial.png`, `serial-fire.png`), and the touch
+pad's fire button does (`serial-touch.png`). Screenshots go to
 `zig-out/web-test/` (`title.png`, `bedroom.png`, `drawer.png`,
 `window-*.png`, `cache.png`).
