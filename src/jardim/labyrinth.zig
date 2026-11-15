@@ -22,6 +22,7 @@ const raycast = @import("raycast.zig");
 const sprites = @import("sprites.zig");
 const tables = @import("tables.zig");
 const render = @import("behaviour/render.zig");
+const wolf = @import("wolf.zig");
 
 // @orig 1028:0dfb labyrinth_backdrop_ctor
 /// The base constructor on `bmpName` (origin 0,0, view 640 x 480), the vtable, and the state
@@ -80,6 +81,8 @@ pub fn create(g: *Game, bd: *Backdrop) *Backdrop {
     q.* = .{};
     bd.spriteQueue = sprites.ctor(q);
     g.setSystemTimer(1, 0x37);
+    // Not in the original: the Corrigida's motion timer (`wolf.zig`).
+    if (g.fixes.jardim_smooth_movement) wolf.start(g);
     return bd;
 }
 

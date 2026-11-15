@@ -1,0 +1,88 @@
+# JARDIM alone in the Corrigida, a loss: the controls screen down at 300, the planner walks to the
+# nearest Seios, presses into it (W 250 ms) and backs off (S 400 ms), again and again. J6's rule
+# (once per contact): a life the first time (8830); the scream's end puts the player back at the
+# start; the second life at 18030 (a Seios step wave cuts the scream, so no respawn); presses while
+# the Seios stays next to him cost nothing; the last life when it is touched anew: lost at 24934,
+# -1500 (-500 for the respawn).
+#
+#   zig-out/bin/noite --minigame jardim --headless --ms 27000 --fix all --input tools/play/jardim-corrigida-alone-lose.input
+300 key return
+410 hold right 487
+500 dump start
+917 hold shift 384
+917 hold w 364
+1351 hold right 16
+1387 hold shift 370
+1387 hold w 350
+1807 hold left 16
+1843 hold w 392
+2305 hold left 744
+3069 hold shift 387
+3069 hold w 367
+3506 hold right 16
+3542 hold shift 384
+3542 hold w 364
+3976 hold right 30
+4026 hold shift 356
+4026 hold w 336
+4432 hold left 16
+4468 hold shift 412
+4468 hold w 392
+4930 hold shift 384
+4930 hold w 364
+5364 hold left 16
+5400 hold shift 415
+5400 hold w 395
+5865 hold right 730
+6615 hold w 197
+6882 hold left 744
+7646 hold shift 298
+7646 hold w 278
+7994 hold left 730
+8744 hold w 250
+8900 dump meeting
+9044 hold s 400
+9554 hold left 1459
+11033 hold w 250
+11333 hold s 400
+11843 hold shift 409
+11843 hold w 389
+12302 hold left 16
+12338 hold shift 381
+12338 hold w 361
+12769 hold right 16
+12805 hold shift 289
+12805 hold w 269
+13144 hold left 759
+13923 hold shift 384
+13923 hold w 364
+14357 hold right 59
+14436 hold shift 385
+14436 hold w 365
+14871 hold left 30
+14921 hold shift 384
+14921 hold w 364
+15355 hold shift 370
+15355 hold w 350
+15775 hold shift 384
+15775 hold w 364
+16209 hold shift 384
+16209 hold w 364
+16643 hold right 16
+16679 hold shift 370
+16679 hold w 350
+17099 hold left 744
+17863 hold w 250
+18163 hold s 400
+18673 hold right 673
+19366 hold w 187
+19623 hold left 1416
+21059 hold w 250
+21359 hold s 400
+21869 hold left 1473
+23362 hold w 250
+23662 hold s 400
+24172 hold left 730
+24922 hold w 250
+25222 hold s 400
+26000 result lost -1500

@@ -8,6 +8,7 @@
 # ending (6fsai2).
 #
 #   zig-out/bin/noite --headless --scene 4fjarvamp --ms 76000 --input tools/play/jardim-4fjarvamp-win.input
+#   zig-out/bin/noite --headless --scene 4fjarvamp --ms 76000 --fix all,-jardim_smooth_movement,-jardim_wolf_keys,-jardim_controls_screen,-jardim_game_timer_only,-jardim_wall_margin --input tools/play/jardim-4fjarvamp-win.input
 1910 hold left 1
 1940 hold left 1
 1970 hold left 1

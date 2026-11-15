@@ -227,7 +227,9 @@ pub fn drawEntry(g: *Game, entry: *SpriteQueueEntry, bd: *Backdrop) void {
         const src_x: i16 = lo16(ldiv(lmul(clip_left, 300), scale)) +% position.frameSrcX(obj);
         const src = position.dib(obj).?;
         _ = scaled.dibStretchCopyTransparent(&bd.bmiHeader, bd.pixels, obj.x +% lo16(clip_left), obj.y, lo16(clip_right -% clip_left), lo16(h), src.bits, &src.header, src_x, src_y, src_w, src_h, g.spriteKey, g.fixes);
-        if (obj.isEnemy != 0) {
+        // Not in the original: a motion frame (`g.viewOnly`, `wolf.zig`) only shows the
+        // enemies; they act on the game tick's frames.
+        if (obj.isEnemy != 0 and !g.viewOnly) {
             const scene = bd.scene.?;
             scene.playEnemyStepSound(g, obj);
             if (position.frameCount(obj) -% obj.curFrame == 1) {
@@ -241,7 +243,7 @@ pub fn drawEntry(g: *Game, entry: *SpriteQueueEntry, bd: *Backdrop) void {
             if (bd.lives == 0) _ = g.post(msg.Msg.make(msg.wm.destroy, 0, 0, 0));
         }
     }
-    if (obj.isEnemy != 0) {
+    if (obj.isEnemy != 0 and !g.viewOnly) {
         const nx: i16 = obj.worldX +% lo16(ldiv(-0x200000, t5[ang]));
         const ny: i16 = obj.worldY +% lo16(ldiv(-0x200000, t6[ang]));
         const wall = bd.wallRows[cell(ny, world.map_rows)][cell(nx, world.map_cols + 1)];

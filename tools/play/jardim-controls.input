@@ -1,0 +1,26 @@
+# JARDIM alone in the Corrigida: the controls screen, then the Wolf-like movement
+# (docs/jardim/DESIGN.md "Decisions"). The screen is up from WM_CREATE (its yellow frame at
+# x 44) and keeps the game until Enter at 1500; then, from the start (912, 48) facing 60°:
+# ← turns to north (245 ms: 17 tics of 14 units), W walks 1 s north (179 units: the
+# minimap's red marker 11 px up), D strafes 300 ms east (54 units, the marker 3 px right)
+# while facing north, → twice turns to south, Shift+W runs back to the wall (the marker
+# where it started, 3 px right). Corrigida only: the Original has none of it.
+#
+#   zig-out/bin/noite --minigame jardim --headless --ms 7500 --fix all --input tools/play/jardim-controls.input [--dump DIR]
+200 dump controls
+1400 pixel 44 100 251
+1500 key return
+1700 pixel 44 100 25
+1700 hold left 245
+2200 hold w 1000
+3300 pixel 569 188 249
+3300 dump north
+3400 hold d 300
+3900 pixel 573 188 249
+3900 dump strafe
+4000 hold right 735
+5000 hold right 735
+6000 hold shift 700
+6000 hold w 600
+6800 pixel 573 199 249
+6800 dump south

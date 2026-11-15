@@ -9,6 +9,7 @@
 # with every bug fix on the 1995 controls won 15340.
 #
 #   zig-out/bin/noite --headless --scene espquete --ms 96000 --input tools/play/jardim-espquete-win.input
+#   zig-out/bin/noite --headless --scene espquete --ms 96000 --fix all,-jardim_smooth_movement,-jardim_wolf_keys,-jardim_controls_screen,-jardim_game_timer_only,-jardim_wall_margin --input tools/play/jardim-espquete-win.input
 21575 hold left 1
 21605 hold left 1
 21635 hold left 1

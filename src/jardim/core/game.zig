@@ -43,6 +43,39 @@ pub fn StripTable(comptime n: usize) type {
 /// `Queue.postpone`). One place to tune it (docs/jardim/DESIGN.md "Platform: frame cost").
 pub const render_cost_ms: u32 = 100;
 
+/// `fixes.jardim_smooth_movement`'s state (`wolf.zig`).
+pub const WolfState = struct {
+    /// The clock at the last motion step (ms).
+    lastMs: u32 = 0,
+    /// Thousandths of a 70-Hz tic not yet run.
+    ticAcc: u32 = 0,
+    /// The player's position below the unit (1/65536 unit).
+    fracX: i32 = 0,
+    fracY: i32 = 0,
+    /// Scroll remainders: angle units for the sky (6 a pixel) and the floor
+    /// (3 a pixel), 1/65536 units for the floor's forward scroll.
+    skyAcc: i32 = 0,
+    floorXAcc: i32 = 0,
+    floorYAcc: i32 = 0,
+    /// Game ticks (timer 1) so far, and the one of the last repeated touch
+    /// (an enemy pressed into without J6's fix: once a game tick).
+    gameTick: u32 = 0,
+    touchedTick: u32 = 0xffff_ffff,
+};
+
+/// J6's fix: an enemy in contact (`labyrinth_input.touchObject`).
+pub const Contact = struct { obj: ?*Object = null };
+
+/// `fixes.jardim_controls_screen`'s state (`controls.zig`).
+pub const ControlsState = struct {
+    /// The screen is up: the game gets no input and no timer.
+    up: bool = false,
+    /// When it went up.
+    shownAt: u32 = 0,
+    /// The key that took it down: its repeats and release stay out.
+    heldKey: ?u16 = null,
+};
+
 pub const Game = struct {
     gpa: std.mem.Allocator,
     plat: Platform,
@@ -121,10 +154,16 @@ pub const Game = struct {
     lastMoveKey: i16 = 0,
     // @orig g_keyAltContext (written only)
     keyAltContext: i16 = 0,
-    // No counterpart: J6's latch (`fixes.jardim_enemy_blocks_walk`): the last
-    // step was undone by `touch`; the tick does not repeat a walk until an
-    // arrow is pressed again.
-    enemyBlockedWalk: bool = false,
+    // No counterpart: J6's fix (`fixes.jardim_enemy_once_per_contact`): the
+    // enemies (each kind is one object) the player is in contact with.
+    contacts: [4]Contact = @splat(.{}),
+    // No counterpart: the Corrigida's Wolf3D movement (`wolf.zig`).
+    wolf: WolfState = .{},
+    // No counterpart: the Corrigida's controls screen (`controls.zig`).
+    controls: ControlsState = .{},
+    // No counterpart: a frame that only shows the view (`wolf.zig`'s motion
+    // frames): the hands do not sway, the enemies neither act nor animate.
+    viewOnly: bool = false,
     // @orig g_shotSecLo / g_shotSecHi (tables[5] at the firing angle)
     shotSec: i32 = 1,
     // @orig g_shotCscLo / g_shotCscHi (tables[6] at the firing angle)

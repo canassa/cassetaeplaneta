@@ -10,6 +10,7 @@ const msg = @import("../core/msg.zig");
 const Msg = msg.Msg;
 const game = @import("core/game.zig");
 const Game = game.Game;
+const Contact = @import("core/game.zig").Contact;
 const object = @import("core/object.zig");
 const Object = object.Object;
 const world = @import("core/world.zig");
@@ -21,6 +22,7 @@ const hud = @import("hud.zig");
 const labyrinth = @import("labyrinth.zig");
 const raycast = @import("raycast.zig");
 const sprites = @import("sprites.zig");
+const wolf = @import("wolf.zig");
 
 const vk_shift: u16 = 0x10;
 const vk_control: u16 = 0x11;
@@ -254,7 +256,7 @@ fn coast(g: *Game, bd: *Backdrop) void {
         labyrinth.renderFrame(g, bd, g.shotCellObject);
         return;
     }
-    if (bd.moveSpeed < 0x10 or (bd.moveSpeed < 0x11 and bd.moveRamp == 0) or g.enemyBlockedWalk) {
+    if (bd.moveSpeed < 0x10 or (bd.moveSpeed < 0x11 and bd.moveRamp == 0)) {
         g.lastMoveKey = 0x10;
         return;
     }
@@ -297,7 +299,6 @@ fn walkHeld(g: *Game, bd: *Backdrop, forward: bool) void {
 
 /// WM_SYSTIMER with an arrow held. Returns the pending idle frame (a pure turn).
 fn tickHeld(g: *Game, bd: *Backdrop) void {
-    const blocked = g.fixes.jardim_enemy_blocks_walk and g.enemyBlockedWalk;
     var render_pending = false;
     if (g.keyRightDown != 0 or g.keyLeftDown != 0) {
         const right = g.keyRightDown != 0;
@@ -305,9 +306,7 @@ fn tickHeld(g: *Game, bd: *Backdrop) void {
         bd.moveSpeed = 0x10;
         g.lastMoveKey = if (right) 0x27 else 0x25;
         if (keyHeld(g, vk_capital)) {
-            if (blocked) {
-                render_pending = true;
-            } else if (right) strafeRight(g, bd) else strafeLeft(g, bd);
+            if (right) strafeRight(g, bd) else strafeLeft(g, bd);
         } else {
             const shift = keyHeld(g, vk_shift);
             const step: i32 = if (shift) 0x60 else 0x30;
@@ -316,17 +315,14 @@ fn tickHeld(g: *Game, bd: *Backdrop) void {
         }
     }
     if (g.keyUpDown != 0 or g.keyDownDown != 0) {
-        if (blocked) {
-            render_pending = true;
-        } else {
-            walkHeld(g, bd, g.keyUpDown != 0);
-            render_pending = false;
-        }
+        walkHeld(g, bd, g.keyUpDown != 0);
+        render_pending = false;
     }
     if (render_pending) labyrinth.renderFrame(g, bd, g.shotCellObject);
 }
 
 fn tick(g: *Game, bd: *Backdrop) void {
+    g.wolf.gameTick +%= 1;
     if (bd.shotInFlight != 0) shotStep(g, bd);
     if (g.keysDownCount == 0) {
         coast(g, bd);
@@ -336,13 +332,14 @@ fn tick(g: *Game, bd: *Backdrop) void {
 }
 
 fn keyDown(g: *Game, bd: *Backdrop, m: Msg) void {
+    // `jardim_smooth_movement`: the arrows are polled by the motion step (`wolf.zig`).
+    if (g.fixes.jardim_smooth_movement and m.wparam >= 0x25 and m.wparam <= 0x28) return;
     switch (m.wparam) {
         0x25 => {
             if (g.keyLeftDown == 0) {
                 g.keyLeftDown = 1;
                 g.keysDownCount +%= 1;
                 if (keyHeld(g, vk_capital)) {
-                    g.enemyBlockedWalk = false;
                     strafeLeft(g, bd);
                 } else {
                     turnLeft(bd, 0x30);
@@ -357,7 +354,6 @@ fn keyDown(g: *Game, bd: *Backdrop, m: Msg) void {
                 g.keyRightDown = 1;
                 g.keysDownCount +%= 1;
                 if (keyHeld(g, vk_capital)) {
-                    g.enemyBlockedWalk = false;
                     strafeRight(g, bd);
                 } else {
                     turnRight(bd, 0x30, false);
@@ -369,7 +365,6 @@ fn keyDown(g: *Game, bd: *Backdrop, m: Msg) void {
         },
         0x26 => {
             if (g.keyUpDown == 0) {
-                g.enemyBlockedWalk = false;
                 setVelocity(g, bd, 0x100000, 0, false);
                 bd.floorScrollY +%= 10;
                 if (bd.viewHalfH <= bd.floorScrollY) bd.floorScrollY = 0;
@@ -380,7 +375,6 @@ fn keyDown(g: *Game, bd: *Backdrop, m: Msg) void {
         },
         0x28 => {
             if (g.keyDownDown == 0) {
-                g.enemyBlockedWalk = false;
                 setVelocity(g, bd, -0x100000, 0, false);
                 bd.floorScrollY -%= 10;
                 if (bd.floorScrollY < 0) bd.floorScrollY +%= bd.viewHalfH;
@@ -482,12 +476,65 @@ pub fn handleMessage(g: *Game, bd: *Backdrop, m: Msg) u16 {
             return 1;
         },
         msg.wm.systimer => {
+            // Not in the original: the Corrigida's motion timer (`wolf.zig`).
+            if (g.fixes.jardim_smooth_movement and m.wparam == wolf.timer_id) {
+                wolf.motion(g, bd);
+                return 1;
+            }
+            // J8: any WM_SYSTIMER ticks the game, timer 10's (50 ms) too; fixed,
+            // only timer 1's (55 ms).
+            if (g.fixes.jardim_game_timer_only and m.wparam != game_timer_id) return 1;
             tick(g, bd);
             frameCost(g);
             return 1;
         },
         else => return 0,
     }
+}
+
+/// The step's touch: the scene's `touch` (non-zero: an enemy, the step is undone). J6's fix:
+/// an enemy touched is a contact; pressed into again before the player has moved away from it
+/// (`leaveContact`) it blocks the step without touching it again. Every enemy of a kind is
+/// one object, so a contact is per kind.
+pub fn touchObject(g: *Game, bd: *Backdrop, obj: *Object) i16 {
+    if (g.fixes.jardim_enemy_once_per_contact and obj.isEnemy != 0) {
+        var free: ?*Contact = null;
+        for (&g.contacts) |*c| {
+            if (c.obj == obj) return 1;
+            if (c.obj == null and free == null) free = c;
+        }
+        (free orelse &g.contacts[0]).* = .{ .obj = obj };
+    }
+    return bd.scene.?.touch(g, obj);
+}
+
+/// J6's fix: a contact ends once the player has moved away from the enemy: neither his cell
+/// nor the eight around it holds it.
+pub fn leaveContact(g: *Game, bd: *Backdrop) void {
+    const row = bd.playerY >> 5;
+    const col = bd.playerX >> 5;
+    for (&g.contacts) |*c| {
+        const obj = c.obj orelse continue;
+        var near = false;
+        var r = row - 1;
+        while (r <= row + 1) : (r += 1) {
+            var k = col - 1;
+            while (k <= col + 1) : (k += 1) {
+                if (r < 0 or r >= world.map_rows or k < 0 or k >= world.map_cols) continue;
+                if (bd.objectRows[@intCast(r)][@intCast(k)] == obj) near = true;
+            }
+        }
+        if (!near) c.* = .{};
+    }
+}
+
+/// After a touch: health 0 costs a life (health back to 100), no lives left posts the loss.
+pub fn lifeCheck(g: *Game, bd: *Backdrop) void {
+    if (bd.health < 1) {
+        bd.health = 100;
+        bd.lives -%= 1;
+    }
+    if (bd.lives == 0) _ = g.post(Msg.make(msg.wm.destroy, 0, 0, 0));
 }
 
 // @orig 1028:3e23 labyrinth_move_and_render
@@ -527,23 +574,20 @@ pub fn moveAndRender(g: *Game, bd: *Backdrop, carried: ?*Object) void {
     }
 
     if (wallAt(bd, (bd.playerY +% old_y) >> 6, (bd.playerX +% old_x) >> 6) > 0 or
-        wallAt(bd, bd.playerY >> 5, bd.playerX >> 5) > 0)
+        wallAt(bd, bd.playerY >> 5, bd.playerX >> 5) > 0 or
+        // Not in the original: `jardim_wall_margin`, 8 units from every wall face.
+        (g.fixes.jardim_wall_margin and wolf.within(bd, bd.playerX, bd.playerY, 7)))
     {
         bd.playerX = old_x;
         bd.playerY = old_y;
     } else if (objectAt(bd, bd.playerY >> 5, bd.playerX >> 5).*) |obj| {
-        if (bd.scene.?.touch(g, obj) != 0) {
+        if (touchObject(g, bd, obj) != 0) {
             bd.playerX = old_x;
             bd.playerY = old_y;
-            // J6: the held key's walk ends with the blocked step.
-            if (g.fixes.jardim_enemy_blocks_walk) g.enemyBlockedWalk = true;
         }
-        if (bd.health < 1) {
-            bd.health = 100;
-            bd.lives -%= 1;
-        }
-        if (bd.lives == 0) _ = g.post(Msg.make(msg.wm.destroy, 0, 0, 0));
+        lifeCheck(g, bd);
     }
+    leaveContact(g, bd);
 
     raycast.renderView(g, bd, bd.playerX, bd.playerY, bd.viewAngle);
     if (carried) |obj| {

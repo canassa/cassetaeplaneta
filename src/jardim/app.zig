@@ -30,6 +30,7 @@ const world = @import("core/world.zig");
 const game_unit = @import("game.zig");
 const game_input = @import("game_input.zig");
 const backdrop = @import("backdrop.zig");
+const controls = @import("controls.zig");
 
 /// The window title FindWindow looks for (task 0's, DGROUP 10d0:0062/006f/007c/0089).
 const noite_title = "Noite Animal";
@@ -137,7 +138,8 @@ fn defWindowProc(g: *Game, m: Msg) i32 {
 /// WM_ACTIVATEAPP, WM_COMMAND, the palette messages, WM_SYSTIMER (FindWindow
 /// retry), 0x40a (ack) and 0x40b (hello: NOITE's window and the variant, then
 /// 0x40c). The 0x40a result is posted by the scene's handler, not here.
-pub fn wndProc(g: *Game, m: Msg) i32 {
+pub fn wndProc(g: *Game, m_in: Msg) i32 {
+    var m = m_in;
     if (g.noiteWnd == 0) {
         findNoite(g);
     } else if (g.noiteAcked == 0) {
@@ -147,6 +149,11 @@ pub fn wndProc(g: *Game, m: Msg) i32 {
     // for 0x40b and 0x40a: their cases below never run in the original (BUGS.md J7). The
     // fix lets NOITE's hello and ack through.
     const handshake = m.id == msg.noite.minigame_hello or m.id == msg.noite.minigame_result;
+    // Not in the original: the Corrigida's controls screen and keys (`controls.zig`) stand
+    // in front of the game; what they keep from it is handled.
+    if (g.started != 0 and (g.fixes.jardim_controls_screen or g.fixes.jardim_wolf_keys)) {
+        m = controls.gate(g, m) orelse return 0;
+    }
     if (g.started != 0 and !(g.fixes.jardim_variant_hello and handshake)) {
         if (game_input.handleMessage(g, m) != 0) return defWindowProc(g, m);
     }
@@ -155,6 +162,7 @@ pub fn wndProc(g: *Game, m: Msg) i32 {
         wm.create => {
             _ = game_unit.onCreate(g);
             g.started = 1;
+            if (g.fixes.jardim_controls_screen) controls.open(g);
             g.setSystemTimer(timer_id, timer_ms);
         },
         wm.destroy => {
@@ -164,7 +172,10 @@ pub fn wndProc(g: *Game, m: Msg) i32 {
         wm.paint => {
             // BeginPaint, SelectPalette/RealizePalette (the backdrop's palette),
             // app_paint, EndPaint.
-            if (backdropOf(g)) |bd| _ = realize(g, bd);
+            if (backdropOf(g)) |bd| {
+                _ = realize(g, bd);
+                if (g.controls.up) controls.draw(g, bd);
+            }
             _ = paint(g);
             return 0;
         },

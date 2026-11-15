@@ -472,14 +472,40 @@ pub const Fixes = struct {
     /// surface when its top is on row 478 or 479 (the original's row loop
     /// counts down from -1 and faults; the Original port panics naming J5).
     jardim_sprite_last_rows: bool = false,
-    /// J6: a step an enemy blocks ends the held key's walk: the timer does
-    /// not repeat it, so each contact costs one press (one life, or 5
-    /// health). A choice until the owner says (`choices`).
-    jardim_enemy_blocks_walk: bool = false,
+    /// J6: an enemy hurts once per contact (a life, or 5 health): a step
+    /// it blocks hurts again only once the player has moved away from its
+    /// cell (more than half a cell) or it has left the cell, so pressing
+    /// into it, held or repeated, costs once.
+    jardim_enemy_once_per_contact: bool = false,
     /// J7: JARDIM posts 0x40c only once NOITE's 0x40b has come (no 0x40c to
     /// a NOITE found by FindWindow before), so NOITE sends the hello and
     /// its variant arrives: espquete's final enemy is espanf.
     jardim_variant_hello: bool = false,
+    /// J8: only the game's own timer (system timer 1, 55 ms) ticks the
+    /// game; the 50-ms timer 10 (AppWndProc's FindWindow retry) no longer
+    /// moves the player, the shot and the enemies too.
+    jardim_game_timer_only: bool = false,
+    /// Not a bug but a Corrigida addition: the player stays at least 8
+    /// units from every wall face (a step that would come nearer is
+    /// undone), as the original's push leaves him from the wall he walks
+    /// into; up close the view's whole-unit distances bend the bricks.
+    /// `jardim_smooth_movement`'s box (11 units, Wolf3D's) keeps it anyway.
+    jardim_wall_margin: bool = false,
+    /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"):
+    /// Wolfenstein 3D's movement. The player walks, runs, strafes and turns
+    /// continuously at Wolf3D's speeds (70-Hz tics against the clock, on a
+    /// 14-ms motion timer, `src/jardim/wolf.zig`), slides along walls with
+    /// Wolf3D's radius, and the view is drawn at that rate; the shot, the
+    /// enemies, the pickups and the doors keep the game tick.
+    jardim_smooth_movement: bool = false,
+    /// Not a bug but a Corrigida addition: the Wolf-like keys. W/S (or the
+    /// arrows) walk, A/D strafe, Left/Right turn, Shift runs, Ctrl or Space
+    /// fire, E opens a door or takes an exit. Translated in front of the
+    /// game (`src/jardim/controls.zig`); the old keys but Space still work.
+    jardim_wolf_keys: bool = false,
+    /// Not a bug but a Corrigida addition: a screen listing the controls and
+    /// the goal from WM_CREATE until a key or a click; nothing runs before.
+    jardim_controls_screen: bool = false,
     /// U1: draw the status-bar text.
     status_bar_text: bool = false,
     /// `ini_fatal_error` ("Erro Fatal!") quits (`error.Fatal`) instead of
@@ -488,7 +514,7 @@ pub const Fixes = struct {
 
     /// Flags left out of `all` (`--fix all`, the web build's "Corrigida"
     /// version), e.g. the hall-door reshuffle.
-    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit", "salgin_opponent_damage_table", "jardim_enemy_blocks_walk" };
+    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit", "salgin_opponent_damage_table" };
 
     /// `--fix all`: every flag but the `choices`.
     pub fn all() Fixes {

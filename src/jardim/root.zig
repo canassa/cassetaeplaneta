@@ -80,5 +80,7 @@ fn exit(ctx: *anyopaque) void {
 
 test {
     _ = units;
+    _ = @import("wolf.zig");
+    _ = @import("controls.zig");
     std.testing.refAllDecls(core);
 }

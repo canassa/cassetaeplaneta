@@ -6,6 +6,7 @@
 # presses cost one life and no result comes.
 #
 #   zig-out/bin/noite --minigame jardim --headless --ms 9000 --input tools/play/jardim-alone-lose.input
+#   zig-out/bin/noite --minigame jardim --headless --ms 9000 --fix all,-jardim_smooth_movement,-jardim_wolf_keys,-jardim_controls_screen,-jardim_game_timer_only,-jardim_wall_margin --input tools/play/jardim-alone-lose.input
 410 hold right 1
 440 hold right 1
 470 hold right 1

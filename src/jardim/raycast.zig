@@ -294,9 +294,12 @@ fn at(table: []const i32, i: i32) i32 {
 pub fn renderView(g: *Game, bd: *Backdrop, x: i32, y: i32, angle_in: i32) void {
     var angle = angle_in -% 0xf0;
     if (angle < 0) angle +%= 0xb40;
+    // Not in the original: a motion frame (`g.viewOnly`, `wolf.zig`) leaves the hands' sway.
     const bob = g.handsBobPos;
-    if ((if (bob < 0) 0 -% bob else bob) >= 4) g.handsBobStep = 0 -% g.handsBobStep;
-    g.handsBobPos +%= g.handsBobStep;
+    if (!g.viewOnly) {
+        if ((if (bob < 0) 0 -% bob else bob) >= 4) g.handsBobStep = 0 -% g.handsBobStep;
+        g.handsBobPos +%= g.handsBobStep;
+    }
 
     const t = &g.tables.trig;
     var fisheye: i32 = 0; // index into table 4
@@ -329,7 +332,7 @@ pub fn renderView(g: *Game, bd: *Backdrop, x: i32, y: i32, angle_in: i32) void {
         if (angle >= 0xb40) angle -%= 0xb40;
     }
     const hands = bd.hands.?;
-    hands.y +%= g.handsBobStep;
+    if (!g.viewOnly) hands.y +%= g.handsBobStep;
 }
 
 // ---- tests ----

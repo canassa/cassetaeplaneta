@@ -1,0 +1,86 @@
+# NOITE's garden cutscene (espquete), then a JARDIM loss in the Corrigida: JARDIM's WM_CREATE at
+# 21165, jardim-corrigida-alone-lose.input's holds shifted by 21165: the last life at 46099. NOITE
+# gets lost -1500 and goes to game over (6fsaida, no life taken).
+#
+#   zig-out/bin/noite --headless --scene espquete --ms 48000 --fix all --input tools/play/jardim-corrigida-espquete-lose.input
+21465 key return
+21575 hold right 487
+21665 dump jardim
+22082 hold shift 384
+22082 hold w 364
+22516 hold right 16
+22552 hold shift 370
+22552 hold w 350
+22972 hold left 16
+23008 hold w 392
+23470 hold left 744
+24234 hold shift 387
+24234 hold w 367
+24671 hold right 16
+24707 hold shift 384
+24707 hold w 364
+25141 hold right 30
+25191 hold shift 356
+25191 hold w 336
+25597 hold left 16
+25633 hold shift 412
+25633 hold w 392
+26095 hold shift 384
+26095 hold w 364
+26529 hold left 16
+26565 hold shift 415
+26565 hold w 395
+27030 hold right 730
+27780 hold w 197
+28047 hold left 744
+28811 hold shift 298
+28811 hold w 278
+29159 hold left 730
+29909 hold w 250
+30209 hold s 400
+30719 hold left 1459
+32198 hold w 250
+32498 hold s 400
+33008 hold shift 409
+33008 hold w 389
+33467 hold left 16
+33503 hold shift 381
+33503 hold w 361
+33934 hold right 16
+33970 hold shift 289
+33970 hold w 269
+34309 hold left 759
+35088 hold shift 384
+35088 hold w 364
+35522 hold right 59
+35601 hold shift 385
+35601 hold w 365
+36036 hold left 30
+36086 hold shift 384
+36086 hold w 364
+36520 hold shift 370
+36520 hold w 350
+36940 hold shift 384
+36940 hold w 364
+37374 hold shift 384
+37374 hold w 364
+37808 hold right 16
+37844 hold shift 370
+37844 hold w 350
+38264 hold left 744
+39028 hold w 250
+39328 hold s 400
+39838 hold right 673
+40531 hold w 187
+40788 hold left 1416
+42224 hold w 250
+42524 hold s 400
+43034 hold left 1473
+44527 hold w 250
+44827 hold s 400
+45337 hold left 730
+46087 hold w 250
+46387 hold s 400
+47000 result lost -1500
++0 state
++0 expect 6fsaida
