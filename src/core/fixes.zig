@@ -227,7 +227,7 @@ pub const Fixes = struct {
     /// point, so rotations before its first fall step erase its whole frame
     /// (no leftover rotations drawn at the top; drawing only).
     encaixe_spawn_syncs_previous_position: bool = false,
-    // ---- TIRO.EXE (BUGS.md T1–T6). The src/tiro/ units port each bug as
+    // ---- TIRO.EXE (BUGS.md T1–T7). The src/tiro/ units port each bug as
     // it is and keep the fix only behind its flag. ----
     /// T1: SPACE sets its latch on key-down, so a held SPACE fires once (no
     /// shot and no arrow spent per key repeat), as LEFT/RIGHT already do.
@@ -248,7 +248,10 @@ pub const Fixes = struct {
     /// T6: `target_restore_background` widens the restored strip by |stepX|
     /// once, as `mover_restore_background`.
     tiro_target_restore_one_step: bool = false,
-    // ---- SERIAL.EXE (BUGS.md K1–K5). The src/serial/ units port each bug
+    /// T7: closing the window (End Task) reports a loss, 0x40a (0, g_score),
+    /// instead of judging the score so far (a win when it is positive).
+    tiro_close_forfeits: bool = false,
+    // ---- SERIAL.EXE (BUGS.md K1–K6). The src/serial/ units port each bug
     // as it is and keep the fix only behind its flag. ----
     /// K1: the 0x40a result's wParam says whether the player survived
     /// (`g_lives > 0`) instead of carrying SERIAL's window handle, so a
@@ -269,6 +272,10 @@ pub const Fixes = struct {
     /// `g_timerIds[6]`), so its 5-s branch runs besides the 10-s toggle.
     /// A choice until the owner says (`choices`).
     serial_lane2_own_timer: bool = false,
+    /// K6: closing the window (End Task) reports a loss, as when the lives
+    /// run out: wParam 0 and the lost game's points (`g_score`; packed as
+    /// K2 unless `serial_score_in_low_word`), instead of a game survived.
+    serial_close_forfeits: bool = false,
     // ---- INV.EXE (BUGS.md I1–I2). The src/inv/ units port each bug as it
     // is and keep the fix only behind its flag. ----
     /// I1: SPACE sets its latch on key-down, so a held SPACE fires once (no
@@ -393,12 +400,11 @@ pub const Fixes = struct {
     /// H3: the last life lost posts the loss, 0x40a (0, g_score - 1000), to
     /// NOITE before WM_DESTROY, so INFERNO's points reach NOITE (the original
     /// reports nothing: NOITE sees the window gone and counts a loss with no
-    /// score change). A choice until the owner says (`choices`).
+    /// score change).
     inferno_loss_reports: bool = false,
     /// H4: WM_CLOSE (End Task, the port's window close) reports a loss, 0x40a
     /// (0, 0) (with `inferno_loss_reports`, (0, g_score - 1000)), instead of
-    /// the time-out's report, which is a win while a life is left. A choice
-    /// until the owner says (`choices`).
+    /// the time-out's report, which is a win while a life is left.
     inferno_close_forfeits: bool = false,
     /// H5: a small hero that runs into a hazard below the stomp height loses
     /// a life (inferno_lose_life: -500, a life, sonicmor), as when the
@@ -453,7 +459,7 @@ pub const Fixes = struct {
 
     /// Flags left out of `all` (`--fix all`, the web build's "Corrigida"
     /// version), e.g. the hall-door reshuffle.
-    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit", "serial_lane2_own_timer", "salgin_opponent_damage_table", "salgin_block_holds", "salgin_insert_locked", "salgin_weak_reaction_by_energy", "salgin_banner_shown", "xilindro_block_holds", "xilindro_insert_locked", "xilindro_banner_shown", "inferno_loss_reports", "inferno_close_forfeits", "jardim_enemy_blocks_walk" };
+    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit", "serial_lane2_own_timer", "salgin_opponent_damage_table", "salgin_block_holds", "salgin_insert_locked", "salgin_weak_reaction_by_energy", "salgin_banner_shown", "xilindro_block_holds", "xilindro_insert_locked", "xilindro_banner_shown", "jardim_enemy_blocks_walk" };
 
     /// `--fix all`: every flag but the `choices`.
     pub fn all() Fixes {

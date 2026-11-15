@@ -1312,6 +1312,20 @@ Addresses are Ghidra `seg:off` in `/TIRO.EXE`; the game is described in `docs/ti
 - **Port:** ported and reproduced (unit `render`, src/tiro/); the fix is
   `Fixes.tiro_target_restore_one_step` (`--fix tiro_target_restore_one_step`, on in the Corrigida version).
 
+### T7. Closing the window with points scored reports a win
+- **Where:** `tiro_scene_handle_message` 1068:1790, `WM_DESTROY` 1068:17de–1825.
+- **What the code does:** the result, `0x40a (g_score > 0, g_score)`, is posted whenever `WM_DESTROY`
+  arrives, with no test that the game has ended. A window close (`WM_CLOSE` → `DefWindowProc` →
+  `DestroyWindow`) sends it too. The window is `WS_POPUP | WS_CAPTION` with no system menu: only an
+  external close (End Task) does it.
+- **Effect:** ending TIRO from the task list once a hit has scored is a win with the points so far.
+  ENCAIXE, INV, SAUNA and JARDIM count a close as a loss (their `WM_DESTROY` from `DestroyWindow` has
+  wParam 0), as SALGIN and XILINDRO do with their fixes (S7, X6).
+- **Confidence:** 9 (code); 6 (that a close was meant to lose: TIRO's result has no other end test).
+- **Port:** ported and reproduced (unit `gallery`, src/tiro/); the fix is `Fixes.tiro_close_forfeits`
+  (`--fix tiro_close_forfeits`, on in the Corrigida version): after `WM_CLOSE` the result is
+  `(0, g_score)`, a loss that keeps the points. `tools/play/tiro-close.input`: `won 300 | lost 300`.
+
 ### Latent (TIRO)
 
 - **`perspective_backdrop_set_layer` 1020:0118 stores before it checks the index:** `layers[layer-1] = obj`, and only
@@ -1679,6 +1693,21 @@ consistent code with a plausible intent, and none is reached by a slip.
   `Fixes.serial_lane2_own_timer` (`--fix serial_lane2_own_timer`, a choice: left out of the Corrigida version
   (`Fixes.choices`) until the owner decides).
 
+### K6. Closing the window with a life left reports a survived game
+- **Where:** `serial_scene_handle_message`, `WM_DESTROY` 1068:1577–15be.
+- **What the code does:** the result is posted whenever `WM_DESTROY` arrives, with no test that the clock
+  or the lives have ended the game; a window close (`WM_CLOSE` → `DefWindowProc` → `DestroyWindow`, End
+  Task only: the window has no system menu) sends it too, and with a life left the lParam is the
+  survived game's 500.
+- **Effect:** in the Original every result is a win anyway (K1). With K1's fix, ending SERIAL from the
+  task list with a life left is a win worth 500 whatever the score; ENCAIXE, INV, SAUNA and JARDIM count
+  a close as a loss.
+- **Confidence:** 9 (code); 6 (that a close was meant to lose).
+- **Port:** ported and reproduced (unit `gallery`, src/serial/); the fix is `Fixes.serial_close_forfeits`
+  (`--fix serial_close_forfeits`, on in the Corrigida version): after `WM_CLOSE` the result is a lost
+  game's, wParam 0 and `g_score` (packed as K2 unless `serial_score_in_low_word`).
+  `tools/play/serial-close.input`: `won 32768004 | lost 200`.
+
 ### Harmless (SERIAL)
 
 - **The shot counter is never read:** SPACE decrements `g_gun->lives` (+0x40, 16 from
@@ -1866,9 +1895,10 @@ intent.
   sub-tick race of a `0x40a` trigger handled between the post and the `WM_DESTROY`).
 - **Confidence:** 9 (code); 7 (that a loss report was meant: the time-out report computes one).
 - **Port:** reproduced (unit `score`, src/inferno/score.zig `loseLife`); the fix is
-  `Fixes.inferno_loss_reports` (`--fix inferno_loss_reports`, a choice left out of the Corrigida
-  version until the owner decides). `tools/play/inferno-alone-lose.input` and
-  `inferno-3fpapmal-lose.input`: no result, NOITE's fallback takes a life with the score unchanged.
+  `Fixes.inferno_loss_reports` (`--fix inferno_loss_reports`, on in the Corrigida version: the loss
+  posts `0x40a (0, g_score − 1000)` before `WM_DESTROY`). `tools/play/inferno-alone-lose.input` and
+  `inferno-3fpapmal-lose.input`: the Original posts no result and NOITE's fallback takes a life with
+  the score unchanged; the Corrigida reports lost −3500.
 
 ### H4. Closing the window with a life left reports a win
 - **Where:** `inferno_scene_handle_message`, `WM_CLOSE` 1068:4d50.
@@ -1879,8 +1909,10 @@ intent.
   (then H1 takes a life in the hall).
 - **Confidence:** 9 (code); 7 (that a player finds it).
 - **Port:** reproduced (unit `hell`, the `WM_CLOSE` case; the window's close in the port is End
-  Task); the fix is `Fixes.inferno_close_forfeits` (`--fix inferno_close_forfeits`, a choice left out
-  of the Corrigida version until the owner decides). `tools/play/inferno-close.input`: won 500.
+  Task); the fix is `Fixes.inferno_close_forfeits` (`--fix inferno_close_forfeits`, on in the
+  Corrigida version): `WM_CLOSE` reports a loss, `(0, 0)`, or with `inferno_loss_reports` (also in
+  the Corrigida) the lost game's `(0, g_score − 1000)`. `tools/play/inferno-close.input`: won 500 in
+  the Original, lost −1000 in the Corrigida.
 
 ### H5. A hazard the hero runs into kills it without costing a life
 - **Where:** `hero_collide` 1068:0260, the hazard branch of a small hero (side hit); its callers

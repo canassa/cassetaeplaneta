@@ -38,7 +38,7 @@ pub fn loseLife(g: *Game, bd: *Backdrop) void {
     blitScoreBox(g, bd);
     g.lives -%= 1;
     if (g.lives == 0) {
-        if (g.fixes.inferno_loss_reports and g.noiteWnd != 0) {
+        if (g.fixes.inferno_loss_reports) {
             _ = g.plat.postTo(g.noiteWnd, .{ .id = msg.noite.minigame_result, .wparam = 0, .lparam = @as(i32, g.score) - 1000 });
         }
         _ = g.post(.{ .id = msg.wm.destroy });

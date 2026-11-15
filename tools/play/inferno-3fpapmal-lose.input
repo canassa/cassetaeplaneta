@@ -1,8 +1,10 @@
 # NOITE's pope's punishment (3fpapmal) starts the real INFERNO, which
-# loses: no key (inferno-alone-lose.input). INFERNO's last life posts no
-# result (BUGS.md H3): NOITE's system timer finds its window gone and
-# posts itself a loss (0, 0): a life less (3 -> 2), the score unchanged,
-# and the hall (3fhall). The same in both versions.
+# loses: no key (inferno-alone-lose.input). A life less (3 -> 2) and the
+# hall (3fhall) in both versions; the score differs:
+# - Original: INFERNO's last life posts no result (BUGS.md H3): NOITE's
+#   system timer finds its window gone and posts itself a loss (0, 0),
+#   the score unchanged;
+# - `--fix all`: INFERNO reports (0, g_score - 1000), -3500 to NOITE.
 #
 #   zig-out/bin/noite --headless --scene 3fpapmal --ms 50000 --input tools/play/inferno-3fpapmal-lose.input
 #   zig-out/bin/noite --headless --scene 3fpapmal --ms 50000 --fix all --input tools/play/inferno-3fpapmal-lose.input
@@ -12,6 +14,6 @@
 10000 dump video
 30000 dump inferno
 +0 wait 3fhall 20000
-+0 result none
++0 result none | lost -3500
 +0 state
 +0 expect 3fhall

@@ -8,7 +8,7 @@ this file does not override. Ghidra (program `SERIAL.EXE`, through the
 tracker snapshot `noite -p serial show`) is the specification; `GAME.md`
 (rules, protocol), `DATA.md` (classes, vtables, globals), `FUNCTIONS.md`
 (names, dead code, what differs from TIRO), `QUALITY.md` (the build),
-BUGS.md K1–K5.
+BUGS.md K1–K6.
 
 ## Decisions
 
@@ -80,7 +80,7 @@ BUGS.md K1–K5.
   headless platform `unixTime()` is `800 000 000 + ms / 1000` of the
   virtual clock, so the figures follow from the second of SERIAL's
   WM_CREATE (Tests).
-- **Faithful first, the owner's rule.** K1–K5 are reproduced as they are
+- **Faithful first, the owner's rule.** K1–K6 are reproduced as they are
   by default. Each fix exists only behind its own `Fixes` flag (off by
   default). Corrigida (`Fixes.all()`) takes K1–K4; K5 is a choice
   (`Fixes.choices`) until the owner decides (Owner questions).
@@ -96,6 +96,11 @@ BUGS.md K1–K5.
   arena freed by `Game.destroy`); what SERIAL never frees (the strips of
   the 15 figures, `scene_object_dtor` frees nothing) is not a leak of the
   port.
+- **The touch pad** (the owner's decision): TIRO's, ◀, a fire button
+  (SPACE) and ▶ (`PAD_KEYS.serial`).
+- **A close is a loss** (the owner's decision, the rule of every
+  minigame): K6's fix is in the Corrigida; a lost game already reports
+  its points (K2's fix).
 
 ## Source layout
 
@@ -314,6 +319,7 @@ the virtual-base residue, the 14 NULL tests. SERIAL's own:
 | K3 hit by x alone, any lane, 55-px bullet | `serial_hit_needs_row` | gallery | the second stage takes a figure when the x ranges overlap with touching edges counted, with the bullet's real width (`a <= t+w and t <= a+47`), **and** the y ranges overlap (bullet y..y+31, figure y..y+h), in the same lane 2, 1, 0 order, moving figures only | yes |
 | K4 SPACE latch never set | `serial_space_latch` | gallery | the fire branch sets `g_keySpaceHeld` = 1 (WM_KEYUP already clears it): a held SPACE fires once | yes |
 | K5 timer id 10 shared, lane-2 branch dead | `serial_lane2_own_timer` | target | `serial_create_targets` arms target 13's lane-2 timer with id 9 (`g_timerIds[6]`, unused) instead of `g_timerIds[7]` = 10: the handler's test 5 (`timerId13`) then matches it, lane 2 also spawns on its own 5-s timer, and the gun keeps id 10 at 60 ms from the start | no (a choice) |
+| K6 a close with a life left is a survived game | `serial_close_forfeits` | gallery | the scene handler notes `WM_CLOSE` (port state `closing`); the `WM_DESTROY` that follows reports a lost game: wParam 0, `g_score` where a survived game has 500 | yes (owner's decision) |
 
 Each unit ports the buggy code and keeps the fixed path only under its
 flag (`g.fixes.serial_…`). K1 and K2 are independent (K2 alone: a win of

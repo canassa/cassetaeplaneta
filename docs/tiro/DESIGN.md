@@ -7,7 +7,7 @@ zig-developer skill hold for everything this file does not override.
 Ghidra (program `TIRO.EXE`, through the tracker snapshot `noite -p tiro
 show`) is the specification; `GAME.md` (rules, protocol), `DATA.md`
 (classes, vtables, globals), `FUNCTIONS.md` (names, dead code),
-`QUALITY.md` (the medium /Od build), BUGS.md T1–T6.
+`QUALITY.md` (the medium /Od build), BUGS.md T1–T7.
 
 ## Decisions
 
@@ -73,7 +73,7 @@ show`) is the specification; `GAME.md` (rules, protocol), `DATA.md`
   of its program: in practice the `dib` copies and `read_dib_info`) and
   the two decompiles are shown identical in the unit's commit; the TIRO
   wrapper carries TIRO's `@orig` tag.
-- **Faithful first, the owner's rule.** T1–T6 are reproduced as they are
+- **Faithful first, the owner's rule.** T1–T7 are reproduced as they are
   by default. Each fix exists only behind its own `Fixes` flag (off by
   default). Corrigida (`Fixes.all()`) takes all six.
 - **Two programs in one process**, as ENCAIXE (`src/platform/host.zig`,
@@ -89,6 +89,10 @@ show`) is the specification; `GAME.md` (rules, protocol), `DATA.md`
   `_nmalloc` of TIRO allocates there and `operator delete` is what the
   original does (the units may free into it, or not, as the code does).
   So the faithful leak is not a leak of the port.
+- **The touch pad** (the owner's decision): ◀, a fire button (SPACE)
+  and ▶ (`PAD_KEYS.tiro`).
+- **A close is a loss** (the owner's decision, the rule of every
+  minigame): T7's fix is in the Corrigida.
 
 ## Source layout
 
@@ -313,6 +317,7 @@ DC's default font) draws on it and `tiro_blit_score_box` blits the box.
 | T4 the 15th arrow cut off, 16th never fired | `tiro_last_arrow_lands` | gallery | the end test becomes `lives <= 0` and the arrow not moving, and SPACE with `lives <= 0` does nothing: 16 shots, each flies to its end and can score (implies T3) | yes |
 | T5 hit by x alone | `tiro_hit_needs_row` | gallery | the second stage matches a target when the x ranges overlap with touching edges counted (`a <= t+75 and t <= a+55`) **and** the y ranges overlap (arrow y..y+27, target y..y+95), in the same 2, 3, 1, 0 order | yes |
 | T6 restore strip one step too wide | `tiro_target_restore_one_step` | render | `target_restore_background`'s rect (and its `addDirtyRect`) adds \|stepX\| once, as `mover_restore_background` | yes |
+| T7 a close with points scored is a win | `tiro_close_forfeits` | gallery | the scene handler notes `WM_CLOSE` (port state `closing`); the `WM_DESTROY` that follows posts `(0, g_score)`: a loss that keeps the points | yes (owner's decision) |
 
 Each unit ports the buggy code and keeps the fixed path only under its
 flag (`g.fixes.tiro_…`). T1 matters only with key repeats (Platform). The

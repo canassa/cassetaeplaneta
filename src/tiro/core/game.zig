@@ -168,6 +168,11 @@ pub const Game = struct {
     // g_instance, g_moduleHandle, g_modulePath(Buf) (the EXE's directory is
     // the host's `Program.dir`), g_game / g_tiroGame (this Game).
 
+    // ---- Port state, no counterpart ----
+    /// BUGS.md T7's fix (`Fixes.tiro_close_forfeits`): WM_CLOSE came, so the
+    /// WM_DESTROY that follows reports a loss.
+    closing: bool = false,
+
     pub fn create(gpa: std.mem.Allocator, plat: Platform) !*Game {
         const g = try gpa.create(Game);
         g.* = .{ .gpa = gpa, .plat = plat, .heap = .init(gpa) };

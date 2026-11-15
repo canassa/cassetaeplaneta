@@ -1,0 +1,20 @@
+# TIRO alone, the window closed after three hits (Windows' End Task, the
+# web page's tab closed: WM_CLOSE, then WM_DESTROY). The shots are the
+# first three of tiro-alone-win.input; two have hit (+300) at the close.
+#
+#   zig-out/bin/noite --minigame tiro --headless --ms 7000 --input tools/play/tiro-close.input
+#   zig-out/bin/noite --minigame tiro --headless --ms 7000 --fix all --input tools/play/tiro-close.input
+#
+# - Original: WM_DESTROY judges the score so far, a win of 300 (BUGS.md T7);
+# - `--fix all`: the close forfeits, a loss that keeps the 300.
+# shot 1: right, girl
+2160 key left
+2280 key space
+# shot 2: left, girl
+3490 key right
+3610 key space
+# shot 3: straight, girl
+4930 key right
+5050 key space
+6000 close
+6500 result won 300 | lost 300

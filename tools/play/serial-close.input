@@ -1,0 +1,15 @@
+# SERIAL alone, the window closed after one hit (Windows' End Task, the
+# web page's tab closed: WM_CLOSE, then WM_DESTROY). The shot is the first
+# of serial-alone-win.input (a killer, +200); 4 lives are left.
+#
+#   zig-out/bin/noite --minigame serial --headless --ms 21000 --input tools/play/serial-close.input
+#   zig-out/bin/noite --minigame serial --headless --ms 21000 --fix all --input tools/play/serial-close.input
+#
+# - Original: WM_DESTROY reports as at the clock's end, a win of
+#   MAKELONG(4, 500) (BUGS.md K1, K2, K6);
+# - `--fix all`: the close forfeits, a loss with the 200 points.
+# shot 1: straight, 3sbabt (figure 2, kind 2)
+16060 key right
+16180 key space
+19500 close
+20000 result won 32768004 | lost 200

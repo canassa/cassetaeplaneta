@@ -1,4 +1,4 @@
-//! Port unit `gallery` (module) of TIRO.EXE. TiroScene: its handler (keys, the target and arrow timers, the second hit stage, the end test, WM_DESTROY and 0x40a; BUGS.md T1-T5), create (MCI, WaveMix, the score), createScreen.
+//! Port unit `gallery` (module) of TIRO.EXE. TiroScene: its handler (keys, the target and arrow timers, the second hit stage, the end test, WM_DESTROY and 0x40a; BUGS.md T1-T5, T7), create (MCI, WaveMix, the score), createScreen.
 //!
 //! The handler sees every window message first (non-zero = handled) and
 //! answers every key, timer and mouse message itself, so the engine's
@@ -6,7 +6,7 @@
 //! pairs have no counterpart (the DC is the platform screen). Where the
 //! original reads an object through the virtual base, the flattened
 //! `Object` is the SceneObject view (`obj.x`, `obj.curStrip`, ...).
-//! BUGS.md T1-T5 are reproduced as the code does them; each fix is behind
+//! BUGS.md T1-T5 and T7 are reproduced as the code does them; each fix is behind
 //! its `g.fixes.tiro_*` flag (docs/tiro/DESIGN.md "Fixes").
 
 const msg = @import("../core/msg.zig");
@@ -56,9 +56,16 @@ pub fn handleMessage(g: *Game, scene: *Scene, m: Msg) i16 {
             _ = g.plat.mciString("close musica");
             _ = g.plat.postTo(g.noiteWnd, .{
                 .id = msg.noite.minigame_result,
-                .wparam = @intFromBool(g.score > 0),
+                // T7: a close is judged by the score so far, as an end.
+                .wparam = @intFromBool(g.score > 0 and !g.closing),
                 .lparam = g.score,
             });
+            return 0;
+        },
+        // Not a case of the original (it returns 0, then DefWindowProc
+        // destroys the window): T7's fix notes the close for WM_DESTROY.
+        msg.wm.close => {
+            if (g.fixes.tiro_close_forfeits) g.closing = true;
             return 0;
         },
         msg.wm.activate => {

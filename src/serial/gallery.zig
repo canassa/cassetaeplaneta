@@ -1,10 +1,10 @@
-//! Port unit `gallery` (module) of SERIAL.EXE. SerialScene: its handler (12.9 KB: keys, the seven timer tests, the spawns, the second hit stage, the clock, WM_DESTROY and 0x40a; BUGS.md K1-K5), create (MCI, WaveMix, the score), createScreen.
+//! Port unit `gallery` (module) of SERIAL.EXE. SerialScene: its handler (12.9 KB: keys, the seven timer tests, the spawns, the second hit stage, the clock, WM_DESTROY and 0x40a; BUGS.md K1-K6), create (MCI, WaveMix, the score), createScreen.
 //!
 //! The handler sees every window message first (non-zero = handled) and
 //! answers every key, timer and mouse message itself. hwnd parameters are
 //! dropped; the GetDC/ReleaseDC pairs have no counterpart (the DC is the
 //! platform screen). Where the original reads an object through the virtual
-//! base, the flattened `Object` is the SceneObject view. BUGS.md K1-K5 are
+//! base, the flattened `Object` is the SceneObject view. BUGS.md K1-K6 are
 //! reproduced as the code does them; each fix is behind its
 //! `g.fixes.serial_*` flag (docs/serial/DESIGN.md "Fixes").
 
@@ -53,12 +53,20 @@ pub fn handleMessage(g: *Game, scene: *Scene, m: Msg) i16 {
             sound.freeAll(g);
             sound.mixClose(g);
             _ = g.plat.mciString("close musica");
-            const hi: i16 = if (g.lives < 1) g.score else 500;
+            // K6: a close is a game survived while a life is left.
+            const hi: i16 = if (g.lives < 1 or g.closing) g.score else 500;
             var wparam: u16 = g.mainWindow;
             if (g.fixes.serial_result_won_by_lives) wparam = @intFromBool(g.lives > 0);
+            if (g.closing) wparam = 0;
             var out = Msg.make(msg.noite.minigame_result, wparam, @bitCast(g.lives), @bitCast(hi));
             if (g.fixes.serial_score_in_low_word) out.lparam = hi;
             _ = g.plat.postTo(g.noiteWnd, out);
+            return 0;
+        },
+        // Not a case of the original (it returns 0, then DefWindowProc
+        // destroys the window): K6's fix notes the close for WM_DESTROY.
+        msg.wm.close => {
+            if (g.fixes.serial_close_forfeits) g.closing = true;
             return 0;
         },
         msg.wm.activate => {
