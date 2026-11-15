@@ -182,6 +182,8 @@ pub const ActorPart = struct {
 pub const PortablePart = struct {
     // @orig Portable+0x38 (`portable_ctor_zoom` zeroes it; nothing reads it)
     unk38: i16 = 0,
+    // @orig Portable+0x36 (far pointer: the owning Actor, null in the list; the halves are `Mover.unk36`/`unk38`)
+    owner: ?*Object = null,
     // @orig Portable+0x3a (far pointer: the current strip's DIB at construction)
     icon: ?*Dib = null,
     // @orig Portable+0x42 (the icon width; control_panel_draw_inventory_item reads it)
