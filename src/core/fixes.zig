@@ -534,6 +534,15 @@ pub const Fixes = struct {
     /// tick is tried in four 8-unit steps, so a diagonal shot cannot step
     /// over a cell's corner.
     jardim_shot_substeps: bool = false,
+    /// Not a bug but a Corrigida addition: a proper raycaster for the 3-D view
+    /// (`src/jardim/raycaster.zig`): one DDA ray per pixel column with the
+    /// perpendicular distance, exact sub-pixel wall heights, the texture
+    /// column from the exact hit (not mirrored), the floor cast in world space
+    /// (it stays on the ground), the textures filtered where they are far, and
+    /// the sprites clipped column by column against the walls' depths. It
+    /// supersedes `jardim_texture_per_pixel`, `jardim_wall_height_exact` and
+    /// `jardim_wall_odd_height_row` (they stay for the 1995 renderer).
+    jardim_raycaster: bool = false,
     /// U1: draw the status-bar text.
     status_bar_text: bool = false,
     /// `ini_fatal_error` ("Erro Fatal!") quits (`error.Fatal`) instead of

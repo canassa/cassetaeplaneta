@@ -29,6 +29,9 @@ pub fn build(b: *std.Build) void {
     // from the start, no motion frames: they change no state).
     const options = b.addOptions();
     options.addOption(bool, "jardim_probe", b.option(bool, "jardim-probe", "JARDIM planner probe build (tools/jardim_plan.py)") orelse false);
+    // `-Djardim-pose=X,Y,ANGLE`: a dev build that starts JARDIM at that pose (units, angle 0..2879;
+    // X and Y may have decimals), for the frame dumps of docs/jardim/DESIGN.md "The raycaster".
+    options.addOption(?[]const u8, "jardim_pose", b.option([]const u8, "jardim-pose", "JARDIM start pose X,Y,ANGLE (dev builds)"));
     mod.addOptions("build_options", options);
 
     const exe = b.addExecutable(.{

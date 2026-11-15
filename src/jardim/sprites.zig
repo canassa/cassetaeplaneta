@@ -28,6 +28,7 @@ const animation = @import("behaviour/animation.zig");
 const labmap = @import("labmap.zig");
 const scaled = @import("scaled.zig");
 const enemies = @import("enemies.zig");
+const raycaster = @import("raycaster.zig");
 
 // ---- _aFldiv / _aFlmul and 16-bit helpers ----
 
@@ -156,6 +157,26 @@ fn cell(v: i16, limit: usize) usize {
     return @intCast(c);
 }
 
+/// What the draw of an enemy does in the original (the part of `drawEntry` after its blit): its step sound,
+/// its blow (health -1 once per animation cycle, a life at 0, the loss at 0 lives). Not in the original
+/// as a function; a motion frame (`g.viewOnly`, `wolf.zig`) only shows the enemies: they act on the
+/// game tick's frames, and the fair ones (`enemies.think`) never here.
+fn enemyDrawn(g: *Game, bd: *Backdrop, obj: *Object, fair: bool) void {
+    if (obj.isEnemy != 0 and !g.viewOnly and !fair) {
+        const scene = bd.scene.?;
+        scene.playEnemyStepSound(g, obj);
+        if (position.frameCount(obj) -% obj.curFrame == 1) {
+            bd.health -%= 1;
+            scene.playEnemyAttackSound(g, obj);
+        }
+        if (bd.health < 1) {
+            bd.health = 100;
+            bd.lives -%= 1;
+        }
+        if (bd.lives == 0) _ = g.post(msg.Msg.make(msg.wm.destroy, 0, 0, 0));
+    }
+}
+
 // @orig 1028:52a8 labyrinth_draw_sprite_entry
 /// Projects, draws and runs the logic of the queued object: snaps a non-shot object to the
 /// middle of its cell, finds its depth `d = dx*cos + dy*sin` and screen column, clips the
@@ -209,6 +230,8 @@ pub fn drawEntry(g: *Game, entry: *SpriteQueueEntry, bd: *Backdrop) void {
     obj.visible = 0;
     if (@as(i32, obj.x) + w < 0x14 or obj.x > 0x1f4) return;
 
+    const h: i32 = ldiv(lmul(position.height(obj), scale), 300);
+    obj.y = lo16((scale +% 300) >> 1) -% lo16(h) +% 0x2a;
     var clip_left: i32 = 0;
     var clip_right: i32 = w;
     if (obj.x < 0x14) clip_left = @as(i16, 0x14) -% obj.x;
@@ -228,31 +251,26 @@ pub fn drawEntry(g: *Game, entry: *SpriteQueueEntry, bd: *Backdrop) void {
             clip_right -= 1;
         }
     }
-    const h: i32 = ldiv(lmul(position.height(obj), scale), 300);
-    obj.y = lo16((scale +% 300) >> 1) -% lo16(h) +% 0x2a;
-    if (clip_left < clip_right and h > 0) {
-        const src_h: i16 = lo16(obj.dibFormatOk) *% position.height(obj);
-        const src_w: i16 = lo16(ldiv(lmul(clip_right -% clip_left, 300), scale));
-        const src_y = position.frameSrcY(obj);
-        const src_x: i16 = lo16(ldiv(lmul(clip_left, 300), scale)) +% position.frameSrcX(obj);
+    // Not in the original (`jardim_raycaster`): the sprite is drawn from its exact position, each
+    // column clipped against the raycaster's depth buffer (not only the ends of its span); the
+    // original's span test below still decides what counts as drawn for the enemy's logic.
+    const proper = g.fixes.jardim_raycaster and g.rc.ready;
+    if (proper) {
         const src = position.dib(obj).?;
         const bits = if (white) enemies.whiteBits(g, bd, src) else src.bits;
-        _ = scaled.dibStretchCopyTransparent(&bd.bmiHeader, bd.pixels, obj.x +% lo16(clip_left), obj.y, lo16(clip_right -% clip_left), lo16(h), bits, &src.header, src_x, src_y, src_w, src_h, g.spriteKey, g.fixes);
-        // Not in the original: a motion frame (`g.viewOnly`, `wolf.zig`) only shows the
-        // enemies; they act on the game tick's frames.
-        if (obj.isEnemy != 0 and !g.viewOnly and !fair) {
-            const scene = bd.scene.?;
-            scene.playEnemyStepSound(g, obj);
-            if (position.frameCount(obj) -% obj.curFrame == 1) {
-                bd.health -%= 1;
-                scene.playEnemyAttackSound(g, obj);
-            }
-            if (bd.health < 1) {
-                bd.health = 100;
-                bd.lives -%= 1;
-            }
-            if (bd.lives == 0) _ = g.post(msg.Msg.make(msg.wm.destroy, 0, 0, 0));
+        _ = raycaster.drawSprite(g, bd, obj, bits);
+    }
+    if (clip_left < clip_right and h > 0) {
+        if (!proper) {
+            const src_h: i16 = lo16(obj.dibFormatOk) *% position.height(obj);
+            const src_w: i16 = lo16(ldiv(lmul(clip_right -% clip_left, 300), scale));
+            const src_y = position.frameSrcY(obj);
+            const src_x: i16 = lo16(ldiv(lmul(clip_left, 300), scale)) +% position.frameSrcX(obj);
+            const src = position.dib(obj).?;
+            const bits = if (white) enemies.whiteBits(g, bd, src) else src.bits;
+            _ = scaled.dibStretchCopyTransparent(&bd.bmiHeader, bd.pixels, obj.x +% lo16(clip_left), obj.y, lo16(clip_right -% clip_left), lo16(h), bits, &src.header, src_x, src_y, src_w, src_h, g.spriteKey, g.fixes);
         }
+        enemyDrawn(g, bd, obj, fair);
     }
     if (obj.isEnemy != 0 and !g.viewOnly and !fair) {
         const nx: i16 = obj.worldX +% lo16(ldiv(-0x200000, t5[ang]));

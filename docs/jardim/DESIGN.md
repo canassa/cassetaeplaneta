@@ -156,6 +156,55 @@ protocol), `DATA.md` (classes, vtables, globals), `FUNCTIONS.md` (names, dead co
     sound notifications go on. The key that took it down is ignored until released; the time it
     was up moves `g_startTick` on (J1's fixed bonus counts the time played) and the motion clock
     restarts.
+- **The raycaster** (the owner's report on the web build, Corrigida: "at the end of the corridor the wall
+  texture looks broken", "the floor texture moves as you walk, it should be fixed on the ground like in
+  Doom", "a staircase pattern in the corridor walls": "implement a proper raycaster algorithm"). One flag,
+  `jardim_raycaster` (`src/jardim/raycaster.zig`, not a port unit; in `all`):
+  - **Casting.** One DDA ray per pixel column (480, the view's width) through a flat camera plane (a 60°
+    field, the original's: the focal length is 240 / tan 30° = 415.7 px; Lode Vandevenne's grid walk on the
+    32-unit cells). The distance is the **perpendicular** one (the ray parameter with the forward component
+    1), so there is no fisheye to correct. The wall is 22500 / distance px tall (the original's scale: the
+    eye is in the middle of a 54-unit wall, 300 px), its top and bottom at the sub-pixel (a row is the wall's
+    if its centre is inside the slice), the texture row stepped per pixel row from the clipped top (exact
+    when the slice is taller than the view, with no odd-height special case), and the texture column is the
+    exact hit point along the wall, mirrored on the faces that would show the texture reversed (y is up and
+    angles run counter-clockwise: the texture runs to the viewer's right), tiled 4 times a cell on a wall
+    and once on a door (the `jardim_texture_per_pixel` choice). The pose is the player's continuous position
+    (`playerX` + `g.wolf.fracX`) and the view angle as the tables read it (`angle | 1` units).
+  - **Doors** are the original's (GAME.md "The map"): a door recessed half a cell is hit only if the ray is
+    still in the cell when it reaches the plane (the original draws it from any ray that crossed the line);
+    the other way the ray stops at the cell's face and the cell beyond is drawn there (an empty one: a wall `1`).
+  - **Floor.** Cast per row in world space: the row's distance is 11250 / (row − horizon) / 32 cells (half the
+    wall height under the horizon), and the world point of its pixels steps along the camera plane's right
+    vector, so the floor is fixed to the ground as the player walks and turns (the sky stays the backdrop's, as
+    the original scrolls it). The art is a 128 × 128 piece of the backdrop picture's own floor (`opcaoN.bmp`,
+    inside its 480 × 150 sand, at the view's x + 176 and the horizon + 11), one cell wide (4 texels a unit,
+    the walls' scale), mirrored where it repeats so no seam shows. The floor's palette entries have no
+    shaded copies (the walls' have: 23 apart), so it is not shaded.
+  - **Mips.** The six wall textures get a (2^i × 2^j) box-filter mip per axis (ripmap), the floor tile square
+    ones; each average is snapped to the nearest of the texture's own palette entries (the surface is 8-bit and
+    the wall shading adds a fixed step to the entry). The level is `floor(log2)` of the texels a pixel spans:
+    for a wall, across: |d along / d column| from the ray's angle, down: 300 / slice height; for the floor
+    the geometric mean of its two footprints. Up close the level is 0 (the texture as is). They are built the
+    first frame of each phase (`State.built_for`), in the task's arena.
+  - **Sprites** are drawn by `raycaster.drawSprite`: from the sprite's world position and the frame's
+    continuous camera (a fair enemy walks between cells), at the wall scale of its depth, standing on the
+    floor line, each pixel column kept only if the sprite is nearer than the wall's depth there (`State.depth`,
+    the 1-D buffer of the walls' perpendicular distances): an enemy hides behind a pillar that cuts across it,
+    not only at the ends of its span as the original's.
+  - **Only the pixels are new.** `raycast.renderView` still runs the 1995 walks for every column (they queue
+    the sprites, flag the objects visible and fill `g.columnDepth`: the 1995 enemies' logic reads them), draws
+    nothing for the walls, and calls `raycaster.render`; `sprites.drawEntry` keeps the original's clip and
+    its draw decision (the enemies' blows and sounds) and draws through `drawSprite`. So every 1995-control
+    script's result is the original's; the Corrigida's pictures change (the goal's `pixel` checks in
+    `jardim-corrigida-espquete-win.input` and `-4fjarvamp-win.input`: 228 / 231).
+  - **The earlier wall flags** (`jardim_texture_per_pixel`, `jardim_wall_height_exact`,
+    `jardim_wall_odd_height_row`) do nothing while the raycaster is on (it computes the exact column, height
+    and clipping); they stay for the 1995 renderer (`--fix all,-jardim_raycaster`).
+  - **Cost.** About 1.2 ms a frame natively (ReleaseFast, the self-hosted backend, a 40-cell room; 480 rays,
+    about 72 000 floor and up to 144 000 wall pixels); the mips are built once (a few ms).
+  - **Frames.** `zig build -Djardim-pose=X,Y,ANGLE` (units, decimals allowed; angle 0..2879) starts JARDIM at
+    that pose, for `--dump`s of the same viewpoint with the flag on and off.
 - **Fair enemies** (the owner's request, from the enemy investigation's ranked proposal,
   `docs/jardim/ENEMIES.md` §7; GAME.md "Fair enemies (Corrigida)" has the rules). Two flags, both
   in `all`:
@@ -794,7 +843,7 @@ What JARDIM needed that the other minigames did not (on main, outside the tracke
     window closed: `lost -1000` (no life lost), with and without the fair enemies;
   - `jardim-corrigida-espquete-win.input` / `-lose` and `jardim-corrigida-4fjarvamp-win.input`: the
     same shifted to 21165 and 1500; J7's check: the goal is `espanf` after `espquete`
-    (`pixel 262 250 163` at 150625) and `vamanf` after `4fjarvamp` (220 at the same moment);
+    (`pixel 262 250 228` at 150625) and `vamanf` after `4fjarvamp` (231 at the same moment);
   - `jardim-controls.input` (`--ms 7500`): the controls screen up until Enter (its frame's pixel),
     then ← to north, W 1 s, D (strafe east), → twice, Shift+W back: the minimap marker's pixels
     after each move.

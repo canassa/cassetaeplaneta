@@ -66,7 +66,7 @@ second turning) and slides along walls, and a controls screen comes first
 (`docs/jardim/DESIGN.md` "Decisions"). Its enemies are fair (`jardim_fair_enemies`): each one chases
 on its own once it has seen the player, stops next to him, and shows each blow (its attack pose and
 sound, 250 ms) before it lands; a hit flashes the view's border red, a kill flashes the enemy white;
-the walls keep their textures up close. F9 in a Debug build shows the nearest enemy's state.
+the 3-D view is a proper raycaster (`jardim_raycaster`: a ray per pixel column, exact wall heights, a floor fixed to the ground, filtered far textures, sprites clipped column by column). F9 in a Debug build shows the nearest enemy's state.
 Its enemies' numbers are in `src/jardim/enemies.zig` (`EnemyTuning`).
 Saves go to `save/` (`--save DIR`).
 

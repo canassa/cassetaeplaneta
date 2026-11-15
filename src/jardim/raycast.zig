@@ -25,6 +25,7 @@ const SpriteQueue = world.SpriteQueue;
 const position = @import("behaviour/position.zig");
 const scaled = @import("scaled.zig");
 const sprites = @import("sprites.zig");
+const raycaster = @import("raycaster.zig");
 
 pub const Error = error{Fault};
 
@@ -382,6 +383,10 @@ pub fn renderView(g: *Game, bd: *Backdrop, x: i32, y: i32, angle_in: i32) void {
         g.handsBobPos +%= g.handsBobStep;
     }
 
+    // Not in the original (`jardim_raycaster`): the walks below still run (the sprite queue, the
+    // objects' visibility and `g.columnDepth` are the game's state) but draw nothing; the proper
+    // raycaster draws the floor and the walls after them.
+    const proper = g.fixes.jardim_raycaster;
     const t = &g.tables.trig;
     var fisheye: i32 = 0; // index into table 4
     // The walks' outputs live across the columns: off the map a walk leaves cell/hit as they
@@ -409,7 +414,9 @@ pub fn renderView(g: *Game, bd: *Backdrop, x: i32, y: i32, angle_in: i32) void {
         walk(false, gw, angle, x, y, at(t[1], angle), at(t[6], angle), at(t[3], angle), bd.spriteQueue, &bd.wallRows, &bd.objectRows, &h_dist, &h_cell, &h_hit, &h_exact) catch @panic(latent_border);
         const fish = at(t[4], fisheye);
         const near_h = h_dist <= v_dist;
-        if (per_pixel) {
+        if (proper) {
+            g.columnDepth[@intCast(col_idx)] = if (near_h) h_dist else v_dist;
+        } else if (per_pixel) {
             hits[@intCast(col_idx)] = if (near_h)
                 .{ .horizontal = true, .dist = h_dist, .cell = h_cell, .hit = h_hit, .fish = fish, .exact = h_exact }
             else
@@ -423,7 +430,8 @@ pub fn renderView(g: *Game, bd: *Backdrop, x: i32, y: i32, angle_in: i32) void {
         angle +%= 4;
         if (angle >= 0xb40) angle -%= 0xb40;
     }
-    if (per_pixel) {
+    if (proper) raycaster.render(g, bd, x, y, angle_in);
+    if (per_pixel and !proper) {
         for (&hits, 0..) |c, i| {
             const cx: i32 = 0x14 + 4 * @as(i32, @intCast(i));
             const u = texelsOf(&hits, i);

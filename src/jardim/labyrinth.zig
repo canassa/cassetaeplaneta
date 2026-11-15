@@ -24,6 +24,7 @@ const tables = @import("tables.zig");
 const render = @import("behaviour/render.zig");
 const wolf = @import("wolf.zig");
 const enemies = @import("enemies.zig");
+const build_options = @import("build_options");
 
 // @orig 1028:0dfb labyrinth_backdrop_ctor
 /// The base constructor on `bmpName` (origin 0,0, view 640 x 480), the vtable, and the state
@@ -66,6 +67,7 @@ pub fn create(g: *Game, bd: *Backdrop) *Backdrop {
     bd.viewAngle = 0x1e0;
     bd.secAt = @truncate(@as(u32, @bitCast(bd.viewAngle)));
     bd.cscAt = @truncate(@as(u32, @bitCast(bd.viewAngle)));
+    if (build_options.jardim_pose) |pose| applyPose(g, bd, pose);
     bd.floorScrollX = 0;
     bd.skyScrollX = 0;
     bd.floorScrollY = 0;
@@ -181,4 +183,20 @@ pub fn renderFrame(g: *Game, bd: *Backdrop, carried: ?*Object) void {
     hud.drawHud(g, bd);
     hud.presentHud(g, bd);
     if (bd.lives != lives_before) bd.scene.?.onLifeLost(g);
+}
+
+/// Not in the original (`zig build -Djardim-pose=X,Y,ANGLE`, a dev build): the player starts at
+/// that position (units, decimals give the Corrigida's sub-unit part) and view angle.
+fn applyPose(g: *Game, bd: *Backdrop, pose: []const u8) void {
+    var it = std.mem.splitScalar(u8, pose, ',');
+    const x = std.fmt.parseFloat(f64, it.next() orelse return) catch return;
+    const y = std.fmt.parseFloat(f64, it.next() orelse return) catch return;
+    const a = std.fmt.parseInt(i16, it.next() orelse return, 10) catch return;
+    bd.playerX = @intFromFloat(@floor(x));
+    bd.playerY = @intFromFloat(@floor(y));
+    g.wolf.fracX = @intFromFloat((x - @floor(x)) * 65536);
+    g.wolf.fracY = @intFromFloat((y - @floor(y)) * 65536);
+    bd.viewAngle = a;
+    bd.secAt = @intCast(a);
+    bd.cscAt = @intCast(a);
 }

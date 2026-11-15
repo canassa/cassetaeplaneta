@@ -1084,6 +1084,20 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
 - `Fixes.jardim_shot_substeps` (JARDIM): the shot's 32-unit step a tick is taken in four 8-unit steps, so a
   diagonal shot cannot step over the corner of a cell holding an enemy (the original samples one point a
   cell along its line).
+- `Fixes.jardim_raycaster` (JARDIM): a proper raycaster for the 3-D view (`src/jardim/raycaster.zig`,
+  docs/jardim/DESIGN.md "The raycaster"). The original casts 120 rays 0.5° apart and draws each as a 4-px
+  column from a whole-unit ray length (stepped wall tops and bottoms, courses that bend), with the floor a
+  bitmap that is shifted as you walk. This casts one DDA ray per pixel column (480) through a flat camera
+  plane and measures the perpendicular distance; the wall's height is 22500 / that distance with its top and
+  bottom at the sub-pixel; the texture column is the exact hit, not mirrored, with the same tiling as
+  `jardim_texture_per_pixel` (a wall 4 times a cell, a door once); the floor is cast per row in world space
+  (the backdrop's sand tile, 128 texels a cell), so it stays on the ground; the wall and floor textures are
+  box-filtered where they are far (the far wall of a corridor is a flat tone, no longer static); and the
+  sprites are clipped per pixel column against the walls' depths. The doors keep the original's rules
+  (recessed half a cell, or the cell beyond drawn at the face). The 1995 walks still run (sprite queue, the
+  objects' visibility, `g_columnDepth`, so the 1995 enemies' logic and every script's result are the
+  original's): only the pixels are new. It supersedes `jardim_texture_per_pixel`, `jardim_wall_height_exact`
+  and `jardim_wall_odd_height_row` (which stay for the 1995 renderer, and are not used with it).
 
 ---
 

@@ -117,3 +117,32 @@ Checked with `--dump` at ¼, ½, 1 and 3 cells, square and at 30°, Original aga
 bricks keep the Original's size at 1–3 cells and stay on the walls; at ¼ cell they are magnified
 bricks instead of 1-px stripes; the courses are straight; doors show their frame, handle and rivets
 once.
+
+## The far wall (the end of a long corridor)
+
+The owner's report: "at the end of the corridor the wall texture looks broken" (a grey, grainy block). It
+is not a wrong cell, a wrong texture or an overflow: the block is the stone texture (cells `5`, `6`:
+texture 2 of `paredesN.bmp`, four palette entries of light grey) drawn right.
+
+- **The cell and texture.** In the frame (map 1, row 3 looking −x from column 13: `raycast.zig`'s walk
+  returns cell 6, 400 units away) the end wall is a `6`, texture (6+1)/2 − 1 = 2, the stone. The
+  shading steps (`min(3, dist >> 6)` = 3 at 400 units) add 0x45 to the entry and land on the darkest
+  of the four grey copies; the rows and columns are the right ones.
+- **The distance.** 400 units is h = 22500/400 = 56 px; the whole-unit rounding
+  is 0.25 % at that distance. Nothing overflows: the distances that overflow are the 1-unit ones
+  (F above).
+- **What is wrong is the minification.** The texture is 32 × 300 texels of high-frequency noise,
+  tuned for one texel per screen pixel. At 12.5 cells the wall is 34 px wide and 56 px tall: with the
+  4-times-a-cell tiling (`jardim_texture_per_pixel`) a pixel spans about 4 texels across and 5 down,
+  and the original's nearest-row/column sampling keeps one of them at random. A noise texture sampled
+  one texel in twenty is static; it also flickers while walking. The hedge walls do the same,
+  but their dark green hides it (at the grazing angles of the corridor's sides it shows as comb stripes).
+- **Fix** (`jardim_raycaster`): the wall textures are box-filtered into mip levels per axis (a 2^i × 2^j
+  average, each result snapped to the texture's own palette entries, because the picture is 8-bit and the
+  wall shading adds a fixed step to the entry) and the level is chosen from the texels a pixel spans
+  (across the wall: from the ray's angle to the wall; down: 300 / the slice's height). The far stone is
+  one grey with a few speckles; up close the texture is untouched (level 0 until a pixel spans 2 texels).
+
+The Corrigida's earlier wall fixes (`jardim_texture_per_pixel`, `jardim_wall_height_exact`,
+`jardim_wall_odd_height_row`) are replaced by the raycaster when it is on: it computes the exact height,
+the exact column and the clipping itself (DESIGN.md "The raycaster"). They remain for the 1995 renderer.

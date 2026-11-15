@@ -82,6 +82,10 @@ col 0 (beside the start).
 
 ## The raycaster
 
+This is the 1995 renderer, which the Original keeps. The Corrigida (`jardim_raycaster`) draws the floor,
+the walls and the sprites' clip with a proper per-pixel raycaster; steps 2–4 below are then only run for the
+sprite queue, the object flags and `g_columnDepth` (DESIGN.md "The raycaster").
+
 Every frame (`labyrinth_render_frame` 1028:4655, or `labyrinth_move_and_render` 1028:3e23 after a
 move; `labyrinth_paint` for `WM_PAINT`):
 1. **Sky and floor** (`labyrinth_draw_sky_floor` 1028:134f): copies of the background image

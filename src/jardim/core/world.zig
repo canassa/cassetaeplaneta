@@ -29,6 +29,8 @@ pub const map_rows = 80;
 pub const max_sprites = 100;
 /// The view's columns (480 px of 4) and `g_columnDepth`'s length.
 pub const view_columns = 120;
+/// The view's rows (the sprites' per-row table).
+pub const max_view_h = 300;
 /// Angle units per turn (8 per degree).
 pub const full_turn = 2880;
 
