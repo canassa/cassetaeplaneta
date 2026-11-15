@@ -1,6 +1,6 @@
 //! Corrigida (BUGS.md B53, `Fixes.sprite_key_specks`): fills the stray
 //! colour-11 pixels inside sprite art. Every object is drawn with palette
-//! index 11 (`g.unk001C`) as the transparent colour, and many sprite
+//! index 11 (`g.unk001C`, g_transparentColor) as the transparent colour, and many sprite
 //! bitmaps have index-11 pixels inside the picture (a palette-reduction
 //! accident against their blue backdrop): the game shows the scene through
 //! them. `src/data/key_specks.tsv` lists every such pixel, each reviewed by
@@ -16,7 +16,7 @@ const BitmapInfoHeader = object.BitmapInfoHeader;
 /// `#` comments and a header line.
 const table = @embedFile("data/key_specks.tsv");
 
-/// The transparent index the list was made for (`g.unk001C`).
+/// The transparent index the list was made for (`g.unk001C`, g_transparentColor).
 const key: u8 = 0x0b;
 
 /// Whether `path` (as `loadDib` opened it: any case, `\` or `/`, with the

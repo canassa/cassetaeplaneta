@@ -23,7 +23,7 @@ ENCAIXE is small-model: data and `this` pointers are 2 bytes, vtables hold near 
 |---|---|
 | `0000–000f` | Windows instance header (`g_instOldSp` … `g_instStackBot`; the CRT reads `000a/000c`) |
 | `0010` | `g_nextId`: the next SceneObject id (NOITE has it at the same offset) |
-| `0012` | `g_unk0012` byte (13 reads by the draw code; NOITE `g_unk001C`) |
+| `0012` | `g_unk0012` byte (13 reads by the draw code; NOITE `g_transparentColor`) |
 | `0014` | `s_appName` "Encaixe Perfeito" (class, title) |
 | `0026–0034` | `g_noiteWnd`, `g_score`, `g_started`, `g_handshakePending`, `g_keyLeft/Right/Up/Down` (game_handle_message) |
 | `0036–003c` | handle_message state: 2 flags, a `SceneObject*` from the panel, a word (unnamed, typed) |

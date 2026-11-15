@@ -123,10 +123,11 @@ pub const Game = struct {
     keyRight: u16 = 0,
     keyUp: u16 = 0,
     keyDown: u16 = 0,
-    // @orig g_unk001A
+    // @orig g_dropSupportHeight (1995 Under_h: the height of what a dropped
+    // item lands on)
     unk001A: u16 = 0,
-    // @orig g_unk001C (the transparent colour index of the sprite blits;
-    // DGROUP data 0x0b, never written)
+    // @orig g_transparentColor (1995 TransparentColor: the transparent colour
+    // index of the sprite blits; DGROUP data 0x0b, never written)
     unk001C: u8 = 0x0b,
     // @orig g_newObject (the object just created; read on 0x406)
     newObject: ?*Object = null,
@@ -153,7 +154,7 @@ pub const Game = struct {
     handlers: [handler.max_handlers]?handler.Handler = @splat(null),
     // @orig g_hitObject
     hitObject: ?*Object = null,
-    // @orig g_unk097C
+    // @orig g_tickObject (1995 LocalObj: the sprite-timer loop's cursor)
     unk097C: ?*Object = null,
     // @orig g_inputLocked
     inputLocked: u16 = 0,
