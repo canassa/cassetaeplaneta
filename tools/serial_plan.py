@@ -2,7 +2,7 @@
 """Plan a SERIAL (Serial Killer) game and write it as an input script.
 
     nix develop -c python3 tools/serial_plan.py [--start MS] (--win|--lose)
-        [--relative-to MS] [-o FILE]
+        [--relative-to MS] [--lookahead MS,...] [-o FILE]
     nix develop -c python3 tools/serial_plan.py --start MS --check FILE [--fix all]
         [--key-repeat DELAY,PERIOD|off]
     nix develop -c python3 tools/serial_plan.py --start MS --trace FILE
@@ -19,7 +19,8 @@ what decides a hit and a life:
   in table order; a key pressed at a time is handled after the timers due
   then, a repeat of a held key before them);
 - the spawns every 5 s (lane 0 `rand() % 7`, lane 1 `rand() % 6`, lane 2
-  every second tick, its `rand() % 2` drawn before the busy test), the
+  every second tick, its `rand() % 2` drawn before the busy test; with
+  K5's fix lane 2 also on its own 5-s timer, id 9), the
   walks (20 px a tick with the Bresenham line, frames with wrap, the edge
   tests), the killers' shots and `g_lives`, the 120-s clock;
 - the bullet (20-px Bresenham steps every 55 ms) and the occupancy grid it
@@ -31,14 +32,22 @@ what decides a hit and a life:
 The gun's own cells (rows 11-15) are left out: no query reaches them.
 
 A plan presses SPACE with the bullet free, at least 110 ms after the last
-press, with LEFT/RIGHT before it, and keeps a shot only when the Original
-and the Corrigida (`--fix all`: K1-K4) hit the same figure with it, so
-both play the same game:
+press, with LEFT/RIGHT before it. The Original and the Corrigida (`--fix
+all`: K1-K5) play different games, since K5 spawns lane 2 on its own
+timer (more `rand()` draws, other figures), so one script plays both: a
+shot is kept when, in each version, it hits at most one figure, only of
+the wanted kind, and it hits one in at least one version:
 - `--win` shoots the killers (kind 2) only, as soon as a shot can reach
-  one: the game lasts the 120 s with lives left;
+  one: the game lasts the 120 s with lives left in both;
 - `--lose` shoots kinds 0 and 1 only (each hit frees a lane for the next
-  spawn, so more killers come) until the killers take the five lives.
-The results differ by K1/K2 only: the planner prints both. `--check FILE`
+  spawn, so more killers come) until the killers take the five lives in
+  both.
+When that fails it tries again (`--lookahead`): a shot that hits in one
+version only gives way to one hitting in both within the lookahead; then
+every shot must hit in the Corrigida, then in the Original; then, for a
+win, the other version's shot may hit any figure (a win's result does
+not depend on the score).
+The planner prints both results. `--check FILE`
 simulates a script (`key`/`hold` lines, absolute or `+N` times relative to
 `--relative-to`; a `hold` repeats its key as a run does, `--key-repeat
 DELAY,PERIOD|off`), `--trace FILE` too and prints every tick.
@@ -60,6 +69,7 @@ KINDS = (0, 0, 2, 0, 1, 0, 1, 0, 0, 2, 1, 1, 0, 1, 1)
 B_W, B_H = 47, 31  # bala.bmp
 GUN_X, GUN_Y = 200, 0x17C
 WALK, WALK2, SPAWN, CLOCK, LANE2, GUN, BULLET, APP = 3, 6, 7, 8, 10, 10, 0xC, 1
+LANE2_OWN = 9  # K5's id for lane 2 (g_timerIds[6])
 STEP = 20
 LIVES = 5
 EPOCH = 800_000_000
@@ -107,9 +117,10 @@ class Obj:
 
 
 class Sim:
-    def __init__(self, start, fixes=False):
+    def __init__(self, start, fixes=False, k5=None):
         self.now = start
-        self.fixes = fixes  # Fixes.all(): K1-K4 (K5 is a choice, off)
+        self.fixes = fixes  # Fixes.all(): K1-K4
+        self.k5 = fixes if k5 is None else k5  # serial_lane2_own_timer, in `all`
         self.rand = Rand(EPOCH + start // 1000)
         self.timers = []  # [id, period, due], USER's table order
         self.grid = {}  # index -> [count, occupant]
@@ -136,7 +147,9 @@ class Sim:
         self.figs = [Obj("target", i, WIDTHS[i], HEIGHTS[i], 0, 0x118, FRAMES[i]) for i in range(15)]
         self.set_timer(SPAWN, 5000)
         self.set_timer(CLOCK, 60000)
-        self.set_timer(LANE2, 5000)  # K5: replaces the gun's timer 10
+        # K5: id 10 replaces the gun's timer (its branch is dead); with the
+        # fix lane 2 gets id 9, after the clock in the table.
+        self.set_timer(LANE2_OWN if self.k5 else LANE2, 5000)
         # serial_create_bullets: hidden at (0, 0x17c).
         self.bullet = Obj("bullet", -1, B_W, B_H, 0, GUN_Y, 3)
         # AppWndProc's WM_CREATE: system timer 1.
@@ -535,6 +548,9 @@ class Sim:
     def systimer(self, tid):
         if tid == GUN or tid == APP:
             return  # the gun's redraw (and the dead lane-2 branch, K5); the app's timer
+        if tid == LANE2_OWN and self.k5:
+            self.spawn_lane2()  # K5: lane 2's own 5-s timer
+            return
         if tid == WALK:
             for i in range(13):
                 self.walk(i)
@@ -645,60 +661,97 @@ def wanted(win, i):
     return KINDS[i] == 2 if win else KINDS[i] != 2
 
 
-def plan(start, win, horizon=120_000):
-    """Greedy: each shot is the earliest (aim, time) whose bullet, in both
-    versions, hits the same figure of the wanted kind (win: a killer;
-    lose: anything else), with no key after the game's end. Returns the
-    events, the notes and the two simulations."""
+def candidate(sims, t, last_press, win, lead=None, loose=False):
+    """The first aim (straight, left, right) whose shot at `t` the plan
+    keeps (one that hits in version `lead` when it is given; `loose`: the
+    other version may hit a figure of the other kind): (aim,
+    events, (figure hit in each version or None)); None if
+    none; "skip" when no shot is possible near `t` (a bullet flying, no
+    wanted figure walking); "end" when a game is over."""
+    probes = [copy.deepcopy(s) for s in sims]
+    for p in probes:
+        p.run([], t)
+    if any(p.result is not None for p in probes):
+        return "end"
+    if any(p.bullet.moving for p in probes) or not any(
+            f.moving and wanted(win, f.index) for p in probes for f in p.figs):
+        return "skip"
+    for aim in (1, 0, 2):
+        k = aim_keys(sims[1].aim, aim)
+        at = t - 120 * len(k)
+        if last_press is not None and at < last_press + 110:
+            continue
+        pre = []
+        for j, name in enumerate(k):
+            pre += [(at + 120 * j, name, True), (at + 120 * j + 50, name, False)]
+        pre += [(t, VK_SPACE, True), (t + 50, VK_SPACE, False)]
+        got = []
+        for s in sims:
+            c = copy.deepcopy(s)
+            c.run(pre[:-2], t - 1)
+            if c.bullet.moving or c.result is not None:
+                got = None
+                break
+            n = len(c.hits)
+            c.run(pre[-2:], t + 50)
+            c.run([], t + 3000)
+            if c.bullet.moving:
+                got = None
+                break
+            got.append([i for (_, i) in c.hits[n:]])
+        if got is None or any(len(h) > 1 for h in got):
+            continue
+        good = [bool(h) and wanted(win, h[0]) for h in got]
+        if not loose and any(h and not ok for h, ok in zip(got, good)):
+            continue
+        if not any(good) or (lead is not None and not good[lead]):
+            continue
+        return aim, pre, tuple(h[0] if h else None for h in got)
+    return None
+
+
+def plan(start, win, horizon=120_000, lookahead=0, lead=None, loose=False):
+    """Greedy: each shot is the earliest (aim, time) whose bullet hits at
+    most one figure in each version, only of the wanted kind (win: a
+    killer; lose: anything else), and one in at least one version, with no
+    key after either game's end; a shot that hits in one version only
+    gives way to one that hits in both within `lookahead` ms; with `lead`
+    (0 the Original, 1 the Corrigida) every shot hits in that version;
+    `loose` lets a shot hit a figure of the other kind in one version
+    (the win's result does not depend on the score). The versions
+    play different games (K5 changes the spawns), so a shot may hit two
+    figures or one and miss in the other. Returns the events, the notes
+    and the two simulations."""
     sims = [Sim(start, False), Sim(start, True)]
     events, notes = [], []
     t = start + 300
     last_press = None
     end = start + horizon
     while t < end - 1500:
-        probe = copy.deepcopy(sims[0])
-        probe.run([], t)
-        if probe.result is not None:
+        found = candidate(sims, t, last_press, win, lead, loose)
+        if found == "end":
             break
-        if not any(f.moving and wanted(win, f.index) for f in probe.figs) or probe.bullet.moving:
+        if found == "skip":
             t += 50
             continue
-        found = None
-        for aim in (1, 0, 2):
-            k = aim_keys(sims[1].aim, aim)
-            at = t - 120 * len(k)
-            if last_press is not None and at < last_press + 110:
-                continue
-            pre = []
-            for j, name in enumerate(k):
-                pre += [(at + 120 * j, name, True), (at + 120 * j + 50, name, False)]
-            pre += [(t, VK_SPACE, True), (t + 50, VK_SPACE, False)]
-            got = []
-            for s in sims:
-                c = copy.deepcopy(s)
-                c.run(pre[:-2], t - 1)
-                if c.bullet.moving or c.result is not None:
-                    got = None
-                    break
-                n = len(c.hits)
-                c.run(pre[-2:], t + 50)
-                c.run([], t + 3000)
-                if c.bullet.moving:
-                    got = None
-                    break
-                got.append([i for (_, i) in c.hits[n:]])
-            if got is None or got[0] != got[1] or len(got[0]) != 1 or not wanted(win, got[0][0]):
-                continue
-            found = (aim, pre, got[0][0])
-            break
         if found is None:
             t += 10
             continue
-        aim, pre, fig = found
+        if None in found[2] and lookahead:
+            u = t + 10
+            while u <= t + lookahead and u < end - 1500:
+                c = candidate(sims, u, last_press, win, lead, loose)
+                if c == "end":
+                    break
+                if isinstance(c, tuple) and None not in c[2]:
+                    t, found = u, c
+                    break
+                u += 50
+        aim, pre, figs = found
         for s in sims:
             s.run(pre, t + 50)
         events += pre
-        notes.append((t, aim, fig))
+        notes.append((t, aim, figs))
         last_press = t
         t += 160
     for s in sims:
@@ -706,12 +759,20 @@ def plan(start, win, horizon=120_000):
     return events, notes, sims
 
 
+def fig_name(fig):
+    return "a miss" if fig is None else f"{NAMES[fig]} (figure {fig}, kind {KINDS[fig]})"
+
+
 def script_lines(events, notes):
     """`key` lines, each shot's aim keys and SPACE under one comment."""
     lines = []
     k = 0
-    for i, (t, aim, fig) in enumerate(notes):
-        lines.append(f"# shot {i + 1}: {AIMS[aim]}, {NAMES[fig]} (figure {fig}, kind {KINDS[fig]})")
+    for i, (t, aim, figs) in enumerate(notes):
+        if figs[0] == figs[1]:
+            hit = fig_name(figs[0])
+        else:
+            hit = f"Original {fig_name(figs[0])}, Corrigida {fig_name(figs[1])}"
+        lines.append(f"# shot {i + 1}: {AIMS[aim]}, {hit}")
         while k < len(events) and events[k][0] <= t:
             et, name, down = events[k]
             if down:
@@ -735,17 +796,23 @@ def main():
     g.add_argument("--lose", action="store_true")
     g.add_argument("--check", metavar="FILE", help="simulate a script and print the result")
     g.add_argument("--trace", metavar="FILE", help="simulate a script and print every tick")
-    ap.add_argument("--fix", help="with --check/--trace: 'all' for the Corrigida")
+    ap.add_argument("--fix", help="with --check/--trace: 'all' for the Corrigida "
+                                  "('all,-serial_lane2_own_timer': without K5)")
     ap.add_argument("--ms", type=int, default=130_000, help="with --check/--trace: run until")
     ap.add_argument("--relative-to", type=int, metavar="MS",
                     help="write `+N` times, the first from MS (a `wait` line's entry); "
                          "with --check, read them so")
     ap.add_argument("--key-repeat", default="500,33", metavar="DELAY,PERIOD|off",
                     help="with --check/--trace: the repeat of a held key (the run's --key-repeat)")
+    ap.add_argument("--lookahead", type=lambda v: [int(x) for x in v.split(",")],
+                    default=[0, 2000], metavar="MS,…",
+                    help="the lookaheads tried in turn until the plan works, with no lead "
+                         "version, then the Corrigida's, then the Original's")
     ap.add_argument("-o", "--output")
     a = ap.parse_args()
     if a.check or a.trace:
-        s = Sim(a.start, a.fix == "all")
+        fix = (a.fix or "").split(",")
+        s = Sim(a.start, "all" in fix, "all" in fix and "-serial_lane2_own_timer" not in fix)
         if a.trace:
             s.trace = []
         rep = None if a.key_repeat == "off" else tuple(int(v) for v in a.key_repeat.split(","))
@@ -758,14 +825,20 @@ def main():
             print(f"{t} figure {i} ({NAMES[i]}) shoots")
         print(f"{len(s.shots)} shots; result {describe(s)}")
         return
-    events, notes, sims = plan(a.start, a.win)
-    r0, r1 = sims[0].result, sims[1].result
-    if r0 is None or r1 is None or r0 != r1:
-        raise SystemExit(f"the two versions differ: {r0} / {r1}")
-    if (r0[1] > 0) != a.win:
-        raise SystemExit(f"the plan does not {'win' if a.win else 'lose'}: {describe(sims[0])}")
-    if events and events[-1][0] >= r0[0]:
-        raise SystemExit("a key comes after the end")
+    looses = (False, True) if a.win else (False,)
+    tries = [(look, lead, lo) for lo in looses for lead in (None, 1, 0) for look in a.lookahead]
+    for look, lead, lo in tries:
+        events, notes, sims = plan(a.start, a.win, lookahead=look, lead=lead, loose=lo)
+        if all(x.result is not None and (x.result[1] > 0) == a.win for x in sims):
+            break
+    for s in sims:
+        if s.result is None:
+            raise SystemExit(f"no result: {describe(sims[0])} / {describe(sims[1])}")
+        if (s.result[1] > 0) != a.win:
+            raise SystemExit(f"the plan does not {'win' if a.win else 'lose'}: "
+                             f"{describe(sims[0])} / {describe(sims[1])}")
+        if events and events[-1][0] >= s.result[0]:
+            raise SystemExit("a key comes after the end")
     lines = script_lines(events, notes)
     if a.relative_to is not None:
         prev = a.relative_to
