@@ -7,7 +7,7 @@ zig-developer skill hold for everything this file does not override.
 Ghidra (program `SAUNA.EXE`, through the tracker snapshot `noite -p sauna
 show`) is the specification; `GAME.md` (rules, protocol), `DATA.md`
 (classes, vtables, globals, the maze), `FUNCTIONS.md` (names, dead code),
-`QUALITY.md` (the large /Od build), BUGS.md P1–P8.
+`QUALITY.md` (the large /Od build), BUGS.md P1, P2, P4–P8.
 
 ## Decisions
 
@@ -75,10 +75,9 @@ show`) is the specification; `GAME.md` (rules, protocol), `DATA.md`
   unit's commit. A SAUNA function may delegate to a TIRO, ENCAIXE or NOITE
   function only when that function takes no program state (in practice the
   `dib` copies and `read_dib_info`) and the decompiles are shown identical.
-- **Faithful first, the owner's rule.** P1–P8 are reproduced as they are by
-  default. Each fix exists only behind its own `Fixes` flag (off by
-  default). Corrigida (`Fixes.all()`) takes the seven clear bugs; P3 is a
-  choice (`Fixes.choices`) until the owner says (Owner questions).
+- **Faithful first, the owner's rule.** The bugs are reproduced as they are
+  by default. Each fix exists only behind its own `Fixes` flag (off by
+  default). Corrigida (`Fixes.all()`) takes all seven.
 - **Two programs in one process**, as ENCAIXE and TIRO (`src/platform/host.zig`):
   SAUNA is a task with its own state, queue, timers, window and screen; the
   protocol runs through the platform as in Windows. The host needs nothing
@@ -150,7 +149,7 @@ A class's override of a SceneObject slot lives in the slot's unit, next to
 its dispatcher (TIRO's rule; it keeps the hard dependencies acyclic):
 Pacman's and the Ghosts' `occupy`/`vacate`/`canStep` are in `occupancy`
 (and with them P1, P2, P6), their `restoreBackground` in `render` (the
-eating and the win: P3), their moves and stops in `movement` (the click
+eating and the win), their moves and stops in `movement` (the click
 walk: P5), Pacman's `tick`/`playIdle`/`stopAndRedraw(Dc)` in `animation`.
 The class units hold what is no SceneObject slot: `ghost` (the AI and
 `sendGhostsHome`), `score` (the score helpers the overrides call), `maze`
@@ -340,7 +339,6 @@ and `sauna_blit_score_box` blits the 192×20 box at (416, 437).
 |---|---|---|---|---|
 | P1 only a move left or up meets the other actor | `sauna_meet_any_direction` | occupancy | `pacman_can_step`/`ghost_can_step` look through every occupied cell of the 2×2 block of the next position, skipping the mover's own, for the other kind (a ghost for Pacman, Pacman for a ghost); the first one found in row-major order decides as before | yes |
 | P2 vacate clears other actors' cells | `sauna_vacate_own_cells` | occupancy | `pacman_vacate`/`ghost_vacate` clear only cells whose object is the mover; `occupy` does not take over a cell held by another actor (count and object stay), and a cell the mover leaves that lies under another actor's hit box is given back to that actor | yes |
-| P3 a dot is eaten after Pacman leaves it | `sauna_eat_on_arrival` | render | `pacman_restore_background`'s four-cell dot test reads the new position (x, y) instead of (prevX, prevY), so the dot, its score and the win come with the step onto it | **no: a choice** |
 | P4 power start/end face Pacman right | `sauna_power_keeps_heading` | animation | `pacman_refresh_power_strip` sets `g_powerStrip` + the strip of Pacman's heading (`Mover.direction` 1, 2, 4, 8 → strip 0, 1, 2, 3) whatever `dir` | yes |
 | P5 a click shows the up or right picture | `sauna_click_faces_walk` | movement | `pacman_move_to` picks `g_powerStrip` + left 0 / right 1 / up 2 / down 3 by the larger leg of the line (x on a tie) | yes |
 | P6 a ghost can take another life during the death | `sauna_no_catch_while_dying` | occupancy | while `g_pacmanDying`, `pacman_can_step`/`ghost_can_step` take no life (the meeting is ignored: the ghost walks on as through an empty cell) | yes |
@@ -488,7 +486,8 @@ and `GetTickCount` (`plat.ticks()`) is the task's virtual clock.
   `ghost_choose_direction` (alignment within 16 px, `isNextStepFree`'s
   wall look-ahead, rule 3), the Bresenham moves in 16-px steps, the
   occupancy cells with the overwrite and clear of P1/P2, Pacman's dot
-  test (P3) and the power's start one message late, the death's ticks.
+  test (on arrival) and the power's start one message late, the death's
+  ticks.
   `--check FILE` / `--trace FILE` simulate a script; the trace is the
   port's, tick for tick (to be checked on random games, Original and
   Corrigida). The search: a tour of the 100 dots over the maze graph (16-px
@@ -497,15 +496,12 @@ and `GetTickCount` (`plat.ticks()`) is the task's virtual clock.
   cells or more from every ghost; a catch or a near meeting backtracks to
   the last decision and waits or takes another branch. Corks are eaten
   when it helps escape (eating ghosts is allowed but not needed).
-  **One script for both versions**: `--fix all` leaves P3 out (a choice), and
-  P1, P2, P6, P7 act only when an actor meets Pacman, P4, P5, P8 only on
-  the picture, so a plan that keeps its distance plays the same in the
+  **One script for both versions**: P1, P2, P6, P7 act only when an actor
+  meets Pacman, P4, P5, P8 only on the picture, so a plan that keeps its distance plays the same in the
   Original and the Corrigida; the planner checks both and rejects a plan
   whose outcome or score differs. A loss plans three catches spread apart
   (each one after the previous death has ended, so P6 and P7 cannot add or
-  remove one): the same −1000 in both versions. A plan with
-  `--fix sauna_eat_on_arrival` is a separate script (its dots fall one step
-  earlier, the power and the ghosts' random turns with them).
+  remove one): the same −1000 in both versions.
 - **Scripts** (`tools/play/`), each run Original and `--fix all`, the same
   script, its result checked after the later of the two ends:
   - `sauna-alone-win.input` (`--minigame sauna --ms 300000`): the 100
@@ -532,7 +528,7 @@ and `GetTickCount` (`plat.ticks()`) is the task's virtual clock.
   (large model: far code and data, DGROUP 10b0; `_aFchkstk` 1098:00f8 is
   in the EXE and runs as is), as worth it: `pacman_can_step` and
   `ghost_can_step` (P1, P2, P6), `ghost_choose_direction` with a seeded
-  `rand`, `pacman_restore_background`'s dot test (P3), `sauna_backdrop_create`'s
+  `rand`, `pacman_restore_background`'s dot test, `sauna_backdrop_create`'s
   wall cells, `pacman_move_to`'s strip (P5), `sauna_draw_score`
   (`asset` with 3fpac2.bmp; P8).
 
@@ -683,22 +679,17 @@ noite -p sauna failed <unit> "why" / release <unit>
 
 ## Owner questions
 
-1. **P3 in Corrigida?** `sauna_eat_on_arrival` makes Pacman eat the dot he
-   steps onto instead of the one he has just left: the score, the sounds,
-   the power mode and the win come one step (55 ms) earlier, and the last
-   dot no longer waits for one more move. BUGS.md rates "the old position
-   was not meant" 7/10, so it is left out of `--fix all` until you say.
-2. **P6's fix: immunity or a pause?** The flag as designed lets the ghosts
+1. **P6's fix: immunity or a pause?** The flag as designed lets the ghosts
    walk on during the 0.7-s death but takes no life from a meeting then.
    The alternative is to stop the ghosts' timer arm while Pacman dies (they
    freeze, as in the arcade game). The first changes less; say if you
    prefer the second.
-3. **P2's fix** keeps every actor's cells marked (vacate clears only its
+2. **P2's fix** keeps every actor's cells marked (vacate clears only its
    own, occupy does not overwrite another actor's). With it ghosts that
    overlap at home (all four start at the same point) stay detectable
    wherever they are: catches are a little more likely in the Corrigida.
    It is in `all` as a bug fix; say if that should be a choice.
-4. **full.input**: add the sauna detour (a planned win between the pharaoh
+3. **full.input**: add the sauna detour (a planned win between the pharaoh
    and the disco), or keep the full run on its current route and leave
    SAUNA to its own scripts?
 

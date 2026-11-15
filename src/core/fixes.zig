@@ -362,10 +362,6 @@ pub const Fixes = struct {
     /// of another actor it leaves are marked for that actor again, so no
     /// actor goes missing from the grid when another passes over it.
     sauna_vacate_own_cells: bool = false,
-    /// P3: a dot is eaten in the cells of the position Pacman steps to, not
-    /// the one he left, and the win comes with the last dot. A choice until
-    /// the owner says (`choices`).
-    sauna_eat_on_arrival: bool = false,
     /// P4: the power mode's start and end keep Pacman's heading (the strip
     /// of his current direction, powered or not) instead of facing right.
     sauna_power_keeps_heading: bool = false,
@@ -450,7 +446,7 @@ pub const Fixes = struct {
 
     /// Flags left out of `all` (`--fix all`, the web build's "Corrigida"
     /// version), e.g. the hall-door reshuffle.
-    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit", "serial_lane2_own_timer", "sauna_eat_on_arrival", "salgin_opponent_damage_table", "salgin_block_holds", "salgin_insert_locked", "salgin_weak_reaction_by_energy", "salgin_banner_shown", "xilindro_block_holds", "xilindro_insert_locked", "xilindro_banner_shown", "inferno_loss_reports", "inferno_close_forfeits", "jardim_enemy_blocks_walk" };
+    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit", "serial_lane2_own_timer", "salgin_opponent_damage_table", "salgin_block_holds", "salgin_insert_locked", "salgin_weak_reaction_by_energy", "salgin_banner_shown", "xilindro_block_holds", "xilindro_insert_locked", "xilindro_banner_shown", "inferno_loss_reports", "inferno_close_forfeits", "jardim_enemy_blocks_walk" };
 
     /// `--fix all`: every flag but the `choices`.
     pub fn all() Fixes {

@@ -1,4 +1,4 @@
-//! Port unit `render` (behaviour) of SAUNA.EXE. SceneObject slots 03 isRle, 17-20 (dirty rects, overlap, restoreBackground incl. Pacman's (eating, the win: BUGS.md P3) and the Ghosts', drawDirtyTo, draw, unk18, drawClip(To), erase, slot1F) and the DC hooks.
+//! Port unit `render` (behaviour) of SAUNA.EXE. SceneObject slots 03 isRle, 17-20 (dirty rects, overlap, restoreBackground incl. Pacman's (eating, the win) and the Ghosts', drawDirtyTo, draw, unk18, drawClip(To), erase, slot1F) and the DC hooks.
 //!
 //! Virtual-slot dispatchers owned by this unit; each switches on the object
 //! kind between the override (Mover / Animation / Player2D / ControlPanel)
@@ -237,10 +237,9 @@ fn cell(v: i16) i16 {
 /// `g_powerStartPending = 1`. Then the BitBlt, and at no dot left
 /// SendMessage(WM_DESTROY, 0xffff): the win.
 ///
-/// The test reads the object's own `x`/`y` (the position just set: the
-/// addDirtyRect arguments subtract the same two fields), not
-/// `prevX`/`prevY` as DESIGN.md's P3 says; so `sauna_eat_on_arrival` has
-/// nothing to change here (see the commit body).
+/// The test reads the object's own `x`/`y` (vbase + 0x12/0x14, the position
+/// `mover_place_at` has just set through setPosition, which first copies
+/// them to `prevX`/`prevY`), so Pacman eats the dot he steps onto.
 fn pacmanRestoreBackground(g: *Game, obj: *Object, bd: *Backdrop) void {
     const rx = @min(obj.mover.prevX, obj.x);
     const ry = @min(obj.mover.prevY, obj.y);

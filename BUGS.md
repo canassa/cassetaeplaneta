@@ -1954,19 +1954,6 @@ object, and a message after that would reach a freed object; no path to one is k
 - **Port:** unit `occupancy` (src/sauna/, docs/sauna/DESIGN.md), not ported yet; the fix is
   `Fixes.sauna_vacate_own_cells` (`--fix sauna_vacate_own_cells`, on in the Corrigida version).
 
-### P3. A dot is eaten after Pacman has left it, so the win waits for a move
-- **Where:** `pacman_restore_background` 1080:0d05 (the dot test and the `SendMessage(WM_DESTROY,
-  0xffff)` at its end).
-- **What the code does:** `mover_place_at` calls it after setting the new position; it looks for a
-  dot in the cells of the position Pacman has just left (`prevX`/`prevY`), and tests
-  `g_dotsLeft == 0` only there.
-- **Effect:** a dot disappears, scores and sounds one step after Pacman passes over it; a dot where
-  he stops (against a wall) stays until he moves off, and when it is the last one the game is won
-  only then.
-- **Confidence:** 9 (code); 7 (that the old position was not meant).
-- **Port:** unit `render` (src/sauna/, docs/sauna/DESIGN.md), not ported yet; the fix is
-  `Fixes.sauna_eat_on_arrival` (`--fix sauna_eat_on_arrival`, a choice: left out of the Corrigida version (`Fixes.choices`) until the owner decides).
-
 ### P4. The power mode's start and end turn Pacman to face right
 - **Where:** `sauna_scene_handle_message`, the power start (1080:3324) and end (1080:3ee4), which
   call `pacman_refresh_power_strip` 1080:05ef with dir 2.

@@ -58,7 +58,7 @@ Pacman: he runs until blocked.
 line in 16-px steps, diagonals allowed (BUGS.md P5 for the picture).
 
 **Eating** (`pacman_restore_background`, after each step): the first cell holding a dot among the
-four cells at the top left of the position he has just left (BUGS.md P3). A peanut: +100
+four cells at the top left of the position he has just stepped onto. A peanut: +100
 (`pacman.wav`). A cork: no points, `pacman2.wav`, the `control.wav` loop, and the power mode. Each
 dot is cleared from the maze and from the second bitmap, and `--g_dotsLeft`.
 
