@@ -39,6 +39,10 @@ const c = struct {
     const key_left: u32 = 0x40000050;
     const key_down: u32 = 0x40000051;
     const key_up: u32 = 0x40000052;
+    const key_insert: u32 = 0x40000049;
+    const key_home: u32 = 0x4000004a;
+    const key_pageup: u32 = 0x4000004b;
+    const key_end: u32 = 0x4000004d;
     /// SDL_Event is a 128-byte union; fields are read at their offsets.
     const Event = extern struct { bytes: [128]u8 align(8) };
 
@@ -216,6 +220,11 @@ pub const Sdl = struct {
                     c.key_right => msg.vk.right,
                     c.key_up => msg.vk.up,
                     c.key_down => msg.vk.down,
+                    // The fights' keys (VK_PRIOR, VK_HOME, VK_END, VK_INSERT).
+                    c.key_pageup => 0x21,
+                    c.key_home => 0x24,
+                    c.key_end => 0x23,
+                    c.key_insert => 0x2d,
                     // SDLK_RETURN/ESCAPE/SPACE are the virtual keys
                     // (`Sim.filterInput` decides who gets them).
                     0x0d, 0x1b, 0x20 => @intCast(key),

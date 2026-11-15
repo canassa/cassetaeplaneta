@@ -62,10 +62,10 @@ const InputRing = struct {
 };
 
 /// The page's key codes for `key` (KeyboardEvent.keyCode, which are the
-/// Win16 virtual keys): the arrows, Enter, Esc and Space (`Sim.filterInput`
-/// decides who gets them). The page drops the browser's repeats: `Sim`
-/// repeats a held key.
-pub const Key = enum(u16) { enter = 0x0d, escape = 0x1b, space = 0x20, left = 0x25, up = 0x26, right = 0x27, down = 0x28 };
+/// Win16 virtual keys): the arrows, Enter, Esc, Space and the fights'
+/// PgUp, End, Home and Insert (`Sim.filterInput` decides who gets them).
+/// The page drops the browser's repeats: `Sim` repeats a held key.
+pub const Key = enum(u16) { enter = 0x0d, escape = 0x1b, space = 0x20, page_up = 0x21, end = 0x23, home = 0x24, left = 0x25, up = 0x26, right = 0x27, down = 0x28, insert = 0x2d };
 
 pub const Web = struct {
     sim: Sim,
