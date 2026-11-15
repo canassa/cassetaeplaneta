@@ -2,8 +2,8 @@
 //!
 //!     noite [--headless] [--ms N] [--assets DIR] [--save DIR] [--trace FILE]
 //!           [--input FILE] [--dump DIR] [--dump-every MS] [--bmp]
-//!           [--scene NAME [--take ID,ID…]] [--minigame encaixe|tiro|serial|salgin|inv|xilindro|inferno|sauna]
-//!           [--minigame-stub] [--minigame-result win|lose] [--minigame-startup MS] [--minigame-reply MS] [--quiet]
+//!           [--scene NAME [--take ID,ID…]] [--minigame encaixe|tiro|serial|salgin|inv|xilindro|inferno|sauna|jardim]
+//!           [--minigame-stub[=NAME,…]] [--minigame-result win|lose] [--minigame-startup MS] [--minigame-reply MS] [--quiet]
 //!           [--fix NAME,…|all[,-NAME…]] [--skip-videos] [--one-button]
 //!           [--key-repeat DELAY,PERIOD|off]
 //!
@@ -13,9 +13,9 @@
 //! and on `dump` commands, `--scene` starts in an INI scene instead of the
 //! opening. A panic prints the scene and the last messages first.
 //!
-//! `--minigame encaixe|tiro|serial|salgin|inv|xilindro|inferno|sauna` runs
-//! ENCAIXE.EXE, TIRO.EXE, SERIAL.EXE, SALGIN.EXE, INV.EXE, XILINDRO.EXE,
-//! INFERNO.EXE or SAUNA.EXE alone
+//! `--minigame encaixe|tiro|serial|salgin|inv|xilindro|inferno|sauna|jardim`
+//! runs ENCAIXE.EXE, TIRO.EXE, SERIAL.EXE, SALGIN.EXE, INV.EXE, XILINDRO.EXE,
+//! INFERNO.EXE, SAUNA.EXE or JARDIM.EXE alone
 //! (`runAlone`);
 //! `--minigame-result win|lose` is the result of the stubbed minigames, and
 //! `--minigame-stub` stubs the ported ones too (`platform/host.zig`); with a
@@ -206,7 +206,7 @@ pub fn main(init: std.process.Init) !void {
             if (findMinigame(v)) |prog| {
                 args.alone = prog;
             } else {
-                std.log.err("--minigame {s}: want a ported minigame (encaixe, tiro, serial, salgin, inv, xilindro, inferno, sauna)", .{v});
+                std.log.err("--minigame {s}: want a ported minigame (encaixe, tiro, serial, salgin, inv, xilindro, inferno, sauna, jardim)", .{v});
                 return error.BadArgument;
             }
         } else if (std.mem.eql(u8, a, "--minigame-result")) {
@@ -304,6 +304,10 @@ pub fn main(init: std.process.Init) !void {
     }
 }
 
+/// Messages dispatched at one tick, with a message from another task among
+/// them, before a busy loop moves the clock 1 ms (`run`).
+pub const busy_messages = 64;
+
 /// WinMain + app_message_loop. `stop_at`: headless time limit.
 fn run(g: *Game, hn: *platform.harness.Harness, stop_at: ?u32) !void {
     current_game = g;
@@ -320,12 +324,18 @@ fn run(g: *Game, hn: *platform.harness.Harness, stop_at: ?u32) !void {
 
     // The virtual clock stands still while messages are dispatched: a
     // message that keeps re-posting itself would spin here for ever.
+    // Two tasks bouncing posted messages (4fjarvamp and JARDIM's 0x40c and
+    // 0x40a, BUGS.md J7) keep Windows busy, but its clock runs on and the
+    // timers fire: past `busy_messages` at one tick with a message from
+    // another task among them, the clock moves 1 ms.
     var storm_tick: u32 = 0;
     var storm_count: u32 = 0;
+    var storm_cross = false;
     while (!g.quit) {
         if (g.plat.ticks() != storm_tick) {
             storm_tick = g.plat.ticks();
             storm_count = 0;
+            storm_cross = false;
         } else if (storm_count > 50_000) {
             @panic("message storm: 50000 messages without the clock moving (a hang)");
         }
@@ -338,10 +348,6 @@ fn run(g: *Game, hn: *platform.harness.Harness, stop_at: ?u32) !void {
         const busy = storm_cross and storm_count >= busy_messages;
         if (!busy and g.dispatchPending()) {
             hn.noteScene(g);
-/// Messages dispatched at one tick, with a message from another task among
-/// them, before a busy loop moves the clock 1 ms (`run`).
-pub const busy_messages = 64;
-
             continue;
         }
         units.game_input.showDrag(g);
@@ -351,6 +357,7 @@ pub const busy_messages = 64;
         var due = g.queue.nextDue();
         if (hn.nextDue()) |t| due = if (due) |d| @min(d, t) else t;
         if (stop_at) |limit| due = if (due) |d| @min(d, limit) else limit;
+        if (busy) due = storm_tick +% 1;
         g.plat.wait(due);
     }
     // WinMain calls app_exit after the message loop (also when the headless
@@ -358,18 +365,12 @@ pub const busy_messages = 64;
     if (comptime @hasDecl(units.app, "exit")) {
         current_game = null; // the scene goes away: no report from here on
         units.app.exit(g);
-    // Two tasks bouncing posted messages (4fjarvamp and JARDIM's 0x40c and
-    // 0x40a, BUGS.md J7) keep Windows busy, but its clock runs on and the
-    // timers fire: past `busy_messages` at one tick with a message from
-    // another task among them, the clock moves 1 ms.
         units.app.reclaimLeaks(g);
     }
-    var storm_cross = false;
 }
 
 /// A minigame alone (`--minigame NAME`): its WinMain and message loop on
 /// task 0, the harness's program-neutral commands, then app_exit. The
-            storm_cross = false;
 /// minigame's result (0x40a to a NOITE that is not there) is printed.
 fn runAlone(gpa: std.mem.Allocator, prog: *const platform.host.Program, hs: *platform.host.Host, hn: *platform.harness.Harness, stop_at: ?u32) !void {
     if (!prog.ready) {
@@ -387,7 +388,6 @@ fn runAlone(gpa: std.mem.Allocator, prog: *const platform.host.Program, hs: *pla
             storm_tick = plat.ticks();
             storm_count = 0;
         } else if (storm_count > 50_000) {
-        if (busy) due = storm_tick +% 1;
             @panic("message storm: 50000 messages without the clock moving (a hang)");
         }
         storm_count += 1;

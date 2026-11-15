@@ -34,7 +34,7 @@ const main_busy_messages = 64;
 
 /// The minigames ported (as `main.zig`'s `minigames`); `noite_start`'s
 /// `minigame` is an index into it plus one.
-const minigames = [_]*const host.Program{ &encaixe.program, &tiro.program, &serial.program, &salgin.program, &inv.program, &xilindro.program, &inferno.program, &sauna.program };
+const minigames = [_]*const host.Program{ &encaixe.program, &tiro.program, &serial.program, &salgin.program, &inv.program, &xilindro.program, &inferno.program, &sauna.program, &jardim.program };
 
 pub const std_options: std.Options = .{ .logFn = log };
 
@@ -107,17 +107,18 @@ export fn noite_frame() i32 {
     const g = game orelse return 1;
     // Like main.zig: the clock stands still while messages are dispatched,
     // so a message that keeps re-posting itself would never let go; give
-    // the page its frame back after a while instead.
+    // the page its frame back after a while instead. Two tasks bouncing
+    // posted messages (`main.busy_messages`) get it back sooner, quietly.
     var budget: u32 = 50_000;
-    while (!g.quit and budget > 0) : (budget -= 1) {
     var cross = false;
+    while (!g.quit and budget > 0) : (budget -= 1) {
         while (g.plat.poll()) |ev| {
             if (ev == .message) cross = true;
             deliver(g, ev);
         }
         if (!g.dispatchPending()) break;
-    }
         if (cross and 50_000 - budget >= main_busy_messages) break;
+    }
     if (budget == 0) std.log.warn("message storm: 50000 messages in one frame", .{});
     if (g.quit) {
         game = null;

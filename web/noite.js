@@ -47,6 +47,7 @@
     { name: "xilindro", title: "Xilindro", ready: true },
     { name: "inferno", title: "Inferno", ready: true },
     { name: "sauna", title: "Sauna Mista", ready: true },
+    { name: "jardim", title: "Noite Animal Jardim", ready: true },
   ];
   // The keys the page passes on (KeyboardEvent.keyCode = the virtual key).
   const GAME_KEYS = new Set([13, 16, 17, 20, 27, 32, 33, 35, 36, 37, 38, 39, 40, 45]);
