@@ -70,7 +70,10 @@ eight fight keys and ▶ and ▲ tapped in turn do the same
 (xilindro-touch.png). Then "Jogo" = Inferno: INFERNO starts alone and a
 held Right walks the hero off his starting place (inferno.png,
 inferno-walk.png); on a touch screen the pad shows the four arrows and a
-held ▶ does the same (inferno-touch.png).
+held ▶ does the same (inferno-touch.png). Then "Jogo" = Sauna Mista:
+SAUNA starts alone and Left runs Pacman along his row, eating peanuts:
+the score box changes (sauna.png, sauna-run.png); on a touch screen the
+pad shows the four arrows and ◀ does the same (sauna-touch.png).
 Exits non-zero on the first failed check or on a page error.
 """
 
@@ -899,6 +902,61 @@ def main():
             check(not terrors, "touch Inferno: no page errors")
             tctx.close()
 
+        # SAUNA's score box (416-608, 437-457) shows " 0100" from the start
+        # (Pacman eats the peanut he is placed on) until he eats another
+        # one or a ghost catches him, which takes far longer than the 2 s
+        # here; Left runs him along row 19, a peanut every other cell.
+        score_js = """() => {
+            const d = document.getElementById("screen").getContext("2d").getImageData(416, 437, 192, 20).data;
+            let sum = 0;
+            for (let i = 0; i < d.length; i += 4) sum = (sum * 31 + d[i] + 7 * d[i + 1] + 13 * d[i + 2]) % 1000000007;
+            return sum;
+        }"""
+
+        def sauna_alone():
+            """Jogo: Sauna Mista alone. It starts, Left runs Pacman and his
+            peanuts change the score box, no page errors."""
+            page.goto(url)
+            load()
+            check(not page.is_disabled("#jogo option[value=sauna]"), "the loader offers Sauna Mista alone")
+            page.select_option("#jogo", "sauna")
+            page.check('input[name="versao"][value="original"]')
+            play()
+            time.sleep(1)
+            shot("sauna.png")
+            before = page.evaluate(score_js)
+            page.keyboard.press("ArrowLeft")
+            time.sleep(1)
+            after = page.evaluate(score_js)
+            shot("sauna-run.png")
+            check(before is not None and after is not None and before != after,
+                  "Sauna Mista runs: Left runs Pacman over the peanuts")
+            check(not errors, "Sauna Mista: no page errors")
+
+        def sauna_touch():
+            """Sauna Mista alone on a touch screen: the pad's keys are the four
+            arrows and ◀ runs Pacman over the peanuts."""
+            tctx = browser.new_context(viewport={"width": 844, "height": 390}, has_touch=True, is_mobile=True)
+            tpage = tctx.new_page()
+            terrors = []
+            tpage.on("pageerror", lambda e: terrors.append(str(e)))
+            tpage.goto(url)
+            tpage.wait_for_function("window.noite.ready || window.noite.failure", timeout=600_000)
+            tpage.select_option("#jogo", "sauna")
+            tpage.click("#play")
+            tpage.wait_for_function("window.noite.started || window.noite.failure", timeout=60_000)
+            time.sleep(1)
+            shown = tpage.evaluate("""() => Array.from(document.querySelectorAll('#dpad button'))
+                .filter((b) => !b.hidden).map((b) => Number(b.dataset.key))""")
+            check(sorted(shown) == [37, 38, 39, 40], f"touch Sauna Mista: the pad shows the four arrows ({shown})")
+            before = tpage.evaluate(score_js)
+            tpage.locator('#dpad [data-key="37"]').tap()
+            time.sleep(1)
+            tpage.screenshot(path=str(out / "sauna-touch.png"))
+            check(tpage.evaluate(score_js) != before, "touch Sauna Mista: ◀ runs Pacman over the peanuts")
+            check(not terrors, "touch Sauna Mista: no page errors")
+            tctx.close()
+
         def manifest():
             return page.evaluate("""async () => {
                 const html = await (await fetch("./", { cache: "no-cache" })).text();
@@ -1079,6 +1137,8 @@ def main():
         xilindro_touch()
         inferno_alone()
         inferno_touch()
+        sauna_alone()
+        sauna_touch()
         browser.close()
     if not args.url:
         httpd.shutdown()
