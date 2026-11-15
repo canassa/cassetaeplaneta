@@ -225,3 +225,29 @@ every end tick. Nothing else in the band is redrawn, so the PORRADA banner at (2
 only once while the window is still being created, never stays on screen (BUGS S9). The clock and
 the energy tiles sit above the band and are drawn on their own. The two fighters' redraw slots
 (`fighter_redraw_overlapping`, `opponent_redraw_overlapping`) redraw each other.
+
+## Fair fight (Corrigida)
+
+The port's Corrigida version (`--fix all`) replaces the opponent's approach and attack with a fair
+fight (`fight_fair`, `src/core/fight_fair.zig`; research, tuning and checks in
+`docs/fights/FAIRNESS.md`). Everything above is the Original's, and stays so without the flag.
+
+- **The cycle.** The opponent walks in (32 px a beat), stands one step out of reach (gap 101-132) for
+  1-2 beats, steps in to 69-100 px and winds up: it shows frame 0 of the attack it picked (the
+  Original's `rand() % 4`, the sweep turned into the jump kick against a jumping fighter) for 2 beats and
+  plays the attack's own wave (`soco` for the punch, `chute3` for the kicks, `soco2` for the sweep: all four start
+  from the stance). Then it strikes, plays the attack's other frames, stands a beat
+  in range, jumps 100 px back and pauses 1-2 beats. One arrival in 6 is a feint: it stands a beat and
+  backs off.
+- **The strike** lands only if the gap is still at most 100 and the fighter is not blocking (End / ↓)
+  a punch or a kick, not jumping (Insert / ↑) the sweep and not reeling (strips 8, 9). A hit is the
+  Original's reaction and damage (the Corrigida's, the player's table {1, 2, 1, 2}: S1 is a choice), the fighter's own move cut short; there is no clash.
+- **The fighter's blows** land at a gap of at most 100 (the Original's 120 would hit the opponent waiting at the edge) for {2, 4, 2, 4}, twice the Original's,
+  no recoil. A reeling opponent cannot be hit; any other reacts (the reel, or the fall when weak), and a
+  blow in its wind-up cuts the attack. No trade.
+- **Whiffs.** A blow thrown while the opponent stands one step out of reach makes it step in at once:
+  its strike lands on the beat the fighter's 3-beat move ends.
+- **Answers.** Every attack has one: step back (←) during the wind-up and it whiffs, then step in and
+  punish it while it stands; block a punch or a kick; jump the sweep; or hit first.
+- PORRADA's frozen intro (the controls screen) holds the opponent; without the screen it stands 10 beats.
+- F9 (Debug builds) shows the gap, the AI's phase and the beat count over the arena.

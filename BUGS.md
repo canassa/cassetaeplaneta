@@ -1025,6 +1025,15 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
   keys ignored; then the round starts, its clock stamps moved on by the time waited. The 0x40b/0x40c handshake
   is unchanged; WM_DESTROY still reports (a loss with S7/X6). With it, the banner fix (S9/X9) shows PORRADA
   during that wait instead of the round's first 2 s.
+- `Fixes.fight_fair` (SALGIN, XILINDRO): a fair fight (`core/fight_fair.zig`, docs/fights/FAIRNESS.md). The
+  opponent stops within the fighter's 100-px reach (SALGIN's fighter reaches 100, not 120), shows each attack
+  for 2 beats first (frame 0 and the attack's wave) and strikes only if the fighter is still in reach and is not
+  blocking a punch or a kick, jumping the sweep or reeling; it stands a beat in range after its attack, waits a
+  beat or two one step out of reach and steps in at once on a blow thrown there; 1 arrival in 6 is a feint.
+  A blow in the wind-up cuts the attack; a reeling fighter on either side cannot be hit; no clash double damage,
+  no trades; the fighter's blows do {2, 4, 2, 4}. The opponent's damage is unchanged. The Original's
+  opponent hits on the beat it arrives (in XILINDRO from beyond the fighter's reach), with nothing on screen
+  to say it is coming.
 
 ---
 

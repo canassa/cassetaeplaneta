@@ -53,7 +53,10 @@ Ctrl to fire, Space for doors, Shift to run and Caps Lock held to strafe, read w
 gets Enter, Esc and Space only to skip videos, and never Shift, Ctrl or Caps Lock.
 The fights' Corrigida keys (`--fix all`): ← / → walk, ↑ jumps, ↓ blocks, A punches, S and D
 kick (middle and high; SALGIN's voadora and salto), F sweeps; a controls screen comes first (any
-key or a click takes it down), then PORRADA stands for 2 s before the round starts.
+key or a click takes it down), then PORRADA stands for 2 s before the round starts; and the fight is
+fair (`fight_fair`, `docs/fights/FAIRNESS.md`): the opponent stops within reach, shows each attack for
+2 beats (its first frame and its sound) before it lands, and can be dodged (←), blocked (↓, not the
+sweep), jumped (↑, the sweep) or hit first; F9 in a Debug build shows its state over the arena.
 Saves go to `save/` (`--save DIR`).
 
 ## Testing the port
@@ -149,11 +152,14 @@ Saves go to `save/` (`--save DIR`).
   window at 0.5 s (new script command `close`: BUGS.md S7, `won 9100 | lost -1000`); from NOITE,
   `--scene 4fsalgin --ms 72000 --input tools/play/salgin-4fsalgin-win.input` (NOITE hides, adds
   the score, the garden cutscene `espquete`, which starts JARDIM) and `--ms 110000 --input
-  tools/play/salgin-4fsalgin-lose.input` (-1000, a life less, back to `4fbar`). Each the same
-  with `--fix all`. A held attack key is all a win takes, so the scripts need no planner.
-  The Corrigida's runs take the controls screen down (`?fight_controls_screen key return`
-  50 ms after it opened) and `delay 2050` the rest (PORRADA's 2 s), and hold S for Up
-  (`?fight_keys_asdf keymap up s`): the round then plays as the Original's, 2050 ms later.
+  tools/play/salgin-4fsalgin-lose.input` (-1000, a life less, back to `4fbar`). Each also runs
+  with `--fix all`. In the Original a held attack key is all a win takes. The Corrigida's runs take
+  the controls screen down (`?fight_controls_screen key return` 50 ms after it opened) and `delay
+  2050` the rest (PORRADA's 2 s); its fight is the fair one (`fight_fair`), where a held key loses,
+  so the Original's keys are `!fight_fair` lines and the Corrigida's win is `?fight_fair` lines
+  planned by `tools/fight_plan.py` (below): a KO with the player untouched, `won 9100`.
+  `--minigame salgin --ms 110000 --fix all --input tools/play/salgin-fair-mash.input` presses A
+  every beat: it loses (docs/fights/FAIRNESS.md "Checks").
   `tools/smoke.py --minigame salgin [--fix all] [--monkey SEED]` presses and holds random fight
   keys for 110 s.
 - **INV**: `--minigame inv --ms 15000 --input tools/play/inv-alone-win.input` (the 20 invaders
@@ -180,11 +186,22 @@ Saves go to `save/` (`--save DIR`).
   `3fprisao`), `--ms 80000 --input tools/play/xilindro-3fstreet-lose.input` (-1000, `3fstree1`, a
   life less, back to `3fprisao`) and `--ms 222000 --input tools/play/xilindro-serial-hall.input`
   (the fight, then the lift's stairs to `3farmcai`, whose SERIAL win now goes to `3fhall`). Each
-  the same with `--fix all`. The opponent stops beyond the fighter's reach, so a held key loses: the
-  win steps Right and kicks Up in the 200 ms between the opponent's arrival and its attack, and
-  steps back Left while it is far, so it never attacks; the keys were planned against the port
-  with a temporary trace, and shift with XILINDRO's start (26095 ms later from `3fstreet`).
-  The Corrigida's runs take the controls screen down and shift and remap their keys as SALGIN's.
+  also runs with `--fix all`. In the Original the opponent stops beyond the fighter's reach, so a
+  held key loses: the win steps Right and kicks Up in the 200 ms between the opponent's arrival and
+  its attack, and steps back Left while it is far, so it never attacks; the keys were planned
+  against the port with a temporary trace, and shift with XILINDRO's start (26095 ms later from
+  `3fstreet`). The Corrigida's runs take the controls screen down as SALGIN's, and fight the fair
+  fight with `?fight_fair` lines from `tools/fight_plan.py`, the fighter untouched (`won 13650`):
+  the reactor alone; from NOITE the faster `--player fast`, whose last kick is held back with
+  `--ko-at` so that the KO falls on the Original fight's beat and all that follows (the SERIAL of
+  `xilindro-serial-hall.input`) plays as before.
+  `--minigame xilindro --ms 100000 --fix all --input tools/play/xilindro-fair-mash.input` presses A
+  every beat: it loses.
+  **`tools/fight_plan.py SCRIPT [--block NAME] [--player react|fast|mash|idle] [--ko-at MS]
+  [--end-at MS]`** plans a script's Corrigida fight between its `# fair-plan NAME begin` / `end`
+  lines: it probes the port (the script's `--fix` command, with F9 on: a Debug build logs every
+  beat of the fair fight), reads the opponent's phase, adds the next answer and probes again.
+  Rerun it when what comes before the fight moves.
   `--minigame xilindro --ms 18000 --fix all --input tools/play/xilindro-controls.input` shows the
   controls screen (`controls` dump), PORRADA's frozen 2 s (a press there does nothing) and A, S,
   D, F, ↑ and ↓ in the round.

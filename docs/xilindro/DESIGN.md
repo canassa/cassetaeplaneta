@@ -34,8 +34,9 @@ X1–X11 describe the binary.
   10 functions; `backdrop_autoscroll`'s dead tail is inside the function
   (port its `return 0`).
 - **Fixes**: X1–X11 (`docs/salgin/DESIGN.md` "Fixes"); no bug flag is
-  shared with SALGIN (the Corrigida additions `fight_keys_asdf` and
-  `fight_controls_screen` are: `docs/salgin/DESIGN.md` "Decisions"). All eleven are in Corrigida (the owner's decisions, in
+  shared with SALGIN (the Corrigida additions `fight_keys_asdf`,
+  `fight_controls_screen` and `fight_fair` are: `docs/salgin/DESIGN.md`
+  "Decisions", `docs/fights/FAIRNESS.md`). All eleven are in Corrigida (the owner's decisions, in
   `docs/salgin/DESIGN.md` "Decisions": blocks hold, Insert waits, the
   banner shows, a won double KO scores 0, the recoil stops at x 0).
 - **Launch**: `handler_3fstreet` when the street video ends; FindWindow

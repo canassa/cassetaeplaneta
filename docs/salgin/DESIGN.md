@@ -141,7 +141,26 @@ and X1–X11.
   The key that took the screen down is kept from the fight until released.
   With the screen on, the banner fix (S9/X9) shows PORRADA during the 2 s
   wait instead of the round's first 2 s. Other code (a future AI) can read
-  `Game.controls.waiting()`.
+  `Game.controls.waiting()`; the fair fight below needs nothing more (its
+  AI runs on the beat, which the intro holds).
+- **A fair fight, in the Corrigida only** (the owner's decision,
+  `fight_fair`; research and checks in `docs/fights/FAIRNESS.md`). The
+  Original's opponent hits on the beat it arrives, with no tell, so the
+  1995 fights reward a held key and little else. With the flag each
+  program's `arena.zig` runs the opponent by a Punch-Out!!-style cycle
+  instead of its approach/attack branch: walk in, stand one step out of
+  reach a beat or two (stepping in at once on a blow thrown there), a
+  2-beat wind-up (frame 0 of the attack and the attack's own wave, since
+  frame 0 is not distinct), the strike (resolved then: only in reach and
+  not against a held block of a punch or kick, a jump over the sweep or a
+  reeling fighter), a beat standing in range, a 100-px jump back, a pause
+  with rand() jitter; 1 arrival in 6 a feint. The fighter's blow in the
+  wind-up cuts the attack; a reeling side cannot be hit; no clash or
+  trade; the fighter's blows do double damage; both reaches are 100. The
+  numbers are one `Tuning` per fight in `src/core/fight_fair.zig`, which
+  also holds the rules and the F9 debug overlay (Debug builds) whose beat
+  log `tools/fight_plan.py` reads to plan the scripts' Corrigida fights.
+  It decides on its schedule and on what the screen shows, never on keys.
 - **S1 stays out of Corrigida** (the owner's decision):
   `salgin_opponent_damage_table` is a choice (`Fixes.choices`), so the
   opponent keeps hitting by the player's table (1.5 per attack).
@@ -519,6 +538,18 @@ salgin|xilindro` plays one alone.
   KO at 55.8 s with 91 energy (13,650). The presses are relative to
   XILINDRO's first beat (200 ms after WM_CREATE alone, at once from
   NOITE): from `3fstreet` they are the same, 26095 ms later.
+- **The Corrigida's fair fight** (`fight_fair`) changes every fight
+  script's Corrigida side: a held key loses there, so the Original's keys
+  are `!fight_fair` lines and the Corrigida's fight is `?fight_fair` lines
+  between `# fair-plan NAME begin` / `end`, planned by
+  `tools/fight_plan.py` against the port (it reads the fair fight's F9
+  beat log): the reactor in the alone wins (KO, untouched: 13,650 /
+  9,100), the faster `--player fast` from NOITE, whose last kick is held
+  with `--ko-at` for XILINDRO so the KO falls on the beat the Original
+  fight's does and what follows (SERIAL, the disco quiz) is unchanged.
+  `*-fair-mash.input` (Corrigida only) press A every beat and lose. The
+  lose scripts' Corrigida checks move later (`?fight_fair delay`, `wait`).
+  The lists below are the Original's.
 - **Scripts** (`tools/play/`), each run Original and `--fix all`
   (README.md "SALGIN"):
   - `salgin-alone-win.input` (`--minigame salgin --ms 60000`): Up held
