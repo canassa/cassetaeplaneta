@@ -75,9 +75,8 @@ and X1–X11.
   `xilindro_`), the Win16 data types.
 - **Faithful first, the owner's rule.** S1–S11 and X1–X11 are reproduced
   by default; each fix with a visible effect exists only behind its own
-  flag (off by default). Clear bugs are in Corrigida (`Fixes.all()`),
-  design questions in `Fixes.choices` until the owner decides ("Owner
-  questions").
+  flag (off by default). Corrigida (`Fixes.all()`) has every fix but
+  S1, the one the owner left out (`Fixes.choices`; the decisions below).
 - **Two programs in one process**, as ENCAIXE and TIRO: each fight is a
   host task with its own state, queue, timers, window and screen; the
   protocol runs through the platform as in Windows.
@@ -89,6 +88,22 @@ and X1–X11.
   eight keys as on the numeric keypad, Salto (Home) ▲ Soco (PgUp) / ◀
   Pulo (Insert) ▶ / Defesa (End) ▼, with the same labels for XILINDRO
   (whose Home is the high kick) (`PAD_KEYS.salgin`, `PAD_KEYS.xilindro`).
+- **S1 stays out of Corrigida** (the owner's decision):
+  `salgin_opponent_damage_table` is a choice (`Fixes.choices`), so the
+  opponent keeps hitting by the player's table (1.5 per attack).
+  XILINDRO has no counterpart: its opponent already hits by its own table.
+- **Blocks hold** (S2 / X1, in Corrigida): a block whose reaction is the
+  parry pose (strip 7) takes no energy; SALGIN's sweep and XILINDRO's punch
+  and lower kicks still land.
+- **Insert waits for the move** (S4 / X5, in Corrigida): an attack or the
+  block locks Insert like every other key.
+- **The weak reaction follows the energy bar** (S8, in Corrigida), as
+  XILINDRO's X2 fix already does for its fighter.
+- **The PORRADA banner shows** (S9 / X9, in Corrigida): in the band, behind
+  the fighters, for the round's first 2 s (the clock at 90 or 89).
+- **The stand-off and the walls stay bug fixes** (S10 / X10, S11 / X11, in
+  Corrigida); XILINDRO's recoil after a landed blow stops at x 0 (shorter
+  from x 51–99) instead of being skipped.
 
 ## Source layout
 
@@ -301,25 +316,25 @@ dead bytes inside the function: port the `return 0`).
 | Bug | Flag | Unit | What the fix changes | In `all` |
 |---|---|---|---|---|
 | S1 opponent hits by the player's table | `salgin_opponent_damage_table` | arena | the opponent's attack (both branches) takes `g_opponentDamage[its strip]` {2, 1, 1, 3} from `playerEnergy` | no (choice) |
-| S2 a block takes full damage | `salgin_block_holds` | arena | a player whose reaction strip is the block pose (7: End against the punch and both kicks) loses no energy | no (choice) |
+| S2 a block takes full damage | `salgin_block_holds` | arena | a player whose reaction strip is the block pose (7: End against the punch and both kicks) loses no energy | yes |
 | S3 key-up cuts any move | `salgin_keyup_stops_walk_only` | arena | a Left/Right key-up with the fighter not walking (strip ≠ 4) changes nothing (the latches stay set until the move ends) | yes |
-| S4 Insert not locked | `salgin_insert_locked` | arena | the five attack/block key paths also set `g_keyInsertHeld` | no (choice) |
+| S4 Insert not locked | `salgin_insert_locked` | arena | the five attack/block key paths also set `g_keyInsertHeld` | yes |
 | S5 reseeded every choice | `salgin_seed_once` | fighters | `srand(time(NULL))` only before the first choice; later choices draw on | yes |
 | S6 a loss closes only on `mane.WAV`'s end | — | — | no flag: the port's WaveMix always plays it to its end and posts MM_WOM_DONE | — |
 | S7 closing mid-fight is a win | `salgin_close_mid_fight_loses` | arena | WM_DESTROY with `g_roundOver` 0 posts 0x40a (0, −1000) | yes |
-| S8 health counters drift | `salgin_weak_reaction_by_energy` | arena | the weak column is `playerEnergy < 10` / `opponentEnergy < 6` | no (choice) |
-| S9 banner never seen | `salgin_banner_shown` | hud | `salgin_redraw_arena` draws the banner into the band (after the restore, before the fighters) while the round is under 2 s old | no (choice) |
+| S8 health counters drift | `salgin_weak_reaction_by_energy` | arena | the weak column is `playerEnergy < 10` / `opponentEnergy < 6` | yes |
+| S9 banner never seen | `salgin_banner_shown` | hud | `salgin_redraw_arena` draws the banner into the band (after the restore, before the fighters) while the round is under 2 s old | yes |
 | S10 stand-off 68 px | `salgin_standoff_100` | fighters | the Right clamp sets nextX = opponent.x − 100 and moves there, without the 32-px step | yes |
 | S11 walls before the step | `salgin_walls_after_step` | fighters | the step is cut so x stays within 0–400 (Left ends at 0, Right at 400) | yes |
-| X1 a block takes full damage | `xilindro_block_holds` | arena | a fighter whose reaction strip is the block pose (7: End, walk or jump against the high kick) loses no energy | no (choice) |
+| X1 a block takes full damage | `xilindro_block_holds` | arena | a fighter whose reaction strip is the block pose (7: End, walk or jump against the high kick) loses no energy | yes |
 | X2 weak reaction never shown | `xilindro_weak_reaction_by_energy` | arena | the fighter's weak column is `fighterEnergy < 10` (the bar's), as the opponent's | yes |
 | X3 reseeded every choice | `xilindro_seed_once` | fighters | as S5 | yes |
 | X4 key-up cuts any move | `xilindro_keyup_stops_walk_only` | arena | as S3 | yes |
-| X5 Insert not locked | `xilindro_insert_locked` | arena | as S4 | no (choice) |
+| X5 Insert not locked | `xilindro_insert_locked` | arena | as S4 | yes |
 | X6 closing mid-fight is a win | `xilindro_close_mid_fight_loses` | arena | WM_DESTROY with `g_fightOver` 0 posts 0x40a (0, −1000) | yes |
 | X7 double KO | `xilindro_double_ko_by_energy` | arena | the KO's winner is the result's (`!(fighterEnergy < opponentEnergy)`): pose, wave, end animation and result agree | yes |
 | X8 bar lags | `xilindro_bar_follows_energy` | arena, hud | after every energy change (trades and the clash included) that side's mark is checked, adding a tile per 7 lost | yes |
-| X9 banner never seen | `xilindro_banner_shown` | hud | as S9 | no (choice) |
+| X9 banner never seen | `xilindro_banner_shown` | hud | as S9 | yes |
 | X10 stand-off 68 px | `xilindro_standoff_100` | fighters | as S10 | yes |
 | X11 off the screen on the left | `xilindro_fighter_stays_on_screen` | fighters, arena | as S11, and the recoil stops at x 0 | yes |
 
@@ -619,32 +634,3 @@ option (`KEYS_FOR` in `tools/smoke.py`), `full.input` re-tuned, the web
 entries; then `ready = true` in `src/<n>/root.zig` and the README's
 minigame list. BUGS.md's S/X "Port:" lines then say "ported". Both are
 finished (the keys, the script key names and `close` came with SALGIN).
-
-## Owner questions
-
-1. **S1** (`salgin_opponent_damage_table`): should the opponent hit by its
-   own table {2, 1, 1, 3} in Corrigida? It makes the fight harder (1.75
-   per attack instead of 1.5).
-2. **S2 / X1** (`*_block_holds`): should a block that shows the parry
-   (strip 7) save the energy in Corrigida? The proposal saves all of it
-   when the reaction is the block pose; the sweep (SALGIN) and the punch
-   and lower kicks (XILINDRO) still land.
-3. **S4 / X5** (`*_insert_locked`): should Insert wait for the move to end
-   like every other key? (SALGIN's Down path stores a second PgUp latch
-   where the Insert one would be, which suggests a slip.)
-4. **S8** (`salgin_weak_reaction_by_energy`): should the weak reaction
-   (the fall) follow the energy bar instead of the hidden health counters?
-5. **S9 / X9** (`*_banner_shown`): should Corrigida show the PORRADA
-   banner, and for how long? The proposal: in the band, behind the
-   fighters, for the round's first 2 s.
-6. **X7** (`xilindro_double_ko_by_energy`, in `all`): a double KO with the
-   fighter ahead is a "win" whose score (fighterEnergy × 150) is 0 or
-   negative. Keep that score, or floor it at 0?
-7. **S10 / X10, S11 / X11** are in `all` as clear slips (the clamp then
-   the step; the wall test before the step). They change where the
-   fighter stands (100 px instead of 68 from the opponent, never off the
-   screen): say if either should be a choice instead. XILINDRO's X11 fix
-   also stops the recoil after a landed blow at x 0 (from x 51-99 it is
-   shorter than 100 px, and the opponent may then stay within 130 px and
-   play its reaction in full) instead of skipping it: keep the clamp, or
-   skip a recoil that would leave the screen?

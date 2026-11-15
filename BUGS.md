@@ -1356,7 +1356,7 @@ Addresses are Ghidra `seg:off` in `/SALGIN.EXE`; the game is described in `docs/
   3 (the sweep 1 either way): 1.5 per attack on average instead of 1.75, and the two sides hit equally hard.
 - **Confidence:** 9 (code); 6 (that it is a bug: a second per-strip table exists for the opponent and is indexed
   the same way, but the designers could have balanced the fight by ear).
-- **Port:** ported and reproduced (unit `arena`, src/salgin/); the fix is `Fixes.salgin_opponent_damage_table` (`--fix salgin_opponent_damage_table`, a choice left out of the Corrigida version until the owner decides).
+- **Port:** ported and reproduced (unit `arena`, src/salgin/); the fix is `Fixes.salgin_opponent_damage_table` (`--fix salgin_opponent_damage_table`), a choice the owner left out of the Corrigida version: the opponent hits by the player's table there too.
 
 ### S2. Blocking takes the full damage
 - **Where:** `salgin_scene_handle_message`, the beat's attack branch (1068:26a5–27fb); End key 1068:1ec1.
@@ -1366,7 +1366,7 @@ Addresses are Ghidra `seg:off` in `/SALGIN.EXE`; the game is described in `docs/
 - **Effect:** the block (End) and the jump (Insert) protect nothing. `g_reactionStrips` shows the block holding
   (strip 7 again) against the punch and both kicks, so the player sees a parry and loses the energy anyway.
 - **Confidence:** 9 (code); 7 (that it is a bug).
-- **Port:** ported and reproduced (unit `arena`, src/salgin/); the fix is `Fixes.salgin_block_holds` (`--fix salgin_block_holds`, a choice left out of the Corrigida version until the owner decides).
+- **Port:** ported and reproduced (unit `arena`, src/salgin/); the fix is `Fixes.salgin_block_holds` (`--fix salgin_block_holds`, on in the Corrigida version): a block whose reaction is the parry pose (strip 7) takes no energy.
 
 ### S3. Releasing Left or Right cuts short whatever move is playing
 - **Where:** `salgin_scene_handle_message`, `WM_KEYUP` `VK_LEFT` 1068:1fc4 and `VK_RIGHT` 1068:209d.
@@ -1388,7 +1388,7 @@ Addresses are Ghidra `seg:off` in `/SALGIN.EXE`; the game is described in `docs/
 - **Effect:** Insert starts the jump in the middle of an attack or a block, replacing it (and playing its two
   waves); every other key waits for the move to end.
 - **Confidence:** 9 (code); 6 (that it is a bug).
-- **Port:** ported (unit `arena`, src/salgin/); the fix is `Fixes.salgin_insert_locked` (`--fix salgin_insert_locked`, a choice left out of the Corrigida version until the owner decides).
+- **Port:** ported (unit `arena`, src/salgin/); the fix is `Fixes.salgin_insert_locked` (`--fix salgin_insert_locked`, on in the Corrigida version).
 
 ### S5. The opponent's attack is reseeded from the clock second on every choice
 - **Where:** `opponent_choose_attack` 1068:0b85 (`time(NULL)` 1068:0b97, `srand` 0ba0, `rand` 0bae).
@@ -1433,7 +1433,7 @@ Addresses are Ghidra `seg:off` in `/SALGIN.EXE`; the game is described in `docs/
   player never shows it; the opponent shows it only in its last 5 energy points, and never once five sweeps have
   landed.
 - **Confidence:** 9 (code); 6 (that it is a bug).
-- **Port:** ported (unit `arena`, src/salgin/); the fix is `Fixes.salgin_weak_reaction_by_energy` (`--fix salgin_weak_reaction_by_energy`, a choice left out of the Corrigida version until the owner decides).
+- **Port:** ported (unit `arena`, src/salgin/); the fix is `Fixes.salgin_weak_reaction_by_energy` (`--fix salgin_weak_reaction_by_energy`, on in the Corrigida version).
 
 ### S9. The PORRADA banner never stays on screen
 - **Where:** `salgin_create_banner` 1068:0119 (`mover_blit_to_dc` to `GetDC(hwnd)`), `salgin_redraw_arena` 1068:0c81.
@@ -1442,7 +1442,7 @@ Addresses are Ghidra `seg:off` in `/SALGIN.EXE`; the game is described in `docs/
   y 140–434, which contains it, from the background and redraws only the two fighters, on the first beat and after.
 - **Effect:** "PORRADA" is not seen (at most for one beat).
 - **Confidence:** 9 (code); 7 (effect: the blit goes to a window that is not visible yet).
-- **Port:** ported and reproduced (unit `hud`, src/salgin/); the fix is `Fixes.salgin_banner_shown` (`--fix salgin_banner_shown`, a choice left out of the Corrigida version until the owner decides).
+- **Port:** ported and reproduced (unit `hud`, src/salgin/); the fix is `Fixes.salgin_banner_shown` (`--fix salgin_banner_shown`, on in the Corrigida version): the banner is drawn in the band, behind the fighters, for the round's first 2 s.
 
 ### S10. The fighter's 100-px stand-off is 68 px
 - **Where:** `fighter_walk` 1068:0672, the Right branch (1068:072f–0780).
@@ -1491,7 +1491,7 @@ the next beat. Each is consistent code with a plausible intent, and none is reac
 - **Effect:** the block protects nothing. The table shows the block holding (strip 7 again) against the high kick,
   the hardest attack (6), so the player sees a parry and loses the most energy.
 - **Confidence:** 9 (code); 7 (that it is a bug).
-- **Port:** ported (unit `arena`, src/xilindro/); the fix is `Fixes.xilindro_block_holds` (`--fix xilindro_block_holds`, a choice left out of the Corrigida version until the owner decides).
+- **Port:** ported (unit `arena`, src/xilindro/); the fix is `Fixes.xilindro_block_holds` (`--fix xilindro_block_holds`, on in the Corrigida version): a block whose reaction is the parry pose (strip 7) takes no energy.
 
 ### X2. The fighter never shows its weak-energy reaction
 - **Where:** `xilindro_scene_handle_message` 1068:27cc (`CMP [g_fighter+0x50],0xa`); `Fighter.energy` (+0x50) is
@@ -1530,7 +1530,7 @@ the next beat. Each is consistent code with a plausible intent, and none is reac
 - **Effect:** Insert starts the jump in the middle of an attack or a block, replacing it (and playing its two
   waves); every other key waits for the move to end.
 - **Confidence:** 9 (code); 6 (that it is a bug).
-- **Port:** ported (unit `arena`, src/xilindro/); the fix is `Fixes.xilindro_insert_locked` (`--fix xilindro_insert_locked`, a choice left out of the Corrigida version until the owner decides).
+- **Port:** ported (unit `arena`, src/xilindro/); the fix is `Fixes.xilindro_insert_locked` (`--fix xilindro_insert_locked`, on in the Corrigida version).
 
 ### X6. Closing the window mid-fight reports a win
 - **Where:** `xilindro_scene_handle_message`, `WM_DESTROY` 1068:10ce–1146.
@@ -1572,7 +1572,7 @@ the next beat. Each is consistent code with a plausible intent, and none is reac
   background and redraws only the two fighters, on the first beat and after.
 - **Effect:** "PORRADA" is not seen (at most for one beat).
 - **Confidence:** 9 (code); 7 (effect: the blit goes to a window that is not visible yet).
-- **Port:** ported (unit `hud`, src/xilindro/); the fix is `Fixes.xilindro_banner_shown` (`--fix xilindro_banner_shown`, a choice left out of the Corrigida version until the owner decides).
+- **Port:** ported (unit `hud`, src/xilindro/); the fix is `Fixes.xilindro_banner_shown` (`--fix xilindro_banner_shown`, on in the Corrigida version): the banner is drawn in the band, behind the fighters, for the round's first 2 s.
 
 ### X10. The fighter's 100-px stand-off is 68 px
 - **Where:** `fighter_walk` 1068:0672, the Right branch (1068:071e–0792).

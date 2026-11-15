@@ -3,10 +3,9 @@
 XILINDRO.EXE ("Xilindro", the street fight that NOITE's `3fstreet` starts
 after the prison escape) is ported with SALGIN.EXE under one design:
 **`docs/salgin/DESIGN.md`** (decisions, object model, virtual slots,
-state, fixes, integration, platform, tests, how to port a unit, owner
-questions). This file holds what the tracker reads per program (the
-SceneObject slot table below and `SLOTS.tsv`) and what differs from
-SALGIN. `GAME.md`, `DATA.md`, `FUNCTIONS.md`, `QUALITY.md` and BUGS.md
+state, fixes, integration, platform, tests, how to port a unit). This
+file holds what the tracker reads per program (the SceneObject slot table
+below and `SLOTS.tsv`) and what differs from SALGIN. `GAME.md`, `DATA.md`, `FUNCTIONS.md`, `QUALITY.md` and BUGS.md
 X1–X11 describe the binary.
 
 ## What differs from SALGIN
@@ -35,7 +34,9 @@ X1–X11 describe the binary.
   10 functions; `backdrop_autoscroll`'s dead tail is inside the function
   (port its `return 0`).
 - **Fixes**: X1–X11 (`docs/salgin/DESIGN.md` "Fixes"); no flag is shared
-  with SALGIN.
+  with SALGIN. All eleven are in Corrigida (the owner's decisions, in
+  `docs/salgin/DESIGN.md` "Decisions": blocks hold, Insert waits, the
+  banner shows, the recoil stops at x 0).
 - **Launch**: `handler_3fstreet` when the street video ends; FindWindow
   ("Xilindro"); NOITE records `minigameWon[3]`, goes to `3fstree2` (won)
   or `3fstree1` (lost: a life, then `3fprisao` or `6fsaida`). In the

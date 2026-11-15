@@ -293,17 +293,16 @@ pub const Fixes = struct {
     // behind its flag. S6 has none: the port's WaveMix always reports
     // mane.WAV's end. ----
     /// S1: the opponent's attacks take `g_opponentDamage` {2, 1, 1, 3} by its
-    /// strip instead of the player's table. A choice until the owner says
-    /// (`choices`).
+    /// strip instead of the player's table. A choice the owner left out of
+    /// the Corrigida version (`choices`).
     salgin_opponent_damage_table: bool = false,
     /// S2: a block (End) that holds (the reaction is the block pose, 7)
-    /// takes no energy. A choice until the owner says (`choices`).
+    /// takes no energy.
     salgin_block_holds: bool = false,
     /// S3: releasing Left or Right ends only a walk; any other move plays on
     /// and keeps its latches.
     salgin_keyup_stops_walk_only: bool = false,
-    /// S4: an attack or the block locks Insert too. A choice until the
-    /// owner says (`choices`).
+    /// S4: an attack or the block locks Insert too.
     salgin_insert_locked: bool = false,
     /// S5: the opponent's attacks are seeded from the clock once (on the
     /// first choice), not before every choice.
@@ -313,11 +312,10 @@ pub const Fixes = struct {
     salgin_close_mid_fight_loses: bool = false,
     /// S8: the weak hit reaction (the fall) is chosen by the energy bar's
     /// energies (player < 10, opponent < 6), not the drifting health
-    /// counters. A choice until the owner says (`choices`).
+    /// counters.
     salgin_weak_reaction_by_energy: bool = false,
     /// S9: the PORRADA banner is drawn back over the arena band, behind the
-    /// fighters, for the round's first 2 s. A choice until the owner says
-    /// (`choices`).
+    /// fighters, for the round's first 2 s.
     salgin_banner_shown: bool = false,
     /// S10: a Right press within 100 px of the opponent stops the fighter
     /// 100 px from it (no 32-px step past the clamp).
@@ -326,7 +324,7 @@ pub const Fixes = struct {
     /// within x 0-400.
     salgin_walls_after_step: bool = false,
     /// X1: a block (End) that holds (the reaction is the block pose, 7)
-    /// takes no energy. A choice until the owner says (`choices`).
+    /// takes no energy.
     xilindro_block_holds: bool = false,
     /// X2: the fighter's weak reaction (the fall) is chosen by the energy
     /// bar's `fighterEnergy` < 10, as the opponent's is by its energy.
@@ -337,8 +335,7 @@ pub const Fixes = struct {
     /// X4: releasing Left or Right ends only a walk; any other move plays
     /// on and keeps its latches.
     xilindro_keyup_stops_walk_only: bool = false,
-    /// X5: an attack or the block locks Insert too. A choice until the
-    /// owner says (`choices`).
+    /// X5: an attack or the block locks Insert too.
     xilindro_insert_locked: bool = false,
     /// X6: closing the window before the round is over reports a loss
     /// (0, -1000), not a win by the energies.
@@ -351,8 +348,7 @@ pub const Fixes = struct {
     /// tiles as the energy lost.
     xilindro_bar_follows_energy: bool = false,
     /// X9: the PORRADA banner is drawn back over the arena band, behind the
-    /// fighters, for the round's first 2 s. A choice until the owner says
-    /// (`choices`).
+    /// fighters, for the round's first 2 s.
     xilindro_banner_shown: bool = false,
     /// X10: a Right press within 100 px of the opponent stops the fighter
     /// 100 px from it (no 32-px step past the clamp).
@@ -459,7 +455,7 @@ pub const Fixes = struct {
 
     /// Flags left out of `all` (`--fix all`, the web build's "Corrigida"
     /// version), e.g. the hall-door reshuffle.
-    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit", "serial_lane2_own_timer", "salgin_opponent_damage_table", "salgin_block_holds", "salgin_insert_locked", "salgin_weak_reaction_by_energy", "salgin_banner_shown", "xilindro_block_holds", "xilindro_insert_locked", "xilindro_banner_shown", "jardim_enemy_blocks_walk" };
+    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit", "serial_lane2_own_timer", "salgin_opponent_damage_table", "jardim_enemy_blocks_walk" };
 
     /// `--fix all`: every flag but the `choices`.
     pub fn all() Fixes {
