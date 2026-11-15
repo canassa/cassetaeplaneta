@@ -84,10 +84,59 @@ and X1–X11.
   task) takes every `operator new` / `_nmalloc`; what the original never
   frees (the strips, `scene_object_dtor` frees nothing) is not a leak of
   the port.
-- **The touch pad** (the owner's decision): both fights' pads show all
-  eight keys as on the numeric keypad, Salto (Home) ▲ Soco (PgUp) / ◀
-  Pulo (Insert) ▶ / Defesa (End) ▼, with the same labels for XILINDRO
-  (whose Home is the high kick) (`PAD_KEYS.salgin`, `PAD_KEYS.xilindro`).
+- **The touch pad** (the owner's decision): in the Original both fights'
+  pads show all eight keys as on the numeric keypad, Salto (Home) ▲ Soco
+  (PgUp) / ◀ Pulo (Insert) ▶ / Defesa (End) ▼, with the same labels for
+  XILINDRO (whose Home is the high kick) (`PAD_KEYS.salgin`,
+  `PAD_KEYS.xilindro`). In the Corrigida they show the new layout
+  (`PAD_FIGHT_KEYS`): the four arrows on the left (▲ jumps, ▼ blocks) and
+  A S / D F on the right, named per fight (`PAD_FIGHT_LABELS`: XILINDRO
+  Soco, Chute, Chute alto, Rasteira; SALGIN Soco, Voadora, Salto,
+  Rasteira).
+- **New keys, in the Corrigida only** (the owner's decision,
+  `fight_keys_asdf`): the 1995 keys (PgUp, Up, Down, Home, End, Insert)
+  were found unusable. The Original keeps them exactly. In the Corrigida:
+
+  | Key | XILINDRO | SALGIN | Does the 1995 key's move |
+  |---|---|---|---|
+  | ← / → | walk | walk (ginga) | Left / Right |
+  | ↑ | jump (pula) | jump | Insert |
+  | ↓ | block (defesa) | block (defesa) | End |
+  | A | punch (soco) | punch (soco) | PgUp |
+  | S | middle kick (chute médio) | flying kick (voadora) | Up |
+  | D | high kick (chute alto) | jump kick (salto) | Home |
+  | F | sweep (rasteira) | sweep (rasteira) | Down |
+
+  SALGIN has no middle or high kick: its Up (voadora, 2 points) is the
+  closest to the middle kick and its Home (salto, the jump kick, 2 points)
+  to the high kick, so the same translation serves both fights. It is done
+  in front of the scene handler (`core/fight_controls.zig` `translate`,
+  key-down and key-up alike), so the handler, its latches and the bugs it
+  carries see the 1995 keys. PgUp, Home, End and Insert keep working (they
+  mean what they did); ↑ and ↓ follow the new layout. The platforms pass A,
+  S, D and F (SDL, the web page's `GAME_KEYS`, script key names `a` `s` `d`
+  `f`); NOITE ignores them.
+- **A controls screen, then PORRADA, then the round** (the owner's
+  decisions, `fight_controls_screen`, Corrigida only): at WM_CREATE, alone
+  or from NOITE, a panel over the darkened arena lists the keys (key caps),
+  what each move does and the goal (a KO, or at least the opponent's energy
+  when the 90-s clock ends), in Portuguese, in the system font the clock
+  uses. Any key or a click (Enter, Space, a pad button) takes it down; the
+  arena is redrawn with PORRADA, which stands for
+  `fight_controls.start_delay_ms` (2 s) with the opponent, the clock and
+  the keys frozen ("ROUND 1... FIGHT!"); then the round starts. While it
+  waits, the handler gets no input, no WM_SYSTIMER and no clock block or
+  beat (`frozen`); WM_ACTIVATE, the music's MM_MCINOTIFY, 0x401 and
+  WM_DESTROY still run their own case, so the 0x40b hello and the 0x40c
+  ready are as in the Original (NOITE hides at once) and a close reports
+  (a loss, S7/X6). When the round starts the clock stamps (the beat's and
+  the second's) move on by the time since WM_CREATE and that message runs
+  the clock block and the beat, so the round is the Original's shifted in
+  time: the scripts reproduce the Original's fights exactly, 2050 ms later.
+  The key that took the screen down is kept from the fight until released.
+  With the screen on, the banner fix (S9/X9) shows PORRADA during the 2 s
+  wait instead of the round's first 2 s. Other code (a future AI) can read
+  `Game.controls.waiting()`.
 - **S1 stays out of Corrigida** (the owner's decision):
   `salgin_opponent_damage_table` is a choice (`Fixes.choices`), so the
   opponent keeps hitting by the player's table (1.5 per attack).
@@ -410,9 +459,13 @@ salgin|xilindro` plays one alone.
   The on-screen pad (`PAD_KEYS.salgin`, `PAD_KEYS.xilindro`) shows the
   eight keys as on the numeric keypad: Home ▲ PgUp / ◀ Insert ▶ / End ▼,
   the four new ones labelled Salto, Pulo, Soco, Defesa (Decisions).
-- Harness scripts: the key names `pgup`, `home`, `end`, `insert` (or
-  numbers: `0x21`, `0x24`, `0x23`, `0x2d`); `close` closes the active
-  window as the user would (WM_CLOSE), for S7/X6.
+- Harness scripts: the key names `pgup`, `home`, `end`, `insert`, `a`,
+  `s`, `d`, `f` (or numbers: `0x21`, `0x24`, `0x23`, `0x2d`); `close`
+  closes the active window as the user would (WM_CLOSE), for S7/X6. The
+  Corrigida's runs take the controls screen down and keep the Original's
+  timing with mode lines (`script.zig`): `50 ?fight_controls_screen key
+  return`, `50 ?fight_controls_screen delay 2050` (every later line 2050 ms
+  on) and `0 ?fight_keys_asdf keymap up s` (their `up` presses S).
 
 ## Platform: keys, repeat, timers
 

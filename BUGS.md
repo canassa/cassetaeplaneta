@@ -944,6 +944,15 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
 - `Fixes.sala_street_exit_covers_door`: the living room's exit to the street (`1fsala` `Exit=114`, to `2FPONTOC`)
   takes a right click over the whole door frame drawn in `1FSALA.BMP` (x 0-40, y 73-390). The original's hit box
   is x 0-40, y 280-390 (the INI line's y 278 and 40x110 bound). The exit's range check is unchanged.
+- `Fixes.fight_keys_asdf` (SALGIN, XILINDRO): ← / → walk, ↑ jumps, ↓ blocks, A punches, S is the middle kick
+  (SALGIN's voadora), D the high kick (SALGIN's salto), F the sweep; translated into the 1995 keys in front of
+  the scene handler (`core/fight_controls.zig`), so the fight's code is unchanged. PgUp, Home, End and Insert
+  still work; ↑ and ↓ follow the new layout. The original's keys are PgUp, Up, Down, Home, End, Insert.
+- `Fixes.fight_controls_screen` (SALGIN, XILINDRO): a controls screen (keys, moves, the goal) from WM_CREATE
+  until a key or a click, then PORRADA for `fight_controls.start_delay_ms` (2 s) with nothing moving and the
+  keys ignored; then the round starts, its clock stamps moved on by the time waited. The 0x40b/0x40c handshake
+  is unchanged; WM_DESTROY still reports (a loss with S7/X6). With it, the banner fix (S9/X9) shows PORRADA
+  during that wait instead of the round's first 2 s.
 
 ---
 

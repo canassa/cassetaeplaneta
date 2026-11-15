@@ -48,9 +48,12 @@ after `WinExec` and answers the game's hello after 100 ms
 Windows (500 ms, then every 33 ms; `--key-repeat DELAY,PERIOD|off`), in
 the window, the browser and headless runs. A minigame gets every key
 (TIRO, SERIAL and INV: LEFT, RIGHT, SPACE; SALGIN and XILINDRO: the arrows, PgUp,
-Home, End, Insert; INFERNO and SAUNA: the arrows; SAUNA also the left button; JARDIM: the arrows,
+Home, End, Insert, and in the Corrigida A, S, D, F; INFERNO and SAUNA: the arrows; SAUNA also the left button; JARDIM: the arrows,
 Ctrl to fire, Space for doors, Shift to run and Caps Lock held to strafe, read with `GetKeyState`); NOITE
 gets Enter, Esc and Space only to skip videos, and never Shift, Ctrl or Caps Lock.
+The fights' Corrigida keys (`--fix all`): ← / → walk, ↑ jumps, ↓ blocks, A punches, S and D
+kick (middle and high; SALGIN's voadora and salto), F sweeps; a controls screen comes first (any
+key or a click takes it down), then PORRADA stands for 2 s before the round starts.
 Saves go to `save/` (`--save DIR`).
 
 ## Testing the port
@@ -63,8 +66,11 @@ Saves go to `save/` (`--save DIR`).
   `report FILE` (the state as JSON, as the web page's Relatório),
   `focus 0|1`, `freeze MS` (a time jump: the clock runs on while nothing is
   dispatched, as in a hidden web page), `result won|lost|none [SCORE] [| won|lost|none [SCORE]]`
-  (the last real minigame's 0x40a; the part after `|` is what a run with a `--fix` must get), `close` (the user closes the active window: WM_CLOSE), `quit`…; input goes to the active window's
-  program), `--dump DIR [--dump-every MS]` writes PNG frames of the screen
+  (the last real minigame's 0x40a; the part after `|` is what a run with a `--fix` must get), `close` (the user closes the active window: WM_CLOSE), `quit`,
+  `delay MS` (later lines move by MS), `keymap K1 K2` (later `key`/`hold` K1 press K2)…; a
+  command after `?FLAG` runs only with that fix on, after `!FLAG` only with it off (a line
+  that does not run is dropped with its time: the fights' scripts take the Corrigida's controls
+  screen down this way); input goes to the active window's program), `--dump DIR [--dump-every MS]` writes PNG frames of the screen
   (and of the SDL window), `--scene NAME [--take ID,…]` starts in any INI
   scene carrying those items, `--trace FILE` logs every message. A panic or
   segfault prints the scene and the last 64 messages; a message loop that
@@ -145,6 +151,9 @@ Saves go to `save/` (`--save DIR`).
   the score, the garden cutscene `espquete`, which starts JARDIM) and `--ms 110000 --input
   tools/play/salgin-4fsalgin-lose.input` (-1000, a life less, back to `4fbar`). Each the same
   with `--fix all`. A held attack key is all a win takes, so the scripts need no planner.
+  The Corrigida's runs take the controls screen down (`?fight_controls_screen key return`
+  50 ms after it opened) and `delay 2050` the rest (PORRADA's 2 s), and hold S for Up
+  (`?fight_keys_asdf keymap up s`): the round then plays as the Original's, 2050 ms later.
   `tools/smoke.py --minigame salgin [--fix all] [--monkey SEED]` presses and holds random fight
   keys for 110 s.
 - **INV**: `--minigame inv --ms 15000 --input tools/play/inv-alone-win.input` (the 20 invaders
@@ -175,8 +184,12 @@ Saves go to `save/` (`--save DIR`).
   win steps Right and kicks Up in the 200 ms between the opponent's arrival and its attack, and
   steps back Left while it is far, so it never attacks; the keys were planned against the port
   with a temporary trace, and shift with XILINDRO's start (26095 ms later from `3fstreet`).
+  The Corrigida's runs take the controls screen down and shift and remap their keys as SALGIN's.
+  `--minigame xilindro --ms 18000 --fix all --input tools/play/xilindro-controls.input` shows the
+  controls screen (`controls` dump), PORRADA's frozen 2 s (a press there does nothing) and A, S,
+  D, F, ↑ and ↓ in the round.
   `tools/smoke.py --minigame xilindro [--fix all] [--monkey SEED]` presses and holds random fight
-  keys for 110 s.
+  keys for 110 s (with `--fix all`: Enter first, and A, S, D, F too).
 - **INFERNO**: `--minigame inferno --ms 180900 --input tools/play/inferno-alone-win.input` (32
   stomps, the 3 minutes survived, `result won 500`), `--ms 30000 --input
   tools/play/inferno-alone-lose.input` (no key: five hazards walk into the hero, no result,
@@ -243,6 +256,8 @@ the whole game or one ported minigame alone (Encaixe Perfeito, Tiro ao
 Inferno, Sauna Mista, Jardim).
 On a touch screen the on-screen pad shows the keys of the window on top: for
 TIRO, SERIAL and INV ◀, a fire button and ▶; for SALGIN and XILINDRO their eight keys as on the numeric keypad
-(Salto = Home, ▲, Soco = PgUp; ◀, Pulo = Insert, ▶; Defesa = End, ▼); for
+(Salto = Home, ▲, Soco = PgUp; ◀, Pulo = Insert, ▶; Defesa = End, ▼), and in the
+Corrigida the four arrows on the left (▲ jumps, ▼ blocks) and the moves on the right
+(XILINDRO: Soco, Chute, Chute alto, Rasteira; SALGIN: Soco, Voadora, Salto, Rasteira); for
 INFERNO and SAUNA the four arrows; for JARDIM the arrows, Abrir (Space: a door) in the middle and Tiro (Ctrl:
 fire) bottom right.

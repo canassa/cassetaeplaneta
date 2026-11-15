@@ -211,8 +211,12 @@ map $arg_h $noite_cache {
   `PAD_KEYS` in noite.js): for TIRO, SERIAL and INV ◀, a fire button (Space) and ▶;
   for SALGIN and XILINDRO their eight keys laid out as on the numeric keypad (Home ▲ PgUp /
   ◀ Insert ▶ / End ▼, the four new ones labelled Salto, Pulo, Soco,
-  Defesa); for INFERNO the four arrows (UP the high jump, DOWN the low one); for SAUNA the four arrows (each runs Pacman to the wall; a tap on the maze walks him there too); for JARDIM the arrows, Abrir (Space, a door) in the middle and Tiro (Ctrl, fire) bottom right (`PAD_LABELS` relabels the middle key; running and strafing are left out). Keys pass to the game as pressed (`GAME_KEYS`: the arrows, Enter,
-  Esc, Space, the fights' PgUp, End, Home and Insert, and JARDIM's Shift, Ctrl and Caps Lock), the browser's
+  Defesa), and in the Corrigida version their new layout (`PAD_FIGHT_KEYS`,
+  class `fight`): the four arrows on the left, A S / D F on the right named
+  per fight (`PAD_FIGHT_LABELS`: Soco, Chute, Chute alto, Rasteira;
+  SALGIN's Soco, Voadora, Salto, Rasteira), any of them also taking the
+  controls screen down; for INFERNO the four arrows (UP the high jump, DOWN the low one); for SAUNA the four arrows (each runs Pacman to the wall; a tap on the maze walks him there too); for JARDIM the arrows, Abrir (Space, a door) in the middle and Tiro (Ctrl, fire) bottom right (`PAD_LABELS` relabels the middle key; running and strafing are left out). Keys pass to the game as pressed (`GAME_KEYS`: the arrows, Enter,
+  Esc, Space, the fights' PgUp, End, Home, Insert, A, S, D and F, and JARDIM's Shift, Ctrl and Caps Lock), the browser's
   repeats dropped: `Sim` repeats a held key (500 ms, then every 33 ms).
 - **Loop.** `noite_frame` (`src/web_main.zig`), called on every
   `requestAnimationFrame`, is one turn of `main.zig`'s message loop
@@ -391,7 +395,10 @@ then "Jogo" = Invasores: SPACE sends the shot up from the cannon
 for 15 s walk in and kick until the opponent's energy bar gets a tile
 (`xilindro.png`, `xilindro-kick.png`), and on a touch screen the pad shows
 the eight fight keys and ▶ and ▲ tapped in turn do the same
-(`xilindro-touch.png`); then "Jogo" = Inferno: a held Right walks the hero
+(`xilindro-touch.png`); in the Corrigida on a phone held upright the
+controls screen keeps the clock still, the pad shows the arrows and the
+four named moves, a tap on one starts the round and ▶ and Chute tapped in
+turn kick (`xilindro-controls.png`, `xilindro-corrigida-touch.png`); then "Jogo" = Inferno: a held Right walks the hero
 off his starting place (`inferno.png`, `inferno-walk.png`), and on a touch
 screen the pad shows the four arrows and a held ▶ does the same
 (`inferno-touch.png`); then "Jogo" = Sauna Mista: Left runs Pacman along

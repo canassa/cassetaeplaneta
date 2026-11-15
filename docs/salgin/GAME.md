@@ -186,6 +186,10 @@ NOITE's `handler_4fsalgin` (1028:0678; `src/handlers/4fsalgin.zig`):
 | other keys | nothing (the handler returns 0) |
 | mouse (0x200–0x202, 0x204, 0x205) | swallowed |
 
+The port's Corrigida version (`--fix all`) adds a key layout and a controls screen in front of
+this handler (`docs/salgin/DESIGN.md` "Decisions"): ↑ jumps, ↓ blocks, A, S, D and F are
+PgUp, Up, Home and Down; a controls screen and PORRADA's 2 s come before the round.
+
 The latches (`g_key*Held`): a key starts its move only while its own latch is 0, and sets it.
 An attack or the block also sets every other latch except Insert's (BUGS S4); Insert sets all 8;
 Left and Right set only their own and their key-up clears it. All 8 clear when the player's move
