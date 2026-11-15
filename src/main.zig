@@ -2,7 +2,7 @@
 //!
 //!     noite [--headless] [--ms N] [--assets DIR] [--save DIR] [--trace FILE]
 //!           [--input FILE] [--dump DIR] [--dump-every MS] [--bmp]
-//!           [--scene NAME [--take ID,ID…]] [--minigame encaixe|tiro|serial|salgin]
+//!           [--scene NAME [--take ID,ID…]] [--minigame encaixe|tiro|serial|salgin|inv]
 //!           [--minigame-stub] [--minigame-result win|lose] [--minigame-startup MS] [--minigame-reply MS] [--quiet]
 //!           [--fix NAME,…|all[,-NAME…]] [--skip-videos] [--one-button]
 //!           [--key-repeat DELAY,PERIOD|off]
@@ -13,8 +13,8 @@
 //! and on `dump` commands, `--scene` starts in an INI scene instead of the
 //! opening. A panic prints the scene and the last messages first.
 //!
-//! `--minigame encaixe|tiro|serial|salgin` runs ENCAIXE.EXE, TIRO.EXE,
-//! SERIAL.EXE or SALGIN.EXE alone (`runAlone`);
+//! `--minigame encaixe|tiro|serial|salgin|inv` runs ENCAIXE.EXE, TIRO.EXE,
+//! SERIAL.EXE, SALGIN.EXE or INV.EXE alone (`runAlone`);
 //! `--minigame-result win|lose` is the result of the stubbed minigames, and
 //! `--minigame-stub` stubs the ported ones too (`platform/host.zig`).
 //!
