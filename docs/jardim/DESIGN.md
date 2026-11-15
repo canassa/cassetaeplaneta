@@ -66,11 +66,76 @@ protocol), `DATA.md` (classes, vtables, globals), `FUNCTIONS.md` (names, dead co
   checks every entry against the original run in the oracle; the port embeds the result.
   Porting the CRT's FP library (`_trandisp`, 3.4 KB of 8087 code) or calling a host libm were
   rejected.
-- **Faithful first, the owner's rule.** J1–J7 are reproduced as they are by default; each fix
-  exists only behind its own `Fixes` flag (off by default). Corrigida (`Fixes.all()`) takes the
-  clear bugs; J6's fix invents a rule and is a choice (`Fixes.choices`) until the owner says.
-  J5 (the original faults) and the latent overruns become panics naming their BUGS.md entry, as
-  NOITE's L5: a smoke "orig" line.
+- **Faithful first, the owner's rule.** J1–J8 are reproduced as they are by default; each fix
+  exists only behind its own `Fixes` flag (off by default), all of them in the Corrigida
+  (`Fixes.all()`). J5 (the original faults) and the latent overruns become panics naming their
+  BUGS.md entry, as NOITE's L5: a smoke "orig" line.
+- **The owner's answers** (once "Owner questions"):
+  - **J4:** the wall-texture fix stays in the Corrigida.
+  - **J5:** the Original keeps panicking (naming J5) where the original crashes.
+  - **J6:** in the Corrigida an enemy hurts once per contact, and again only after the player has
+    moved away and come back; pressing into it, held or repeated, costs once
+    (`jardim_enemy_once_per_contact`, in `all`; it replaces the earlier choice
+    `jardim_enemy_blocks_walk`). "Away" is more than half a cell (16 units) from the enemy's cell, or
+    the enemy gone from it (`labyrinth_input.touchObject`/`leaveContact`), in both movements.
+  - **J7:** the fix stays on JARDIM's side (0x40c only after 0x40b; the hello and the ack reach
+    AppWndProc). The Corrigida's final enemy after `espquete` is `espanf`, after `4fjarvamp`
+    `vamanf`: `jardim-espquete-win.input` checks the picture (`pixel … | …`).
+  - **Timers:** the queue keeps the exact 50/55-ms periods; no Windows 3.1 quantising. The
+    Corrigida's movement does not depend on them (below).
+  - **ESC** stays a loss with no score change (NOITE's poll).
+- **"Make it move like Wolf"** (the owner, for the Corrigida): three additions and one bug fix,
+  each its own flag, all in `all`:
+  - `jardim_game_timer_only` (BUGS.md J8): only timer 1 (55 ms) ticks the game; timer 10's 50-ms
+    `WM_SYSTIMER` no longer doubles it. The tick (18.2 a second at most; 10 with the frame cost, "Platform") keeps the shot's flight, the
+    enemies (animation, step wave, attack, move: all inside the sprite draw,
+    `labyrinth_draw_sprite_entry`), the hands' sway, pickups' and doors' effects and exits.
+  - `jardim_smooth_movement` (`src/jardim/wolf.zig`, not a port unit): the player's motion leaves
+    the tick. A system timer of its own (id 0x57, 14 ms, set in `labyrinth.create`) polls the keys
+    (`Queue.keyState`) and moves the player in Wolf3D's 70-Hz tics counted against the clock
+    (thousandths of a tic carried over; at most 10 a step), so the speed is the same whatever the
+    timers' periods, the display or the host: walk 5.61 cells a second, run 11.2, back 3.74 (7.48),
+    strafe as walk, turn 122.5° a second (245 running), no acceleration, the numbers of id's 1995
+    source (WL_PLAY.C `PollKeyboardMove`: BASEMOVE 35, RUNMOVE 70 per tic; WL_AGENT.C
+    `ControlMovement`/`Thrust`: ×MOVESCALE 150 forward and sideways, ×BACKMOVESCALE 100 back, turn
+    /ANGLESCALE 20 degrees; ID_SD.H `TickBase` 70), converted to 1/32 cell and 2880 per turn:
+    168000/65536 units a tic walking, 14 angle units turning. Collision is Wolf3D's `ClipMove`: a box
+    of PLAYERSIZE (0x5800, 11 units) tried whole, then along x, then along y: the player slides along
+    walls. The original's step (parity push, midpoint test, undone step, speed back to 16) is not
+    used: it snaps the player 8 units off any wall cell he enters, which at 2.6 units a tic would
+    jitter and stick. Objects keep the original's cell rule: a pickup is touched when the player's
+    centre enters its cell; an enemy's cell blocks the entry and touches it (J6's rule; without the
+    J6 fix once a game tick); an enemy that walks into the player's cell does not trap him. The
+    arrows' presses and the tick's held keys and coast do nothing (Caps Lock + ← / → strafes, as
+    before).
+  - **Drawing at the display rate, enemies on the tick.** A motion step that moved or turned draws a
+    frame (`labyrinth.renderFrame` + the minimap marker) with `g.viewOnly` set: `raycast.renderView`
+    leaves the hands' sway and `sprites.drawEntry` only draws, skipping the enemy's step wave,
+    attack, life check, move and `nextFrame`. The tick's frame (timer 1) runs them as ever, so the
+    enemies act once a tick whatever the frame rate: 10 times a second with the frame cost, as the Original's ("Platform: frame cost"). The
+    alternative, TIRO's `host.Program.view` (a presented picture between steps), was rejected: here
+    the motion itself changes the game state (collisions, pickups) and must stay in the task's
+    message order, deterministic in the headless harness. The web and SDL loops dispatch the 14-ms
+    timer once per frame when they are slower (Windows' coalescing), so a frame is drawn per
+    display frame while moving.
+  - `jardim_wall_margin`: at least 8 units from every wall face (the 1995 step is undone if it
+    comes nearer; the Wolf3D box keeps 11), for the textures up close (the owner approved it
+    after a texture investigation; the textures themselves are another change).
+  - `jardim_wolf_keys` (`src/jardim/controls.zig`): W/S or ↑/↓ walk, A/D strafe, ←/→ turn, Shift
+    runs, Ctrl or Space fire, E opens a door or takes an exit, Esc quits. Translated in front of the
+    game (AppWndProc, before the phase handler): Space is passed on as VK_CONTROL and E as the
+    original's VK_SPACE. Space as fire was chosen over keeping it for doors: it is Wolf3D's and the
+    modern habit, and nothing else in JARDIM uses Space. W/A/S/D are read by the motion step (without
+    `jardim_smooth_movement` W and S are passed on as ↑ and ↓, A and D do nothing). No mouse look.
+  - `jardim_controls_screen` (`src/jardim/controls.zig`): a controls screen from WM_CREATE
+    (Portuguese: the keys, the three exit doors, the final enemy, pickups, health and lives) drawn
+    over the first frame with the fights' `core/controls_screen.zig` (the panel, caps and texts
+    now shared; `fight_controls` keeps its rows). Until a key (Esc quits as ever) or a click, the
+    game gets no key, mouse or timer message: nothing moves, no enemy acts; the NOITE handshake
+    (0x40b, 0x40c, 0x40a), WM_PAINT (the screen drawn again over the frame), WM_DESTROY and the
+    sound notifications go on. The key that took it down is ignored until released; the time it
+    was up moves `g_startTick` on (J1's fixed bonus counts the time played) and the motion clock
+    restarts.
 - **Two programs in one process**, as ENCAIXE and TIRO (`src/platform/host.zig`): JARDIM is a
   task with its own state, queue, timers, window and screen; the protocol runs through the
   platform as in Windows. The host needs nothing new for JARDIM; the platform needs the keys and
@@ -91,7 +156,9 @@ protocol), `DATA.md` (classes, vtables, globals), `FUNCTIONS.md` (names, dead co
   of the port.
 - **The touch pad** (the owner's decision): the four arrows, SPACE (open) in the centre and CTRL
   (fire) bottom right; running (SHIFT) and strafing (CAPS LOCK) are left out
-  (`PAD_KEYS.jardim` at the integration, Integration).
+  (`PAD_KEYS.jardim` at the integration, Integration). The Corrigida's (`PAD_CORRIGIDA.jardim`, the
+  fights' 6-row grid): the arrows on the left (▲ ▼ walk, ◀ ▶ turn), on the right "◁ Lado" and
+  "Lado ▷" (A, D: strafe) over "Abrir" (E) and "Tiro" (CTRL); running is left out.
 - **The won flag (the owner's SERIAL rule, survive = win, checked here):**
   the won flag stays 1 when the final enemy is reached with lives left, 0
   otherwise. The win is completion. BUGS.md "The won flag of the other minigames".
@@ -456,8 +523,9 @@ oracle's `g_angleRadians` for 20 indices including 0, 1, 719, 720, 1439, 2879, 2
 | J3 a weapon picked up while a shot flies is lost | `jardim_weapon_waits_for_shot` | phase1, phase2, phase3 | the weapon branches of `touch`, with `shotInFlight`, leave the pickup in its cell and play nothing (as a refused pickup), so it can be taken once the shot has stopped | yes |
 | J4 wall textures stay on the screen | `jardim_wall_texture_on_wall` | raycast | `raycast_render_view` passes the hit coordinate & ~3 for a wall too (as for a door), so the texture column follows the wall | yes |
 | J5 a sprite with its top on row 478 crashes | `jardim_sprite_last_rows` | scaled | the magnifying row loop draws the 1–2 rows left on the surface; the Original port panics "BUGS.md J5" where the original faults | yes |
-| J6 a held key into a life-taking enemy takes a life every tick | `jardim_enemy_blocks_walk` | labyrinth_input | a step undone by `touch` ends the held key's walk (the tick does not repeat it until the key is pressed again): one life, or 5 health, per press | **no: a choice** |
+| J6 a held key into a life-taking enemy takes a life every tick | `jardim_enemy_once_per_contact` | labyrinth_input (and `wolf.zig`) | an enemy touched becomes the contact; a step into it again is blocked without `touch` until the player is more than 16 units from its cell or it has left: one life, or 5 health, per contact (the owner's rule) | yes |
 | J7 the variant (and NOITE's ack) never reaches JARDIM | `jardim_variant_hello` | app | AppWndProc posts 0x40c only after NOITE's 0x40b (the FindWindow branches post nothing) and lets 0x40b and 0x40a reach its own cases before `game_handle_message`, so `espquete`'s timer finds JARDIM, sends the hello and variant 1 arrives (the final enemy is `espanf`), and the ack stops the 0x40c | yes |
+| J8 every system timer ticks the game (timer 10 doubles it) | `jardim_game_timer_only` | labyrinth_input | the backdrop's `WM_SYSTIMER` ticks only for timer 1 (55 ms); the others are answered 1 and dropped | yes |
 
 Each unit ports the buggy code and keeps the fixed path only under its flag
 (`g.fixes.jardim_…`). The Latent entries get no flag: where the port would run them it panics
@@ -484,6 +552,12 @@ the owner's touch pad). Port bugs found while integrating:
   `g_noiteWnd` stayed 0 and the result went nowhere: in the Corrigida NOITE found the window gone
   and reported a loss with no score, a win included. The fix now also lets 0x40b and 0x40a reach
   their cases. (The same swallowing is the original's: it is part of J7.)
+- **The enemies never animated.** `animation.nextFrame`/`prevFrame` took the SceneObject defaults
+  (`scene_object_next_frame_default` 10c0:38ea, `_prev_` 10c0:393a) for the empty stubs they are in
+  NOITE and TIRO; in JARDIM they are the 79-byte wraps of `animation_next_frame` (as SAUNA's). So
+  the enemies stayed on frame 0: they stepped a cell on every frame they were drawn (about 38 cells
+  a second), never reached their attack frame, and the crossbow's and bazooka's firing pose never
+  showed. They now wrap; every JARDIM script was planned again.
 
 ### The launch from NOITE
 
@@ -551,9 +625,12 @@ keeps the stub.
 - Script keys: `key`/`hold` take `ctrl` (0x11), `shift` (0x10) and `capslock` (0x14); `hold
   shift 3000` with `hold up 3000` runs. The scripts walk with `hold KEY 1` presses: a press with no
   tick while the key is down is one 16-unit step or one 48-unit turn (`key` holds 50 ms, over a
-  tick or two).
+  tick or two). The Corrigida's scripts hold `w`, `s`, `a`, `d`, `left`, `right` (with `shift`)
+  for as long as the move takes (the motion step polls the keys every 14 ms) and press `e` and
+  `space`; their first line takes the controls screen down (`key return`).
 - `tools/smoke.py --minigame jardim [--fix all] [--monkey SEED]`: random presses and holds of the
-  arrows, CTRL and SPACE, some under a held SHIFT or CAPS LOCK (no ESC), 60 s: no panic but an
+  arrows, CTRL and SPACE (with `--fix all`: Enter first for the controls screen, and W, A, S, D and
+  E too), some under a held SHIFT or CAPS LOCK (no ESC), 60 s: no panic but an
   "orig" one (J5, a latent entry), no leak; a result or none (a monkey seldom wins or loses in
   60 s). The scene smoke starts JARDIM from `espquete` (after its 19.7-s video: not within the 6-s
   run) and from `4fjarvamp` (at 1.5 s; the Original's ping-pong runs on).
@@ -567,7 +644,9 @@ What JARDIM needed that the other minigames did not (on main, outside the tracke
   (0x14) as WM_KEYDOWN/WM_KEYUP, besides the arrows, Space, Enter and Esc: SDL (LCTRL/RCTRL,
   LSHIFT/RSHIFT, CAPSLOCK), the web page (`GAME_KEYS` 16, 17, 20; `web.Key`) and the script's
   names; `Sim.filterInput` passes them to a minigame and drops them for NOITE (`minigame_keys`:
-  NOITE ignores them).
+  NOITE ignores them). The Corrigida's keys add W (0x57) and E (0x45) to the fights' A, S, D, F:
+  SDL's letters, `GAME_KEYS` 87 and 69, `web.Key` `w`/`e`, the script's `w`/`e` (NOITE gets them
+  and ignores them, as the fights' letters).
 - **`GetKeyState`** is the task queue's synchronous key state, `Queue.keyState(vk)` (bit 15:
   down, bit 0: toggled), as of the key messages the queue has handed out (Windows' rule), so it
   is the same in SDL, the web and headless runs. JARDIM reads SHIFT (run) on the tick and CAPS LOCK
@@ -579,47 +658,91 @@ What JARDIM needed that the other minigames did not (on main, outside the tracke
 - **Timers.** The game tick is `WM_SYSTIMER` from system timer 1 (55 ms) **and** from timer 10
   (50 ms, AppWndProc's FindWindow retry): the backdrop does not check the id, so the game ticks
   about 38 times a second (the queue's exact periods). In Windows 3.1 both fire on the 55-ms
-  hardware tick (36 a second, in pairs). The port keeps the queue as it is (an owner question).
+  hardware tick (36 a second, in pairs). The port keeps the queue's exact periods (the owner's
+  decision); J8's fix (Corrigida) ticks on timer 1 only, and the Corrigida's motion timer (id 0x57,
+  14 ms) counts Wolf3D's tics against the clock, so its speed depends on no period.
+- **Frame cost** (the owner's decision, both versions; platform emulation, not a `Fixes` flag).
+  On a 1995 PC each game tick drew the whole raycast view, and Windows 3.1 makes a timer's
+  message only when the queue is empty, never queuing the periods missed: a frame slower than the
+  timer lowered the tick rate, and 1995 footage shows slow enemies. The port draws at once. So
+  after a tick (`labyrinth_input.handleMessage`, `frameCost`) the two timers that tick the game
+  (1 and 10) give no message for `render_cost_ms` (`core/game.zig`, **100 ms**: a 486DX2-66 drawing
+  the 480×300 view at ~10 frames a second; tune it there, e.g. against a video), through
+  `Queue.postpone`: one message when free, as Windows coalesces. J8 stays in the Original (both
+  timers tick, whichever is due first), but with a cost above 50 ms the rate is 1/cost either
+  way: 10 ticks a second. Not charged: the frame a key press draws (it is not a timer's) and the
+  Corrigida's motion frames (view only, modern drawing); the Corrigida's enemies use the same cost
+  through the tick, so they move as the Original's. Measured (headless, one copy of an enemy in
+  view, standing still): one cell per F ticks, F the enemy's frames, i.e. 2 cells a second for a
+  Seios (F 5, and 2 health a second), 2.5 for Bussuf and Siri (F 4), 3.3 for Bicho (3), 5 for
+  Alemão and Chato (2); several copies of a kind in view share its frame and step that much
+  faster (the original's rule). The Original's held keys: walk 24 units a tick (7.5 cells a
+  second, plus the coast after the release), run 64 (20 cells a second), turn 48 a tick (≈ 63° a
+  second with the press, 120 with Shift); a press is still one step or turn at once.
 - **A busy ping-pong moves the clock** (`main.busy_messages`, above): only the Original's
   `4fjarvamp` does it.
 
 ## Tests
 
-- **Planning.** The wins and the loss were planned against the port with a temporary probe (not
-  committed): a ReleaseFast build of the worktree (LLVM: 15× faster than the self-hosted Debug
-  build) printing JARDIM's state on every change (position, angle, health, lives, ammo, level,
-  score, weapon, shot, variant) and the object and wall map on every change, driven by a
-  closed-loop planner: each step re-runs the script so far and reads the end state; a BFS over the
-  current walls and objects (enemies are obstacles) gives the next cell; the planner turns there
-  (48-unit presses) and walks two 16-unit presses, opens a door on the way with SPACE, shoots
-  (CTRL, after turning) the first Bussuf/Alemão in a line ahead when armed, picks up the
-  crossbow first, and in phase 3 walks into the final enemy wherever it has moved. Enemies on
-  screen step toward the player one cell a frame, so a plan made blind runs into them (the first
-  route lost its lives to the Bussuf that rushed down row 77). Both versions play the same
-  game (2100 points before J1's bonus, checked by the `result` lines): the route never shoots
-  Chato (J2) and no other fix changes it.
-- **Scripts** (`tools/play/`), each Original and `--fix all`:
-  - `jardim-alone-win.input` (`--minigame jardim --ms 82000`): the three phases (lives 3, health
-    115, 2100 points), the final enemy touched at 79870: `result won 6328 | won 14620` (J1);
-  - `jardim-alone-lose.input` (`--ms 8000`): the walk meets two Seios and a Bussuf; Up held into
-    them from 5710 takes two lives at once (J6) and the third at 6250: lost −1000, then the
-    repeated report −2000 (checked);
-  - `jardim-close.input` (`--ms 3000`): the window closed at 2 s, `lost -1000`;
-  - `jardim-espquete-win.input` (`--scene espquete --ms 104000`): JARDIM from 21165, the alone
-    win's presses shifted, `result won -17430 | won 14620` (J1's penalty: the start tick is 21165),
-    NOITE goes to `6fsai1` with the score;
-  - `jardim-espquete-lose.input` (`--ms 30000`): the alone loss's presses shifted, NOITE gets
-    −1000 and goes to `6fsaida`;
-  - `jardim-4fjarvamp-win.input` (`--scene 4fjarvamp --ms 84000`): the alone win from 1500; the
-    Original's result is lost in the ping-pong and NOITE ends in `6fsaida` with no score (J7), the
-    Corrigida gets +14620 and `6fsai2`.
-  JARDIM has no randomness: the plans depend only on the presses' times relative to its
-  WM_CREATE (its timers run from there), so a script moves with JARDIM's start time by a shift.
+- **Planning.** Every route was planned against the port with a temporary probe (not committed):
+  a ReleaseFast build printing JARDIM's state on every game tick (position, angle, health, lives,
+  ammo, level, score, weapon, shot, variant) and the object and wall map when it changes (for
+  the Corrigida also without its view-only motion frames, which change no state: about 4×
+  faster), driven by a closed-loop planner: each step re-runs the script so far and reads the end
+  state; a BFS over the current walls and objects (enemies and the cells next to them are
+  obstacles; a bra or bazooka too while the crossbow is held) gives the path; the planner picks
+  up a crossbow first, detours to a medkit within 14 cells when health is under 45, shoots (after
+  turning to the axis) the first shootable enemy in a clear line ahead within 7 cells (not the
+  Original's Chato: J2 keeps him), opens a door on the way, takes the exit doors and in phase 3
+  walks into the final enemy wherever it has moved. The 1995 controls: presses only (48-unit
+  turns, 15-unit steps along the axes, 30 ms apart; CTRL, SPACE). The Corrigida's: Left/Right
+  held for the turn's tics (14 units each), W (Shift+W beyond 2.5 cells) for the distance to the
+  next straight run's last cell (at most 4 cells), E, Space. The losses walk to the nearest Seios:
+  the 1995 one walks into it, the Corrigida's presses into it and backs off again and again.
+  Planned with the enemies' animation fixed and the frame cost in place, so the enemies animate,
+  attack at range per drawn copy and step one cell per animation cycle.
+- **Scripts** (`tools/play/`). The 1995 controls, each Original and with every bug fix on the 1995
+  controls (`--fix all` less `jardim_smooth_movement`, `jardim_wolf_keys`,
+  `jardim_controls_screen`, `jardim_game_timer_only`, `jardim_wall_margin`):
+  - `jardim-alone-win.input` (`--minigame jardim --ms 75000`): the three phases (phase 2 at
+    25.3 s, phase 3 at 40.4 s), the final enemy touched at 72250 (lives 2, 1500 points):
+    `result won 19370 | won 15340` (J1);
+  - `jardim-alone-lose.input` (`--ms 9000`): the last presses walk into a Seios, each a life
+    (J6): lost at 7430, reported four times (−4000 checked); with J6's fix no result;
+  - `jardim-espquete-win.input` (`--scene espquete --ms 96000`): the alone win shifted to 21165,
+    `won 19370 | won 15340`, NOITE goes to `6fsai1`;
+  - `jardim-espquete-lose.input` (`--ms 32000`): the alone loss shifted, `6fsaida` (with J6's fix
+    no result: NOITE stays in `espquete`);
+  - `jardim-4fjarvamp-win.input` (`--scene 4fjarvamp --ms 76000`): the alone win from 1500; the
+    Original's result is lost in the ping-pong (`6fsaida`, J7), the fixed run's reaches NOITE
+    (`6fsai2`).
+  The Corrigida (`--fix all`):
+  - `jardim-corrigida-alone-win.input` (`--ms 130000`): Enter at 300, phase 2 at 48.6 s, phase 3
+    at 69.9 s, the final enemy at 126550 (lives 3, 1800 points): `won 9720`;
+  - `jardim-corrigida-alone-lose.input` (`--ms 27000`): once per contact, three contacts with a
+    Seios: lost at 24934, −1500;
+  - `jardim-corrigida-espquete-win.input` / `-lose` and `jardim-corrigida-4fjarvamp-win.input`: the
+    same shifted to 21165 and 1500; J7's check: the final enemy is `espanf` after `espquete`
+    (`pixel 360 235 179` at 144665) and `vamanf` after `4fjarvamp` (67 at the same moment);
+  - `jardim-controls.input` (`--ms 7500`): the controls screen up until Enter (its frame's pixel),
+    then ← to north, W 1 s, D (strafe east), → twice, Shift+W back: the minimap marker's pixels
+    after each move.
+  - `jardim-close.input` (`--ms 3000`), both versions: the window closed at 2 s (in the Corrigida
+    with the controls screen up), `lost -1000`.
+  JARDIM has no randomness: the plans depend only on the key times relative to its WM_CREATE
+  (its timers run from there), so a script moves with JARDIM's start time by a shift.
+- **Measured** (headless, the probe, `jardim-controls.input`'s moves): the Corrigida walks 178.7
+  units a second (5.59 cells; Wolf3D 5.61), runs 358 (11.2; 11.2), backs 119 (3.72; 3.74),
+  strafes 179 (5.59), turns 980 angle units a second (122.5°; 122.5°), 1960 running (245°).
 - **Smoke**: `tools/smoke.py --minigame jardim` (above).
 - **Web**: `tools/web/test.py` plays "Jogo" = Jardim: JARDIM starts, a held Up moves the
   minimap's square and a held Ctrl punches; on a touch screen the pad shows the arrows, Abrir and
-  Tiro, and a held ▲ walks.
-- **Unit tests**: the six 32-bit routines and the tables (`oracle=emulated`), `Queue.keyState`.
+  Tiro, and a held ▲ walks. In the Corrigida: the controls screen (the key that takes it down does
+  not walk), a held W walks, A strafes, Space punches; on a phone the Corrigida pad, a tap takes
+  the screen down and a held ▲ walks.
+- **Unit tests**: the six 32-bit routines and the tables (`oracle=emulated`), `Queue.keyState`,
+  `wolf.zig` (the speeds in JARDIM's units, the box), `controls.zig` (the screen keeps the game,
+  the key translation).
 
 ## Units
 
@@ -733,17 +856,4 @@ noite -p jardim failed <unit> "why" / release <unit>
 
 ## Owner questions
 
-1. **J6** (`jardim_enemy_blocks_walk`, a choice): is "a blocked step ends the held walk" the
-   Corrigida rule you want (one life, or 5 health, per press into an enemy), or another (an enemy
-   hits once per contact until the player has moved away, or one life per scream)?
-2. **J7**: the fix is on JARDIM's side (post 0x40c only after 0x40b, and let the hello and the ack
-   reach AppWndProc's cases); the `espquete` part could instead be on NOITE's (`espquete` ignoring
-   a 0x40c from an unknown window, as `4fjarvamp` does), but JARDIM would still swallow the hello
-   and the ack. Which side, and is `espanf` in the Corrigida's first ending what you want?
-3. **J4** in Corrigida: every wall looks different (the texture moves with the wall). It is in
-   `all` as a clear bug; say if you would rather keep the original look.
-4. **J5 in the Original**: the port panics where the original crashes (a smoke "orig" line), as
-   NOITE's latent faults. Keep it a crash, or draw the rows silently in both versions?
-5. **Timers**: keep the queue's exact 50/55-ms periods (≈ 38 ticks a second), or quantise
-   timers to Windows 3.1's 55-ms tick (36 a second; would apply to every program and replan
-   TIRO's and ENCAIXE's scripts)?
+None open (the owner's answers are under "Decisions").

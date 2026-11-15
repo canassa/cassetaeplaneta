@@ -49,7 +49,7 @@ Windows (500 ms, then every 33 ms; `--key-repeat DELAY,PERIOD|off`), in
 the window, the browser and headless runs. A minigame gets every key
 (TIRO, SERIAL and INV: LEFT, RIGHT, SPACE; SALGIN and XILINDRO: the arrows, PgUp,
 Home, End, Insert, and in the Corrigida A, S, D, F; INFERNO and SAUNA: the arrows; SAUNA also the left button; JARDIM: the arrows,
-Ctrl to fire, Space for doors, Shift to run and Caps Lock held to strafe, read with `GetKeyState`); NOITE
+Ctrl to fire, Space for doors, Shift to run and Caps Lock held to strafe, read with `GetKeyState`, and in the Corrigida W, A, S, D, E); NOITE
 gets Enter, Esc and Space only to skip videos, and never Shift, Ctrl or Caps Lock.
 The fights' Corrigida keys (`--fix all`): ← / → walk, ↑ jumps, ↓ blocks, A punches, S and D
 kick (middle and high; SALGIN's voadora and salto), F sweeps; a controls screen comes first (any
@@ -57,6 +57,11 @@ key or a click takes it down), then PORRADA stands for 2 s before the round star
 fair (`fight_fair`, `docs/fights/FAIRNESS.md`): the opponent stops within reach, shows each attack for
 2 beats (its first frame and its sound) before it lands, and can be dodged (←), blocked (↓, not the
 sweep), jumped (↑, the sweep) or hit first; F9 in a Debug build shows its state over the arena.
+JARDIM's Corrigida (`--fix all`) moves like Wolfenstein 3D: W / S or ↑ / ↓ walk, A / D strafe,
+← / → turn, Shift runs, Ctrl or Space fire, E opens a door or takes an exit, Esc quits; the
+movement is continuous at Wolf3D's speeds (5.6 cells a second walking, 11.2 running, 122.5° a
+second turning) and slides along walls, and a controls screen comes first
+(`docs/jardim/DESIGN.md` "Decisions").
 Saves go to `save/` (`--save DIR`).
 
 ## Testing the port
@@ -234,21 +239,28 @@ Saves go to `save/` (`--save DIR`).
   the score): rerun it when SAUNA's start time moves (4100 from `--scene 3fsauna`'s click at
   1000). `tools/smoke.py --minigame sauna [--fix all] [--monkey SEED]` presses and holds random
   arrows and clicks the maze for 120 s. The playthroughs never enter the sauna.
-- **JARDIM**: `--minigame jardim --ms 82000 --input tools/play/jardim-alone-win.input` (the three
-  labyrinths and the final enemy at 79870: `result won 6328 | won 14620`, BUGS.md J1),
-  `--ms 8000 --input tools/play/jardim-alone-lose.input` (Up held into two Seios and a Bussuf: lost,
-  reported twice, -1000 then -2000) and `--ms 3000 --input tools/play/jardim-close.input` (the
-  window closed at 2 s: `lost -1000`); from NOITE, `--scene espquete --ms 104000 --input
-  tools/play/jardim-espquete-win.input` (the video ends, JARDIM starts at 21165, NOITE hides, gets
-  the win with J1's penalty, `won -17430 | won 14620`, and plays the first ending `6fsai1`), `--ms
-  30000 --input tools/play/jardim-espquete-lose.input` (-1000, game over `6fsaida`) and `--scene
-  4fjarvamp --ms 84000 --input tools/play/jardim-4fjarvamp-win.input` (the Original loses the win
-  in the 0x40c/0x40a ping-pong, BUGS.md J7: `6fsaida`; the fixed run `6fsai2`). Each the same
-  with `--fix all`. JARDIM has no randomness; the moves were planned against the port with a
-  temporary state probe (docs/jardim/DESIGN.md "Tests") and depend only on JARDIM's start: the
-  NOITE scripts are the alone ones shifted to it. `tools/smoke.py --minigame jardim [--fix all]
-  [--monkey SEED]` presses and holds random arrows, Ctrl, Space, Shift and Caps Lock for 60 s. The
-  playthroughs keep JARDIM's stub (`--minigame-stub=jardim`).
+- **JARDIM**: in the 1995 controls, `--minigame jardim --ms 75000 --input
+  tools/play/jardim-alone-win.input` (the three labyrinths and the final enemy at 72250: `result won
+  19370 | won 15340`, BUGS.md J1), `--ms 9000 --input tools/play/jardim-alone-lose.input` (presses
+  into a Seios, a life each, BUGS.md J6: lost, reported four times, -4000) and `--ms 3000 --input
+  tools/play/jardim-close.input` (the window closed at 2 s: `lost -1000`); from NOITE, `--scene
+  espquete --ms 96000 --input tools/play/jardim-espquete-win.input` (JARDIM from 21165, NOITE gets
+  the win and plays the first ending `6fsai1`), `--ms 32000 --input
+  tools/play/jardim-espquete-lose.input` (game over `6fsaida`) and `--scene 4fjarvamp --ms 76000
+  --input tools/play/jardim-4fjarvamp-win.input` (the Original loses the win in the 0x40c/0x40a
+  ping-pong, BUGS.md J7: `6fsaida`). Each also runs with every bug fix on the 1995 controls (the
+  header's `--fix all,-jardim_smooth_movement,…`). The Corrigida's movement, keys and controls
+  screen: `jardim-corrigida-alone-win.input` (`--ms 130000 --fix all`: won 9720),
+  `jardim-corrigida-alone-lose.input`, `jardim-corrigida-espquete-win.input` (the final enemy is
+  `espanf`, checked by a pixel), `jardim-corrigida-espquete-lose.input`,
+  `jardim-corrigida-4fjarvamp-win.input` and `jardim-controls.input` (the controls screen, then a
+  walk, a strafe, two turns and a run, checked on the minimap). JARDIM has no randomness; the moves
+  were planned against the port with a temporary state probe (docs/jardim/DESIGN.md "Tests") and
+  depend only on JARDIM's start: the NOITE scripts are the alone ones shifted to it. The game ticks
+  at most 10 times a second: a period PC's frame cost (`render_cost_ms`, "Platform: frame cost").
+  `tools/smoke.py --minigame jardim [--fix all] [--monkey SEED]` presses and holds random arrows,
+  Ctrl, Space, Shift and Caps Lock (and W, A, S, D, E with `--fix all`) for 60 s. The playthroughs
+  keep JARDIM's stub (`--minigame-stub=jardim`).
 - **SDL without a display**: `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy`
   (or `disk` with `SDL_AUDIO_DISK_OUTPUT_FILE=out.raw` to capture the mix).
 

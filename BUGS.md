@@ -1034,6 +1034,31 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
   no trades; the fighter's blows do {2, 4, 2, 4}. The opponent's damage is unchanged. The Original's
   opponent hits on the beat it arrives (in XILINDRO from beyond the fighter's reach), with nothing on screen
   to say it is coming.
+- `Fixes.jardim_smooth_movement` (JARDIM): Wolfenstein 3D's movement (`src/jardim/wolf.zig`). A 14-ms motion
+  timer polls the keys and moves the player in Wolf3D's 70-Hz tics counted against the clock: walk 5.6 cells a
+  second, run 11.2, back 3.7, turn 122.5° a second (245 running), no acceleration (id's WL_PLAY.C
+  `PollKeyboardMove`, WL_AGENT.C `ControlMovement`/`Thrust`: BASEMOVE 35, RUNMOVE 70, MOVESCALE 150,
+  BACKMOVESCALE 100, ANGLESCALE 20); the player is a box of Wolf3D's radius (11 units) that slides along walls
+  (`ClipMove`) instead of the original's parity push and undone step; each moving step draws a frame
+  (the display rate), in which the enemies neither act nor animate and the hands do not sway: those, the
+  shot, the doors, the exits and the enemies' attacks keep the game tick (timer 1, with J8's fix). A pickup is
+  touched when the player's centre enters its cell, an enemy's cell blocks it (J6's rule applies). The
+  original's held-key steps, coasting and Caps Lock strafe by steps are not used (Caps Lock + ← / → still
+  strafes).
+- `Fixes.jardim_wall_margin` (JARDIM): the player stays at least 8 units from every wall face (a step that would
+  come nearer is undone), as the original's push leaves him from the wall he walks into; up close the view's
+  whole-unit distances bend the bricks and the wall fills the view. `jardim_smooth_movement`'s 11-unit box keeps
+  more than that anyway, so in the Corrigida it only matters to the 1995 movement.
+- `Fixes.jardim_wolf_keys` (JARDIM): W / S or ↑ / ↓ walk, A / D strafe, ← / → turn, Shift runs, Ctrl or Space
+  fire, E opens a door or takes an exit, Esc quits (`src/jardim/controls.zig`: Space is passed on as Ctrl and E
+  as the original's Space, in front of the phase handler). Space no longer opens doors (E does): Space as fire
+  is the Wolf3D/modern habit and the touch pad has its own buttons.
+- `Fixes.jardim_controls_screen` (JARDIM): a controls screen (the keys, the goal: the exit door of each of the
+  three labyrinths, the final enemy of the third, pickups, health and lives) from WM_CREATE over the first
+  frame until a key or a click; meanwhile JARDIM gets no input and no timer (nothing moves, no enemy acts), the
+  0x40b/0x40c/0x40a handshake, WM_PAINT and WM_DESTROY go on as ever, Esc still quits. The time it was up is
+  added to `g_startTick` (J1's fixed bonus counts the time played). The drawing is the fights'
+  (`core/controls_screen.zig`).
 
 ---
 
@@ -2409,9 +2434,13 @@ Each is consistent code with a plausible intent.
   5-health enemies drain a life in about a second.
 - **Confidence:** 9 (code); 6 (that one life per contact was meant).
 - **Port:** reproduced (unit `labyrinth_input`, src/jardim/labyrinth_input.zig `tickHeld` and
-  `moveAndRender`); the fix is `Fixes.jardim_enemy_blocks_walk` (`--fix jardim_enemy_blocks_walk`, a
-  choice: left out of the Corrigida version (`Fixes.choices`) until the owner decides). The scripts walk
-  by presses and never press into an enemy, so they play the same game with or without it.
+  `moveAndRender`); the fix, the owner's rule, is `Fixes.jardim_enemy_once_per_contact`
+  (`--fix jardim_enemy_once_per_contact`, on in the Corrigida version): an enemy hurts once per contact.
+  The touched enemy and its cell are the contact; a step into it again blocks without touching it until
+  the player has moved more than half a cell (16 units) away from that cell or the enemy has left it
+  (`labyrinth_input.touchObject`/`leaveContact`, also used by the Corrigida's continuous movement,
+  `src/jardim/wolf.zig`). Pressing into it, held or repeated, costs once. `jardim-alone-lose.input`
+  shows it (the Original loses two lives at once, the fix one).
 
 ### J7. The variant and NOITE's ack never reach JARDIM: the final enemy is always the vampire's, and from `4fjarvamp` the result is lost
 - **Where:** `APPWNDPROC` 1020:0353 (the `FindWindow("Noite Animal")` branch at the top of every message,
@@ -2450,6 +2479,38 @@ Each is consistent code with a plausible intent.
   scripts show it: `jardim-espquete-win.input` (a win in both, the Corrigida with `espanf`) and
   `jardim-4fjarvamp-win.input` (the Original's win lost, `6fsaida`; the Corrigida's `6fsai2`). Which side
   the fix belongs on is an owner question (docs/jardim/DESIGN.md).
+
+### J8. Every system timer ticks the game: the 50-ms FindWindow timer doubles the game's speed
+- **Where:** `labyrinth_backdrop_handle_message` 1028:2609, its `WM_SYSTIMER` case (the shot's step,
+  the held keys or the coast, the idle frame); `labyrinth_backdrop_create` 1028:2191 (system timer 1,
+  55 ms); `APPWNDPROC` 1020:0353 (`WM_CREATE`: system timer 10, 50 ms, whose `WM_SYSTIMER` case retries
+  `FindWindow("Noite Animal")`).
+- **What the code does:** the backdrop's `WM_SYSTIMER` case never reads `wParam` (the timer id), and
+  once `WM_CREATE` has run AppWndProc hands every message to the game first, whose labyrinth scene
+  answers 1 for it. So timer 10's messages, meant only for the FindWindow retry, tick the game as
+  timer 1's do; AppWndProc's own retry never runs (its FindWindow at the top of every message does the
+  work anyway). The other timers set (0xc, 0xd, 0xf: the control panel, the Player, the Portables) are
+  ids of the engine's own objects and never started in JARDIM.
+- **Effect:** the game ticks on both timers: about 38 ticks a second in the port (the queue's exact
+  periods) instead of the 18.2 of the 55-ms timer. Everything the tick drives runs about twice as
+  fast as one timer gives: a held arrow walks 24 units a tick (64 running), so about 28 cells a second
+  walking and 76 running on a 32-unit cell; a held turn 6° (12° with Shift) a tick; the shot flies a
+  cell a tick; every visible enemy animates, steps toward the player and hits (1 health a cycle) on
+  each tick's frame. On Windows 3.1 both timers come from the 55-ms hardware tick, so the game got its
+  ticks in pairs (36 a second); how many of them a 1995 PC turned into frames depended on how long a
+  frame took to draw (Windows does not queue a timer's message twice), so the doubled speed was
+  probably partly hidden by slow drawing there. The port emulates that: after a tick the two timers
+  give no message for `render_cost_ms` (100 ms, a period PC's frame; docs/jardim/DESIGN.md "Platform:
+  frame cost"), so the Original ticks 10 times a second whichever timer comes first, and J8 shows only
+  with a cost under 50 ms (the doubled rate: 38 a second at the exact periods with no cost).
+- **Confidence:** 10 (code: the id is never compared, asm 1028:2609); 7 (that only timer 1 was meant
+  to tick the game: it is the backdrop's own timer and its 55 ms the engine's usual period; timer 10's
+  only purpose is the retry); 4 (how fast the original ran on a 1995 PC).
+- **Port:** reproduced (unit `labyrinth_input`, src/jardim/labyrinth_input.zig `handleMessage`); the fix
+  is `Fixes.jardim_game_timer_only` (`--fix jardim_game_timer_only`, on in the Corrigida version): only
+  timer 1's `WM_SYSTIMER` ticks the game (18.2 ticks a second at most; 10 with the frame cost), the others are answered and dropped as
+  the scene does. In the Corrigida the player's own movement no longer depends on the tick at all
+  (`Fixes.jardim_smooth_movement`, "Corrigida additions").
 
 ### Latent (JARDIM)
 

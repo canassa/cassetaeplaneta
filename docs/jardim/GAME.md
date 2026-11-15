@@ -172,8 +172,18 @@ through the phase handler and `labyrinth_scene_handle_message`.
 | SPACE | open the door one cell ahead (9–12), or take an exit door (7, 8: the phase handler) |
 | ESC | kill the timer and `PostQuitMessage`: JARDIM ends without a result |
 
-The latches `g_keyLeftDown` … `g_keyDownDown` and `g_keysDownCount` drive the tick; a turn moves the
+The latches `g_keyLeftDown` … `g_keysDownCount` drive the tick; a turn moves the
 sky 8 px and the floor 16 px per step, a step moves the floor 10 px (15 held, 30 running).
+
+**The speeds.** The tick runs on every `WM_SYSTIMER`, timer 10's included (Timers, BUGS.md J8): about
+38 ticks a second at the exact 50/55-ms periods. Held, that is 24 units a tick walking (≈ 28 cells a
+second on a 32-unit cell) and 64 running (≈ 76), and 6° a tick turning (≈ 228° a second, twice that with
+SHIFT). The presses add a step or a turn each on top.
+
+The Corrigida replaces this movement with Wolfenstein 3D's (continuous, 5.6 cells a second walking,
+11.2 running, 122.5° a second turning, sliding along walls), W/A/S/D and E for the keys, a controls
+screen first and one tick a timer-1 period (`docs/jardim/DESIGN.md` "Decisions"); the rules below are
+the original's.
 
 **A step** (`labyrinth_move_and_render` 1028:3e23): x += velX, y += velY. If the new cell is a wall
 or door, the player is pushed out along one axis by the cell's parity: an even value along x (8
@@ -334,7 +344,7 @@ which answers the hello and reports the result set in `Options.minigame`.
 
 | Id | Period | Set by | Use |
 |---|---|---|---|
-| 10 | 50 ms | `APPWNDPROC` `WM_CREATE` | `WM_SYSTIMER` retries `FindWindow("Noite Animal")` (the backdrop ignores the id) |
+| 10 | 50 ms | `APPWNDPROC` `WM_CREATE` | meant to retry `FindWindow("Noite Animal")`; its `WM_SYSTIMER` ticks the game too, since the backdrop ignores the id (BUGS.md J8), and AppWndProc's own case never runs (the FindWindow at the top of every message does the retry) |
 | 1 | 55 ms | `labyrinth_backdrop_create` | the game tick (`WM_SYSTIMER`, any id): the shot step, coasting or the held keys, otherwise an idle redraw that animates the enemies |
 | 0xc, 0xd, 0xf | 55 / 100 / 55 ms | the ids of the control panel, the Player, the Portables | never acted on: every `WM_SYSTIMER` reaches the backdrop first (which ignores the id), and `game_handle_message`'s timer case is dead; the enemies animate from the frame redraw |
 
