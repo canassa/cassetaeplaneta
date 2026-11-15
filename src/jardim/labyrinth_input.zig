@@ -47,6 +47,23 @@ fn wallAt(bd: *const Backdrop, row: i32, col: i32) i8 {
     return bd.wallRows[@intCast(row)][@intCast(col)];
 }
 
+/// The cell a step lands on. A running step (64 units, Shift) from beside the border lands
+/// outside the map, and the original reads past `wallRows` with no fault: row −1 is the far
+/// pointer before it, `cscAt`, so the byte at the column's offset in tables[6] from the view
+/// angle; row 80 is `objectRows[0]`, column −1 or 57 the bytes around a row. Whatever it reads,
+/// the midpoint test then finds the border wall and undoes the step (BUGS.md JARDIM, harmless).
+/// Row −1 is read as the original does; the others, whose bytes are far pointers or heap, as 0.
+fn stepCell(g: *Game, bd: *const Backdrop, row: i32, col: i32) i8 {
+    if (row >= 0 and row < world.map_rows and col >= 0 and col <= world.map_cols)
+        return bd.wallRows[@intCast(row)][@intCast(col)];
+    if (row != -1 or col < 0) return 0;
+    const t = g.tables.trig[6];
+    const i = @as(usize, bd.cscAt) + @as(usize, @intCast(col)) / 4;
+    if (i >= t.len) return 0;
+    const word: u32 = @bitCast(t[i]);
+    return @bitCast(@as(u8, @truncate(word >> @intCast(8 * (@as(u32, @intCast(col)) % 4)))));
+}
+
 fn objectAt(bd: *Backdrop, row: i32, col: i32) *?*Object {
     if (row < 0 or row >= world.map_rows or col < 0 or col >= world.map_cols)
         @panic("labyrinth_input: object cell outside the map");
@@ -473,7 +490,7 @@ pub fn moveAndRender(g: *Game, bd: *Backdrop, carried: ?*Object) void {
     bd.playerY +%= bd.velY;
     labyrinth.drawSkyFloor(g, bd);
 
-    const cell = wallAt(bd, bd.playerY >> 5, bd.playerX >> 5);
+    const cell = stepCell(g, bd, bd.playerY >> 5, bd.playerX >> 5);
     if (cell > 0 and cell & 1 == 0) {
         bd.moveRamp = 0;
         bd.moveSpeed = 0x10;
