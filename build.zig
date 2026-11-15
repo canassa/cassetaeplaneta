@@ -25,6 +25,11 @@ pub fn build(b: *std.Build) void {
         .flags = &.{ "-std=c99", "-fno-sanitize=shift" },
     });
     mod.addIncludePath(b.path("vendor/tinysoundfont"));
+    // `-Djardim-probe`: the build `tools/jardim_plan.py` drives (JARDIM's fair enemies' log
+    // from the start, no motion frames: they change no state).
+    const options = b.addOptions();
+    options.addOption(bool, "jardim_probe", b.option(bool, "jardim-probe", "JARDIM planner probe build (tools/jardim_plan.py)") orelse false);
+    mod.addOptions("build_options", options);
 
     const exe = b.addExecutable(.{
         .name = "noite",
@@ -71,6 +76,7 @@ pub fn build(b: *std.Build) void {
         .flags = &.{ "-std=c99", "-fno-sanitize=shift" },
     });
     web_mod.addIncludePath(b.path("vendor/tinysoundfont"));
+    web_mod.addOptions("build_options", options);
     const wasm = b.addExecutable(.{
         .name = "noite",
         .root_module = web_mod,

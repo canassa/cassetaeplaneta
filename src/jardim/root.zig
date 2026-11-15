@@ -82,5 +82,6 @@ test {
     _ = units;
     _ = @import("wolf.zig");
     _ = @import("controls.zig");
+    _ = @import("enemies.zig");
     std.testing.refAllDecls(core);
 }

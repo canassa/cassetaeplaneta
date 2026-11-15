@@ -25,6 +25,7 @@ const panels = @import("panels.zig");
 const position = @import("behaviour/position.zig");
 const render = @import("behaviour/render.zig");
 const visibility = @import("behaviour/visibility.zig");
+const enemies = @import("enemies.zig");
 
 /// `g_hBrushMinimapWall`: CreateSolidBrush(0xff00).
 const wall_color: u32 = 0x00ff00;
@@ -211,7 +212,8 @@ pub fn drawHud(g: *Game, bd: *Backdrop) void {
         const q: i16 = @truncate(@divTrunc(@as(i32, -100), n));
         var frame: i16 = n +% (@divTrunc(bd.health, q) -% 1);
         if (frame < 0) frame = 0;
-        face.curFrame = frame;
+        // Not in the original: a step worse just after a fair enemy's hit.
+        face.curFrame = enemies.faceFrame(g, frame, n);
     }
     render.erase(g, face, bd);
     render.draw(g, face, bd);

@@ -18,6 +18,8 @@ const object = @import("object.zig");
 const Object = object.Object;
 const ObjectList = object.ObjectList;
 const world = @import("world.zig");
+const crt = @import("../../core/crt.zig");
+const enemies = @import("../enemies.zig");
 
 /// The window procedure (`AppWndProc`, unit `app`); returns the LRESULT.
 pub const WndProc = *const fn (g: *Game, m: Msg) i32;
@@ -164,6 +166,11 @@ pub const Game = struct {
     // No counterpart: a frame that only shows the view (`wolf.zig`'s motion
     // frames): the hands do not sway, the enemies neither act nor animate.
     viewOnly: bool = false,
+    // No counterpart: the Corrigida's fair enemies (`enemies.zig`).
+    fair: enemies.FairState = .{},
+    // No counterpart: JARDIM has no rand(); the fair enemies' reaction times use the CRT's
+    // generator, never seeded (so a run depends only on the input's times from WM_CREATE).
+    rand: crt.Rand = .{},
     // @orig g_shotSecLo / g_shotSecHi (tables[5] at the firing angle)
     shotSec: i32 = 1,
     // @orig g_shotCscLo / g_shotCscHi (tables[6] at the firing angle)

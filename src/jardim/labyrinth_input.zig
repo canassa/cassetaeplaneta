@@ -23,6 +23,7 @@ const labyrinth = @import("labyrinth.zig");
 const raycast = @import("raycast.zig");
 const sprites = @import("sprites.zig");
 const wolf = @import("wolf.zig");
+const enemies = @import("enemies.zig");
 
 const vk_shift: u16 = 0x10;
 const vk_control: u16 = 0x11;
@@ -355,6 +356,8 @@ fn tickHeld(g: *Game, bd: *Backdrop) void {
 fn tick(g: *Game, bd: *Backdrop) void {
     g.wolf.gameTick +%= 1;
     if (bd.shotInFlight != 0) shotStep(g, bd);
+    // Not in the original: the fair enemies act once a tick, before its frame.
+    if (enemies.active(g)) enemies.think(g, bd);
     if (g.keysDownCount == 0) {
         coast(g, bd);
     } else {
@@ -499,6 +502,11 @@ pub fn handleMessage(g: *Game, bd: *Backdrop, m: Msg) u16 {
                 g.postQuitMessage();
                 return 1;
             }
+            // Not in the original: the fair enemies' debug overlay (F9, Debug builds).
+            if (enemies.debug_build and m.wparam == enemies.vk_f9 and enemies.active(g)) {
+                enemies.toggleOverlay(g);
+                return 1;
+            }
             keyDown(g, bd, m);
             return 1;
         },
@@ -528,6 +536,9 @@ pub fn handleMessage(g: *Game, bd: *Backdrop, m: Msg) u16 {
 /// (`leaveContact`) it blocks the step without touching it again. Every enemy of a kind is
 /// one object, so a contact is per kind.
 pub fn touchObject(g: *Game, bd: *Backdrop, obj: *Object) i16 {
+    // Not in the original: with the fair enemies an enemy walked into only blocks (their
+    // blows are the damage), unless `contact_hurts`; the final enemy is still the win.
+    if (enemies.active(g) and obj.isEnemy != 0 and obj != bd.scene.?.finalEnemy and !enemies.tuning.contact_hurts) return 1;
     if (g.fixes.jardim_enemy_once_per_contact and obj.isEnemy != 0) {
         var free: ?*Contact = null;
         for (&g.contacts) |*c| {
@@ -629,6 +640,7 @@ pub fn moveAndRender(g: *Game, bd: *Backdrop, carried: ?*Object) void {
     }
     sprites.flush(g, bd.spriteQueue.?, bd);
     render.draw(g, bd.hands.?, bd);
+    enemies.drawOverlay(g, bd); // Not in the original: the fair enemies' hit border.
     _ = g.plat.realizePalette(&bd.bmiColors);
     labyrinth.presentView(g, bd);
     hud.presentMinimap(g, bd);

@@ -23,6 +23,7 @@ const sprites = @import("sprites.zig");
 const tables = @import("tables.zig");
 const render = @import("behaviour/render.zig");
 const wolf = @import("wolf.zig");
+const enemies = @import("enemies.zig");
 
 // @orig 1028:0dfb labyrinth_backdrop_ctor
 /// The base constructor on `bmpName` (origin 0,0, view 640 x 480), the vtable, and the state
@@ -137,6 +138,7 @@ pub fn paint(g: *Game, bd: *Backdrop) void {
     hud.minimapWalls(bd);
     sprites.flush(g, bd.spriteQueue.?, bd);
     render.draw(g, bd.hands.?, bd);
+    enemies.drawOverlay(g, bd); // Not in the original: the fair enemies' hit border.
     if (g.controlPanel) |cp| {
         render.drawDirtyTo(g, cp, &bd.bmiHeader, bd.pixels);
         _ = panels.drawInventory(g, cp, bd);
@@ -158,6 +160,9 @@ pub fn blitToDc(g: *Game, bd: *Backdrop) void {
 /// at its depth, sprites, hands, then the view and the HUD to the window; a life lost during
 /// the frame runs the scene's `onLifeLost`.
 pub fn renderFrame(g: *Game, bd: *Backdrop, carried: ?*Object) void {
+    // Not in the original: the planner's probe build (`enemies.probe`) draws nothing with the
+    // fair enemies, whose frames change no state.
+    if (enemies.probe and enemies.active(g)) return;
     const lives_before = bd.lives;
     bd.moveFlag = 0;
     drawSkyFloor(g, bd);
@@ -170,6 +175,7 @@ pub fn renderFrame(g: *Game, bd: *Backdrop, carried: ?*Object) void {
     }
     sprites.flush(g, bd.spriteQueue.?, bd);
     render.draw(g, bd.hands.?, bd);
+    enemies.drawOverlay(g, bd); // Not in the original: the fair enemies' hit border.
     _ = g.plat.realizePalette(&bd.bmiColors);
     presentView(g, bd);
     hud.drawHud(g, bd);

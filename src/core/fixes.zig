@@ -515,6 +515,15 @@ pub const Fixes = struct {
     /// Not a bug but a Corrigida addition: a screen listing the controls and
     /// the goal from WM_CREATE until a key or a click; nothing runs before.
     jardim_controls_screen: bool = false,
+    /// Not a bug but a Corrigida addition: fair enemies (`src/jardim/enemies.zig`).
+    /// Each placed enemy is its own instance on a millisecond clock (once per
+    /// game tick, not per copy drawn): it chases once it has seen the
+    /// player, step by step into free floor, stops at its attack range,
+    /// attacks only in sight and range after a wind-up (its attack frame
+    /// and wave) with a cooldown, and is drawn between cells as it walks.
+    /// Hits flash the view's border red and the face; a kill flashes white.
+    /// Needs `jardim_smooth_movement` (with the 1995 movement the 1995 enemies stay).
+    jardim_fair_enemies: bool = false,
     /// Not a bug but a Corrigida addition: the shot's 32-unit flight per
     /// tick is tried in four 8-unit steps, so a diagonal shot cannot step
     /// over a cell's corner.

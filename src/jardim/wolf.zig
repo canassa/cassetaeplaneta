@@ -36,6 +36,7 @@ const Backdrop = world.Backdrop;
 const hud = @import("hud.zig");
 const labyrinth = @import("labyrinth.zig");
 const labyrinth_input = @import("labyrinth_input.zig");
+const enemies = @import("enemies.zig");
 
 /// The motion timer (a system timer, as the game's).
 pub const timer_id: u16 = 0x57;
@@ -303,7 +304,8 @@ pub fn motion(g: *Game, bd: *Backdrop) void {
 /// minimap and its marker as after a step, and the scream if a touch cost a life.
 fn frame(g: *Game, bd: *Backdrop, lives_before: i16) void {
     g.viewOnly = true;
-    labyrinth.renderFrame(g, bd, g.shotCellObject);
+    // The planner's probe build skips the motion frames' drawing (`enemies.probe`).
+    if (!enemies.probe) labyrinth.renderFrame(g, bd, g.shotCellObject);
     g.viewOnly = false;
     hud.presentMinimap(g, bd);
     hud.minimapPlayer(g, bd, bd.playerX, bd.playerY);

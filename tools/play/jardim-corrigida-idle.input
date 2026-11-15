@@ -1,0 +1,10 @@
+# JARDIM alone in the Corrigida, the player standing still at phase 1's start for 60 s: no fair
+# enemy (docs/jardim/GAME.md "Fair enemies (Corrigida)") sees him there, so none comes and none
+# hits: the window closed at 60.3 s is a loss with 0 points and the loss's -1000, no life lost
+# (a life costs 500). The 1995 enemies leave him alone there too (none is drawn from the start).
+#
+#   zig-out/bin/noite --minigame jardim --headless --ms 61000 --fix all --input tools/play/jardim-corrigida-idle.input
+#   zig-out/bin/noite --minigame jardim --headless --ms 61000 --fix all,-jardim_fair_enemies --input tools/play/jardim-corrigida-idle.input
+300 key return
+60300 close
+60800 result lost -1000

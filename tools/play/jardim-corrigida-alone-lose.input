@@ -1,88 +1,106 @@
-# JARDIM alone in the Corrigida, a loss: the controls screen down at 300, the planner walks to the
-# nearest Seios, presses into it (W 250 ms) and backs off (S 400 ms), again and again. J6's rule
-# (once per contact): a life the first time (8830); the scream's end puts the player back at the
-# start; the second life at 18030 (a Seios step wave cuts the scream, so no respawn); presses while
-# the Seios stays next to him cost nothing; the last life when it is touched anew: lost at 24934,
-# -1500 (-500 for the respawn).
+# JARDIM alone in the Corrigida, a loss to the fair enemies (tools/jardim_plan.py --lose): the
+# player walks down column 38 towards the Seios there and, once one is within 4 cells in sight,
+# stands facing it. It comes on a cell per 800 ms; until it stands next to him nothing hurts him
+# (the HUD's health still 100% at 11400, its first blow, 10, at 11830: 90%). Two more enemies
+# join it; the invulnerability after a hit (500 ms) keeps their blows from adding up. Three lives
+# so, each respawn at the start (-500, the killed enemies dead, the others home): lost at 76130,
+# -1000 for the two respawns and -1000 for the loss.
 #
-#   zig-out/bin/noite --minigame jardim --headless --ms 27000 --fix all --input tools/play/jardim-corrigida-alone-lose.input
+#   zig-out/bin/noite --minigame jardim --headless --ms 77000 --fix all --input tools/play/jardim-corrigida-alone-lose.input
 300 key return
-410 hold right 487
+400 hold left 245
 500 dump start
-917 hold shift 384
-917 hold w 364
-1351 hold right 16
-1387 hold shift 370
-1387 hold w 350
-1807 hold left 16
-1843 hold w 392
-2305 hold left 744
-3069 hold shift 387
-3069 hold w 367
-3506 hold right 16
-3542 hold shift 384
-3542 hold w 364
-3976 hold right 30
-4026 hold shift 356
-4026 hold w 336
-4432 hold left 16
-4468 hold shift 412
-4468 hold w 392
-4930 hold shift 384
-4930 hold w 364
-5364 hold left 16
-5400 hold shift 415
-5400 hold w 395
-5865 hold right 730
-6615 hold w 197
-6882 hold left 744
-7646 hold shift 298
-7646 hold w 278
-7994 hold left 730
-8744 hold w 250
-8900 dump meeting
-9044 hold s 400
-9554 hold left 1459
-11033 hold w 250
-11333 hold s 400
-11843 hold shift 409
-11843 hold w 389
-12302 hold left 16
-12338 hold shift 381
-12338 hold w 361
-12769 hold right 16
-12805 hold shift 289
-12805 hold w 269
-13144 hold left 759
-13923 hold shift 384
-13923 hold w 364
-14357 hold right 59
-14436 hold shift 385
-14436 hold w 365
-14871 hold left 30
-14921 hold shift 384
-14921 hold w 364
-15355 hold shift 370
-15355 hold w 350
-15775 hold shift 384
-15775 hold w 364
-16209 hold shift 384
-16209 hold w 364
-16643 hold right 16
-16679 hold shift 370
-16679 hold w 350
-17099 hold left 744
-17863 hold w 250
-18163 hold s 400
-18673 hold right 673
-19366 hold w 187
-19623 hold left 1416
-21059 hold w 250
-21359 hold s 400
-21869 hold left 1473
-23362 hold w 250
-23662 hold s 400
-24172 hold left 730
-24922 hold w 250
-25222 hold s 400
-26000 result lost -1500
+665 hold w 357
+1142 hold right 745
+1907 hold shift 382
+1907 hold w 362
+2389 hold shift 382
+2389 hold w 362
+2871 hold w 340
+3331 hold left 731
+4082 hold shift 368
+4082 hold w 348
+4550 hold right 16
+4586 hold shift 382
+4586 hold w 362
+5068 hold shift 382
+5068 hold w 362
+5550 hold shift 379
+5550 hold w 359
+6029 hold shift 379
+6029 hold w 359
+6508 hold shift 379
+6508 hold w 359
+6987 hold s 33
+7040 hold right 731
+7791 hold w 189
+8100 hold left 745
+8865 hold w 346
+9331 hold left 159
+9500 dump facing
+10110 hold left 59
+10789 hold left 145
+11400 pixel 395 415 251
+11900 pixel 395 415 10
+27454 hold right 373
+27847 hold w 357
+28324 hold right 731
+29075 hold shift 377
+29075 hold w 357
+29552 hold shift 374
+29552 hold w 354
+30026 hold w 323
+30469 hold left 731
+31220 hold shift 374
+31220 hold w 354
+31694 hold shift 388
+31694 hold w 368
+32182 hold shift 360
+32182 hold w 340
+32642 hold shift 374
+32642 hold w 354
+33116 hold shift 388
+33116 hold w 368
+33604 hold shift 371
+33604 hold w 351
+34075 hold right 731
+34826 hold w 178
+35124 hold left 745
+35889 hold w 379
+36388 hold left 102
+36810 hold left 59
+37489 hold left 59
+38168 hold left 145
+52733 hold right 373
+53126 hold w 357
+53603 hold right 716
+54339 hold shift 371
+54339 hold w 351
+54810 hold shift 385
+54810 hold w 365
+55295 hold w 346
+55761 hold left 731
+56512 hold shift 366
+56512 hold w 346
+56978 hold d 22
+57020 hold right 16
+57056 hold shift 379
+57056 hold w 359
+57535 hold a 33
+57588 hold left 16
+57624 hold shift 379
+57624 hold w 359
+58103 hold shift 377
+58103 hold w 357
+58580 hold shift 391
+58580 hold w 371
+59071 hold shift 391
+59071 hold w 371
+59562 hold right 731
+60313 hold w 184
+60617 hold left 731
+61368 hold w 357
+61845 hold left 102
+62867 hold left 88
+63875 hold left 145
+76800 result lost -2000

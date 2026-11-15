@@ -27,6 +27,7 @@ const position = @import("behaviour/position.zig");
 const animation = @import("behaviour/animation.zig");
 const labmap = @import("labmap.zig");
 const scaled = @import("scaled.zig");
+const enemies = @import("enemies.zig");
 
 // ---- _aFldiv / _aFlmul and 16-bit helpers ----
 
@@ -131,6 +132,8 @@ pub fn drawTree(g: *Game, q: *SpriteQueue, bd: *Backdrop, node_in: ?*SpriteQueue
 // @orig 1028:5d6d sprite_queue_flush
 /// Draws the whole tree and empties the queue.
 pub fn flush(g: *Game, q: *SpriteQueue, bd: *Backdrop) void {
+    // Not in the original: the fair enemies just shot, drawn white in their emptied cells.
+    if (enemies.active(g)) enemies.queueDying(g, q, bd);
     drawTree(g, q, bd, q.root);
     q.root = null;
     q.nextFree = 1;
@@ -164,6 +167,13 @@ pub fn drawEntry(g: *Game, entry: *SpriteQueueEntry, bd: *Backdrop) void {
     if (bd.shot != obj) {
         obj.worldX = entry.col *% 32 +% 0x10;
         obj.worldY = entry.row *% 32 +% 0x10;
+    }
+    // Not in the original: a fair enemy is drawn at its own place (between two cells while it
+    // walks) and frame, white when just shot; its logic is `enemies.think`'s, not the draw's.
+    const fair = enemies.active(g);
+    var white = false;
+    if (fair and obj.isEnemy != 0) {
+        if (enemies.placeForDraw(g, bd, entry.row, entry.col, obj)) |look| white = look.white;
     }
     const ang: usize = @intCast(bd.viewAngle);
     const t0 = g.tables.trig[0];
@@ -226,10 +236,11 @@ pub fn drawEntry(g: *Game, entry: *SpriteQueueEntry, bd: *Backdrop) void {
         const src_y = position.frameSrcY(obj);
         const src_x: i16 = lo16(ldiv(lmul(clip_left, 300), scale)) +% position.frameSrcX(obj);
         const src = position.dib(obj).?;
-        _ = scaled.dibStretchCopyTransparent(&bd.bmiHeader, bd.pixels, obj.x +% lo16(clip_left), obj.y, lo16(clip_right -% clip_left), lo16(h), src.bits, &src.header, src_x, src_y, src_w, src_h, g.spriteKey, g.fixes);
+        const bits = if (white) enemies.whiteBits(g, bd, src) else src.bits;
+        _ = scaled.dibStretchCopyTransparent(&bd.bmiHeader, bd.pixels, obj.x +% lo16(clip_left), obj.y, lo16(clip_right -% clip_left), lo16(h), bits, &src.header, src_x, src_y, src_w, src_h, g.spriteKey, g.fixes);
         // Not in the original: a motion frame (`g.viewOnly`, `wolf.zig`) only shows the
         // enemies; they act on the game tick's frames.
-        if (obj.isEnemy != 0 and !g.viewOnly) {
+        if (obj.isEnemy != 0 and !g.viewOnly and !fair) {
             const scene = bd.scene.?;
             scene.playEnemyStepSound(g, obj);
             if (position.frameCount(obj) -% obj.curFrame == 1) {
@@ -243,7 +254,7 @@ pub fn drawEntry(g: *Game, entry: *SpriteQueueEntry, bd: *Backdrop) void {
             if (bd.lives == 0) _ = g.post(msg.Msg.make(msg.wm.destroy, 0, 0, 0));
         }
     }
-    if (obj.isEnemy != 0 and !g.viewOnly) {
+    if (obj.isEnemy != 0 and !g.viewOnly and !fair) {
         const nx: i16 = obj.worldX +% lo16(ldiv(-0x200000, t5[ang]));
         const ny: i16 = obj.worldY +% lo16(ldiv(-0x200000, t6[ang]));
         const wall = bd.wallRows[cell(ny, world.map_rows)][cell(nx, world.map_cols + 1)];

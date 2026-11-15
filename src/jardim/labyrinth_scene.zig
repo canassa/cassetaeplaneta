@@ -18,6 +18,7 @@ const sound = @import("sound.zig");
 const phase1 = @import("phase1.zig");
 const phase2 = @import("phase2.zig");
 const phase3 = @import("phase3.zig");
+const enemies = @import("enemies.zig");
 
 /// The three phase ctors in one: `phaseN_scene_ctor` = `labyrinth_scene_ctor`
 /// (`scene_ctor`, backdrop null, map file the empty string at 10c0:7b76) and the
@@ -93,8 +94,11 @@ pub fn create(g: *Game, s: *Scene) *Scene {
 /// +500), repaint and blit. Health and lives are not touched.
 // @orig 1028:5ef1 labyrinth_scene_respawn
 pub fn respawn(g: *Game, s: *Scene) void {
+    // Not in the original: the fair enemies go home, the killed ones stay dead.
+    enemies.beforeRespawn(g, s.backdrop.?);
     _ = s.placeObjects(g);
     const bd = s.backdrop.?;
+    enemies.afterRespawn(g, bd);
     bd.hands.?.curStrip = 0;
     bd.hands.?.curFrame = 0;
     bd.ammo = 0;
