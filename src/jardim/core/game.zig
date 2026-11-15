@@ -121,7 +121,7 @@ pub const Game = struct {
     shotCellObject: ?*Object = null,
     // @orig g_nextId
     nextId: i16 = 0,
-    // @orig 10d0:199e g_messageText (message_box_printf's buffer)
+    // @orig g_messageText (message_box_printf's buffer)
     messageText: [100]u8 = @splat(0),
     // @orig g_keyLeft / g_keyRight / g_keyUp / g_keyDown (game_handle_message's)
     keyLeft: i16 = 0,
