@@ -235,6 +235,10 @@ pub const Sdl = struct {
                     c.key_lctrl, c.key_rctrl => 0x11,
                     c.key_lshift, c.key_rshift => 0x10,
                     c.key_capslock => 0x14,
+                    // The fights' Corrigida keys (`fight_keys_asdf`): SDLK_A
+                    // ... are the lower-case letters, the virtual keys the
+                    // upper-case ones.
+                    'a', 's', 'd', 'f' => @intCast(key - 0x20),
                     // SDLK_RETURN/ESCAPE/SPACE are the virtual keys
                     // (`Sim.filterInput` decides who gets them).
                     0x0d, 0x1b, 0x20 => @intCast(key),

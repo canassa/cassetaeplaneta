@@ -251,7 +251,7 @@ pub fn main(init: std.process.Init) !void {
     var trace: std.ArrayList(u8) = .empty;
     defer trace.deinit(gpa);
 
-    var hn = try platform.harness.Harness.init(gpa, io, args.harness, args.opts.assets_dir);
+    var hn = try platform.harness.Harness.init(gpa, io, args.harness, args.opts.assets_dir, args.fixes);
     defer hn.deinit();
 
     var real_buf: [minigames.len]*const platform.host.Program = undefined;

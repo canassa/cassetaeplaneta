@@ -11,7 +11,8 @@
 //!     rclick X Y        move, right button down, up 50 ms later
 //!     ldown|lup|rdown|rup X Y
 //!     key K             key down + up (K: a number, or left/right/up/down/
-//!                       return/escape/space/pgup/home/end/insert/f1..f12)
+//!                       return/escape/space/pgup/home/end/insert/a/s/d/f/
+//!                       f1..f12)
 //!     hold K MS         key down, up MS later (the arrows walk while held)
 //!     dump [NAME]       write a frame dump (needs --dump DIR)
 //!     scene NAME [X Y PLAYER PANEL STATUS ANIM CLICK]
@@ -56,6 +57,20 @@
 //!     close             close the active window, as the user (the web page's
 //!                       tab closed, Windows' End Task): WM_CLOSE to it
 //!     quit              end the run
+//!     delay MS          every later time moves by MS (as a `wait` that
+//!                       waited MS); for a `?FLAG` line, below
+//!     keymap K1 K2      later `key` and `hold` lines naming K1 press K2
+//!
+//! A command may start with a condition: `?FLAG` runs the line only when
+//! the fix FLAG (a `src/core/fixes.zig` field) is on, `!FLAG` only when it
+//! is off. A line that does not run is dropped whole, its time too: a
+//! later `+` time counts from the line before it. E.g. the fights'
+//! Corrigida controls screen and keys (`fight_controls_screen`,
+//! `fight_keys_asdf`):
+//!
+//!     50 ?fight_controls_screen key return
+//!     50 ?fight_controls_screen delay 50
+//!     0 ?fight_keys_asdf keymap up s
 //!
 //! A minigame run alone (`--minigame encaixe`) takes the input, `dump`,
 //! `log`, `focus`, `freeze`, `result`, `close` and `quit` commands; the
@@ -67,6 +82,7 @@
 const std = @import("std");
 const msg = @import("../core/msg.zig");
 const wm = msg.wm;
+const Fixes = @import("../core/fixes.zig").Fixes;
 
 pub const Action = union(enum) {
     input: msg.Msg,
@@ -190,10 +206,15 @@ pub const Script = struct {
 pub const ParseError = error{ BadScript, OutOfMemory };
 
 /// Parses `text` (takes ownership of it). Errors name the line on stderr.
-pub fn parse(gpa: std.mem.Allocator, text: []u8) ParseError!Script {
+/// `fixes`: the run's, for the `?FLAG` / `!FLAG` conditions.
+pub fn parse(gpa: std.mem.Allocator, text: []u8, fixes: Fixes) ParseError!Script {
     var s: Script = .{ .text = text };
     errdefer s.steps.deinit(gpa);
     var t: u32 = 0;
+    // `delay`: added to every later step's time.
+    var shift: u32 = 0;
+    var keymap: std.ArrayList([2]u16) = .empty;
+    defer keymap.deinit(gpa);
     var buttons: u16 = 0;
     var line_no: usize = 0;
     var lines = std.mem.splitScalar(u8, text, '\n');
@@ -203,7 +224,16 @@ pub fn parse(gpa: std.mem.Allocator, text: []u8) ParseError!Script {
         if (line.len == 0) continue;
         var words = std.mem.tokenizeAny(u8, line, " \t");
         const time_word = words.next().?;
-        const cmd = words.next() orelse return bad(line_no, "missing command");
+        var cmd = words.next() orelse return bad(line_no, "missing command");
+        if (cmd[0] == '?' or cmd[0] == '!') {
+            const on = flagOn(fixes, cmd[1..]) orelse return bad(line_no, "unknown fix in the condition");
+            if (on != (cmd[0] == '?')) continue;
+            cmd = words.next() orelse return bad(line_no, "missing command");
+        }
+        const start = s.steps.items.len;
+        defer for (s.steps.items[start..]) |*st| {
+            st.at += shift;
+        };
         if (time_word[0] == '+') {
             t += std.fmt.parseInt(u32, time_word[1..], 10) catch return bad(line_no, "bad time");
         } else {
@@ -235,12 +265,12 @@ pub fn parse(gpa: std.mem.Allocator, text: []u8) ParseError!Script {
             }
         } else if (eq(u8, cmd, "key")) {
             const k = words.next() orelse return bad(line_no, "missing key");
-            const v = keyCode(k) orelse return bad(line_no, "unknown key");
+            const v = mapped(keymap.items, keyCode(k) orelse return bad(line_no, "unknown key"));
             try s.steps.append(gpa, .{ .at = t, .action = .{ .input = .{ .id = wm.keydown, .wparam = v } } });
             try s.steps.append(gpa, .{ .at = t + 50, .action = .{ .input = .{ .id = wm.keyup, .wparam = v } } });
         } else if (eq(u8, cmd, "hold")) {
             const k = words.next() orelse return bad(line_no, "missing key");
-            const v = keyCode(k) orelse return bad(line_no, "unknown key");
+            const v = mapped(keymap.items, keyCode(k) orelse return bad(line_no, "unknown key"));
             const ms = try num(u32, words.next(), line_no);
             try s.steps.append(gpa, .{ .at = t, .action = .{ .input = .{ .id = wm.keydown, .wparam = v } } });
             try s.steps.append(gpa, .{ .at = t + ms, .action = .{ .input = .{ .id = wm.keyup, .wparam = v } } });
@@ -326,6 +356,12 @@ pub fn parse(gpa: std.mem.Allocator, text: []u8) ParseError!Script {
             try s.steps.append(gpa, .{ .at = t, .action = .close });
         } else if (eq(u8, cmd, "quit")) {
             try s.steps.append(gpa, .{ .at = t, .action = .quit });
+        } else if (eq(u8, cmd, "delay")) {
+            shift += try num(u32, words.next(), line_no);
+        } else if (eq(u8, cmd, "keymap")) {
+            const from = keyCode(words.next() orelse return bad(line_no, "missing key")) orelse return bad(line_no, "unknown key");
+            const to = keyCode(words.next() orelse return bad(line_no, "missing key")) orelse return bad(line_no, "unknown key");
+            try keymap.append(gpa, .{ from, to });
         } else return bad(line_no, "unknown command");
     }
     // Clicks schedule their release 50 ms on: keep the steps in time order
@@ -336,6 +372,21 @@ pub fn parse(gpa: std.mem.Allocator, text: []u8) ParseError!Script {
         }
     }.lt);
     return s;
+}
+
+/// Whether the fix `name` is on; null when there is no such fix.
+fn flagOn(fixes: Fixes, name: []const u8) ?bool {
+    @setEvalBranchQuota(10_000);
+    inline for (@typeInfo(Fixes).@"struct".field_names) |field| {
+        if (std.mem.eql(u8, name, field)) return @field(fixes, field);
+    }
+    return null;
+}
+
+/// A key after the `keymap` lines so far.
+fn mapped(map: []const [2]u16, v: u16) u16 {
+    for (map) |e| if (e[0] == v) return e[1];
+    return v;
 }
 
 fn bad(line: usize, what: []const u8) ParseError {
@@ -362,12 +413,14 @@ fn num(comptime T: type, word: ?[]const u8, line: usize) ParseError!T {
 fn keyCode(k: []const u8) ?u16 {
     if (std.fmt.parseInt(u16, k, 0)) |v| return v else |_| {}
     // The arrows, Enter, Esc, Space, the fights' PgUp, Home, End and
-    // Insert (SALGIN, XILINDRO) and JARDIM's Ctrl, Shift and Caps Lock.
+    // Insert (SALGIN, XILINDRO) and their Corrigida keys A, S, D, F, and
+    // JARDIM's Ctrl, Shift and Caps Lock.
     const names = [_]struct { []const u8, u16 }{
         .{ "left", 0x25 },   .{ "up", 0x26 },       .{ "right", 0x27 },  .{ "down", 0x28 },
         .{ "return", 0x0d }, .{ "escape", 0x1b },   .{ "space", 0x20 },  .{ "pgup", 0x21 },
         .{ "home", 0x24 },   .{ "end", 0x23 },      .{ "insert", 0x2d }, .{ "ctrl", 0x11 },
-        .{ "shift", 0x10 },  .{ "capslock", 0x14 },
+        .{ "shift", 0x10 },  .{ "capslock", 0x14 }, .{ "a", 0x41 },      .{ "s", 0x53 },
+        .{ "d", 0x44 },      .{ "f", 0x46 },
     };
     for (names) |n| if (std.ascii.eqlIgnoreCase(n[0], k)) return n[1];
     if (k.len >= 2 and (k[0] == 'f' or k[0] == 'F')) {
@@ -386,7 +439,7 @@ test "a script parses into timed input in order" {
         \\200 dump title
         \\+0 scene 1fsala 50 200 1 1 0
     );
-    var s = try parse(gpa, text);
+    var s = try parse(gpa, text, .{});
     defer s.deinit(gpa);
     try std.testing.expectEqual(@as(usize, 7), s.steps.items.len);
     try std.testing.expectEqual(wm.lbuttondown, s.steps.items[1].action.input.id);
@@ -402,7 +455,7 @@ test "a result line can carry the fixed run's expectation" {
         \\200 result lost | none
         \\300 result won
     );
-    var s = try parse(gpa, text);
+    var s = try parse(gpa, text, .{});
     defer s.deinit(gpa);
     const a = s.steps.items[0].action.result;
     try std.testing.expectEqual(@as(?i32, 32768004), a.score);
@@ -420,10 +473,36 @@ test "an expect line can name the fixed run's scene" {
         \\100 expect 3fprisao | 3fhall
         \\200 expect 3fhall
     );
-    var s = try parse(gpa, text);
+    var s = try parse(gpa, text, .{});
     defer s.deinit(gpa);
     const a = s.steps.items[0].action.expect;
     try std.testing.expectEqualStrings("3fprisao", a.name);
     try std.testing.expectEqualStrings("3fhall", a.fixed.?);
     try std.testing.expectEqual(@as(?[]const u8, null), s.steps.items[1].action.expect.fixed);
+}
+
+test "conditional lines, delay and keymap" {
+    const gpa = std.testing.allocator;
+    const src =
+        \\100 key up
+        \\150 ?fight_controls_screen key return
+        \\150 ?fight_controls_screen delay 50
+        \\0 !fight_keys_asdf keymap up up
+        \\0 ?fight_keys_asdf keymap up s
+        \\200 key up
+        \\+10 !fight_keys_asdf log off
+    ;
+    var off = try parse(gpa, try gpa.dupe(u8, src), .{});
+    defer off.deinit(gpa);
+    try std.testing.expectEqual(@as(usize, 5), off.steps.items.len);
+    try std.testing.expectEqual(@as(u16, 0x26), off.steps.items[2].action.input.wparam);
+    try std.testing.expectEqual(@as(u32, 200), off.steps.items[2].at);
+    try std.testing.expectEqual(@as(u32, 210), off.steps.items[3].at);
+    var on = try parse(gpa, try gpa.dupe(u8, src), Fixes.all());
+    defer on.deinit(gpa);
+    try std.testing.expectEqual(@as(usize, 6), on.steps.items.len);
+    try std.testing.expectEqual(@as(u16, 0x0d), on.steps.items[2].action.input.wparam);
+    try std.testing.expectEqual(@as(u32, 150), on.steps.items[2].at);
+    try std.testing.expectEqual(@as(u16, 0x53), on.steps.items[4].action.input.wparam);
+    try std.testing.expectEqual(@as(u32, 250), on.steps.items[4].at);
 }

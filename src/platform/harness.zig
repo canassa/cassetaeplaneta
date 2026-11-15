@@ -61,14 +61,15 @@ pub const Harness = struct {
     /// minigames' results.
     host: ?*Host = null,
 
-    pub fn init(gpa: std.mem.Allocator, io: std.Io, opts: Options, assets_dir: []const u8) !Harness {
+    /// `fixes`: the run's (the script's `?FLAG` / `!FLAG` lines).
+    pub fn init(gpa: std.mem.Allocator, io: std.Io, opts: Options, assets_dir: []const u8, fixes: @import("../core/fixes.zig").Fixes) !Harness {
         var h: Harness = .{ .gpa = gpa, .io = io, .opts = opts, .assets_dir = assets_dir };
         if (opts.input) |path| {
             const text = std.Io.Dir.cwd().readFileAlloc(io, path, gpa, .limited(1 << 20)) catch |e| {
                 std.log.err("cannot read input script {s}: {t}", .{ path, e });
                 return e;
             };
-            h.script = try script.parse(gpa, text);
+            h.script = try script.parse(gpa, text, fixes);
         }
         if (opts.dump_dir) |dir| std.Io.Dir.cwd().createDirPath(io, dir) catch |e| {
             std.log.err("cannot create dump directory {s}: {t}", .{ dir, e });
