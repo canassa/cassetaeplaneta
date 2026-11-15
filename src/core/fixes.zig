@@ -342,7 +342,8 @@ pub const Fixes = struct {
     xilindro_close_mid_fight_loses: bool = false,
     /// X7: a KO's winner follows the result's rule (the fighter wins unless
     /// its energy is below the opponent's), so the pose, the wave, the end
-    /// animation and the result agree on a double KO.
+    /// animation and the result agree on a double KO, and a won double KO
+    /// scores 0 instead of fighterEnergy x 150 <= 0.
     xilindro_double_ko_by_energy: bool = false,
     /// X8: every energy change checks that side's bar mark and adds as many
     /// tiles as the energy lost.

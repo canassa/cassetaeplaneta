@@ -101,6 +101,10 @@ and X1–X11.
   XILINDRO's X2 fix already does for its fighter.
 - **The PORRADA banner shows** (S9 / X9, in Corrigida): in the band, behind
   the fighters, for the round's first 2 s (the clock at 90 or 89).
+- **A won double KO scores 0** (X7, in Corrigida with
+  `xilindro_double_ko_by_energy`): not fighterEnergy × 150 ≤ 0. SALGIN has
+  no such path: nothing lowers both energies at once (its trade lowers
+  only the hidden `Fighter.health`).
 - **The stand-off and the walls stay bug fixes** (S10 / X10, S11 / X11, in
   Corrigida); XILINDRO's recoil after a landed blow stops at x 0 (shorter
   from x 51–99) instead of being skipped.
@@ -332,7 +336,7 @@ dead bytes inside the function: port the `return 0`).
 | X4 key-up cuts any move | `xilindro_keyup_stops_walk_only` | arena | as S3 | yes |
 | X5 Insert not locked | `xilindro_insert_locked` | arena | as S4 | yes |
 | X6 closing mid-fight is a win | `xilindro_close_mid_fight_loses` | arena | WM_DESTROY with `g_fightOver` 0 posts 0x40a (0, −1000) | yes |
-| X7 double KO | `xilindro_double_ko_by_energy` | arena | the KO's winner is the result's (`!(fighterEnergy < opponentEnergy)`): pose, wave, end animation and result agree | yes |
+| X7 double KO | `xilindro_double_ko_by_energy` | arena | the KO's winner is the result's (`!(fighterEnergy < opponentEnergy)`): pose, wave, end animation and result agree; a won double KO scores 0 (not fighterEnergy × 150 ≤ 0) | yes |
 | X8 bar lags | `xilindro_bar_follows_energy` | arena, hud | after every energy change (trades and the clash included) that side's mark is checked, adding a tile per 7 lost | yes |
 | X9 banner never seen | `xilindro_banner_shown` | hud | as S9 | yes |
 | X10 stand-off 68 px | `xilindro_standoff_100` | fighters | as S10 | yes |

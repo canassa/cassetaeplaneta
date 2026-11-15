@@ -175,7 +175,7 @@ and posts `WM_QUIT`.
 |---|---|---|---|---|
 | `0x40b` | NOITE → XILINDRO | 0 | NOITE's main window | hello; stored in `g_noiteWnd` |
 | `0x40c` | XILINDRO → NOITE | XILINDRO's window | 0 | ready; posted once, on the first message after `g_started` |
-| `0x40a` | XILINDRO → NOITE | 1 won, 0 lost | 150–13,650 on a win (≤ 0 after a double KO), −1000 on a loss | result |
+| `0x40a` | XILINDRO → NOITE | 1 won, 0 lost | 150–13,650 on a win (≤ 0 after a double KO; 0 in the Corrigida version), −1000 on a loss | result |
 
 NOITE's `handler_3fstreet` (1020:8750; `src/handlers/3fstreet.zig`), the street-escape cutscene:
 - when its video ends (`MM_MCINOTIFY` successful): closes the video, `WinExec("<CD>xilindro\

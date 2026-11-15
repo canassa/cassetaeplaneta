@@ -36,7 +36,7 @@ X1–X11 describe the binary.
 - **Fixes**: X1–X11 (`docs/salgin/DESIGN.md` "Fixes"); no flag is shared
   with SALGIN. All eleven are in Corrigida (the owner's decisions, in
   `docs/salgin/DESIGN.md` "Decisions": blocks hold, Insert waits, the
-  banner shows, the recoil stops at x 0).
+  banner shows, a won double KO scores 0, the recoil stops at x 0).
 - **Launch**: `handler_3fstreet` when the street video ends; FindWindow
   ("Xilindro"); NOITE records `minigameWon[3]`, goes to `3fstree2` (won)
   or `3fstree1` (lost: a life, then `3fprisao` or `6fsaida`). In the

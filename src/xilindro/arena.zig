@@ -432,7 +432,9 @@ pub fn handleMessage(g: *Game, scene: *Scene, m: Msg) i16 {
                 var lost = bar.fighterEnergy < bar.opponentEnergy;
                 // X6: closing before the round is over loses.
                 if (g.fixes.xilindro_close_mid_fight_loses and g.fightOver == 0) lost = true;
-                const score: i16 = if (lost) -1000 else bar.fighterEnergy *% 150;
+                var score: i16 = if (lost) -1000 else bar.fighterEnergy *% 150;
+                // X7: a won double KO scores 0, not fighterEnergy x 150 <= 0.
+                if (g.fixes.xilindro_double_ko_by_energy and score < 0 and !lost) score = 0;
                 _ = g.plat.postTo(g.noiteWnd, .{
                     .id = msg.noite.minigame_result,
                     .wparam = @intFromBool(!lost),

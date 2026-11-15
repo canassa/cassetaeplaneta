@@ -1551,7 +1551,7 @@ the next beat. Each is consistent code with a plausible intent, and none is reac
   and NOITE gets a loss (−1000 and a life); otherwise it gets a "win" worth fighterEnergy·150 ≤ 0, which lowers the
   score.
 - **Confidence:** 9 (code); 6 (effect: a double KO needs a trade or a clash with both energies low).
-- **Port:** ported (unit `arena`, src/xilindro/); the fix is `Fixes.xilindro_double_ko_by_energy` (`--fix xilindro_double_ko_by_energy`, on in the Corrigida version).
+- **Port:** ported (unit `arena`, src/xilindro/); the fix is `Fixes.xilindro_double_ko_by_energy` (`--fix xilindro_double_ko_by_energy`, on in the Corrigida version): the KO's winner follows the energy compare, and a won double KO scores 0.
 
 ### X8. The energy bar lags behind the energies
 - **Where:** `xilindro_scene_handle_message`: the Down/Home trades (1068:15d1–15ec, 1ded–1e08) lower
