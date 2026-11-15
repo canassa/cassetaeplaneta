@@ -58,7 +58,7 @@ What this means for the phases:
 
 | Ghidra | NE | Size | Holds |
 |---|---|---|---|
-| `1000` | 1 | 0x2a0 | 32-bit (NE flag 0x2000) `transrle.cpp` blitters, **three** routines (`0024`, `0148`, `0234`); NOITE/TIRO have two (`0024`, `0114`). `0148` is called by `dib_copy_transparent*`, `0234` by `dib_copy*`, `0024` by the scaled copy `1068:0000` (new) |
+| `1000` | 1 | 0x2a0 | 32-bit (NE flag 0x2000) blitters, **three** routines (the WinG sample's `FAST32.ASM` pair plus one) (`0024`, `0148`, `0234`); NOITE/TIRO have two (`0024`, `0114`). `0148` is called by `dib_copy_transparent*`, `0234` by `dib_copy*`, `0024` by the scaled copy `1068:0000` (new) |
 | `1008` | 2 | 0x20c | 32-bit, one routine at `0024` (called by `1028:0951`, the raycaster), compares against 0x5a0 (1440) |
 | `1010` | 3 | 0x20c | 32-bit, one routine at `0024` (called by `1028:0951`), compares against 0x2d0/0x870 |
 | `1018` | 4 | 0x3c4 | 32-bit, one routine at `0024` (called by `1068:1336`, a scaled sprite copy) |

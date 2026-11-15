@@ -47,7 +47,7 @@ starts `tiro\tiro.exe`, so LIXO is out of scope.
 
 | Ghidra | NE | Size | Holds |
 |---|---|---|---|
-| `1000` Code1 | 1 | 0x1a4 | The 32-bit `transrle.cpp` blitters (NE flag 0x2000). **Byte-identical to NOITE's and ENCAIXE's `1000`**. Two functions, `0024` = `dib_rows_copy_transparent32` and `0114` = `dib_rows_copy32`; copy the names and don't type them. |
+| `1000` Code1 | 1 | 0x1a4 | The WinG sample's 32-bit blitters (`FAST32.ASM`, not `transrle.cpp`) (NE flag 0x2000). **Byte-identical to NOITE's and ENCAIXE's `1000`**. Two functions, `0024` = `dib_rows_copy_transparent32` and `0114` = `dib_rows_copy32`; copy the names and don't type them. |
 | `1008` | 2 | 0x988 | DIB copy and transparent copy (`IntersectRect`; ENCAIXE `1bde–1f63`) |
 | `1010` | 3 | 0x1044 | DIB load, palette, remap, `hmemmove_backward`. This is a **newer DIB module** with extra `FindResource`/`AccessResource`/`GetObject`/`GetPaletteEntries`/`GetNearestPaletteIndex` code (`05de`, `0783`, `0c90`) |
 | `1018` | 4 | 0x21c7 | Object3D / Moveable / Portable / Player / Exit (ENCAIXE `254a–3fda`, in the same order) |

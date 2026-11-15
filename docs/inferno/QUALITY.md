@@ -54,7 +54,7 @@ What this means for the next phases:
 
 | Ghidra | NE | Size | Holds | TIRO twin |
 |---|---|---|---|---|
-| `1000` Code1 | 1 | 0x1a4 | The 32-bit `transrle.cpp` blitters (NE flag 0x2000). **Byte-identical to TIRO's** (and NOITE's/ENCAIXE's) `1000` | `1000` |
+| `1000` Code1 | 1 | 0x1a4 | The WinG sample's 32-bit blitters (`FAST32.ASM`, not `transrle.cpp`) (NE flag 0x2000). **Byte-identical to TIRO's** (and NOITE's/ENCAIXE's) `1000` | `1000` |
 | `1008` | 2 | 0x988 | DIB copy / transparent copy | `1008` (same size) |
 | `1010` | 3 | 0x1044 | DIB load, palette, remap (the newer DIB module, as TIRO's) | `1010` (same size) |
 | `1018` | 4 | 0x2947 | Object3D / Moveable / Portable / Exit | `1018` (0x21c7) |

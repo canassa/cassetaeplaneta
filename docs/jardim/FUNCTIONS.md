@@ -195,7 +195,7 @@ read as slot names.
 | 1 | `10b8:0000–118f` | 55 | CRT startup, exit, `_aFchkstk`, strings, long math, arrays, `_setargv`/`_setenvp`, `_flsbuf`, buffers | mechanical, low |
 | 2 | `10b8:1190–2f86` | 63 | `_output` and helpers, heap, I/O, `_NMSG_*`, dosret, `_write`/`_close`/`_commit` | mechanical, low |
 | 3 | `10b8:2f87–4b37` | 35 + 3.4 KB uncovered | CRT tail and the FP math library (`sin`, `cos`, `tan`, `pow`, `log`, `exp`, `_fmemset`…); unused by the game | mechanical, low priority |
-| 4 | `1000`, `1008`, `1010`, `1018` | 6 | The 32-bit routines: transrle blitters (compare NOITE's), the two raycaster loops, the scaled copies. Read with `objdump -mi386`, don't type | game, high |
+| 4 | `1000`, `1008`, `1010`, `1018` | 6 | The 32-bit routines: the FAST32 blitters (compare NOITE's), the two raycaster loops, the scaled copies. Read with `objdump -mi386`, don't type | game, high |
 | 5 | `1020`, `1050`, `1090`, `1058:16ff` | 21 | App shell, Conditions, JARDIM Game subclass, `game_take_exit` | mechanical, low |
 | 6 | `1058:0000` | 1 (5.9 KB) | `game_handle_message`, from TIRO's/NOITE's | mechanical, high (alone) |
 | 7 | `1030`, `1040`, `1060` | 26 | Occupancy grid, Backdrop/WinG, DIB load/remap, DIB copies (+ `1060:0960`, `0c49`) | mechanical, medium |

@@ -200,7 +200,12 @@ override).
 
 INFERNO's slot numbers (byte offset = 4 × slot), the same as TIRO's for
 every slot below 56; field names are TIRO's (4C `getSceneName` is TIRO's
-`unk4E`). Generated from the tracker's vtables (thunks resolved); an impl
+`unk4E`). Against the 1995 `object` vtable (`docs/SRC1995.md`), 4C is a
+slot 1995 does not have: its default returns a far string and pops only
+`this` (`RETF 4`), and Portable overrides it with its scene name, so it
+is a scene-name getter placed before `TreatCollision` (4D), not
+`TreatCollision` itself; 50/51 are `CollisionHandling` ×2 and 56–5A
+`IsClass1..5`. Generated from the tracker's vtables (thunks resolved); an impl
 in backquotes is a class unit's function.
 
 | slot | behaviour | unit | default | overrides (impl: kinds) |

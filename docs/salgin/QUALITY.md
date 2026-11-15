@@ -45,7 +45,7 @@ What this means for the phases:
 
 | Ghidra | NE | Size | vs TIRO (bytes, relocations unapplied) | Holds |
 |---|---|---|---|---|
-| `1000` Code1 | 1 | 0x1a5 | 0.999 | The 32-bit `transrle.cpp` blitters (`0024`, `0114`), as in NOITE/ENCAIXE/TIRO. Not typed. |
+| `1000` Code1 | 1 | 0x1a5 | 0.999 | The WinG sample's 32-bit blitters (`FAST32.ASM`, not `transrle.cpp`) (`0024`, `0114`), as in NOITE/ENCAIXE/TIRO. Not typed. |
 | `1008` | 2 | 0x988 | 0.995 | DIB copy and transparent copy |
 | `1010` | 3 | 0x1044 | **identical** | DIB load, palette, remap |
 | `1018` | 4 | 0x21c8 | 0.975 | Object3D / Moveable / Portable / Player / Exit |

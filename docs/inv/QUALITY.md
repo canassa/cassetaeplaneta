@@ -48,7 +48,7 @@ relocated words not masked, so DGROUP offsets that moved count as differences.
 
 | Ghidra | NE | Size | Δ TIRO | Same | Holds |
 |---|---|---|---|---|---|
-| `1000` Code1 | 1 | 0x1a4 | 0 | identical | The 32-bit `transrle.cpp` blitters `0024`/`0114` (NE flag 0x2000). Byte-identical to TIRO, ENCAIXE and NOITE. Copy the names; don't type them |
+| `1000` Code1 | 1 | 0x1a4 | 0 | identical | The WinG sample's 32-bit blitters (`FAST32.ASM`, not `transrle.cpp`) `0024`/`0114` (NE flag 0x2000). Byte-identical to TIRO, ENCAIXE and NOITE. Copy the names; don't type them |
 | `1008` | 2 | 0x988 | 0 | 0.995 | DIB copy and transparent copy |
 | `1010` | 3 | 0x1044 | 0 | identical | DIB load, palette, remap (TIRO's newer DIB module, with `FindResource`/`GetObject`/`GetNearestPaletteIndex`) |
 | `1018` | 4 | 0x21c7 | 0 | 0.977 | Object3D / Moveable / Portable / Player / Exit |

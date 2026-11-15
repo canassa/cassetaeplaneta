@@ -33,7 +33,7 @@ What this means for the phases:
 
 | Ghidra | NE | Size | Holds |
 |---|---|---|---|
-| `1000` Code1 | 1 | 0x1a5 | The 32-bit `transrle.cpp` blitters. The segment has NE flag 0x2000 (32-bit) and is **byte-identical to NOITE's 1000**. It has 2 functions, `1000:0024` = `dib_rows_copy_transparent32` and `1000:0114` = `dib_rows_copy32`. Ghidra decodes them as 16-bit, so the listing is garbage past the prologue. Copy the names from NOITE and don't type them. |
+| `1000` Code1 | 1 | 0x1a5 | The WinG sample's 32-bit blitters (`FAST32.ASM`, not `transrle.cpp`). The segment has NE flag 0x2000 (32-bit) and is **byte-identical to NOITE's 1000**. It has 2 functions, `1000:0024` = `dib_rows_copy_transparent32` and `1000:0114` = `dib_rows_copy32`. Ghidra decodes them as 16-bit, so the listing is garbage past the prologue. Copy the names from NOITE and don't type them. |
 | `1008` Code2 | 2 | 0xfcd2 | All other code: the CRT (`0012–1bde`), the WinG/DIB helpers, the engine, the app shell, the game. `entry` is at `1008:0018`, with its body starting at `0012`. |
 | `1010` Code3 | 3 | 0x34 | `?APPABOUT@@…` (far, `RETF 0xa`). `1010:002e` holds a 6-byte stub, `CALLF 1008:b064; RETF`. It is not a function and has no references yet. |
 | `1018` Data4 | 4 | 0x14bd file, 0x5410 alloc | DGROUP. The NE header gives a heap of 512 and a stack of 10240. |

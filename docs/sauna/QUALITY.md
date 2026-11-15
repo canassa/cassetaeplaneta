@@ -60,7 +60,7 @@ The NE header: 23 segments, heap 512, stack 8192, auto-data segment 23.
 
 | Ghidra | NE | Size | Holds |
 |---|---|---|---|
-| `1000` | 1 | 0x2a1 | **32-bit code** (NE flag 0x2000): NOITE's `transrle.cpp` row blitters (`0148` ≈ NOITE `dib_rows_copy_transparent32`, `0234` ≈ `dib_rows_copy32`, 0.93 byte ratio) after a new routine `0024` (called by `1068:0000`). Garbage as 16-bit code past the DPMI prologue; don't type |
+| `1000` | 1 | 0x2a1 | **32-bit code** (NE flag 0x2000): NOITE's row blitters (the WinG sample's `FAST32.ASM`) (`0148` ≈ NOITE `dib_rows_copy_transparent32`, `0234` ≈ `dib_rows_copy32`, 0.93 byte ratio) after a new routine `0024` (called by `1068:0000`). Garbage as 16-bit code past the DPMI prologue; don't type |
 | `1008` | 2 | 0x3c5 | **32-bit code**: one more blitter `0024`, called by `1068:1336`. Not in NOITE |
 | `1010` | 3 | 0xcbc | DIB copy (TIRO `1008`, 4 functions at the same offsets) plus `0960`, `0c49` |
 | `1018` | 4 | 0x1044 | DIB load/palette/remap: **TIRO's `1010` at identical offsets** (11 functions, same size) |

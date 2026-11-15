@@ -61,7 +61,7 @@ What differs from TIRO:
 
 | Ghidra | NE | Size | Holds |
 |---|---|---|---|
-| `1000` Code1 | 1 | 0x1a5 | The 32-bit `transrle.cpp` blitters (flag 0x2c50), TIRO's two routines `0024`, `0114`. Not typed |
+| `1000` Code1 | 1 | 0x1a5 | The WinG sample's 32-bit blitters (`FAST32.ASM`, not `transrle.cpp`) (flag 0x2c50), TIRO's two routines `0024`, `0114`. Not typed |
 | `1008` | 2 | 0x988 | DIB copy / transparent copy (TIRO `1008`, same size) |
 | `1010` | 3 | 0x1044 | DIB load, palette, remap (TIRO `1010`, same size) |
 | `1018` | 4 | 0x21c8 | Object3D / Moveable / Portable / Player / Exit (TIRO 51 functions, same order) |

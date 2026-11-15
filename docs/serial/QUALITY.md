@@ -60,7 +60,7 @@ What differs from TIRO:
 
 | Ghidra | NE | Size | vs TIRO | Holds |
 |---|---|---|---|---|
-| `1000` Code1 | 1 | 0x1a5 | identical | 32-bit `transrle.cpp` blitters (NE flag 0x2000): `0024` `dib_rows_copy_transparent32`, `0114` `dib_rows_copy32`. Ghidra decodes them as 16-bit garbage; don't type them |
+| `1000` Code1 | 1 | 0x1a5 | identical | The WinG sample's 32-bit blitters (`FAST32.ASM`) (NE flag 0x2000): `0024` `dib_rows_copy_transparent32`, `0114` `dib_rows_copy32`. Ghidra decodes them as 16-bit garbage; don't type them |
 | `1008` | 2 | 0x988 | same size, 13 one-byte diffs | DIB copy / transparent copy |
 | `1010` | 3 | 0x1044 | **identical** | DIB load, palette, remap |
 | `1018` | 4 | 0x21c8 | same size, ratio 0.975 | Object3D / Moveable / Portable / Player / Exit |

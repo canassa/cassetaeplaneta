@@ -184,17 +184,26 @@ Verified:
 - C++ engine: a short class chain for the game object; scenes are classes
   with virtual inheritance sharing one large base interface.
 - Scenes are data-driven (`CASSETA.INI`) plus a table of hand-written
-  per-scene handlers, filled at startup and indexed by the current scene.
-  A handler sees every window message first; if it declines, the engine
-  default runs.
+  per-scene handlers, filled at startup and indexed by the scene number
+  (the INI `Screen=` number; the 1995 source's
+  `VetMessageHandling[SceneNumber]`). A handler sees every window message
+  first; if it declines, the engine default runs.
+- The engine's own private messages are the 1995 source's `WM_INITSCENE`
+  0x401, `WM_EXITSCENE` 0x402, `WM_ENDANIM` 0x403, `WM_ENDMOVE` 0x404 and
+  `WM_PLAYERMOVE` 0x405 (`WM_USER+1..5`; Ghidra enum `GameMessage`).
+- The engine is the Oct 1995 class library in `ref/src1995/` grown on
+  (`object`, `animated`, `moveable`, `_3D_*`, `exits`, `portable`,
+  `control_panel`, `screen`, `scene`, `application`), and every minigame is
+  a build of the same library: ENCAIXE, TIRO, INV, SERIAL, SALGIN and
+  XILINDRO are close to 1995, INFERNO is TIRO's version in the large model,
+  SAUNA and JARDIM are NOITE's revision (`docs/SRC1995.md`).
 - Minigames are separate EXEs started with `WinExec` from scene handlers.
   They talk to the main game through private window messages: the main game
   sends its window handle, the minigame hides the main window and, on exit,
   reports won/lost and a score. The main game adds the score and takes a
   life on a loss.
 
-Inferred (not traced): the handler index is the scene number; the EXE path
-prefix comes from `CASSETUP.INI`.
+Inferred (not traced): the EXE path prefix comes from `CASSETUP.INI`.
 
 ## ghidra-mcp 7.0 notes
 
