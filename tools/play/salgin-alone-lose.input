@@ -1,11 +1,11 @@
 # SALGIN alone, a loss: no key at all. The opponent attacks every 7 or 8
 # beats (about 1.5 s) and the 90-s clock ends the round with the player's
 # energy lower: the opponent wins and the game closes when mane.WAV ends
-# (BUGS.md S6), 92640 ms (Original) or 93290 ms (`--fix all`, S5's single
-# seed picks other attacks, and the round starts 2050 ms later).
+# (BUGS.md S6), 92640 ms (Original) or 104040 ms (`--fix all`: the fair
+# fight, below).
 #
 #   zig-out/bin/noite --minigame salgin --headless --ms 100000 --input tools/play/salgin-alone-lose.input
-#   zig-out/bin/noite --minigame salgin --headless --ms 103000 --fix all --input tools/play/salgin-alone-lose.input
+#   zig-out/bin/noite --minigame salgin --headless --ms 110000 --fix all --input tools/play/salgin-alone-lose.input
 # The Corrigida (`--fix all`) shows SALGIN's controls screen first; Enter takes
 # it down 50 ms after it opened, PORRADA stands for 2 s (the frozen intro,
 # `fight_controls.start_delay_ms`) and the round then plays as the
@@ -15,4 +15,7 @@
 50 ?fight_controls_screen delay 2050
 30000 dump fight
 90000 dump lost
+# The fair fight (`fight_fair`): the clock still ends it, 27 to 91; mane.WAV
+# closes the window at 104040.
+0 ?fight_fair delay 9000
 95000 result lost -1000

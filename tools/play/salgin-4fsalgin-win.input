@@ -3,7 +3,7 @@
 # garden cutscene (espquete, which starts JARDIM).
 #
 #   zig-out/bin/noite --headless --scene 4fsalgin --ms 72000 --input tools/play/salgin-4fsalgin-win.input
-#   zig-out/bin/noite --headless --scene 4fsalgin --ms 75000 --fix all --input tools/play/salgin-4fsalgin-win.input
+#   zig-out/bin/noite --headless --scene 4fsalgin --ms 80000 --fix all --input tools/play/salgin-4fsalgin-win.input
 #
 # The sportsman's animation ends at 8733 (the WinExec); SALGIN starts 1500
 # ms later (10233). Up is held from 11000 (salgin-alone-win.input): the KO
@@ -20,9 +20,43 @@
 10283 ?fight_controls_screen key return
 10283 ?fight_controls_screen delay 2050
 10500 dump gym
-11000 hold up 52000
-12000 dump fight
-70000 result won 8300 | won 8500
+11000 !fight_fair hold up 52000
+12000 !fight_fair dump fight
+# The fair fight (`fight_fair`, docs/fights/FAIRNESS.md): `tools/fight_plan.py
+# --player fast` (the lines below are its): it answers each tell
+# 300 ms after it shows, by a kick in the wind-up when in reach (or a step
+# back and a kick in the follow-through, a block, a jump), the player
+# untouched (+9100). The fight ends later than the held key's, so the
+# checks below move on by 4000 ms.
+# fair-plan fight begin
++1033 ?fight_fair key s
++530 ?fight_fair hold right 20
++1400 ?fight_fair hold right 20
++1470 ?fight_fair key s
++3400 ?fight_fair key s
++1800 ?fight_fair key s
++2000 ?fight_fair key s
++3600 ?fight_fair key s
++5000 ?fight_fair key s
++3400 ?fight_fair key s
++2200 ?fight_fair key s
++1800 ?fight_fair key s
++2200 ?fight_fair key s
++2000 ?fight_fair key s
++2000 ?fight_fair key s
++2000 ?fight_fair key s
++2000 ?fight_fair key s
++2200 ?fight_fair key s
++2200 ?fight_fair key s
++3400 ?fight_fair key s
++2000 ?fight_fair key s
++1800 ?fight_fair key s
++2000 ?fight_fair key s
++3200 ?fight_fair key s
++1800 ?fight_fair key s
+# fair-plan fight end
+0 ?fight_fair delay 4000
+70000 result won 8300 | won 9100
 70000 expect espquete
 70000 state
 70000 dump espquete

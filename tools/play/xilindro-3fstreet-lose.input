@@ -4,11 +4,11 @@
 # to the prison (3fprisao).
 #
 #   zig-out/bin/noite --headless --scene 3fstreet --ms 80000 --input tools/play/xilindro-3fstreet-lose.input
-#   zig-out/bin/noite --headless --scene 3fstreet --ms 83000 --fix all --input tools/play/xilindro-3fstreet-lose.input
+#   zig-out/bin/noite --headless --scene 3fstreet --ms 125000 --fix all --input tools/play/xilindro-3fstreet-lose.input
 #
 # XILINDRO starts at 26295 (xilindro-3fstreet-win.input); its window
-# closes at 64645 (Original) or 70045 (`--fix all`: X3's single seed picks
-# other attacks, which take longer).
+# closes at 64645 (Original) or near 104 s (`--fix all`: the fair fight,
+# below).
 # The Corrigida (`--fix all`) shows XILINDRO's controls screen first; Enter takes
 # it down 50 ms after it opened, PORRADA stands for 2 s (the frozen intro,
 # `fight_controls.start_delay_ms`) and the round then plays as the
@@ -17,6 +17,8 @@
 26345 ?fight_controls_screen key return
 26345 ?fight_controls_screen delay 2050
 40000 dump fight
+# The fair fight (`fight_fair`) takes longer: XILINDRO closes near 104 s.
++0 ?fight_fair wait 3fstree1 70000
 +0 wait 3fstree1 40000
 +0 result lost -1000
 +0 wait 3fprisao 10000

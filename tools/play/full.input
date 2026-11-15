@@ -11,8 +11,9 @@
 #   --fix all,-avi_exit_ignores_timer
 # The hall's TIRO, the pharaoh's ENCAIXE and the gym's SALGIN are the real
 # minigames (scripted wins, tools/tiro_plan.py, tools/encaixe_plan.py and a
-# held Up for SALGIN); with `--minigame-stub` the run fails at their
-# `result` lines. The street's XILINDRO runs too, unplayed (B21, below).
+# held Up for SALGIN, in the Corrigida a fair fight from tools/fight_plan.py);
+# with `--minigame-stub` the run fails at their `result` lines. The
+# street's XILINDRO runs too, unplayed (B21, below).
 # The garden's JARDIM at the end stays the stub (`--minigame-stub=jardim`),
 # which wins: JARDIM is tested by its own scripts (jardim-*.input).
 
@@ -356,9 +357,41 @@
 # Corrigida's later lines by 10283 ms.
 +11000 !fight_controls_screen hold up 52000
 +10283 ?fight_controls_screen key return
-+2767 ?fight_controls_screen hold s 52000
-+1000 dump salgin
-+59000 result won
++1000 !fight_fair dump salgin
++59000 !fight_fair result won
+# The fair fight (`fight_fair`, docs/fights/FAIRNESS.md): `tools/fight_plan.py
+# --player fast --block salgin` (the lines below are its): it answers each
+# tell 300 ms after it shows, the player untouched (9100); the result is
+# checked 9 s after the last kick, as the held-S fight's 9 s after its KO.
+# fair-plan salgin begin
++30 ?fight_fair hold right 20
++3287 ?fight_fair key s
++530 ?fight_fair hold right 20
++1470 ?fight_fair key s
++530 ?fight_fair hold right 20
++1470 ?fight_fair key s
++2000 ?fight_fair key s
++2000 ?fight_fair key s
++2000 ?fight_fair key s
++3200 ?fight_fair key s
++2000 ?fight_fair key s
++1800 ?fight_fair key s
++2200 ?fight_fair key s
++1800 ?fight_fair key s
++2200 ?fight_fair key s
++1800 ?fight_fair key s
++1800 ?fight_fair key s
++2200 ?fight_fair key s
++2200 ?fight_fair key s
++2000 ?fight_fair key s
++2000 ?fight_fair key s
++2000 ?fight_fair key s
++2200 ?fight_fair key s
++2000 ?fight_fair key s
++1800 ?fight_fair key s
++2200 ?fight_fair key s
+# fair-plan salgin end
++9000 ?fight_fair result won
 +0 wait espquete 10000
 +1000 wait 6fsai1 51000
 +0 wait fundinic 48000

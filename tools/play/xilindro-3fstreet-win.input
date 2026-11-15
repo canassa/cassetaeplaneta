@@ -32,134 +32,192 @@
 0 ?fight_keys_asdf keymap up s
 26345 ?fight_controls_screen key return
 26345 ?fight_controls_screen delay 2050
-26715 hold right 20
-26755 key up
-27315 hold left 20
-27915 hold right 20
-27955 key up
-28515 hold left 20
-29115 hold right 20
-29155 key up
-29715 hold left 20
-30000 dump fight
-30315 hold right 20
-30355 key up
-30915 hold left 20
-31515 hold right 20
-31555 key up
-32115 hold left 20
-32715 hold right 20
-32755 key up
-33315 hold left 20
-33915 hold right 20
-33955 key up
-34515 hold left 20
-35315 key up
-36515 hold right 20
-36555 key up
-37115 hold left 20
-37715 hold right 20
-37755 key up
-38315 hold left 20
-38915 hold right 20
-38955 key up
-39515 hold left 20
-40115 hold right 20
-40155 key up
-40715 hold left 20
-41315 hold right 20
-41355 key up
-41915 hold left 20
-42515 hold right 20
-42555 key up
-43115 hold left 20
-43715 hold right 20
-43755 key up
-44315 hold left 20
-45115 key up
-46315 hold right 20
-46355 key up
-46915 hold left 20
-47515 hold right 20
-47555 key up
-48115 hold left 20
-48715 hold right 20
-48755 key up
-49315 hold left 20
-49915 hold right 20
-49955 key up
-50515 hold left 20
-51115 hold right 20
-51155 key up
-51715 hold left 20
-52315 hold right 20
-52355 key up
-52915 hold left 20
-53515 hold right 20
-53555 key up
-54115 hold left 20
-54915 key up
-56115 hold right 20
-56155 key up
-56715 hold left 20
-57315 hold right 20
-57355 key up
-57915 hold left 20
-58515 hold right 20
-58555 key up
-59115 hold left 20
-59715 hold right 20
-59755 key up
-60315 hold left 20
-60915 hold right 20
-60955 key up
-61515 hold left 20
-62115 hold right 20
-62155 key up
-62715 hold left 20
-63315 hold right 20
-63355 key up
-63915 hold left 20
-64715 key up
-65915 hold right 20
-65955 key up
-66515 hold left 20
-67115 hold right 20
-67155 key up
-67715 hold left 20
-68315 hold right 20
-68355 key up
-68915 hold left 20
-69515 hold right 20
-69555 key up
-70115 hold left 20
-70715 hold right 20
-70755 key up
-71315 hold left 20
-71915 hold right 20
-71955 key up
-72515 hold left 20
-73115 hold right 20
-73155 key up
-73715 hold left 20
-74515 key up
-75715 hold right 20
-75755 key up
-76315 hold left 20
-76915 hold right 20
-76955 key up
-77515 hold left 20
-78115 hold right 20
-78155 key up
-78715 hold left 20
-79315 hold right 20
-79355 key up
-79915 hold left 20
-80515 hold right 20
-80555 key up
-81115 hold left 20
-81715 hold right 20
-81755 key up
+26715 !fight_fair hold right 20
+26755 !fight_fair key up
+27315 !fight_fair hold left 20
+27915 !fight_fair hold right 20
+27955 !fight_fair key up
+28515 !fight_fair hold left 20
+29115 !fight_fair hold right 20
+29155 !fight_fair key up
+29715 !fight_fair hold left 20
+30000 !fight_fair dump fight
+30315 !fight_fair hold right 20
+30355 !fight_fair key up
+30915 !fight_fair hold left 20
+31515 !fight_fair hold right 20
+31555 !fight_fair key up
+32115 !fight_fair hold left 20
+32715 !fight_fair hold right 20
+32755 !fight_fair key up
+33315 !fight_fair hold left 20
+33915 !fight_fair hold right 20
+33955 !fight_fair key up
+34515 !fight_fair hold left 20
+35315 !fight_fair key up
+36515 !fight_fair hold right 20
+36555 !fight_fair key up
+37115 !fight_fair hold left 20
+37715 !fight_fair hold right 20
+37755 !fight_fair key up
+38315 !fight_fair hold left 20
+38915 !fight_fair hold right 20
+38955 !fight_fair key up
+39515 !fight_fair hold left 20
+40115 !fight_fair hold right 20
+40155 !fight_fair key up
+40715 !fight_fair hold left 20
+41315 !fight_fair hold right 20
+41355 !fight_fair key up
+41915 !fight_fair hold left 20
+42515 !fight_fair hold right 20
+42555 !fight_fair key up
+43115 !fight_fair hold left 20
+43715 !fight_fair hold right 20
+43755 !fight_fair key up
+44315 !fight_fair hold left 20
+45115 !fight_fair key up
+46315 !fight_fair hold right 20
+46355 !fight_fair key up
+46915 !fight_fair hold left 20
+47515 !fight_fair hold right 20
+47555 !fight_fair key up
+48115 !fight_fair hold left 20
+48715 !fight_fair hold right 20
+48755 !fight_fair key up
+49315 !fight_fair hold left 20
+49915 !fight_fair hold right 20
+49955 !fight_fair key up
+50515 !fight_fair hold left 20
+51115 !fight_fair hold right 20
+51155 !fight_fair key up
+51715 !fight_fair hold left 20
+52315 !fight_fair hold right 20
+52355 !fight_fair key up
+52915 !fight_fair hold left 20
+53515 !fight_fair hold right 20
+53555 !fight_fair key up
+54115 !fight_fair hold left 20
+54915 !fight_fair key up
+56115 !fight_fair hold right 20
+56155 !fight_fair key up
+56715 !fight_fair hold left 20
+57315 !fight_fair hold right 20
+57355 !fight_fair key up
+57915 !fight_fair hold left 20
+58515 !fight_fair hold right 20
+58555 !fight_fair key up
+59115 !fight_fair hold left 20
+59715 !fight_fair hold right 20
+59755 !fight_fair key up
+60315 !fight_fair hold left 20
+60915 !fight_fair hold right 20
+60955 !fight_fair key up
+61515 !fight_fair hold left 20
+62115 !fight_fair hold right 20
+62155 !fight_fair key up
+62715 !fight_fair hold left 20
+63315 !fight_fair hold right 20
+63355 !fight_fair key up
+63915 !fight_fair hold left 20
+64715 !fight_fair key up
+65915 !fight_fair hold right 20
+65955 !fight_fair key up
+66515 !fight_fair hold left 20
+67115 !fight_fair hold right 20
+67155 !fight_fair key up
+67715 !fight_fair hold left 20
+68315 !fight_fair hold right 20
+68355 !fight_fair key up
+68915 !fight_fair hold left 20
+69515 !fight_fair hold right 20
+69555 !fight_fair key up
+70115 !fight_fair hold left 20
+70715 !fight_fair hold right 20
+70755 !fight_fair key up
+71315 !fight_fair hold left 20
+71915 !fight_fair hold right 20
+71955 !fight_fair key up
+72515 !fight_fair hold left 20
+73115 !fight_fair hold right 20
+73155 !fight_fair key up
+73715 !fight_fair hold left 20
+74515 !fight_fair key up
+75715 !fight_fair hold right 20
+75755 !fight_fair key up
+76315 !fight_fair hold left 20
+76915 !fight_fair hold right 20
+76955 !fight_fair key up
+77515 !fight_fair hold left 20
+78115 !fight_fair hold right 20
+78155 !fight_fair key up
+78715 !fight_fair hold left 20
+79315 !fight_fair hold right 20
+79355 !fight_fair key up
+79915 !fight_fair hold left 20
+80515 !fight_fair hold right 20
+80555 !fight_fair key up
+81115 !fight_fair hold left 20
+81715 !fight_fair hold right 20
+81755 !fight_fair key up
+# The fair fight (`fight_fair`, docs/fights/FAIRNESS.md): `tools/fight_plan.py
+# --player fast --ko-at KO` (the lines below are its): it answers each tell
+# 300 ms after it shows, by a kick in the wind-up when in reach (or a step
+# back and a kick in the follow-through, a block, a jump), the fighter
+# untouched; the last kick waits so that the KO comes on the beat of the
+# Corrigida's held-key fight (83945), and everything after the fight plays as
+# before.
+# fair-plan fight begin
++1250 ?fight_fair key s
++530 ?fight_fair hold right 20
++1270 ?fight_fair key s
++530 ?fight_fair hold right 20
++1270 ?fight_fair key s
++1800 ?fight_fair key s
++530 ?fight_fair hold right 20
++1070 ?fight_fair key s
++530 ?fight_fair hold right 20
++1470 ?fight_fair key s
++2000 ?fight_fair key s
++530 ?fight_fair hold right 20
++1470 ?fight_fair key s
++530 ?fight_fair hold right 20
++1270 ?fight_fair key s
++1800 ?fight_fair key s
++530 ?fight_fair hold right 20
++1470 ?fight_fair key s
++530 ?fight_fair hold right 20
++1470 ?fight_fair key s
++1800 ?fight_fair key s
++530 ?fight_fair hold right 20
++1070 ?fight_fair key s
++530 ?fight_fair hold right 20
++1470 ?fight_fair key s
++1800 ?fight_fair key s
++530 ?fight_fair hold right 20
++1400 ?fight_fair hold right 20
++2670 ?fight_fair key s
++1730 ?fight_fair hold right 20
++1400 ?fight_fair hold right 20
++3070 ?fight_fair key s
++1600 ?fight_fair key s
++530 ?fight_fair hold right 20
++1270 ?fight_fair key s
++530 ?fight_fair hold right 20
++1270 ?fight_fair key s
++1730 ?fight_fair hold right 20
++1470 ?fight_fair key s
++530 ?fight_fair hold right 20
++1270 ?fight_fair hold left 20
++730 ?fight_fair hold right 20
++1470 ?fight_fair hold left 20
++530 ?fight_fair hold right 20
++1470 ?fight_fair hold left 20
++530 ?fight_fair hold right 20
++590 ?fight_fair hold right 20
++30 ?fight_fair hold right 20
++50 ?fight_fair key s
+# fair-plan fight end
 87000 result won 13650
 87000 expect 3fstree2
 92000 expect 3fprisao

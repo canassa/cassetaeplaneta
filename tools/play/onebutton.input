@@ -177,133 +177,191 @@
 +0 ?fight_keys_asdf keymap up s
 +445 ?fight_controls_screen key return
 +815 !fight_controls_screen hold right 20
-+2420 ?fight_controls_screen hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+800 key up
-+1200 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+800 key up
-+1200 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+800 key up
-+1200 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+800 key up
-+1200 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+800 key up
-+1200 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
-+560 hold left 20
-+600 hold right 20
-+40 key up
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++800 !fight_fair key up
++1200 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++800 !fight_fair key up
++1200 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++800 !fight_fair key up
++1200 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++800 !fight_fair key up
++1200 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++800 !fight_fair key up
++1200 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
++560 !fight_fair hold left 20
++600 !fight_fair hold right 20
++40 !fight_fair key up
+# The fair fight (`fight_fair`, docs/fights/FAIRNESS.md): `tools/fight_plan.py
+# --player fast --block xilindro --ko-at 410213 --end-at 57460` (the lines
+# below are its): it answers each tell 300 ms after it shows, the fighter
+# untouched, and the last kick waits so that the KO comes on the beat of
+# the fight above; the block ends where those lines end, so all that
+# follows plays as before.
+# fair-plan xilindro begin
++30 ?fight_fair hold right 20
++3270 ?fight_fair key s
++530 ?fight_fair hold right 20
++1070 ?fight_fair key s
++530 ?fight_fair hold right 20
++1470 ?fight_fair key s
++2000 ?fight_fair key s
++530 ?fight_fair hold right 20
++1270 ?fight_fair key s
++530 ?fight_fair hold right 20
++2870 ?fight_fair key s
++1730 ?fight_fair hold right 20
++1000 ?fight_fair hold right 20
++1070 ?fight_fair key s
++1730 ?fight_fair hold right 20
++1400 ?fight_fair hold right 20
++1270 ?fight_fair key s
++2000 ?fight_fair key s
++530 ?fight_fair hold right 20
++1470 ?fight_fair key s
++530 ?fight_fair hold right 20
++1270 ?fight_fair key s
++1800 ?fight_fair key s
++530 ?fight_fair hold right 20
++1270 ?fight_fair key s
++530 ?fight_fair hold right 20
++2470 ?fight_fair key s
++1800 ?fight_fair key s
++530 ?fight_fair hold right 20
++1270 ?fight_fair key s
++530 ?fight_fair hold right 20
++2670 ?fight_fair key s
++1730 ?fight_fair hold right 20
++1470 ?fight_fair key s
++530 ?fight_fair hold right 20
++2670 ?fight_fair key s
++1800 ?fight_fair key s
++530 ?fight_fair hold right 20
++1070 ?fight_fair key s
++530 ?fight_fair hold right 20
++1270 ?fight_fair key s
++1600 ?fight_fair key down
++730 ?fight_fair hold right 20
++1070 ?fight_fair hold left 20
++730 ?fight_fair hold right 20
++171 ?fight_fair hold right 5
++12 ?fight_fair hold right 5
++12 ?fight_fair hold right 5
++12 ?fight_fair hold right 5
++23 ?fight_fair key s
++0 ?fight_fair log fair-plan end
+# fair-plan xilindro end
 +4990 result won 13650
 # 12 s more in the disco: the quiz below draws its question from the clock
 # second, and this timing asks the Olympics question again.
@@ -345,9 +403,41 @@
 # Corrigida's later lines by 10283 ms.
 +11000 !fight_controls_screen hold up 52000
 +10283 ?fight_controls_screen key return
-+2767 ?fight_controls_screen hold s 52000
-+1000 dump salgin
-+59000 result won
++1000 !fight_fair dump salgin
++59000 !fight_fair result won
+# The fair fight (`fight_fair`, docs/fights/FAIRNESS.md): `tools/fight_plan.py
+# --player fast --block salgin` (the lines below are its): it answers each
+# tell 300 ms after it shows, the player untouched (9100); the result is
+# checked 9 s after the last kick, as the held-S fight's 9 s after its KO.
+# fair-plan salgin begin
++30 ?fight_fair hold right 20
++3287 ?fight_fair key s
++530 ?fight_fair hold right 20
++1270 ?fight_fair key s
++530 ?fight_fair hold right 20
++1070 ?fight_fair key s
++2000 ?fight_fair key s
++2200 ?fight_fair key s
++2000 ?fight_fair key s
++1800 ?fight_fair key s
++1800 ?fight_fair key s
++2200 ?fight_fair key s
++1800 ?fight_fair key s
++2000 ?fight_fair key s
++2000 ?fight_fair key s
++2000 ?fight_fair key s
++3400 ?fight_fair key s
++2000 ?fight_fair key s
++3800 ?fight_fair key s
++1800 ?fight_fair key s
++2200 ?fight_fair key s
++2000 ?fight_fair key s
++2200 ?fight_fair key s
++1800 ?fight_fair key s
++2200 ?fight_fair key s
++2400 ?fight_fair key s
+# fair-plan salgin end
++9000 ?fight_fair result won
 +0 wait espquete 10000
 +1000 wait 6fsai1 51000
 +0 wait fundinic 48000

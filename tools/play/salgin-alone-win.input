@@ -4,7 +4,7 @@
 # 200 ms); in range (the opponent walks in to 69-100 px) every kick lands.
 #
 #   zig-out/bin/noite --minigame salgin --headless --ms 60000 --input tools/play/salgin-alone-win.input
-#   zig-out/bin/noite --minigame salgin --headless --ms 63000 --fix all --input tools/play/salgin-alone-win.input
+#   zig-out/bin/noite --minigame salgin --headless --ms 68000 --fix all --input tools/play/salgin-alone-win.input
 #
 # The opponent's energy is below 1 on the beat at 51200 in both versions;
 # the hold ends after it (the keys are locked from the KO) and before the
@@ -21,8 +21,87 @@
 0 ?fight_keys_asdf keymap up s
 50 ?fight_controls_screen key return
 50 ?fight_controls_screen delay 2050
-300 hold up 52000
-1000 dump start
-20000 dump fight
-53000 dump won
-56000 result won 8200 | won 8300
+300 !fight_fair hold up 52000
+1000 !fight_fair dump start
+20000 !fight_fair dump fight
+53000 !fight_fair dump won
+# The fair fight (`fight_fair`, docs/fights/FAIRNESS.md): the reactor of
+# `tools/fight_plan.py` (the lines below are its): it answers each tell 300 ms
+# after it shows, steps back (or, against the wall, blocks or jumps) and
+# kicks (S) in the follow-through. A KO with the player untouched, 9100;
+# the window closes at 64400.
+# fair-plan fight begin
++30 ?fight_fair hold right 20
++1220 ?fight_fair hold left 20
++130 ?fight_fair hold right 20
++40 ?fight_fair key s
++560 ?fight_fair hold right 20
++1270 ?fight_fair hold left 20
++130 ?fight_fair hold right 20
++40 ?fight_fair key s
++1830 ?fight_fair hold left 20
++130 ?fight_fair hold right 20
++40 ?fight_fair key s
++3230 ?fight_fair hold left 20
++130 ?fight_fair hold right 20
++40 ?fight_fair key s
++2030 ?fight_fair hold left 20
++130 ?fight_fair hold right 20
++40 ?fight_fair key s
++2030 ?fight_fair hold left 20
++130 ?fight_fair hold right 20
++40 ?fight_fair key s
++2030 ?fight_fair hold left 20
++130 ?fight_fair hold right 20
++40 ?fight_fair key s
++2430 ?fight_fair hold left 20
++130 ?fight_fair hold right 20
++40 ?fight_fair key s
++3630 ?fight_fair hold left 20
++130 ?fight_fair hold right 20
++40 ?fight_fair key s
++2030 ?fight_fair hold left 20
++130 ?fight_fair hold right 20
++40 ?fight_fair key s
++2230 ?fight_fair hold left 20
++130 ?fight_fair hold right 20
++40 ?fight_fair key s
++2230 ?fight_fair hold left 20
++130 ?fight_fair hold right 20
++40 ?fight_fair key s
++2230 ?fight_fair hold left 20
++130 ?fight_fair hold right 20
++40 ?fight_fair key s
++1830 ?fight_fair hold left 20
++130 ?fight_fair hold right 20
++40 ?fight_fair key s
++3630 ?fight_fair hold left 20
++130 ?fight_fair hold right 20
++40 ?fight_fair key s
++2030 ?fight_fair hold left 20
++130 ?fight_fair hold right 20
++40 ?fight_fair key s
++3230 ?fight_fair hold left 20
++130 ?fight_fair hold right 20
++40 ?fight_fair key s
++1830 ?fight_fair hold left 20
++130 ?fight_fair hold right 20
++40 ?fight_fair key s
++1830 ?fight_fair hold left 20
++130 ?fight_fair hold right 20
++40 ?fight_fair key s
++2030 ?fight_fair hold left 20
++130 ?fight_fair hold right 20
++40 ?fight_fair key s
++3830 ?fight_fair hold left 20
++130 ?fight_fair hold right 20
++40 ?fight_fair key s
++2230 ?fight_fair hold left 20
++130 ?fight_fair hold right 20
++40 ?fight_fair key s
++2230 ?fight_fair hold left 20
++130 ?fight_fair hold right 20
++40 ?fight_fair key s
+# fair-plan fight end
+0 ?fight_fair delay 7000
+56000 result won 8200 | won 9100
