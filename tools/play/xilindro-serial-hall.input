@@ -13,8 +13,9 @@
 # in the lift picks the seed). The two versions play different games
 # (BUGS.md K5): the Original hits three killers, +600, and has 4 lives left
 # when the clock ends SERIAL at 217941, a win of MAKELONG(4, 500) =
-# 32768004 that NOITE adds whole (BUGS.md K1, K2); the Corrigida hits one
-# (shots 2 and 3 miss), keeps its 5 lives and reports a win of 500.
+# 32768004 that NOITE adds whole (BUGS.md K1, K2); the Corrigida, whose
+# SERIAL starts 2050 ms later (below), shoots its own plan and reports a
+# win of 500.
 20000 dump street
 # The Corrigida (`--fix all`) shows XILINDRO's controls screen first; Enter takes
 # it down 50 ms after it opened, PORRADA stands for 2 s (the frozen intro,
@@ -160,15 +161,26 @@
 +2000 rclick 254 200
 +0 wait 3farmcai 20000
 +3000 dump serial
+# The Original's shots (the Corrigida's are below):
 # shot 1: right, 3snoem (figure 9, kind 2)
-+35090 key left
-+120 key space
-# shot 2: right, Original 3snoem (figure 9, kind 2), Corrigida a miss
-+25620 key space
-# shot 3: straight, Original 3snoem (figure 9, kind 2), Corrigida a miss
-+26840 key left
-+120 key space
-+33040 result won 32768004 | won 500
++35090 !fight_controls_screen key left
++120 !fight_controls_screen key space
+# shot 2: right, Original 3snoem (figure 9, kind 2)
++25620 !fight_controls_screen key space
+# shot 3: straight, Original 3snoem (figure 9, kind 2)
++26840 !fight_controls_screen key left
++120 !fight_controls_screen key space
++33040 !fight_controls_screen result won 32768004
+# The Corrigida's: its fight ends 2050 ms later (the controls screen and
+# PORRADA), so SERIAL starts at 99991 with another seed;
+# `tools/serial_plan.py --start 99991 --win --relative-to 96781` (shot 1
+# 88840 ms after this dump): two killers, 2 lives left, a win of 500.
+# shot 1: left, Corrigida 3snoem (figure 9, kind 2)
++88840 ?fight_controls_screen key space
+# shot 2: straight, Corrigida 3snoem (figure 9, kind 2)
++2670 ?fight_controls_screen key right
++120 ?fight_controls_screen key space
++28700 ?fight_controls_screen result won 500
 +0 expect 3fhall
 +500 state
 +0 dump hall
