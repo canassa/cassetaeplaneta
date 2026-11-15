@@ -494,7 +494,7 @@ pub const Fixes = struct {
     jardim_enemy_once_per_contact: bool = false,
     /// J7: JARDIM posts 0x40c only once NOITE's 0x40b has come (no 0x40c to
     /// a NOITE found by FindWindow before), so NOITE sends the hello and
-    /// its variant arrives: espquete's final enemy is espanf.
+    /// its variant arrives: espquete's goal is espanf.
     jardim_variant_hello: bool = false,
     /// J8: only the game's own timer (system timer 1, 55 ms) ticks the
     /// game; the 50-ms timer 10 (AppWndProc's FindWindow retry) no longer

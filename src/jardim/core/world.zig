@@ -136,7 +136,7 @@ pub const Scene = struct {
     // @orig Phase1Scene+0x8e / Phase2Scene+0x92 (phases 1-2)
     exitIndex: i16 = 0,
     // @orig Phase3Scene+0x8e (espanf with variant 1, vamanf with 0)
-    finalEnemy: ?*Object = null,
+    goal: ?*Object = null,
 
     pub fn handleMessage(s: *Scene, g: *Game, m: Msg) u16 {
         return s.vtbl.handleMessage(g, s, m);

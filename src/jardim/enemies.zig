@@ -20,8 +20,8 @@
 //! floor cell no other enemy holds or leaves, never the player's cell, never nearer than
 //! `min_gap` units to him, stopping at `stop` cells (Chebyshev); in sight and within `reach`
 //! cells, a wind-up (`windup_ms`: the attack frame, its attack wave) and the blow if he is still
-//! in sight and reach, then `cooldown_ms`. Out of sight it chases on for `memory_ms`. The final
-//! enemy (phase 3, the goal) stands and animates.
+//! in sight and reach, then `cooldown_ms`. Out of sight it chases on for `memory_ms`. The goal
+//! (phase 3, not an enemy) stands and animates.
 
 const std = @import("std");
 const builtin = @import("builtin");
@@ -40,7 +40,7 @@ const hud = @import("hud.zig");
 const labyrinth_input = @import("labyrinth_input.zig");
 const sprites = @import("sprites.zig");
 
-pub const Kind = enum(u8) { bussuf, seios, alemao, siri, chato, bicho, final };
+pub const Kind = enum(u8) { bussuf, seios, alemao, siri, chato, bicho, goal };
 
 /// One kind's numbers.
 pub const KindTuning = struct {
@@ -55,7 +55,7 @@ pub const KindTuning = struct {
     /// Alemão's gun: Wolf3D's `T_Shoot`, a hit with chance (256 − 16·cells)/256, for 8 at 1 cell,
     /// 4 up to 3 cells, 2 beyond.
     ranged: bool = false,
-    /// The final enemy neither attacks nor moves.
+    /// The goal (not an enemy) neither attacks nor moves.
     attacks: bool = true,
 };
 
@@ -92,9 +92,6 @@ pub const EnemyTuning = struct {
     /// Walking into an enemy only blocks (false), or also hurts as the original's touch does
     /// once per contact (J6's rule: Seios, Siri and Bicho a life, the others 5 health).
     contact_hurts: bool = false,
-    /// Killed enemies stay dead after a life is lost (the original's respawn brings back every
-    /// enemy); the living ones go back to their cells and forget the player.
-    kills_stay_dead: bool = true,
     kinds: [7]KindTuning = .{
         .{ .step_ms = 600, .damage = 5 }, // Bussuf
         .{ .step_ms = 800, .damage = 10 }, // Seios
@@ -102,7 +99,7 @@ pub const EnemyTuning = struct {
         .{ .step_ms = 600, .damage = 10 }, // Siri
         .{ .step_ms = 600, .damage = 5 }, // Chato
         .{ .step_ms = 800, .damage = 10 }, // Bicho
-        .{ .step_ms = 0, .damage = 0, .attacks = false }, // the final enemy
+        .{ .step_ms = 0, .damage = 0, .attacks = false }, // the goal
     },
 
     pub fn of(t: *const EnemyTuning, k: Kind) *const KindTuning {
@@ -195,7 +192,7 @@ pub fn active(g: *const Game) bool {
 fn sceneKind(bd: *Backdrop, obj: *Object) ?Kind {
     const s = bd.scene orelse return null;
     const phase: u8 = if (s.mapFile.len > 6) s.mapFile[6] else '1';
-    if (obj == s.finalEnemy) return .final;
+    if (obj == s.goal) return .goal;
     if (obj == s.enemyA) return switch (phase) {
         '2' => .alemao,
         '3' => .chato,
@@ -592,7 +589,7 @@ fn logMap(g: *Game, bd: *Backdrop, now: u32) void {
     for (0..world.map_rows) |r| {
         for (0..world.map_cols) |c| {
             const o = bd.objectRows[r][c] orelse continue;
-            const k: u8 = if (o == s.enemyA) 'A' else if (o == s.enemyB) 'B' else if (o == s.finalEnemy) 'F' else if (o == s.crossbow) 'C' else if (o == s.secondWeapon) 'W' else if (o == s.medkit) 'M' else if (o == s.beer) 'R' else if (o == s.snack) 'S' else if (o == s.arrows) 'a' else if (o == s.bombs) 'b' else if (o == bd.shot) '*' else '?';
+            const k: u8 = if (o == s.enemyA) 'A' else if (o == s.enemyB) 'B' else if (o == s.goal) 'F' else if (o == s.crossbow) 'C' else if (o == s.secondWeapon) 'W' else if (o == s.medkit) 'M' else if (o == s.beer) 'R' else if (o == s.snack) 'S' else if (o == s.arrows) 'a' else if (o == s.bombs) 'b' else if (o == bd.shot) '*' else '?';
             w.print(" {d},{d}{c}", .{ c, r, k }) catch {};
         }
     }
@@ -618,18 +615,14 @@ pub fn beforeRespawn(g: *Game, bd: *Backdrop) void {
     }
 }
 
-/// After `placeObjects`: the living enemies at home, idle; the killed ones stay dead
-/// (`kills_stay_dead`, else every enemy comes back as in the original).
+/// After `placeObjects`: every enemy (the killed ones too, as in the original) at home, idle,
+/// with its state rebuilt.
 pub fn afterRespawn(g: *Game, bd: *Backdrop) void {
     if (!active(g) or g.fair.bd != bd) return;
     const f = &g.fair;
     const now = g.plat.ticks();
     for (f.enemies[0..f.count]) |*e| {
         const home = &bd.objectRows[@intCast(e.homeRow)][@intCast(e.homeCol)];
-        if (!e.alive() and tuning.kills_stay_dead) {
-            if (home.* == e.obj) home.* = null;
-            continue;
-        }
         home.* = e.obj;
         e.* = .{ .obj = e.obj, .kind = e.kind, .homeRow = e.homeRow, .homeCol = e.homeCol, .row = e.homeRow, .col = e.homeCol, .fromRow = e.homeRow, .fromCol = e.homeCol, .animAt = e.animAt };
     }
@@ -650,7 +643,7 @@ test "the numbers" {
     try testing.expectEqual(@as(u32, 450), t.of(.alemao).step_ms);
     try testing.expectEqual(@as(i16, 4), t.of(.alemao).reach);
     try testing.expectEqual(@as(i16, 10), t.of(.siri).damage);
-    try testing.expect(!t.of(.final).attacks);
+    try testing.expect(!t.of(.goal).attacks);
 }
 
 test "a clear line stops at walls" {

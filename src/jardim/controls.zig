@@ -121,7 +121,7 @@ const old_rows = [_]Row{
 
 const goal = [_][]const u8{
     "Ache a porta de sa\xedda de cada um dos tr\xeas labirintos;",
-    "no terceiro, alcance o inimigo final para vencer.",
+    "no terceiro, alcance a mo\xe7a de mai\xf4 para vencer.",
     "Armas, muni\xe7\xe3o e comida est\xe3o pelo caminho (a cerveja",
     "d\xe1 pontos mas tira sa\xfade). Inimigos tiram sa\xfade ou uma",
     "vida; sa\xfade zero custa uma vida, e sem vidas o jogo acaba.",

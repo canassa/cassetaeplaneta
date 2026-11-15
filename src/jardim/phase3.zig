@@ -1,4 +1,4 @@
-//! Port unit `phase3` (module) of JARDIM.EXE. Phase3Scene (raymap3): as phase1 without an exit door; the final enemy (the variant's picture) and the win; BUGS.md J2, J3, J6.
+//! Port unit `phase3` (module) of JARDIM.EXE. Phase3Scene (raymap3): as phase1 without an exit door; the goal (the variant's picture) and the win; BUGS.md J2, J3, J6.
 //!
 //! The ten LabyrinthSceneVtbl overrides of the third phase (vtable 92da).
 //! Each carries `// @orig <seg:off> <name>` with the JARDIM address; the
@@ -179,9 +179,9 @@ pub fn create(g: *Game, s: *Scene) *Scene {
     // The variant (NOITE's 0x40b wParam; J7: always 0 from espquete) only
     // changes this picture.
     if (g.variant == 0) {
-        s.finalEnemy = newPortable(g, 0x70, 0x9f0, "vamanf.bmp", 4, 0x52, 0xb6);
+        s.goal = newPortable(g, 0x70, 0x9f0, "vamanf.bmp", 4, 0x52, 0xb6);
     } else {
-        s.finalEnemy = newPortable(g, 0x70, 0x9f0, "espanf.bmp", 4, 0x4a, 0xad);
+        s.goal = newPortable(g, 0x70, 0x9f0, "espanf.bmp", 4, 0x4a, 0xad);
     }
     s.crossbow = newPortable(g, 0x3b0, 0x2b0, "besta3.bmp", 1, 0x80, 0x67);
     s.secondWeapon = newPortable(g, 0x1d0, 0x1f0, "bazuka3.bmp", 1, 0xa4, 0x35);
@@ -194,7 +194,7 @@ pub fn create(g: *Game, s: *Scene) *Scene {
     // All three enemies get the play-once-rewinds mark (isEnemy).
     position.setPlayOnceRewinds(occupancy.attach(g, s.enemyA.?, bd).?);
     position.setPlayOnceRewinds(occupancy.attach(g, s.enemyB.?, bd).?);
-    position.setPlayOnceRewinds(occupancy.attach(g, s.finalEnemy.?, bd).?);
+    position.setPlayOnceRewinds(occupancy.attach(g, s.goal.?, bd).?);
     _ = occupancy.attach(g, s.crossbow.?, bd);
     _ = occupancy.attach(g, s.secondWeapon.?, bd);
     _ = occupancy.attach(g, s.medkit.?, bd);
@@ -204,7 +204,7 @@ pub fn create(g: *Game, s: *Scene) *Scene {
     _ = occupancy.attach(g, s.bombs.?, bd);
 
     // Each at its own constructor cell (Chato twice: the copy-paste of the
-    // original; Bicho and the final enemy are not placed here).
+    // original; Bicho and the goal are not placed here).
     labmap.placeObject(g, bd, -1, -1, s.crossbow.?);
     labmap.placeObject(g, bd, -1, -1, s.enemyA.?);
     labmap.placeObject(g, bd, -1, -1, s.enemyA.?);
@@ -271,7 +271,7 @@ pub fn touch(g: *Game, s: *Scene, obj: *Object) i16 {
             bd.lives -%= 1;
         } else if (obj == s.enemyA) {
             bd.health -%= 5;
-        } else if (obj == s.finalEnemy) {
+        } else if (obj == s.goal) {
             // The only win: the backdrop's WM_DESTROY turns wParam 0xffff into one.
             _ = g.post(Msg.make(msg.wm.destroy, 0xffff, 0, 0));
         }
@@ -366,7 +366,7 @@ pub fn placeObjects(g: *Game, s: *Scene) *Scene {
     for (shrimp) |c| labmap.placeObject(g, bd, c[0], c[1], s.snack.?);
     for (medkit) |c| labmap.placeObject(g, bd, c[0], c[1], s.medkit.?);
     labmap.placeObject(g, bd, 76, 2, s.beer.?);
-    labmap.placeObject(g, bd, 79, 3, s.finalEnemy.?);
+    labmap.placeObject(g, bd, 79, 3, s.goal.?);
     return s;
 }
 

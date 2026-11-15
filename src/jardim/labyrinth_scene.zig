@@ -94,7 +94,7 @@ pub fn create(g: *Game, s: *Scene) *Scene {
 /// +500), repaint and blit. Health and lives are not touched.
 // @orig 1028:5ef1 labyrinth_scene_respawn
 pub fn respawn(g: *Game, s: *Scene) void {
-    // Not in the original: the fair enemies go home, the killed ones stay dead.
+    // Not in the original: the fair enemies are rebuilt (all of them, the killed too).
     enemies.beforeRespawn(g, s.backdrop.?);
     _ = s.placeObjects(g);
     const bd = s.backdrop.?;

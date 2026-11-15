@@ -537,8 +537,8 @@ pub fn handleMessage(g: *Game, bd: *Backdrop, m: Msg) u16 {
 /// one object, so a contact is per kind.
 pub fn touchObject(g: *Game, bd: *Backdrop, obj: *Object) i16 {
     // Not in the original: with the fair enemies an enemy walked into only blocks (their
-    // blows are the damage), unless `contact_hurts`; the final enemy is still the win.
-    if (enemies.active(g) and obj.isEnemy != 0 and obj != bd.scene.?.finalEnemy and !enemies.tuning.contact_hurts) return 1;
+    // blows are the damage), unless `contact_hurts`; the goal is still the win.
+    if (enemies.active(g) and obj.isEnemy != 0 and obj != bd.scene.?.goal and !enemies.tuning.contact_hurts) return 1;
     if (g.fixes.jardim_enemy_once_per_contact and obj.isEnemy != 0) {
         var free: ?*Contact = null;
         for (&g.contacts) |*c| {
