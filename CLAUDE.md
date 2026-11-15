@@ -7,6 +7,10 @@ Reverse-engineering the 1995 ATR Multimedia point-and-click adventure
 
 - `assets/` — the extracted disc (one data track). Never edit; it's the
   reference. The `.iso` itself is not in git.
+- `ref/src1995/` — an Oct 1995 ancestor of the engine source found on the disc
+  (`assets/PAN/WAV/DEMOG.ZIP`, `PED1.ZIP`), with `DEMO.EXE` + CodeView symbols
+  (`symbols.txt`, decoded by `tools/cv4dump.py`). Reference only, never edit;
+  `docs/SRC1995.md` maps it onto NOITE.EXE (names, vtables, fields, BUGS.md notes).
 - `ghidra/noite.gpr` — Ghidra 12.2 project (`noite.rep` is not in git).
   Programs: `NOITE.EXE` (main game) and the minigames `ENCAIXE`, `INFERNO`,
   `INV`, `JARDIM`, `SALGIN`, `SAUNA`, `SERIAL`, `TIRO`, `XILINDRO` (`.EXE`).
@@ -140,10 +144,11 @@ handler or minigame code.
   on Microsoft's WinG sample skeleton (`AppWndProc`, `AppAbout`). Code uses
   386 instructions (`ENTER`/`LEAVE`, `66`-prefixed `PUSH imm32`, `dword` moves).
 - **Segments:** Ghidra maps NE segment *n* to `0x1000 + (n-1)*8`.
-  - `1000` — the `transrle.cpp` blitters: each routine starts with a 16-bit
-    mode check and, on first entry, switches its own segment to 32-bit via
-    DPMI; the rest runs as 32-bit code. Ghidra decodes it all as 16-bit, so
-    past the prologue its listing is garbage. Read it with `objdump -mi386`
+  - `1000` — the WinG sample's 32-bit blitters (`FAST32.ASM`, byte-identical
+    in the 1995 `DEMO.EXE`): each routine starts with a 16-bit mode check and,
+    on first entry, switches its own segment to 32-bit via DPMI; the rest runs
+    as 32-bit code. Ghidra decodes it all as 16-bit, so past the prologue its
+    listing is garbage. Read it with `objdump -mi386`
     (or run it in `tools/oracle`); don't type it in Ghidra.
   - `1008` — MSVC C runtime + startup (`entry` at `1008:001a`).
   - `1010`–`1028` — game code. `1030`–`1048` — tiny BSS segments.

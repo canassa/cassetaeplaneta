@@ -1,0 +1,118 @@
+[Casseta]
+
+;FirstScene=Name,Has_Player,Has_ControlPanel,Has_StatusBar,Is_1Animation,Is_ClickExit
+FirstScene=quartoze ,1,1,0,0,0
+
+;Player=Number,X,Y,NumSprites,NomeBMP,_3DOriginX,_3DOriginY,_3Dw,_3Dh,_3Dd,NumTimer,PerTimer,DeltaX,DeltaY
+Player=1,250,100,5,zemane ,50,254,80,254,50,2,100,100,100
+
+;Sprite=NumFrames,FrameW,FrameH,BoundX,BoundY,BoundW,BoundH
+Sprite=1,166,265,70,0,179,267
+Sprite=8,166,265,70,0,179,267
+Sprite=8,166,265,70,0,179,267
+Sprite=8,166,265,70,0,179,267
+Sprite=8,166,265,70,0,179,267
+
+;ControlPanel= X,Y,NomeBMP,NumFrames,FrameW,FrameH,NumTimer,Period
+ControlPanel=0,340,painel ,4,640,120,3,200
+
+;StatusBar= X,Y,Cor,NomeBMP,FrameW,FrameH
+StatusBar=0,420,65535,statbar ,640,40
+
+;Portable=Number,InitialScene,X,Y,NomeBMP,FrameW,FrameH,BoundX,BoundY,BoundW,BoundH,_3DOriginX,_3DOriginY,_3Dw,_3Dh,_3Dd,_3Dz0,NumTimer,PerTimer
+Portable=2,Sala ,483,353,1ppuff ,59,45,0,0,59,45,3,43,59,45,60,0,4,200
+Portable=3,QuarPais ,0,374,1pprese ,80,91,0,0,80,91,3,86,50,50,50,0,4,200 
+Portable=4,Sala ,565,375,1pembru ,75,105,0, 0,75,105,3,104,75,105,50,0,4,200 
+Portable=5,QuartoZe ,180,300,1pbola ,50,50,0,0,50,50,3,46,50,50,50,0,4,200 
+Portable=6,GavBoy3 ,231,221,1pcarte ,109,71,0,0,109,71,0,71,50,50,50,0,4,200 
+Portable=7,GavBoy2 ,230,265,1pcamis ,88,45,0,0,88,45,0,45,50,50,50,0,4,200 
+Portable=8,GavPais3 ,61,311,1pchave ,75,38,0,0,75,38,0,38,30,50,30,0,4,200 
+Portable=9,GavCorr ,193,193,1pcanet ,160,75,0,0,160,75,0,75,100,100,10,0,4,200 
+Portable=10,Cozinha ,54,283,1pchees ,81,74,0,0,81,74,0,74,70,100,70,0,4,200 
+Portable=11,Cozinha ,228,120,1ptomat ,69,69,0,0,69,69,0,50,100,60,60,0,4,200 
+Portable=12,Sala ,317,6,1poscar ,43,131,0,0,43,131,0,131,50,200,50,250,4,200 
+Portable=13,Prateleira ,212,81,1pnojox ,54,181,0,0,54,181,0,181,50,200,50,0,4,200 
+Portable=14,Prateleira ,108,71,1pvinho ,88,188,0,0,88,188,0,188,50,200,50,0,4,200 
+
+[QuartoZe]
+         
+;Screen=Number,ScreenBMP,ScreenX,ScreenY,ScreenW,ScreenH,VanishX,VanishY,ViewX,ViewY,View_x,View_y,View_z,AxisX,AxisY
+Screen=1,1fquarbo ,0,0,640,480,514,102,160,300,0,455,0,0,345
+
+;Limits=LinhaSup,ColunaSup,LinhaLatEsq,ColunaLatEsq,DeltaLatEsq,LinhaLatDir,ColunaLatDir,DeltaLatDir
+Limits=5,40,5,10,2,0,0,0
+
+; Possivel existencia de uma linha de EXIT
+;Exit=Number,X,Y,NomeBMP,NumFrames,FrameW,FrameH,BoundX,BoundY,BoundW,BoundH,_3DOriginX,_3DOriginY,_3Dw,_3Dh,_3Dd,NumTimer,PerTimer,SceneInName, PlayerX, PlayerY, HasPlayer, HasControlPanel, HasStatusBar,Is1Animation,IsClickExit
+
+;Local=Number,X,Y,NomeBMP,FrameW,FrameH,BoundX,BoundY,BoundW,BoundH,_3DOriginX,_3DOriginY,_3Dw,_3Dh,_3Dd
+Local=15,0,0,1otvemove ,155,479,0,0,155,479,0,479,70,250,110
+Local=16,394,202,1ocamabo ,249,284,0,0,249,284,3,270,250,110,460
+Local=17,325,165,1ocadeir ,113,170,0,0,113,170,5,160,130,134,160
+
+;Static=Number,X,Y,NomeBMP,NumFrames,FrameW,FrameH,BoundX,BoundY,BoundW,BoundH,_3DOriginX,_3DOriginY,_3Dw,_3Dh,_3Dd,NumTimer,PerTimer
+
+;Animated=Number,X,Y,NomeBMP,NumFrames,FrameW,FrameH,BoundX,BoundY,BoundW,BoundH,_3DOriginX,_3DOriginY,_3Dw,_3Dh,_3Dd,NumTimer,PerTimer
+Animated=18,429,62,radio ,27,177,124,10,50,145,65,10,114,700,300,250,5,100
+
+;Exit=Number,X,Y,NomeBMP,NumFrames,FrameW,FrameH,BoundX,BoundY,BoundW,BoundH,_3DOriginX,_3DOriginY,_3Dw,_3Dh,_3Dd,NumTimer,PerTimer,SceneInName, PlayerX, PlayerY, HasPlayer, HasControlPanel, HasStatusBar,Is_1Animation,Is_ClickExit
+Exit=19,233,192,vgavboy1 ,1,106,34,0,0,106,34,0,34,320,100,5,6,200,1fgvboy1 ,0,0,0,1,0,0,0
+Exit=20,233,226,vgavboy1 ,1,106,34,0,0,106,34,0,34,230,80,5,6,200,1fgvboy2 ,0,0,0,1,0,0,0
+Exit=21,233,260,vgavboy1 ,1,106,34,0,0,106,34,0,34,210,60,5,6,200,1fgvboy3 ,0,0,0,1,0,0,0
+Exit=22,65,16,portaboy ,5,136,332,5,8,45,290,5,300,5,500,110,6,200,1fcorred ,450,130,1,1,0,0,0
+
+[Gavboy1]
+
+;Screen=Number,ScreenBMP,ScreenX,ScreenY,ScreenW,ScreenH,VanishX,VanishY,ViewX,ViewY,View_x,View_y,View_z,AxisX,AxisY
+Screen=2,gavboy1 ,0,0,640,480,514,102,160,300,0,455,0,0,345
+
+;Limits=LinhaSup,ColunaSup,LinhaLatEsq,ColunaLatEsq,DeltaLatEsq,LinhaLatDir,ColunaLatDir,DeltaLatDir
+Limits=0,0,0,0,0,0,0,0
+
+;Exit=Number,X,Y,NomeBMP,NumFrames,FrameW,FrameH,BoundX,BoundY,BoundW,BoundH,_3DOriginX,_3DOriginY,_3Dw,_3Dh,_3Dd,NumTimer,PerTimer,SceneInName, PlayerX, PlayerY, HasPlayer, HasControlPanel, HasStatusBar,Is1_Animation,Is_ClickExit
+Exit=23,0,270,virtport ,1,40,110,0,0,40,110,0,110,40,110,5,220,130,6,200, 1fquarbo ,220,130,1,1,0,0,0
+Exit=24,600,270,virtport ,1,40,110,0,0,40,110,0,110,40,110,5,220,130,6,200 , 1fquarbo ,220,130,1,1,0,0,0
+
+[Gavboy2]
+
+;Screen=Number,ScreenBMP,ScreenX,ScreenY,ScreenW,ScreenH,VanishX,VanishY,ViewX,ViewY,View_x,View_y,View_z,AxisX,AxisY
+Screen=3,gavboy2 ,0,0,640,480,514,102,160,300,0,455,0,0,345
+
+;Limits=LinhaSup,ColunaSup,LinhaLatEsq,ColunaLatEsq,DeltaLatEsq,LinhaLatDir,ColunaLatDir,DeltaLatDir
+Limits=0,0,0,0,0,0,0,0
+
+;Exit=Number,X,Y,NomeBMP,NumFrames,FrameW,FrameH,BoundX,BoundY,BoundW,BoundH,_3DOriginX,_3DOriginY,_3Dw,_3Dh,_3Dd,NumTimer,PerTimer,SceneInName, PlayerX, PlayerY, HasPlayer, HasControlPanel, HasStatusBar,Is_1Animation,Is_ClickExit
+Exit=25,0,270,virtport ,1,40,110,0,0,40,110,0,110,40,110,5,220,130,6,200, 1fquarbo ,220,130,1,1,0,0,0
+Exit=26,600,270,virtport ,1,40,110,0,0,40,110,0,110,40,110,5,220,130,6,200, 1fquarbo,220,130,1,1,0,0,0 
+              
+[Gavboy3]
+
+;Screen=NomeBMPFundo,ScreenX, ScreenY, ScreenW, ScreenH, VanishX, VanishY, ViewX, ViewY, View_x, View_y, View_z, AxisX, AxisY
+Screen=4,gavboy1 ,0,0,640,480,514,102,160,300,0,455,0,0,345
+
+;Limits=LinhaSup,ColunaSup,LinhaLatEsq,ColunaLatEsq,DeltaLatEsq,LinhaLatDir,ColunaLatDir,DeltaLatDir
+Limits=0,0,0,0,0,0,0,0
+
+;Exit=Number,X,Y,NomeBMP,NumFrames,FrameW,FrameH,BoundX,BoundY,BoundW,BoundH,_3DOriginX,_3DOriginY,_3Dw,_3Dh,_3Dd,NumTimer,PerTimer,SceneInName, PlayerX, PlayerY, HasPlayer, HasControlPanel, HasStatusBar, Is_1Animation, Is_ClickExit
+Exit=27,270,virtport ,1,40,110,0,0,40,110,0,110,40,110,5,220,130,6,200, 1fquarbo,220,130,1,1,0,0,0
+Exit=28,600,270,virtport ,1,40,110,0,0,40,110,0,110,40,110,5,220,130,6,200, 1fquarbo,220,130,1,1,0,0,0 
+
+[Corredor]
+
+;Screen=Number,ScreenBMP,ScreenX,ScreenY,ScreenW,ScreenH,VanishX,VanishY,ViewX,ViewY,View_x,View_y,View_z,AxisX,AxisY
+Screen=5,corredor ,0,0,640,480,505,150,155,303,0,455,0,0,330
+
+;Limits=LinhaSup,ColunaSup,LinhaLatEsq,ColunaLatEsq,DeltaLatEsq,LinhaLatDir,ColunaLatDir,DeltaLatDir
+Limits=6,40,0,0,0,0,0,0
+
+;Local=Number,X,Y,NomeBMP,FrameW,FrameH,BoundX,BoundY,BoundW,BoundH,_3DOriginX,_3DOriginY,_3Dw,_3Dh,_3Dd
+Local=29,307,199,1omovete ,137,193,0,0,137,193,2,186,160,100,140
+
+;Exit=Number,X,Y,NomeBMP,NumFrames,FrameW,FrameH,BoundX,BoundY,BoundW,BoundH,_3DOriginX,_3DOriginY,_3Dw,_3Dh,_3Dd,NumTimer,PerTimer,SceneInName, PlayerX, PlayerY, HasPlayer, HasControlPanel, HasStatusBar,Is_1Animation,Is_ClickExit
+Exit=30,148,51,portcorr ,3,127,292,0,0,127,292,0,30,200,70,5,500,130,6,200,quarpais ,500,130,1,1,0,0,0
+Exit=31,0,345,virtport ,1,40,110,0,0,40,110,0,70,15,40,140,500,130,6,200,1fsala ,500,130,1,1,0,0,0
+Exit=32,580,345,virtport ,1,114,30,0,0,114,30,0,70,15,40,140,100,100,6,200, 1fquarbo ,100,100,1,1,0,0,0
+Exit=33,321,277,vgavcor1 ,1,114,30,0,0,114,30,0,70,40,40,110,0,0,6,200,1fgvcorr ,0,0,0,1,0,0,0
+Exit=34,325,218,telefone ,1,83,55,0,0,83,55,0,52,140,100,140,0,0,6,200,1ftelefo ,0,0,0,1,0,0,0
+
+[Fim]             
