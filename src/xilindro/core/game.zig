@@ -14,6 +14,7 @@ const Msg = msg.Msg;
 const Queue = @import("../../core/queue.zig").Queue;
 const Fixes = @import("../../core/fixes.zig").Fixes;
 const fight_controls = @import("../../core/fight_controls.zig");
+const fight_fair = @import("../../core/fight_fair.zig");
 const Rand = @import("../../core/crt.zig").Rand;
 const platform = @import("../../platform/platform.zig");
 const Platform = platform.Platform;
@@ -44,6 +45,9 @@ pub const Game = struct {
     /// The Corrigida's controls screen (`fight_controls_screen`; not in the
     /// original).
     controls: fight_controls.State = .{},
+    /// The Corrigida's fair fight (`fight_fair`; not in the original):
+    /// the opponent's AI.
+    fair: fight_fair.Ai = .{},
 
     // ---- struct Game ----
     // @orig Game+0x2

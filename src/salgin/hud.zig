@@ -20,6 +20,7 @@ const occupancy = @import("behaviour/occupancy.zig");
 const render = @import("behaviour/render.zig");
 const visibility = @import("behaviour/visibility.zig");
 const fight_controls = @import("../core/fight_controls.zig");
+const fight_fair = @import("../core/fight_fair.zig");
 
 /// `salgin_redraw_arena`'s band: y 0x8c, 640 x 0x127.
 const band_y: i16 = 0x8c;
@@ -197,4 +198,25 @@ test "formatClock is sprintf's %2.2d" {
     try std.testing.expectEqualStrings("00", formatClock(&b, 0));
     try std.testing.expectEqualStrings("-01", formatClock(&b, -1));
     try std.testing.expectEqualStrings("-32768", formatClock(&b, std.math.minInt(i16)));
+}
+
+/// The fair fight's debug overlay (F9, `core/fight_fair.zig`): drawn into
+/// the backdrop above the band, then blitted.
+pub fn drawOverlay(g: *Game, scene: *Scene, ai: *const fight_fair.Ai, v: fight_fair.View) void {
+    const bd = scene.backdrop orelse return;
+    fight_fair.drawOverlay(g.plat, bd.surface(), ai, v);
+    const r = fight_fair.box;
+    g.plat.wingBitBlt(r.x, r.y, r.w, r.h, bd.surface(), r.x, r.y);
+}
+
+/// The overlay goes: its box back from the background.
+pub fn clearOverlay(g: *Game, scene: *Scene) void {
+    const bd = scene.backdrop orelse return;
+    const r = fight_fair.box;
+    if (bd.background) |bg| {
+        if (bd.pixels.len != 0) {
+            _ = dib.copyRect(&bd.bmiHeader, bd.pixels, r.x, r.y, bg.bits, &bg.header, r.x, r.y, r.w, r.h, g.fixes) catch return;
+        }
+    }
+    g.plat.wingBitBlt(r.x, r.y, r.w, r.h, bd.surface(), r.x, r.y);
 }

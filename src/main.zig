@@ -45,6 +45,8 @@ pub const core = struct {
     pub const modstate = @import("core/modstate.zig");
     pub const errors = @import("core/errors.zig");
     pub const stub = @import("core/stub.zig");
+    pub const fight_controls = @import("core/fight_controls.zig");
+    pub const fight_fair = @import("core/fight_fair.zig");
 };
 pub const platform = struct {
     pub const api = @import("platform/platform.zig");

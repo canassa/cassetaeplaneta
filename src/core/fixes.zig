@@ -380,6 +380,15 @@ pub const Fixes = struct {
     /// beat, the opponent) starts then, its clock stamps moved on by the
     /// time the screen was up.
     fight_controls_screen: bool = false,
+    /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"),
+    /// both fights: a fair fight (`core/fight_fair.zig`). The opponent
+    /// telegraphs each attack (a 2-beat wind-up with its wave) and stops
+    /// within the fighter's reach; the strike lands only if the fighter is
+    /// still in reach and not blocking it, jumping the sweep or reeling; a
+    /// blow in the wind-up cuts the attack; it stands a beat after its
+    /// attack; no clash double damage, no trades; the fighter's blows do
+    /// double damage.
+    fight_fair: bool = false,
     // ---- SAUNA.EXE (BUGS.md P1–P8). The src/sauna/ units port each bug as
     // it is and keep the fix only behind its flag. ----
     /// P1: a step's meeting test looks past the mover's own cells: it finds

@@ -11,6 +11,10 @@
 //! blow, the Down/Home trades, the clash, the reaction table [4][8][2], the
 //! opponent's step ends in strip 4, no end latch (both outcomes close after
 //! 31 end ticks), score x150, the looped murmur.
+//!
+//! The Corrigida's fair fight (`fight_fair`, `core/fight_fair.zig`, not in
+//! the original) takes the opponent's part of the beat (`fairBeat`) and
+//! the blows' hit (`fairLandHit`), after the handler.
 
 const msg = @import("../core/msg.zig");
 const Msg = msg.Msg;
@@ -30,6 +34,7 @@ const animation = @import("behaviour/animation.zig");
 const movement = @import("behaviour/movement.zig");
 const render = @import("behaviour/render.zig");
 const fight_controls = @import("../core/fight_controls.zig");
+const fight_fair = @import("../core/fight_fair.zig");
 
 const VK_PGUP: u16 = 0x21;
 const VK_END: u16 = 0x23;
@@ -206,7 +211,7 @@ fn keyDown(g: *Game, scene: *Scene, key: u16) i16 {
             g.keyPgUpHeld = 1;
             startMove(g, bd, 0);
             lockMove(g);
-            if (inRange(g)) landHit(g, bd, .punch, false);
+            strikeKey(g, bd, .punch, false);
         },
         VK_END => if (g.keyEndHeld == 0) {
             g.keyEndHeld = 1;
@@ -217,7 +222,7 @@ fn keyDown(g: *Game, scene: *Scene, key: u16) i16 {
             g.keyHomeHeld = 1;
             startMove(g, bd, 3);
             lockMove(g);
-            if (inRange(g)) landHit(g, bd, .kick, true);
+            strikeKey(g, bd, .kick, true);
         },
         VK_LEFT => if (g.keyLeftHeld == 0) {
             g.keyLeftHeld = 1;
@@ -228,8 +233,9 @@ fn keyDown(g: *Game, scene: *Scene, key: u16) i16 {
             f.anim.framesLeft = g.fighterStripFrames[4];
             f.mover.moving = 1;
             render.draw(g, f, bd);
-            // The opponent walks to meet it when more than 80 px away.
-            if (f.x < o.x and 0x50 < absInt(0 -% (o.x -% f.x))) {
+            // The opponent walks to meet it when more than 80 px away (not
+            // in the fair fight: its AI walks it).
+            if (!g.fixes.fight_fair and f.x < o.x and 0x50 < absInt(0 -% (o.x -% f.x))) {
                 if (!movement.isMoving(g, o)) o.mover.moving = 1;
                 o.mover.direction = 1;
                 o.curStrip = 4;
@@ -241,7 +247,7 @@ fn keyDown(g: *Game, scene: *Scene, key: u16) i16 {
             g.keyUpHeld = 1;
             startMove(g, bd, 1);
             lockMove(g);
-            if (inRange(g)) landHit(g, bd, .kick, false);
+            strikeKey(g, bd, .kick, false);
         },
         VK_RIGHT => if (g.keyRightHeld == 0) {
             g.keyRightHeld = 1;
@@ -257,7 +263,7 @@ fn keyDown(g: *Game, scene: *Scene, key: u16) i16 {
             g.keyDownHeld = 1;
             startMove(g, bd, 2);
             lockMove(g);
-            if (inRange(g)) landHit(g, bd, .sweep, true);
+            strikeKey(g, bd, .sweep, true);
         },
         VK_INSERT => if (g.keyInsertHeld == 0) {
             fighters.playKickDor1(g);
@@ -366,6 +372,10 @@ fn opponentStep(g: *Game, bd: *Backdrop) void {
 /// WM_CREATE and that message runs with the clock block and the beat, as
 /// the original's first message after WM_CREATE does.
 pub fn handleMessage(g: *Game, scene: *Scene, m: Msg) i16 {
+    if (fight_fair.isToggle(g.fixes, m)) {
+        toggleOverlay(g, scene);
+        return 1;
+    }
     switch (fight_controls.gate(&g.controls, g.fixes, m, g.plat.ticks())) {
         .swallow => return 1,
         .dismissed => {
@@ -535,7 +545,9 @@ fn run(g: *Game, scene: *Scene, m: Msg, frozen: bool) i16 {
         animation.tick(g, f, bd);
         o.opponent.reacting = 0;
     }
-    if (absInt(0 -% (o.x -% f.x)) < 0x83) {
+    if (g.fixes.fight_fair) {
+        fairBeat(g, scene, bd);
+    } else if (absInt(0 -% (o.x -% f.x)) < 0x83) {
         if (movement.isMoving(g, o) or !animation.isRunning(g, o)) {
             counterAttack(g, bd);
         } else {
@@ -551,7 +563,287 @@ fn run(g: *Game, scene: *Scene, m: Msg, frozen: bool) i16 {
         fighters.walk(g, o, bd);
     }
     hud.redrawArena(g, scene);
+    if (g.fair.overlay) showOverlay(g, scene);
     return handled;
+}
+
+// ---- the fair fight (Corrigida, `fight_fair`; core/fight_fair.zig) ----------
+
+const tuning = &fight_fair.xilindro;
+
+fn gapOf(g: *Game) i16 {
+    return absInt(0 -% (g.opponent.?.x -% g.fighter.?.x));
+}
+
+/// A blow's key: the fair fight's hit, or the Original's when in range.
+fn strikeKey(g: *Game, bd: *Backdrop, b: Blow, trade: bool) void {
+    if (g.fixes.fight_fair) {
+        if (gapOf(g) <= tuning.fighter_reach) fairLandHit(g, bd, b);
+    } else if (inRange(g)) landHit(g, bd, b, trade);
+}
+
+/// The fair fight's blow in range: a reeling opponent cannot be hit (the
+/// blow whiffs); otherwise the Original's waves and recoil, the doubled
+/// damage, no trade, and the opponent reacts by the table (as a walking
+/// one: the reel, the fall when weak) whatever it was doing, which cuts a
+/// wind-up short.
+fn fairLandHit(g: *Game, bd: *Backdrop, b: Blow) void {
+    const f = g.fighter.?;
+    const o = g.opponent.?;
+    const bar = &g.energyBar.?.energyBar;
+    const ai = &g.fair;
+    if (ai.phase == .reel) return;
+    switch (b) {
+        .punch => fighters.playPunchDor1(g),
+        .kick => fighters.playKickDor1(g),
+        .sweep => fighters.playSoco2(g),
+    }
+    if (-0x32 < f.x -% 100) {
+        f.nextX -%= 100;
+        if (g.fixes.xilindro_fighter_stays_on_screen and f.nextX < 0) f.nextX = 0;
+        f.mover.targetX = f.nextX;
+        f.x = f.mover.targetX;
+        render.draw(g, f, bd);
+    }
+    const dmg = tuning.fighter_damage[idx(f.curStrip) & 3];
+    if (b != .sweep) o.opponent.energy -%= dmg;
+    bar.opponentEnergy -%= dmg;
+    checkOpponentMark(g, bd);
+    movement.stopMoving(g, o, bd);
+    if (ai.phase == .windup) ai.interrupts +%= 1;
+    var r = reaction(g, f.curStrip, 4, bar.opponentEnergy < 6);
+    if (r == 7) r = 9;
+    o.curStrip = r;
+    o.curFrame = 0;
+    o.anim.framesLeft = g.opponentStripFrames[idx(r)];
+    o.opponent.moveFrame = 0;
+    ai.phase = .reel;
+}
+
+/// The opponent stands in `strip` (4, its stance), frame 0.
+fn oppPose(g: *Game, strip: i16) void {
+    const o = g.opponent.?;
+    o.curStrip = strip;
+    o.curFrame = 0;
+    o.anim.framesLeft = g.opponentStripFrames[idx(strip)];
+    o.opponent.moveFrame = 0;
+}
+
+/// The jump back (as the Original's after a move: +100, x at most 500),
+/// then the pause.
+fn fairRetreat(g: *Game) void {
+    const o = g.opponent.?;
+    const bar = &g.energyBar.?.energyBar;
+    o.nextX = @min(o.nextX +% tuning.retreat_px, 500);
+    o.mover.targetX = o.nextX;
+    o.x = o.mover.targetX;
+    oppPose(g, 4);
+    // As the Original's end of a move: the latches clear.
+    if (0 < bar.opponentEnergy and 0 < bar.fighterEnergy) clearAll(g);
+    g.fair.phase = .pause;
+    g.fair.left = fight_fair.pauseBeats(tuning, g.rand.rand());
+}
+
+/// The attack's own wave (no pain): the tell's sound.
+fn cueWave(g: *Game, attack: i16) void {
+    _ = sound.play(g, 0, switch (attack) {
+        0 => g.socoWave,
+        2 => g.soco2Wave,
+        else => g.chute3Wave,
+    });
+}
+
+/// In range: a feint, or the wind-up (the attack chosen now, frame 0 shown
+/// and its wave played).
+fn fairArrive(g: *Game, scene: *Scene, bd: *Backdrop, punish: bool) void {
+    const f = g.fighter.?;
+    const o = g.opponent.?;
+    const ai = &g.fair;
+    movement.stopMoving(g, o, bd);
+    if (!punish and fight_fair.isFeint(tuning, g.rand.rand())) {
+        oppPose(g, 4);
+        ai.phase = .feint;
+        ai.left = tuning.feint_beats;
+        return;
+    }
+    fighters.chooseAttack(g, o, f.curStrip);
+    o.curFrame = 0;
+    ai.attack = o.curStrip;
+    ai.phase = .windup;
+    ai.left = fight_fair.windupBeats(tuning, scene.secondsLeft);
+    ai.windups +%= 1;
+    cueWave(g, ai.attack);
+}
+
+/// The fighter has just started a blow (its first frame went by on this
+/// beat): a whiff the opponent can see.
+fn whiffed(g: *Game) bool {
+    const f = g.fighter.?;
+    const fs: u16 = @bitCast(f.curStrip);
+    return tuning.whiff_punish and fs < 4 and f.fighter.moveFrame == 1 and gapOf(g) <= tuning.approach_stop + 32;
+}
+
+/// Walks in; one step out of reach (the edge) it stands `Ai.left` beats,
+/// or steps in at once on a whiff; in range, the wind-up (or a feint).
+fn fairApproach(g: *Game, scene: *Scene, bd: *Backdrop) void {
+    const o = g.opponent.?;
+    const ai = &g.fair;
+    ai.phase = .approach;
+    const punish = whiffed(g);
+    const gap = gapOf(g);
+    if (gap > tuning.approach_stop) {
+        if (gap <= tuning.approach_stop + 32 and !punish and ai.left > 0) {
+            // The edge: it stands.
+            ai.left -= 1;
+            if (movement.isMoving(g, o)) movement.stopMoving(g, o, bd);
+            return;
+        }
+        if (!movement.isMoving(g, o)) {
+            o.mover.direction = 1;
+            o.curStrip = 4;
+            o.curFrame = 0;
+            o.mover.moving = 1;
+        }
+        fighters.walk(g, o, bd);
+    }
+    if (gapOf(g) <= tuning.approach_stop) fairArrive(g, scene, bd, punish);
+}
+
+/// The strike: the outcome by the gap and the fighter's pose now.
+fn fairStrike(g: *Game, bd: *Backdrop) void {
+    const f = g.fighter.?;
+    const o = g.opponent.?;
+    const bar = &g.energyBar.?.energyBar;
+    const ai = &g.fair;
+    const out = fight_fair.strikeOutcome(tuning, ai.attack, f.curStrip, gapOf(g));
+    ai.last = out;
+    switch (out) {
+        .hit => {
+            fighters.playOpponentMoveWaves(g, ai.attack);
+            if (movement.isMoving(g, f)) movement.stopMoving(g, f, bd);
+            g.lastFighterMove = f.curStrip;
+            g.lastOpponentMove = ai.attack;
+            const fs: u16 = @bitCast(f.curStrip);
+            const target: i16 = if (fs >= 4 and fs <= 7) f.curStrip else 4;
+            var r = reaction(g, ai.attack, target, bar.fighterEnergy < 10);
+            if (r == 7) r = 9;
+            f.curStrip = r;
+            lockAll(g);
+            f.fighter.reacting = 1;
+            f.curFrame = 0;
+            f.anim.framesLeft = g.fighterStripFrames[idx(r)];
+            f.fighter.moveFrame = 0;
+            bar.fighterEnergy -%= g.opponentMoveDamage[idx(ai.attack)];
+            checkFighterMark(g, bd);
+        },
+        .blocked => {
+            _ = sound.play(g, 0, g.socoWave);
+            if (tuning.block_chip != 0) {
+                bar.fighterEnergy -%= tuning.block_chip;
+                checkFighterMark(g, bd);
+            }
+        },
+        else => {},
+    }
+    animation.tick(g, o, bd);
+    o.opponent.moveFrame = 1;
+    ai.phase = .strike;
+    if (o.anim.framesLeft <= 1) {
+        ai.phase = .recovery;
+        ai.left = tuning.recovery_beats;
+    }
+}
+
+/// The fair fight's opponent on a beat (in place of the Original's
+/// approach / attack / step).
+fn fairBeat(g: *Game, scene: *Scene, bd: *Backdrop) void {
+    const f = g.fighter.?;
+    const o = g.opponent.?;
+    const ai = &g.fair;
+    ai.beat +%= 1;
+    // The Original's opponent step lets the fighter's reaction run.
+    f.fighter.reacting = 0;
+    if (ai.beat == 1 and !g.fixes.fight_controls_screen) {
+        ai.phase = .start;
+        ai.left = tuning.start_delay_beats;
+    }
+    if (ai.beat == 1 and g.fixes.fight_controls_screen) ai.left = fight_fair.edgeBeats(tuning, g.rand.rand());
+    switch (ai.phase) {
+        .start => {
+            if (movement.isMoving(g, o)) movement.stopMoving(g, o, bd);
+            if (ai.left > 0) ai.left -= 1 else {
+                ai.phase = .approach;
+                ai.left = fight_fair.edgeBeats(tuning, g.rand.rand());
+            }
+        },
+        .approach => fairApproach(g, scene, bd),
+        .windup => {
+            if (ai.left > 1) ai.left -= 1 else fairStrike(g, bd);
+        },
+        .strike => {
+            o.opponent.moveFrame +%= 1;
+            if (o.anim.framesLeft <= o.opponent.moveFrame) {
+                ai.phase = .recovery;
+                ai.left = tuning.recovery_beats;
+                if (ai.left == 0) fairRetreat(g);
+            } else animation.tick(g, o, bd);
+        },
+        .recovery, .feint => {
+            if (ai.left > 1) ai.left -= 1 else fairRetreat(g);
+        },
+        .pause => {
+            if (whiffed(g)) {
+                fairApproach(g, scene, bd);
+            } else if (ai.left > 1) {
+                ai.left -= 1;
+            } else {
+                ai.phase = .approach;
+                ai.left = fight_fair.edgeBeats(tuning, g.rand.rand());
+            }
+        },
+        .reel => {
+            o.opponent.moveFrame +%= 1;
+            if (o.anim.framesLeft <= o.opponent.moveFrame) {
+                if (gapOf(g) <= tuning.approach_stop) {
+                    fairRetreat(g);
+                } else {
+                    oppPose(g, 4);
+                    ai.phase = .pause;
+                    ai.left = fight_fair.pauseBeats(tuning, g.rand.rand());
+                }
+            } else animation.tick(g, o, bd);
+        },
+    }
+}
+
+fn fairView(g: *Game, scene: *Scene) fight_fair.View {
+    const f = g.fighter.?;
+    const o = g.opponent.?;
+    const bar = &g.energyBar.?.energyBar;
+    return .{
+        .gap = gapOf(g),
+        .fighter_x = f.x,
+        .opponent_x = o.x,
+        .fighter_strip = f.curStrip,
+        .opponent_strip = o.curStrip,
+        .fighter_energy = bar.fighterEnergy,
+        .opponent_energy = bar.opponentEnergy,
+        .seconds_left = scene.secondsLeft,
+    };
+}
+
+/// The debug overlay (F9): drawn and logged after each beat.
+fn showOverlay(g: *Game, scene: *Scene) void {
+    const v = fairView(g, scene);
+    hud.drawOverlay(g, scene, &g.fair, v);
+    fight_fair.log(g.plat.ticks(), &g.fair, v);
+}
+
+fn toggleOverlay(g: *Game, scene: *Scene) void {
+    g.fair.overlay = !g.fair.overlay;
+    if (g.fair.overlay) {
+        if (g.energyBar != null and g.fighter != null) showOverlay(g, scene);
+    } else hud.clearOverlay(g, scene);
 }
 
 /// SceneVtbl slot 05 createScreen (xilindro_scene_create_screen).

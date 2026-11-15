@@ -44,6 +44,7 @@ const c = struct {
     const key_pageup: u32 = 0x4000004b;
     const key_end: u32 = 0x4000004d;
     const key_capslock: u32 = 0x40000039;
+    const key_f9: u32 = 0x40000042;
     const key_lctrl: u32 = 0x400000e0;
     const key_lshift: u32 = 0x400000e1;
     const key_rctrl: u32 = 0x400000e4;
@@ -235,6 +236,9 @@ pub const Sdl = struct {
                     c.key_lctrl, c.key_rctrl => 0x11,
                     c.key_lshift, c.key_rshift => 0x10,
                     c.key_capslock => 0x14,
+                    // The fair fight's debug overlay (Debug builds,
+                    // `core/fight_fair.zig`); nothing else reads it.
+                    c.key_f9 => 0x78,
                     // The fights' Corrigida keys (`fight_keys_asdf`): SDLK_A
                     // ... are the lower-case letters, the virtual keys the
                     // upper-case ones.

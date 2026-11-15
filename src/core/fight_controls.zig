@@ -220,7 +220,7 @@ const grey: u32 = 0x00c0c0c0;
 const cap_fill: u32 = 0x00303030;
 
 /// The palette index nearest to `color` (a COLORREF), as GDI picks it.
-fn nearest(colors: *const [256]platform.RgbQuad, color: u32) u8 {
+pub fn nearest(colors: *const [256]platform.RgbQuad, color: u32) u8 {
     const r: i32 = @intCast(color & 0xff);
     const g: i32 = @intCast(color >> 8 & 0xff);
     const b: i32 = @intCast(color >> 16 & 0xff);
@@ -246,7 +246,7 @@ fn pixel(s: Surface, x: i32, y: i32) ?*u8 {
     return if (i < s.pixels.len) &s.pixels[i] else null;
 }
 
-fn fill(s: Surface, x: i32, y: i32, w: i32, h: i32, index: u8) void {
+pub fn fill(s: Surface, x: i32, y: i32, w: i32, h: i32, index: u8) void {
     var j: i32 = y;
     while (j < y + h) : (j += 1) {
         var i: i32 = x;
