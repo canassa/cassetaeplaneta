@@ -21,6 +21,7 @@ const world = @import("world.zig");
 const crt = @import("../../core/crt.zig");
 const enemies = @import("../enemies.zig");
 const raycaster = @import("../raycaster.zig");
+const weapons = @import("../weapons.zig");
 
 /// The window procedure (`AppWndProc`, unit `app`); returns the LRESULT.
 pub const WndProc = *const fn (g: *Game, m: Msg) i32;
@@ -171,6 +172,11 @@ pub const Game = struct {
     fair: enemies.FairState = .{},
     // No counterpart: the Corrigida's raycaster (`raycaster.zig`): the depth buffer, the camera, the mips.
     rc: raycaster.State = .{},
+    // No counterpart: the Corrigida's weapon inventory (`weapons.zig`).
+    weapons: weapons.State = .{},
+    // No counterpart: the hands' strip (the weapon) that fired the shot in flight
+    // (`jardim_weapon_inventory`: it kills, whatever is in the hands when it lands).
+    shotWeapon: i16 = 0,
     // No counterpart: JARDIM has no rand(); the fair enemies' reaction times use the CRT's
     // generator, never seeded (so a run depends only on the input's times from WM_CREATE).
     rand: crt.Rand = .{},

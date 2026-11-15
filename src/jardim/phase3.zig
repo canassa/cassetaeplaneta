@@ -22,6 +22,7 @@ const labyrinth = @import("labyrinth.zig");
 const labmap = @import("labmap.zig");
 const object_create = @import("object_create.zig");
 const sound = @import("sound.zig");
+const weapons = @import("weapons.zig");
 const occupancy = @import("behaviour/occupancy.zig");
 const position = @import("behaviour/position.zig");
 
@@ -280,8 +281,13 @@ pub fn touch(g: *Game, s: *Scene, obj: *Object) i16 {
     // What the pickup leaves in the cell: nothing (taken), or the other
     // weapon (a swap) or the refused object.
     var left: ?*Object = null;
+    // Not in the original: with the weapon inventory a weapon is taken whatever the shot does.
+    const inv = weapons.active(g);
     if (obj == s.secondWeapon) {
-        if (bd.shotInFlight == 0) {
+        if (inv) {
+            weapons.pickWeapon(g, bd, weapons.heavy, 3);
+            playWave(g, 10);
+        } else if (bd.shotInFlight == 0) {
             const hands = bd.hands.?;
             if (hands.curStrip == 2) {
                 bd.ammo +%= 3;
@@ -297,7 +303,10 @@ pub fn touch(g: *Game, s: *Scene, obj: *Object) i16 {
             left = obj;
         }
     } else if (obj == s.crossbow) {
-        if (bd.shotInFlight == 0) {
+        if (inv) {
+            weapons.pickWeapon(g, bd, weapons.crossbow, 6);
+            playWave(g, 7);
+        } else if (bd.shotInFlight == 0) {
             const hands = bd.hands.?;
             if (hands.curStrip == 1) {
                 bd.ammo +%= 6;
@@ -326,14 +335,18 @@ pub fn touch(g: *Game, s: *Scene, obj: *Object) i16 {
         bd.health +%= 20;
         playWave(g, 12);
     } else if (obj == s.arrows) {
-        if (bd.hands.?.curStrip == 1) {
+        if (inv) {
+            if (weapons.pickAmmo(g, bd, weapons.crossbow, 3)) playWave(g, 13) else left = s.arrows;
+        } else if (bd.hands.?.curStrip == 1) {
             playWave(g, 13);
             bd.ammo +%= 3;
         } else {
             left = s.arrows;
         }
     } else if (obj == s.bombs) {
-        if (bd.hands.?.curStrip == 2) {
+        if (inv) {
+            if (weapons.pickAmmo(g, bd, weapons.heavy, 1)) playWave(g, 13) else left = s.bombs;
+        } else if (bd.hands.?.curStrip == 2) {
             playWave(g, 13);
             bd.ammo +%= 1;
         } else {

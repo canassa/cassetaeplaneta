@@ -1,0 +1,217 @@
+# JARDIM alone in the Corrigida, the weapon inventory across phases (`jardim_weapon_inventory`,
+# docs/jardim/GAME.md "Weapons (Corrigida)"), planned by tools/jardim_plan.py --weapons --carry: the
+# crossbow and the bra picked up as in jardim-corrigida-weapons.input, then on to phase 1's exit
+# with 3 pressed at the door (the bra in the hands). Phase 2 at 63.5 s (+500, score 1200): the bra
+# is left behind, the original's bra -> fists (HUD 000, level 02), 3 does nothing, 2 takes the
+# crossbow with the 18 rounds it carried (HUD 018). The window closed: lost, 1200 - 1000.
+#
+#   zig-out/bin/noite --minigame jardim --headless --ms 66000 --fix all --input tools/play/jardim-corrigida-weapons-carry.input
+300 key return
+500 dump start
+400 hold left 988
+1408 hold w 178
+1706 hold right 759
+2485 hold shift 382
+2485 hold w 362
+2967 hold a 28
+3015 hold left 16
+3051 hold shift 382
+3051 hold w 362
+3533 hold s 33
+3586 hold right 731
+4337 hold w 178
+4635 hold left 731
+5386 hold shift 374
+5386 hold w 354
+5860 hold shift 374
+5860 hold w 354
+6334 hold shift 374
+6334 hold w 354
+6808 hold shift 285
+6808 hold w 265
+7193 hold right 731
+7944 hold w 167
+8231 hold left 16
+8267 key e
+8567 hold right 16
+8603 hold w 351
+9074 hold left 745
+9839 hold shift 299
+9839 hold w 279
+10238 hold right 716
+10974 hold shift 366
+10974 hold w 346
+11440 hold w 184
+11744 hold right 745
+12509 hold shift 388
+12509 hold w 368
+12997 hold w 22
+13039 hold left 759
+13818 key e
+14118 hold w 379
+14617 hold left 731
+15368 hold shift 371
+15368 hold w 351
+15839 hold w 195
+16154 hold w 173
+16447 hold left 745
+17212 hold shift 382
+17212 hold w 362
+17694 hold d 22
+17736 hold right 16
+17772 hold w 362
+18254 hold right 731
+19005 hold shift 371
+19005 hold w 351
+19476 hold left 45
+19541 key key2
+19691 key space
+19711 key key3
+20141 hold left 388
+20549 key space
+20569 key key2
+20948 hold left 331
+21299 hold shift 385
+21299 hold w 365
+21784 hold left 745
+22549 hold w 206
+22875 hold w 346
+23341 hold left 731
+24092 hold w 368
+24580 hold right 731
+25331 hold w 178
+25629 hold left 731
+26380 hold shift 368
+26380 hold w 348
+26848 hold shift 382
+26848 hold w 362
+27330 hold right 731
+28081 hold shift 366
+28081 hold w 346
+28547 hold d 22
+28589 hold shift 366
+28589 hold w 346
+29055 hold shift 393
+29055 hold w 373
+29548 hold shift 377
+29548 hold w 357
+30025 hold shift 363
+30025 hold w 343
+30488 hold shift 377
+30488 hold w 357
+30965 hold w 357
+31442 hold left 731
+32193 hold shift 368
+32193 hold w 348
+32661 hold right 16
+32697 hold w 189
+33006 hold left 759
+33785 hold shift 382
+33785 hold w 362
+34267 hold shift 368
+34267 hold w 348
+34735 hold shift 379
+34735 hold w 359
+35214 hold shift 393
+35214 hold w 373
+35707 hold shift 379
+35707 hold w 359
+36186 hold shift 379
+36186 hold w 359
+36665 hold d 22
+36707 hold shift 379
+36707 hold w 359
+37186 hold shift 363
+37186 hold w 343
+37649 hold shift 377
+37649 hold w 357
+38126 hold shift 391
+38126 hold w 371
+38617 hold shift 377
+38617 hold w 357
+39094 hold shift 377
+39094 hold w 357
+39571 hold d 22
+39613 hold shift 391
+39613 hold w 371
+40104 hold shift 377
+40104 hold w 357
+40581 hold shift 360
+40581 hold w 340
+41041 hold shift 388
+41041 hold w 368
+41529 hold shift 388
+41529 hold w 368
+42017 hold shift 374
+42017 hold w 354
+42491 hold right 745
+43256 hold shift 388
+43256 hold w 368
+43744 hold right 588
+44352 key space
+45265 hold left 588
+45873 hold shift 374
+45873 hold w 354
+46347 hold shift 388
+46347 hold w 368
+46835 hold left 745
+47600 key e
+47900 hold w 373
+48393 hold left 731
+49144 hold shift 379
+49144 hold w 359
+49623 hold shift 379
+49623 hold w 359
+50102 hold a 22
+50144 hold shift 379
+50144 hold w 359
+50623 hold shift 379
+50623 hold w 359
+51102 hold shift 363
+51102 hold w 343
+51565 hold shift 393
+51565 hold w 373
+52058 hold shift 391
+52058 hold w 371
+52549 hold shift 377
+52549 hold w 357
+53026 hold a 22
+53068 hold shift 363
+53068 hold w 343
+53531 hold shift 377
+53531 hold w 357
+54008 hold shift 360
+54008 hold w 340
+54468 key space
+55223 hold shift 360
+55223 hold w 340
+55683 hold w 22
+55725 hold left 745
+56490 hold shift 293
+56490 hold w 273
+56883 hold w 28
+56931 hold right 745
+57696 key e
+57996 hold shift 296
+57996 hold w 276
+58392 hold left 745
+59157 hold w 362
+59639 hold right 759
+60418 hold shift 299
+60418 hold w 279
+60817 hold right 716
+61553 hold shift 363
+61553 hold w 343
+62016 hold w 178
+62314 key key3
+62414 hold left 731
+63165 key e
+63700 pixel 319 418 10
+63700 pixel 327 418 10
+63800 key key3
+64000 pixel 319 418 10
+64000 pixel 327 418 10
+64100 key key2
+64300 pixel 319 418 251
+64500 close
+64600 result lost 200

@@ -51,8 +51,8 @@
   ];
   // The keys the page passes on (KeyboardEvent.keyCode = the virtual key):
   // the fights' Corrigida keys A, S, D, F (65, 83, 68, 70) and JARDIM's W, E
-  // (87, 69) too.
-  const GAME_KEYS = new Set([13, 16, 17, 20, 27, 32, 33, 35, 36, 37, 38, 39, 40, 45, 65, 68, 69, 70, 83, 87]);
+  // (87, 69) too, and JARDIM's weapon keys 1, 2, 3 (49-51) and Q (81).
+  const GAME_KEYS = new Set([13, 16, 17, 20, 27, 32, 33, 35, 36, 37, 38, 39, 40, 45, 49, 50, 51, 65, 68, 69, 70, 81, 83, 87]);
   // The on-screen pad's keys (KeyboardEvent.keyCode) while that program's
   // window is on top (`noite_top_program`): TIRO and SERIAL aim with
   // LEFT/RIGHT and fire with SPACE, so their pad has a fire button (32)
@@ -83,15 +83,16 @@
   // "fight", the 6-row grid: arrows left, four words right). The
   // fights' above; JARDIM's (`jardim_wolf_keys`): the arrows on the left (▲ ▼
   // walk, ◀ ▶ turn), on the right A and D (strafe) over E (Abrir: a door or
-  // the exit) and CTRL (Tiro). Any of them also takes a controls screen down.
+  // the exit) and CTRL (Tiro), and Q (Arma: the next weapon, `jardim_weapon_inventory`)
+  // under them. Any of them also takes a controls screen down.
   const PAD_CORRIGIDA = {
     xilindro: { cls: "fight", keys: PAD_FIGHT_KEYS, labels: PAD_FIGHT_LABELS.xilindro },
     salgin: { cls: "fight", keys: PAD_FIGHT_KEYS, labels: PAD_FIGHT_LABELS.salgin },
     jardim: {
       cls: "jardim",
-      keys: [37, 38, 39, 40, 65, 68, 69, 17],
+      keys: [37, 38, 39, 40, 65, 68, 69, 17, 81],
       labels: { 65: ["◁ Lado", "Andar de lado para a esquerda"], 68: ["Lado ▷", "Andar de lado para a direita"],
-        69: ["Abrir", "Abrir porta"], 17: ["Tiro", "Atirar"] },
+        69: ["Abrir", "Abrir porta"], 17: ["Tiro", "Atirar"], 81: ["Arma", "Trocar de arma"] },
     },
   };
   // The files of the current manifest, by hashed URL. The name must not
@@ -588,6 +589,19 @@
     // A touch the browser takes back (a system gesture) still ends the press.
     canvas.addEventListener("pointercancel", (e) => up({ clientX: e.clientX, clientY: e.clientY, button: 0, preventDefault() {} }));
     canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+    // The Corrigida's JARDIM (`jardim_weapon_inventory`): the mouse wheel changes weapon, as
+    // a tap on Q does (one step per 150 ms, whichever way it turns).
+    let lastWheel = 0;
+    canvas.addEventListener("wheel", (e) => {
+      if (!running || prefs.version !== "corrigida" || topProgram() !== "jardim") return;
+      e.preventDefault();
+      const now = performance.now();
+      if (now - lastWheel < 150) return;
+      lastWheel = now;
+      startAudio();
+      wasm.noite_key(true, 81);
+      wasm.noite_key(false, 81);
+    }, { passive: false });
     const key = (down) => (e) => {
       startAudio();
       // The arrows, Enter, Esc and Space, the fights' PgUp, End, Home and

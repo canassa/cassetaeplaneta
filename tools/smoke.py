@@ -290,7 +290,7 @@ def jardim_keys_for(ms, seed, fix=None):
     keys = ("up", "up", "up", "down", "left", "right", "ctrl", "space")
     if fix and fix.split(",")[0] == "all":
         lines.append("100 key return")
-        keys = ("up", "w", "w", "s", "a", "d", "left", "right", "left", "right", "ctrl", "space", "e", "e")
+        keys = ("up", "w", "w", "s", "a", "d", "left", "right", "left", "right", "ctrl", "space", "e", "e", "key1", "key2", "key3", "q")
     t = 300
     while t < ms - 500:
         key = rnd.choice(keys)

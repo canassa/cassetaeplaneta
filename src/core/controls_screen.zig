@@ -13,7 +13,7 @@ const Surface = platform.Surface;
 pub const Rect = struct { x: i16, y: i16, w: i16, h: i16 };
 
 /// A key cap: an arrow, or a key named by its label.
-pub const Cap = enum { left, right, up, down, a, s, d, f, w, e, pgup, home, end, insert, shift, ctrl, space, esc };
+pub const Cap = enum { left, right, up, down, a, s, d, f, w, e, q, n1, n2, n3, pgup, home, end, insert, shift, ctrl, space, esc };
 
 pub const Row = struct { caps: []const Cap, text: []const u8 };
 
@@ -139,6 +139,10 @@ fn capLabel(c: Cap) []const u8 {
         .f => "F",
         .w => "W",
         .e => "E",
+        .q => "Q",
+        .n1 => "1",
+        .n2 => "2",
+        .n3 => "3",
         .pgup => "PgUp",
         .home => "Home",
         .end => "End",

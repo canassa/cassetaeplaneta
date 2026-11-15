@@ -214,9 +214,9 @@ pub const skip_grace_ms = 750;
 pub const skip_keys = [_]u16{ 0x0d, 0x1b, 0x20 };
 
 /// The keys only a minigame gets (JARDIM's VK_SHIFT, VK_CONTROL and
-/// VK_CAPITAL, the fair fight's debug VK_F9): NOITE ignores them, so they
+/// VK_CAPITAL, its weapon keys 1, 2, 3 and Q, the fair fight's debug VK_F9): NOITE ignores them, so they
 /// never reach it.
-pub const minigame_keys = [_]u16{ 0x10, 0x11, 0x14, 0x78 };
+pub const minigame_keys = [_]u16{ 0x10, 0x11, 0x14, 0x78, 0x31, 0x32, 0x33, 0x51 };
 
 pub const Sim = struct {
     gpa: std.mem.Allocator,

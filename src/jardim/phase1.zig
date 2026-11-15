@@ -24,6 +24,7 @@ const object_create = @import("object_create.zig");
 const occupancy = @import("behaviour/occupancy.zig");
 const position = @import("behaviour/position.zig");
 const sound = @import("sound.zig");
+const weapons = @import("weapons.zig");
 
 /// Phase1Scene's LabyrinthSceneVtbl (834c): set by `labyrinth_scene.ctor(.one)`.
 pub const vtbl: world.SceneVtbl = .{
@@ -263,9 +264,14 @@ pub fn touch(g: *Game, s: *Scene, obj: *Object) i16 {
     }
     // What stays in the player's cell: nothing, unless the pickup is swapped or refused.
     var left: ?*Object = null;
-    const waits = g.fixes.jardim_weapon_waits_for_shot and bd.shotInFlight != 0;
+    // Not in the original: with the weapon inventory a weapon is taken whatever the shot does.
+    const inv = weapons.active(g);
+    const waits = !inv and g.fixes.jardim_weapon_waits_for_shot and bd.shotInFlight != 0;
     if (obj == s.secondWeapon) {
-        if (bd.shotInFlight == 0) {
+        if (inv) {
+            weapons.pickWeapon(g, bd, weapons.heavy, 1);
+            play(g, 9);
+        } else if (bd.shotInFlight == 0) {
             if (bd.hands.?.curStrip == 2) {
                 bd.ammo +%= 1;
             } else {
@@ -280,7 +286,9 @@ pub fn touch(g: *Game, s: *Scene, obj: *Object) i16 {
             left = obj;
         }
     } else if (obj == s.crossbow) {
-        if (bd.shotInFlight == 0) {
+        if (inv) {
+            weapons.pickWeapon(g, bd, weapons.crossbow, 6);
+        } else if (bd.shotInFlight == 0) {
             if (bd.hands.?.curStrip == 2) left = s.secondWeapon;
             bd.hands.?.curStrip = 1;
             bd.hands.?.curFrame = 0;
@@ -302,7 +310,9 @@ pub fn touch(g: *Game, s: *Scene, obj: *Object) i16 {
         bd.health +%= 20;
         play(g, 11);
     } else if (obj == s.arrows) {
-        if (bd.hands.?.curStrip == 1) {
+        if (inv) {
+            if (weapons.pickAmmo(g, bd, weapons.crossbow, 3)) play(g, 12) else left = s.arrows;
+        } else if (bd.hands.?.curStrip == 1) {
             play(g, 12);
             bd.ammo +%= 3;
         } else {

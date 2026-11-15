@@ -24,12 +24,17 @@ const raycast = @import("raycast.zig");
 const sprites = @import("sprites.zig");
 const wolf = @import("wolf.zig");
 const enemies = @import("enemies.zig");
+const weapons = @import("weapons.zig");
 
 const vk_shift: u16 = 0x10;
 const vk_control: u16 = 0x11;
 const vk_capital: u16 = 0x14;
 const vk_escape: u16 = 0x1b;
 const vk_space: u16 = 0x20;
+/// `jardim_weapon_inventory`: 1, 2, 3 select a weapon and Q cycles (VK_1..VK_3, VK_Q).
+const vk_1: u16 = 0x31;
+const vk_3: u16 = 0x33;
+const vk_q: u16 = 0x51;
 
 /// The game tick's system timer (`labyrinth.create`).
 pub const game_timer_id: u16 = 1;
@@ -172,6 +177,18 @@ fn strafeRight(g: *Game, bd: *Backdrop) void {
 /// The shot stopped: the scene's hit, the hands back to fists when the ammunition is gone.
 fn shotHit(g: *Game, bd: *Backdrop, row: i32, col: i32, from_tick: bool) void {
     bd.shotInFlight = 0;
+    if (weapons.active(g)) {
+        // Not in the original: the weapon that fired the shot kills (the phases' `hit` read the
+        // hands' strip), whatever has been switched to since.
+        const hands = bd.hands.?;
+        const held = hands.curStrip;
+        hands.curStrip = g.shotWeapon;
+        bd.scene.?.hit(g, g.shotCellObject, @truncate(col), @truncate(row));
+        hands.curStrip = held;
+        weapons.afterShot(g, bd, from_tick);
+        g.shotCellObject = null;
+        return;
+    }
     bd.scene.?.hit(g, g.shotCellObject, @truncate(col), @truncate(row));
     if (bd.ammo == 0) {
         bd.hands.?.curStrip = 0;
@@ -200,6 +217,12 @@ fn fire(g: *Game, bd: *Backdrop) void {
     }
     if (bd.shotInFlight != 0) return;
     bd.shotInFlight = 1;
+    if (weapons.active(g)) {
+        // Not in the original: the shot is the weapon in the hands now (an arrow, or the
+        // bra's or the bazooka's), whichever pickup made it.
+        g.shotWeapon = bd.hands.?.curStrip;
+        bd.shot.?.curFrame = if (g.shotWeapon == weapons.heavy) 1 else 0;
+    }
     g.shotSec = tableAt(g, 5, bd.secAt);
     g.shotCsc = tableAt(g, 6, bd.cscAt);
     const shot = bd.shot.?;
@@ -418,6 +441,11 @@ fn keyDown(g: *Game, bd: *Backdrop, m: Msg) void {
             }
         },
         vk_control => fire(g, bd),
+        // Not in the original (`jardim_weapon_inventory`): 1, 2, 3 select, Q cycles (not on
+        // the keyboard's repeat).
+        vk_1...vk_3 => if (weapons.select(g, bd, m.wparam - vk_1 + 1)) labyrinth.renderFrame(g, bd, g.shotCellObject),
+        vk_q => if ((@as(u32, @bitCast(m.lparam)) & 0x40000000) == 0 and weapons.cycle(g, bd))
+            labyrinth.renderFrame(g, bd, g.shotCellObject),
         vk_space => {
             const x = (aFldiv(0x200000, tableAt(g, 5, bd.secAt)) +% bd.playerX) >> 5;
             const y = (aFldiv(0x200000, tableAt(g, 6, bd.cscAt)) +% bd.playerY) >> 5;
@@ -650,4 +678,60 @@ pub fn moveAndRender(g: *Game, bd: *Backdrop, carried: ?*Object) void {
     if (bd.lives != lives_before) bd.scene.?.onLifeLost(g);
     bd.velY = 0;
     bd.velX = 0;
+}
+
+test "a shot kills with the weapon that fired it, not the one in the hands (jardim_weapon_inventory)" {
+    const phase1 = @import("phase1.zig");
+    const t = try game.TestGame.init(std.testing.allocator);
+    defer t.deinit();
+    const g = t.game;
+    var bd: Backdrop = .{};
+    var hands: Object = .{ .kind = .scene_object };
+    var bussuf: Object = .{ .kind = .portable };
+    var seios: Object = .{ .kind = .portable };
+    var s: world.Scene = .{ .phase = .one, .vtbl = &phase1.vtbl };
+    s.backdrop = &bd;
+    s.enemyA = &bussuf;
+    s.enemyB = &seios;
+    bd.scene = &s;
+    bd.hands = &hands;
+    bd.level = 1;
+    g.fixes.jardim_weapon_inventory = true;
+    weapons.pickWeapon(g, &bd, weapons.crossbow, 6);
+    weapons.pickWeapon(g, &bd, weapons.heavy, 1);
+
+    // The crossbow's arrow flies, the bra is in the hands when it lands on a Bussuf: killed.
+    g.shotWeapon = weapons.crossbow;
+    bd.shotInFlight = 1;
+    bd.objectRows[5][5] = &bussuf;
+    g.shotCellObject = &bussuf;
+    shotHit(g, &bd, 5, 5, true);
+    try std.testing.expectEqual(@as(i16, 200), bd.score);
+    try std.testing.expect(bd.objectRows[5][5] == null);
+    try std.testing.expectEqual(@as(i16, 0), bd.shotInFlight);
+    try std.testing.expectEqual(weapons.heavy, hands.curStrip);
+
+    // The bra's shot (its last round) with the crossbow selected in flight: a Seios is killed,
+    // the crossbow stays in the hands (it has ammunition), the pose is at rest.
+    bd.ammo = 0;
+    _ = weapons.select(g, &bd, 2);
+    try std.testing.expectEqual(weapons.crossbow, hands.curStrip);
+    g.shotWeapon = weapons.heavy;
+    bd.shotInFlight = 1;
+    bd.objectRows[5][6] = &seios;
+    g.shotCellObject = &seios;
+    shotHit(g, &bd, 5, 6, true);
+    try std.testing.expectEqual(@as(i16, 300), bd.score);
+    try std.testing.expect(bd.objectRows[5][6] == null);
+    try std.testing.expectEqual(weapons.crossbow, hands.curStrip);
+    try std.testing.expectEqual(@as(i16, 6), bd.ammo);
+
+    // The wrong weapon in flight kills nothing, whatever is in the hands.
+    g.shotWeapon = weapons.crossbow;
+    bd.shotInFlight = 1;
+    bd.objectRows[5][7] = &seios;
+    g.shotCellObject = &seios;
+    shotHit(g, &bd, 5, 7, true);
+    try std.testing.expectEqual(@as(i16, 300), bd.score);
+    try std.testing.expect(bd.objectRows[5][7] != null);
 }

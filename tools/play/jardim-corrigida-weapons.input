@@ -1,0 +1,98 @@
+# JARDIM alone in the Corrigida, the weapon inventory (`jardim_weapon_inventory`, docs/jardim/GAME.md
+# "Weapons (Corrigida)"), planned by tools/jardim_plan.py --weapons: the crossbow at 3.5 s (ammo 006,
+# 012 with the next one at 6.3 s), phase 1's bra at 16.1 s (ammo 001: the crossbow keeps its 12, no
+# swap and nothing dropped), then 2 and a shot at a Bussuf with 3 pressed while the arrow still flies
+# (the crossbow fired it: +200), a shot of the bra at a Seios with 2 pressed in flight (the bra fired
+# it: +100; its last round, so the hands go to the crossbow), a second bra at 22.8 s that only adds
+# its round (the hands stay on the crossbow, HUD 011), then Q cycles bra, fists, and 1 and 2 pick the
+# fists and the crossbow. The window closed at 25 s: lost, 300 - 1000.
+#
+#   zig-out/bin/noite --minigame jardim --headless --ms 25500 --fix all --input tools/play/jardim-corrigida-weapons.input
+300 key return
+500 dump start
+400 hold left 988
+1408 hold w 178
+1706 hold right 759
+2485 hold shift 382
+2485 hold w 362
+2967 hold a 28
+3015 hold left 16
+3051 hold shift 382
+3051 hold w 362
+3533 hold s 33
+3586 hold right 731
+4337 hold w 178
+4635 hold left 731
+5386 hold shift 374
+5386 hold w 354
+5860 hold shift 374
+5860 hold w 354
+6334 hold shift 374
+6334 hold w 354
+6808 hold shift 285
+6808 hold w 265
+7193 hold right 731
+7944 hold w 167
+8231 hold left 16
+8267 key e
+8567 hold right 16
+8603 hold w 351
+9074 hold left 745
+9839 hold shift 299
+9839 hold w 279
+10238 hold right 716
+10974 hold shift 366
+10974 hold w 346
+11440 hold w 184
+11744 hold right 745
+12509 hold shift 388
+12509 hold w 368
+12997 hold w 22
+13039 hold left 759
+13818 key e
+14118 hold w 379
+14617 hold left 731
+15368 hold shift 371
+15368 hold w 351
+15839 hold w 195
+16154 hold w 173
+16447 hold left 745
+17212 hold shift 382
+17212 hold w 362
+17694 hold d 22
+17736 hold right 16
+17772 hold w 362
+18254 hold right 731
+19005 hold shift 371
+19005 hold w 351
+19476 hold left 45
+19541 key key2
+19691 key space
+19711 key key3
+20141 hold left 388
+20549 key space
+20569 key key2
+20948 hold left 331
+21299 hold shift 385
+21299 hold w 365
+21784 hold left 745
+22549 hold w 206
+3900 pixel 319 418 10
+7000 pixel 319 418 251
+16300 pixel 319 418 10
+16300 pixel 327 418 251
+22950 pixel 319 418 251
+22950 pixel 327 418 251
+23000 key q
+23200 pixel 319 418 10
+23200 pixel 327 418 251
+23400 key q
+23600 pixel 319 418 10
+23600 pixel 327 418 10
+23800 key key1
+24000 pixel 327 418 10
+24200 key key2
+24400 pixel 319 418 251
+24400 pixel 327 418 251
+24800 close
+24900 result lost -700

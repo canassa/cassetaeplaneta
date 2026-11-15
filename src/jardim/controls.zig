@@ -99,25 +99,45 @@ pub const panel: screen.Rect = .{ .x = 40, .y = 8, .w = 560, .h = 464 };
 const Row = screen.Row;
 
 // Windows-1252 (the system font's).
-const wolf_rows = [_]Row{
+const wolf_head = [_]Row{
     .{ .caps = &.{ .w, .up }, .text = "andar para a frente" },
     .{ .caps = &.{ .s, .down }, .text = "andar para tr\xe1s" },
     .{ .caps = &.{ .a, .d }, .text = "andar de lado" },
     .{ .caps = &.{ .left, .right }, .text = "virar" },
     .{ .caps = &.{.shift}, .text = "correr (segure junto)" },
     .{ .caps = &.{ .ctrl, .space }, .text = "atirar (sem arma, um soco)" },
+};
+const wolf_tail = [_]Row{
     .{ .caps = &.{.e}, .text = "abrir a porta / sair pela porta de sa\xedda" },
     .{ .caps = &.{.esc}, .text = "abandonar o jogo" },
 };
 
-const old_rows = [_]Row{
+const old_head = [_]Row{
     .{ .caps = &.{ .up, .down }, .text = "andar" },
     .{ .caps = &.{ .left, .right }, .text = "virar" },
     .{ .caps = &.{.shift}, .text = "correr (segure junto)" },
     .{ .caps = &.{.ctrl}, .text = "atirar (sem arma, um soco)" },
+};
+const old_tail = [_]Row{
     .{ .caps = &.{.space}, .text = "abrir a porta / sair pela porta de sa\xedda" },
     .{ .caps = &.{.esc}, .text = "abandonar o jogo" },
 };
+
+/// `jardim_weapon_inventory`: the row after the fire row.
+const weapon_row = [_]Row{
+    .{ .caps = &.{ .n1, .n2, .n3, .q }, .text = "trocar de arma (Q: a pr\xf3xima)" },
+};
+
+const wolf_rows = wolf_head ++ wolf_tail;
+const old_rows = old_head ++ old_tail;
+const wolf_weapon_rows = wolf_head ++ weapon_row ++ wolf_tail;
+const old_weapon_rows = old_head ++ weapon_row ++ old_tail;
+
+fn rowsFor(g: *const Game) []const Row {
+    const wolf_keys = g.fixes.jardim_wolf_keys;
+    if (g.fixes.jardim_weapon_inventory) return if (wolf_keys) &wolf_weapon_rows else &old_weapon_rows;
+    return if (wolf_keys) &wolf_rows else &old_rows;
+}
 
 const goal = [_][]const u8{
     "Ache a porta de sa\xedda de cada um dos tr\xeas labirintos;",
@@ -132,7 +152,7 @@ pub fn draw(g: *Game, bd: *world.Backdrop) void {
     screen.draw(g.plat, bd.surface(), .{
         .panel = panel,
         .title = "NOITE ANIMAL JARDIM",
-        .rows = if (g.fixes.jardim_wolf_keys) &wolf_rows else &old_rows,
+        .rows = rowsFor(g),
         .caps_x = 50,
         .text_x = 190,
         .row_gap = 5,

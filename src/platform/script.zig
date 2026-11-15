@@ -415,13 +415,15 @@ fn keyCode(k: []const u8) ?u16 {
     if (std.fmt.parseInt(u16, k, 0)) |v| return v else |_| {}
     // The arrows, Enter, Esc, Space, the fights' PgUp, Home, End and
     // Insert (SALGIN, XILINDRO) and their Corrigida keys A, S, D, F, and
-    // JARDIM's Ctrl, Shift and Caps Lock and its Corrigida W and E.
+    // JARDIM's Ctrl, Shift and Caps Lock, its Corrigida W and E and its weapon keys Q and
+    // key1..key3 (a bare "1" parses as the number 1).
     const names = [_]struct { []const u8, u16 }{
         .{ "left", 0x25 },   .{ "up", 0x26 },       .{ "right", 0x27 },  .{ "down", 0x28 },
         .{ "return", 0x0d }, .{ "escape", 0x1b },   .{ "space", 0x20 },  .{ "pgup", 0x21 },
         .{ "home", 0x24 },   .{ "end", 0x23 },      .{ "insert", 0x2d }, .{ "ctrl", 0x11 },
         .{ "shift", 0x10 },  .{ "capslock", 0x14 }, .{ "a", 0x41 },      .{ "s", 0x53 },
         .{ "d", 0x44 },      .{ "f", 0x46 },        .{ "w", 0x57 },      .{ "e", 0x45 },
+        .{ "q", 0x51 },      .{ "key1", 0x31 },     .{ "key2", 0x32 },   .{ "key3", 0x33 },
     };
     for (names) |n| if (std.ascii.eqlIgnoreCase(n[0], k)) return n[1];
     if (k.len >= 2 and (k[0] == 'f' or k[0] == 'F')) {

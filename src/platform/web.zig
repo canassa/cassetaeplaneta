@@ -67,7 +67,7 @@ const InputRing = struct {
 /// Shift, Ctrl and Caps Lock and its Corrigida W, A, S, D and E
 /// (`Sim.filterInput` decides who gets them).
 /// The page drops the browser's repeats: `Sim` repeats a held key.
-pub const Key = enum(u16) { enter = 0x0d, shift = 0x10, control = 0x11, capital = 0x14, escape = 0x1b, space = 0x20, page_up = 0x21, end = 0x23, home = 0x24, left = 0x25, up = 0x26, right = 0x27, down = 0x28, insert = 0x2d, a = 0x41, d = 0x44, e = 0x45, f = 0x46, s = 0x53, w = 0x57 };
+pub const Key = enum(u16) { enter = 0x0d, shift = 0x10, control = 0x11, capital = 0x14, escape = 0x1b, space = 0x20, page_up = 0x21, end = 0x23, home = 0x24, left = 0x25, up = 0x26, right = 0x27, down = 0x28, insert = 0x2d, @"1" = 0x31, @"2" = 0x32, @"3" = 0x33, a = 0x41, d = 0x44, e = 0x45, f = 0x46, q = 0x51, s = 0x53, w = 0x57 };
 
 pub const Web = struct {
     sim: Sim,

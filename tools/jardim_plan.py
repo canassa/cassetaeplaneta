@@ -3,6 +3,7 @@
 
     nix develop -c python3 tools/jardim_plan.py --win OUT      # the three phases, the goal
     nix develop -c python3 tools/jardim_plan.py --lose OUT     # stand by the Seios until lost
+    nix develop -c python3 tools/jardim_plan.py --weapons OUT  # the weapon inventory's route (phase 1)
     nix develop -c python3 tools/jardim_plan.py --check FILE   # the probe's summary of a script
 
 The enemies chase and attack on their own clocks and react to where the player is, so the
@@ -45,7 +46,7 @@ FULL = 2880
 
 LINE_RE = re.compile(
     r"^\[(\d+)\] fair player (-?\d+),(-?\d+) a(\d+) hp (-?\d+) lives (-?\d+) ammo (-?\d+) "
-    r"weapon (\d+) shot (\d+) score (-?\d+) level (\d+) hits (\d+)/(\d+) \|(.*)$"
+    r"weapon (\d+) shot (\d+) score (-?\d+) level (\d+) hits (\d+)/(\d+)(?: inv (\d+)/(\d+))? \|(.*)$"
 )
 MAP_RE = re.compile(r"^\[(\d+)\] map(.*)\| doors(.*)$")
 
@@ -93,7 +94,8 @@ def probe(lines, end, name="probe"):
             st.hp, st.lives, st.ammo = int(m.group(5)), int(m.group(6)), int(m.group(7))
             st.weapon, st.shot, st.score, st.level = int(m.group(8)), int(m.group(9)), int(m.group(10)), int(m.group(11))
             st.enemies = []
-            for tok in m.group(14).split():
+            st.inv = (0, int(m.group(14) or 0), int(m.group(15) or 0))
+            for tok in m.group(16).split():
                 kind, rest = tok.split("@")
                 cr, state = rest.split(":")
                 c, r = map(int, cr.split(","))
@@ -150,6 +152,8 @@ class Planner:
         self.last_pos = None
         self.probes = 0
         self.verbose = True
+        self.carry = False  # the weapons route goes on to phase 2's start
+        self.armed = False
 
     def add(self, line):
         self.lines.append(line)
@@ -290,6 +294,39 @@ class Planner:
                 best = (angle_to(ex - st.x, ey - st.y), d, kind)
         return best
 
+    def hunted(self, st):
+        """The weapons route's target: a Bussuf (the crossbow, +200), then a Seios (the bra, +100)."""
+        return "bussuf" if st.score < 200 else "seios"
+
+    def shoot_hunted(self, st, t):
+        """Face the hunted enemy in sight within 7 cells, take the weapon that kills it (key 2
+        or 3) and fire; the time after the shot, or None."""
+        kind = self.hunted(st)
+        weapon = 1 if kind == "bussuf" else 2
+        if st.shot:
+            return t + 100
+        best = None
+        for k, c, r, s in st.enemies:
+            if k != kind or s == "dying":
+                continue
+            ex, ey = c * 32 + 16, r * 32 + 16
+            d = math.hypot(ex - st.x, ey - st.y) / 32
+            if d > 7 or not self.los(st, st.x, st.y, ex, ey, ignore={(c, r)}):
+                continue
+            if best is None or d < best[1]:
+                best = (angle_to(ex - st.x, ey - st.y), d)
+        if best is None:
+            return None
+        t = self.turn(st, best[0], t)
+        if st.weapon != weapon:
+            self.add(f"{t} key key{weapon + 1}")
+            t += 150
+        self.add(f"{t} key space")
+        # The other weapon into the hands while the shot flies (before the tick that lands it):
+        # the weapon that fired it still kills.
+        self.add(f"{t + 20} key key{4 - weapon}")
+        return t + int(best[1] * 105) + 250
+
     def goals(self, st):
         """The cells to walk to and what to do there."""
         objs = st.objs
@@ -298,6 +335,24 @@ class Planner:
         def of(k):
             return {p for p, v in objs.items() if v == k}
 
+        if self.mode == "weapons":
+            # The crossbow, then the bra (both owned: the second no longer swaps the first),
+            # then a Bussuf with the crossbow and a Seios with the bra, switching with 2 and 3.
+            if st.inv[1] <= 0:
+                return of("C"), None
+            if st.inv[2] <= 0:
+                return of("W"), None
+            if st.score >= 300 and self.carry:
+                return {(1, 77)}, ("exit", 1440)
+            kind = self.hunted(st)
+            near = set()
+            for k, c, r, s in st.enemies:
+                if k != kind or s == "dying":
+                    continue
+                for dc, dr in DIRS:
+                    if self.wall(st, c + dc, r + dr) == 0:
+                        near.add((c + dc, r + dr))
+            return near, "wait"
         if self.mode == "lose":
             b = {(c, r) for kind, c, r, s in st.enemies if kind == "seios" and s != "dying"}
             near = set()
@@ -351,8 +406,17 @@ class Planner:
                     t2 = self.turn(st, face, t) if abs(adiff(face, st.a)) > 40 else t
                     self.t = max(t2, t) + 300
                     continue
+            if self.mode == "weapons" and st.level >= 2:
+                return st
+            if self.mode == "weapons" and st.inv[1] > 0 and st.inv[2] > 0:
+                if st.score >= 300 and not self.carry:
+                    return st
+                t2 = None if st.score >= 300 else self.shoot_hunted(st, t)
+                if t2 is not None:
+                    self.t = t2
+                    continue
             # Shoot first.
-            sh = self.threat_shot(st)
+            sh = None if self.mode == "weapons" and st.score < 300 else self.threat_shot(st)
             if sh:
                 t = self.turn(st, sh[0], t)
                 self.add(f"{t} key space")
@@ -366,6 +430,10 @@ class Planner:
             if isinstance(what, tuple) and pc in goals:
                 # Centre, face the exit door, E.
                 t = self.centre(st, t, None)
+                if self.mode == "weapons" and st.inv[2] > 0 and st.weapon != 2:
+                    # The bra in the hands at the exit door: phase 2 leaves it behind.
+                    self.add(f"{t} key key3")
+                    t += 100
                 st2 = st
                 t = self.turn(st2, what[1], t)
                 self.add(f"{t} key e")
@@ -447,6 +515,8 @@ def main():
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--win", metavar="OUT")
     g.add_argument("--lose", metavar="OUT")
+    g.add_argument("--weapons", metavar="OUT")
+    ap.add_argument("--carry", action="store_true", help="--weapons: on to phase 2 with the bra in the hands")
     g.add_argument("--check", metavar="FILE")
     ap.add_argument("--ms", type=int, default=400000)
     args = ap.parse_args()
@@ -457,10 +527,11 @@ def main():
         st, _ = probe(lines, args.ms)
         print(vars(st))
         return
-    mode = "win" if args.win else "lose"
+    mode = "win" if args.win else "lose" if args.lose else "weapons"
     p = Planner(mode, ["300 key return", "500 dump start"], 400)
+    p.carry = args.carry
     st = p.run(args.ms)
-    out = pathlib.Path(args.win or args.lose)
+    out = pathlib.Path(args.win or args.lose or args.weapons)
     out.write_text("\n".join(p.lines) + "\n")
     print(f"probes {p.probes}, end {p.t}", file=sys.stderr)
     if st:

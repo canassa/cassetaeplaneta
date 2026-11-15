@@ -85,7 +85,8 @@ the arrows, Abrir (SPACE) and Tiro (CTRL), and a held ▲ walks
 (jardim-touch.png). In the Corrigida the controls screen comes first
 (jardim-controls.png; the key that takes it down does not walk), then a
 held W walks, A strafes and Space punches (jardim-corrigida-walk.png); on a
-phone the pad shows the arrows, the strafes, Abrir (E) and Tiro, a tap
+phone the pad shows the arrows, the strafes, Abrir (E), Tiro and Arma (Q,
+the next weapon, under them), a tap
 takes the screen down and a held ▲ walks (jardim-corrigida-touch.png).
 Before the game: /explorer/ (the asset explorer) lists the unused files
 and opens one on a click, on a desktop and a phone (explorer.png,
@@ -1195,6 +1196,12 @@ def main():
             punch = page.evaluate(hands_js)
             page.keyboard.up(" ")
             check(punch != hands, "Corrigida Jardim: a held Space punches")
+            # The weapon keys and the wheel (no weapon owned: nothing to switch to, nothing may break).
+            for k in ("1", "2", "3", "q"):
+                page.keyboard.press(k)
+            page.mouse.move(320, 200)
+            page.mouse.wheel(0, 120)
+            time.sleep(0.3)
             check(not errors, "Corrigida Jardim: no page errors")
 
         def jardim_corrigida_touch():
@@ -1215,8 +1222,18 @@ def main():
             shown = tpage.evaluate("""() => Array.from(document.querySelectorAll('#dpad button'))
                 .filter((b) => !b.hidden).map((b) => [Number(b.dataset.key), b.textContent])""")
             keys = sorted(k for k, _ in shown)
-            check(keys == [17, 37, 38, 39, 40, 65, 68, 69], f"Corrigida touch Jardim: the pad shows the arrows, A, D, E and CTRL ({shown})")
+            check(keys == [17, 37, 38, 39, 40, 65, 68, 69, 81],
+                  f"Corrigida touch Jardim: the pad shows the arrows, A, D, E, CTRL and Q ({shown})")
             labels = dict(shown)
+            check(labels.get(81) == "Arma", f"Corrigida touch Jardim: Q is the 'Arma' (next weapon) button ({labels})")
+            weapon = tpage.locator('#dpad [data-key="81"]').bounding_box()
+            fire = tpage.locator('#dpad [data-key="17"]').bounding_box()
+            vp = tpage.viewport_size
+            check(weapon is not None and fire is not None and weapon["y"] >= fire["y"] + fire["height"] - 1
+                  and weapon["x"] >= 0 and weapon["y"] + weapon["height"] <= vp["height"]
+                  and weapon["x"] + weapon["width"] <= vp["width"],
+                  f"Corrigida touch Jardim: 'Arma' sits under Tiro, on the screen ({weapon}, {fire})")
+            tpage.locator('#dpad [data-key="81"]').tap()
             check(labels.get(69) == "Abrir" and labels.get(17) == "Tiro" and "Lado" in labels.get(65, ""),
                   f"Corrigida touch Jardim: E opens, CTRL fires, A and D strafe ({labels})")
             up = tpage.locator('#dpad [data-key="38"]')

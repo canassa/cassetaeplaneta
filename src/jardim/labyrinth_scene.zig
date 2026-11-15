@@ -19,6 +19,7 @@ const phase1 = @import("phase1.zig");
 const phase2 = @import("phase2.zig");
 const phase3 = @import("phase3.zig");
 const enemies = @import("enemies.zig");
+const weapons = @import("weapons.zig");
 
 /// The three phase ctors in one: `phaseN_scene_ctor` = `labyrinth_scene_ctor`
 /// (`scene_ctor`, backdrop null, map file the empty string at 10c0:7b76) and the
@@ -67,6 +68,8 @@ pub fn handleMessage(g: *Game, s: *Scene, m: Msg) u16 {
             } else {
                 g.curWeapon = bd.hands.?.curStrip;
             }
+            // Not in the original: the inventory goes on (phase 1's bra stays behind).
+            if (weapons.active(g)) weapons.carry(g, bd);
             return 0;
         },
         else => {},
@@ -102,6 +105,8 @@ pub fn respawn(g: *Game, s: *Scene) void {
     bd.hands.?.curStrip = 0;
     bd.hands.?.curFrame = 0;
     bd.ammo = 0;
+    // Not in the original: the same for the inventory (every weapon is on the map again).
+    if (weapons.active(g)) weapons.reset(g);
     bd.playerX = bd.startX;
     bd.playerY = bd.startY;
     bd.score -%= 500;

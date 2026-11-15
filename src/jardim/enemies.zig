@@ -39,6 +39,7 @@ const position = @import("behaviour/position.zig");
 const hud = @import("hud.zig");
 const labyrinth_input = @import("labyrinth_input.zig");
 const sprites = @import("sprites.zig");
+const weapons = @import("weapons.zig");
 
 pub const Kind = enum(u8) { bussuf, seios, alemao, siri, chato, bicho, goal };
 
@@ -571,7 +572,10 @@ fn log(g: *Game, bd: *Backdrop) void {
     var w = std.Io.Writer.fixed(&buf);
     const now = g.plat.ticks();
     const weapon = if (bd.hands) |h| h.curStrip else 0;
-    w.print("[{d}] fair player {d},{d} a{d} hp {d} lives {d} ammo {d} weapon {d} shot {d} score {d} level {d} hits {d}/{d} |", .{ now, bd.playerX, bd.playerY, bd.viewAngle, bd.health, bd.lives, bd.ammo, weapon, bd.shotInFlight, bd.score, bd.level, g.fair.hits, g.fair.damage }) catch {};
+    // `inv`: the ammunition of the crossbow and the bra or bazooka (`weapons.zig`), 0 not owned.
+    const inv1 = if (bd.hands != null) weapons.ammoOf(g, bd, weapons.crossbow) else 0;
+    const inv2 = if (bd.hands != null) weapons.ammoOf(g, bd, weapons.heavy) else 0;
+    w.print("[{d}] fair player {d},{d} a{d} hp {d} lives {d} ammo {d} weapon {d} shot {d} score {d} level {d} hits {d}/{d} inv {d}/{d} |", .{ now, bd.playerX, bd.playerY, bd.viewAngle, bd.health, bd.lives, bd.ammo, weapon, bd.shotInFlight, bd.score, bd.level, g.fair.hits, g.fair.damage, inv1, inv2 }) catch {};
     for (g.fair.enemies[0..g.fair.count]) |*e| {
         if (e.state == .dead or (e.state == .idle and !probe)) continue;
         w.print(" {t}@{d},{d}:{t}", .{ e.kind, e.col, e.row, e.state }) catch break;

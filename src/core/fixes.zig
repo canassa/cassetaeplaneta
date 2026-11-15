@@ -470,6 +470,16 @@ pub const Fixes = struct {
     /// J3: a weapon (crossbow, bra, bazooka) touched while a shot flies
     /// stays in its cell, as a refused pickup does, instead of vanishing.
     jardim_weapon_waits_for_shot: bool = false,
+    /// Not a bug but a Corrigida addition: Wolfenstein 3D's weapons
+    /// (`src/jardim/weapons.zig`). The fists, the crossbow and the bra (phase
+    /// 1) or the bazooka (phases 2-3) are owned together, each with its own
+    /// ammunition: a pickup of one owned adds ammunition (no swap), a new one
+    /// takes the hands; arrows and bombs go to the owned weapon, held or not;
+    /// the keys 1, 2, 3 and Q switch, even with a shot in flight (the weapon
+    /// that fired it kills); an emptied weapon gives way to the best one with
+    /// ammunition. It supersedes `jardim_weapon_waits_for_shot` (a weapon is
+    /// never lost to a shot in flight).
+    jardim_weapon_inventory: bool = false,
     /// J4: the texture stays on the walls: every screen pixel of a wall or
     /// door column takes its texture column from its own point on the wall
     /// (the ray's exact hit, interpolated across the column's 4 pixels), the

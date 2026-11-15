@@ -243,7 +243,9 @@ pub const Sdl = struct {
                     // JARDIM's (`jardim_wolf_keys`: W, E too): SDLK_A ... are
                     // the lower-case letters, the virtual keys the upper-case
                     // ones.
-                    'a', 's', 'd', 'f', 'w', 'e' => @intCast(key - 0x20),
+                    'a', 's', 'd', 'f', 'w', 'e', 'q' => @intCast(key - 0x20),
+                    // JARDIM's weapon keys (`jardim_weapon_inventory`): 1, 2, 3 (SDLK_1 ...).
+                    '1', '2', '3' => @intCast(key),
                     // SDLK_RETURN/ESCAPE/SPACE are the virtual keys
                     // (`Sim.filterInput` decides who gets them).
                     0x0d, 0x1b, 0x20 => @intCast(key),
