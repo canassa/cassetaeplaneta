@@ -35,8 +35,9 @@
 //! - Activation and cross-task messages are delivered through the inbox
 //!   (asynchronously, at the target's next poll), not by a nested
 //!   SendMessage as in Windows.
-//! Programs not registered (the 8 unported minigames, or every one with
-//! `--minigame-stub`) stay the backend's stub (`Sim.winExec`).
+//! Programs not registered or not `ready` (the minigames whose port is not
+//! finished; ENCAIXE, TIRO and SERIAL are), or every one with
+//! `--minigame-stub`, stay the backend's stub (`Sim.winExec`).
 
 const std = @import("std");
 const p = @import("platform.zig");

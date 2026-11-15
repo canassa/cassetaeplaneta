@@ -41,6 +41,7 @@
   const MINIGAMES = [
     { name: "encaixe", title: "Encaixe Perfeito", ready: true },
     { name: "tiro", title: "Tiro ao Álvaro", ready: true },
+    { name: "serial", title: "Serial Killer", ready: true },
   ];
   // The on-screen pad's keys (KeyboardEvent.keyCode) while that program's
   // window is on top (`noite_top_program`): TIRO aims with LEFT/RIGHT and

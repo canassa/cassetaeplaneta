@@ -21,10 +21,11 @@ const one_button = @import("one_button.zig");
 const host = @import("platform/host.zig");
 const encaixe = @import("encaixe/root.zig");
 const tiro = @import("tiro/root.zig");
+const serial = @import("serial/root.zig");
 
 /// The minigames ported (as `main.zig`'s `minigames`); `noite_start`'s
 /// `minigame` is an index into it plus one.
-const minigames = [_]*const host.Program{ &encaixe.program, &tiro.program };
+const minigames = [_]*const host.Program{ &encaixe.program, &tiro.program, &serial.program };
 
 pub const std_options: std.Options = .{ .logFn = log };
 

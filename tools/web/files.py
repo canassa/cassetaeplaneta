@@ -21,8 +21,9 @@ sources, merged:
 
 Plus the files the engine opens by fixed name (CASSETA.INI, CASSETUP.INI,
 JOGO0-5.INI and the save slots HD\\JOGO0-5.INI, MSSVGA\\VGASYS.FON).
-A ported minigame's names (src/encaixe/, src/tiro/) are looked for at the
-disc root, then in its EXE's directory (ENCAIXE\\, TIRO\\), as the host does.
+A ported minigame's names (src/encaixe/, src/tiro/, src/serial/) are looked
+for at the disc root, then in its EXE's directory (ENCAIXE\\, TIRO\\,
+SERIAL\\), as the host does.
 """
 
 import argparse
@@ -35,7 +36,7 @@ ASSETS = ROOT / "assets"
 OUT = ROOT / "tools" / "web" / "files.txt"
 FIXED = ["CASSETA.INI", "CASSETUP.INI", "MSSVGA/VGASYS.FON"] + [f"{d}JOGO{i}.INI" for d in ("", "HD/") for i in range(6)]
 # The ported minigames: src/<name>/, their EXE in <NAME>/ on the disc.
-MINIGAMES = {"encaixe", "tiro"}
+MINIGAMES = {"encaixe", "tiro", "serial"}
 # Sprite and icon frames: `<name><N>.bmp`.
 MAX_FRAME = 200
 
