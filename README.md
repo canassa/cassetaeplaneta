@@ -32,18 +32,19 @@ item is tapped then placed with the next click, or dragged. ENCAIXE
 (3ffarao's Tetris, `src/encaixe/`, `docs/encaixe/DESIGN.md`), TIRO
 (3fhall's shooting gallery, `src/tiro/`, `docs/tiro/DESIGN.md`), SERIAL
 (3farmcai's Serial Killer, `src/serial/`, `docs/serial/DESIGN.md`), SALGIN
-(4fsalgin's gym fight, `src/salgin/`, `docs/salgin/DESIGN.md`) and INV
-(4fsacaet's space invaders, `src/inv/`, `docs/inv/DESIGN.md`) are
+(4fsalgin's gym fight, `src/salgin/`, `docs/salgin/DESIGN.md`), INV
+(4fsacaet's space invaders, `src/inv/`, `docs/inv/DESIGN.md`) and XILINDRO
+(3fstreet's jail fight, `src/xilindro/`, `docs/xilindro/DESIGN.md`) are
 ported: NOITE runs them as second programs (`src/platform/host.zig`), and
-`--minigame encaixe|tiro|serial|salgin|inv` plays one alone. The other minigames (separate
+`--minigame encaixe|tiro|serial|salgin|inv|xilindro` plays one alone. The other minigames (separate
 EXEs) are stubbed, and the ported ones too with `--minigame-stub`: they
 report a win, or a loss with `--minigame-result lose`; their window shows 1.5 s
 after `WinExec` and answers the game's hello after 100 ms
 (`--minigame-startup MS`, `--minigame-reply MS`). A held key repeats as on
 Windows (500 ms, then every 33 ms; `--key-repeat DELAY,PERIOD|off`), in
 the window, the browser and headless runs. A minigame gets every key
-(TIRO, SERIAL and INV: LEFT, RIGHT, SPACE; SALGIN: the arrows, PgUp, Home, End,
-Insert); NOITE gets Enter, Esc and Space only to skip videos.
+(TIRO, SERIAL and INV: LEFT, RIGHT, SPACE; SALGIN and XILINDRO: the arrows, PgUp,
+Home, End, Insert); NOITE gets Enter, Esc and Space only to skip videos.
 Saves go to `save/` (`--save DIR`).
 
 ## Testing the port
@@ -76,13 +77,15 @@ Saves go to `save/` (`--save DIR`).
   living room's street exit (a Corrigida addition); `sala-street-door-orig.input` is the Original's miss.
 - **Playthrough**: `./zig-out/bin/noite --headless --ms 660000 --input tools/play/full.input`
   plays from the title screen to the sportsman ending, checking every scene
-  (the hall's TIRO, the pharaoh's ENCAIXE and the gym's SALGIN with scripted wins).
+  (the hall's TIRO, the pharaoh's ENCAIXE and the gym's SALGIN with scripted wins; the
+  street's XILINDRO runs unplayed over the hall, B21).
   With the fixes: add `--fix all,-avi_exit_ignores_timer`
   (the script follows this run's hall doors and the 3fstreet shortcut of BUGS.md B21;
   both versions play the same timeline, TIRO's 16 presses included).
-  One-button: `--one-button --ms 540000 --input tools/play/onebutton.input` (the
-  whole game with left clicks only and TIRO's keys, doors clicked from afar, items dropped and
-  offered by tap-tap and by dragging; the same with `--fix all,-avi_exit_ignores_timer`) and
+  One-button: `--one-button --ms 600000 --input tools/play/onebutton.input` (the
+  whole game with left clicks only and the minigames' keys, XILINDRO fought and won
+  over the disco, doors clicked from afar, items dropped and offered by tap-tap and
+  by dragging; the same with `--fix all,-avi_exit_ignores_timer`) and
   `--one-button --scene 1fquarbo --ms 30000 --input tools/play/onebutton-corridor.input`;
   `tools/smoke.py --one-button` runs the smoke test in that mode.
 - **ENCAIXE**: `--minigame encaixe --ms 90000 --input tools/play/encaixe-win.input`
@@ -145,6 +148,21 @@ Saves go to `save/` (`--save DIR`).
   that moves. `tools/smoke.py --minigame inv [--fix all] [--monkey SEED]` presses random
   LEFT/RIGHT and SPACE for 60 s. The playthroughs take the sportsman's route at `4fbar`; INV is
   the esoteric's, a detour that comes back to the bar.
+- **XILINDRO**: `--minigame xilindro --ms 62000 --input tools/play/xilindro-alone-win.input` (a KO
+  at 55.8 s with the fighter untouched, `result won 13650`) and `--ms 42000 --input
+  tools/play/xilindro-alone-lose.input` (no key: the opponent's attacks KO the fighter, `lost
+  -1000`); `--ms 2000 --input tools/play/xilindro-close.input` closes the window at 0.5 s (BUGS.md
+  X6, `won 13650 | lost -1000`); from NOITE, `--scene 3fstreet --ms 93000 --input
+  tools/play/xilindro-3fstreet-win.input` (NOITE hides, adds the score, `3fstree2`, back to
+  `3fprisao`), `--ms 80000 --input tools/play/xilindro-3fstreet-lose.input` (-1000, `3fstree1`, a
+  life less, back to `3fprisao`) and `--ms 222000 --input tools/play/xilindro-serial-hall.input`
+  (the fight, then the lift's stairs to `3farmcai`, whose SERIAL win now goes to `3fhall`). Each
+  the same with `--fix all`. The opponent stops beyond the fighter's reach, so a held key loses: the
+  win steps Right and kicks Up in the 200 ms between the opponent's arrival and its attack, and
+  steps back Left while it is far, so it never attacks; the keys were planned against the port
+  with a temporary trace, and shift with XILINDRO's start (26095 ms later from `3fstreet`).
+  `tools/smoke.py --minigame xilindro [--fix all] [--monkey SEED]` presses and holds random fight
+  keys for 110 s.
 - **SDL without a display**: `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy`
   (or `disk` with `SDL_AUDIO_DISK_OUTPUT_FILE=out.raw` to capture the mix).
 
@@ -165,7 +183,7 @@ Corrigida = `--fix all`), whether videos can be skipped (on by
 default) and the one-button control (on by default on touch screens), then
 runs the game; saves go to localStorage, apart per version. "Jogo" picks
 the whole game or one ported minigame alone (Encaixe Perfeito, Tiro ao
-Álvaro, Serial Killer, Porrada na Sala de Ginástica, Invasores). On a touch
-screen the on-screen pad shows the keys of the window on top: for TIRO,
-SERIAL and INV ◀, a fire button and ▶; for SALGIN its eight keys as on the numeric keypad
+Álvaro, Serial Killer, Porrada na Sala de Ginástica, Invasores, Xilindro).
+On a touch screen the on-screen pad shows the keys of the window on top: for
+TIRO, SERIAL and INV ◀, a fire button and ▶; for SALGIN and XILINDRO their eight keys as on the numeric keypad
 (Salto = Home, ▲, Soco = PgUp; ◀, Pulo = Insert, ▶; Defesa = End, ▼).

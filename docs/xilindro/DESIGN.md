@@ -41,6 +41,10 @@ X1–X11 describe the binary.
   or `3fstree1` (lost: a life, then `3fprisao` or `6fsaida`). In the
   Original, B21 sends NOITE to `3fhall` while the fight runs
   (`docs/salgin/DESIGN.md` "Integration").
+- **Finished**: `ready = true`; `--minigame xilindro`, the web's "Jogo"
+  entry and pad, the scripts `tools/play/xilindro-*.input` (the win
+  follows one rule, no planner: `docs/salgin/DESIGN.md` "Tests") and
+  `tools/smoke.py --minigame xilindro`.
 
 ### SceneObject slots (kinds: fighter, opponent, banner, energy_bar, panel = control_panel, status = status_bar)
 

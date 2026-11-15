@@ -267,7 +267,10 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   the stale tick).
 - **Port:** reproduced; `Fixes.avi_exit_ignores_timer` does not tick a video (`isAvi`) exit from the timer
   path. `tools/play/full.input` takes the 3fstreet route (one prison door), so its `--fix` run leaves this
-  fix out. The stub minigames (window after 1.5 s) miss the 3ffarao race; `--minigame-startup 0
+  fix out. There the real XILINDRO starts 1500 ms after the video, when the hall's handler already owns
+  timer 0x14 (it looks for TIRO's window): no hello reaches XILINDRO, its window stays over the hall
+  with NOITE shown below, and its result goes nowhere (full.input leaves it unplayed, onebutton.input
+  fights it). The stub minigames (window after 1.5 s) miss the 3ffarao race; `--minigame-startup 0
   --minigame-reply 0` hits it (`--scene 3fhall`: the sauna door, a right click in the sauna, then the
   pharaoh door).
 - **Evidence:** port traces (`noite --trace`); the code paths above.
@@ -1473,7 +1476,7 @@ the next beat. Each is consistent code with a plausible intent, and none is reac
 - **Effect:** the block protects nothing. The table shows the block holding (strip 7 again) against the high kick,
   the hardest attack (6), so the player sees a parry and loses the most energy.
 - **Confidence:** 9 (code); 7 (that it is a bug).
-- **Port:** not ported yet (`src/xilindro/`); the fix will be `Fixes.xilindro_block_holds` (`--fix xilindro_block_holds`, a choice left out of the Corrigida version until the owner decides).
+- **Port:** ported (unit `arena`, src/xilindro/); the fix is `Fixes.xilindro_block_holds` (`--fix xilindro_block_holds`, a choice left out of the Corrigida version until the owner decides).
 
 ### X2. The fighter never shows its weak-energy reaction
 - **Where:** `xilindro_scene_handle_message` 1068:27cc (`CMP [g_fighter+0x50],0xa`); `Fighter.energy` (+0x50) is
@@ -1483,7 +1486,7 @@ the next beat. Each is consistent code with a plausible intent, and none is reac
 - **Effect:** the second column of `g_reactionTable` (always the fall, strip 8) is never used for the fighter: a
   fighter close to a KO still reels or blocks instead of falling.
 - **Confidence:** 9 (code); 7 (that it is a bug).
-- **Port:** not ported yet (`src/xilindro/`); the fix will be `Fixes.xilindro_weak_reaction_by_energy` (`--fix xilindro_weak_reaction_by_energy`, on in the Corrigida version).
+- **Port:** ported (unit `arena`, src/xilindro/); the fix is `Fixes.xilindro_weak_reaction_by_energy` (`--fix xilindro_weak_reaction_by_energy`, on in the Corrigida version).
 
 ### X3. The opponent's attack is reseeded from the clock second on every choice
 - **Where:** `opponent_choose_attack` 1068:0b85 (`time(NULL)` 1068:0b97, `srand` 0ba0, `rand` 0bae/0bcd/0c15).
@@ -1492,7 +1495,7 @@ the next beat. Each is consistent code with a plausible intent, and none is reac
 - **Effect:** the attack is a function of the clock second, in a fixed descending order (3, 2, 1, 0, …) with a
   repeat about every 4 s; two attacks in the same second are the same attack.
 - **Confidence:** 9.
-- **Port:** not ported yet (`src/xilindro/`); the fix will be `Fixes.xilindro_seed_once` (`--fix xilindro_seed_once`, on in the Corrigida version).
+- **Port:** ported and reproduced (unit `fighters`, src/xilindro/); the fix is `Fixes.xilindro_seed_once` (`--fix xilindro_seed_once`, on in the Corrigida version). With no key the opponent's attacks differ, so `tools/play/xilindro-alone-lose.input` closes at 39700 in the Original, 39950 with the fix.
 
 ### X4. Releasing Left or Right cuts short whatever move is playing
 - **Where:** `xilindro_scene_handle_message`, `WM_KEYUP` `VK_LEFT` 1068:20c1 and `VK_RIGHT` 1068:219a.
@@ -1502,7 +1505,7 @@ the next beat. Each is consistent code with a plausible intent, and none is reac
 - **Effect:** walking, attacking with the arrow still held and releasing it mid-move drops the attack (or a
   reaction) into the guard pose at once, and frees the arrow's latch before the move ends.
 - **Confidence:** 9 (code); 8 (effect).
-- **Port:** not ported yet (`src/xilindro/`); the fix will be `Fixes.xilindro_keyup_stops_walk_only` (`--fix xilindro_keyup_stops_walk_only`, on in the Corrigida version).
+- **Port:** ported and reproduced (unit `arena`, src/xilindro/); the fix is `Fixes.xilindro_keyup_stops_walk_only` (`--fix xilindro_keyup_stops_walk_only`, on in the Corrigida version). The scripted wins release Right before they kick, so it never matters there.
 
 ### X5. Insert is not locked by the other moves
 - **Where:** `xilindro_scene_handle_message`, the latch stores after each move key (PgUp 1068:1a1a–1a38, likewise
@@ -1512,7 +1515,7 @@ the next beat. Each is consistent code with a plausible intent, and none is reac
 - **Effect:** Insert starts the jump in the middle of an attack or a block, replacing it (and playing its two
   waves); every other key waits for the move to end.
 - **Confidence:** 9 (code); 6 (that it is a bug).
-- **Port:** not ported yet (`src/xilindro/`); the fix will be `Fixes.xilindro_insert_locked` (`--fix xilindro_insert_locked`, a choice left out of the Corrigida version until the owner decides).
+- **Port:** ported (unit `arena`, src/xilindro/); the fix is `Fixes.xilindro_insert_locked` (`--fix xilindro_insert_locked`, a choice left out of the Corrigida version until the owner decides).
 
 ### X6. Closing the window mid-fight reports a win
 - **Where:** `xilindro_scene_handle_message`, `WM_DESTROY` 1068:10ce–1146.
@@ -1521,7 +1524,7 @@ the next beat. Each is consistent code with a plausible intent, and none is reac
 - **Effect:** ending XILINDRO from the task list while the fighter is ahead or level is a win; at the start,
   91–91, it is worth 13,650 points, the best score.
 - **Confidence:** 9 (code); 7 (that a player finds it).
-- **Port:** not ported yet (`src/xilindro/`); the fix will be `Fixes.xilindro_close_mid_fight_loses` (`--fix xilindro_close_mid_fight_loses`, on in the Corrigida version).
+- **Port:** ported and reproduced (unit `arena`, src/xilindro/); the fix is `Fixes.xilindro_close_mid_fight_loses` (`--fix xilindro_close_mid_fight_loses`, on in the Corrigida version). `tools/play/xilindro-close.input`: `won 13650 | lost -1000`.
 
 ### X7. A double KO shows the fighter winning but reports by energy
 - **Where:** `xilindro_scene_handle_message`, the beat's KO test 1068:2363–24f2 (winner test `opponentEnergy > 0`
@@ -1533,7 +1536,7 @@ the next beat. Each is consistent code with a plausible intent, and none is reac
   and NOITE gets a loss (−1000 and a life); otherwise it gets a "win" worth fighterEnergy·150 ≤ 0, which lowers the
   score.
 - **Confidence:** 9 (code); 6 (effect: a double KO needs a trade or a clash with both energies low).
-- **Port:** not ported yet (`src/xilindro/`); the fix will be `Fixes.xilindro_double_ko_by_energy` (`--fix xilindro_double_ko_by_energy`, on in the Corrigida version).
+- **Port:** ported (unit `arena`, src/xilindro/); the fix is `Fixes.xilindro_double_ko_by_energy` (`--fix xilindro_double_ko_by_energy`, on in the Corrigida version).
 
 ### X8. The energy bar lags behind the energies
 - **Where:** `xilindro_scene_handle_message`: the Down/Home trades (1068:15d1–15ec, 1ded–1e08) lower
@@ -1544,7 +1547,7 @@ the next beat. Each is consistent code with a plausible intent, and none is reac
 - **Effect:** the bar shows fewer tiles than the energy lost (up to one per 7 points of trade or clash damage) until
   later events catch up, or for good at the end of the round.
 - **Confidence:** 9 (code); 7 (that it is a bug).
-- **Port:** not ported yet (`src/xilindro/`); the fix will be `Fixes.xilindro_bar_follows_energy` (`--fix xilindro_bar_follows_energy`, on in the Corrigida version).
+- **Port:** ported (unit `arena`, src/xilindro/); the fix is `Fixes.xilindro_bar_follows_energy` (`--fix xilindro_bar_follows_energy`, on in the Corrigida version).
 
 ### X9. The PORRADA banner never stays on screen
 - **Where:** `xilindro_create_banner` 1068:0119 (`mover_blit_to_dc` to `GetDC(hwnd)`), `xilindro_redraw_arena`
@@ -1554,7 +1557,7 @@ the next beat. Each is consistent code with a plausible intent, and none is reac
   background and redraws only the two fighters, on the first beat and after.
 - **Effect:** "PORRADA" is not seen (at most for one beat).
 - **Confidence:** 9 (code); 7 (effect: the blit goes to a window that is not visible yet).
-- **Port:** not ported yet (`src/xilindro/`); the fix will be `Fixes.xilindro_banner_shown` (`--fix xilindro_banner_shown`, a choice left out of the Corrigida version until the owner decides).
+- **Port:** ported (unit `hud`, src/xilindro/); the fix is `Fixes.xilindro_banner_shown` (`--fix xilindro_banner_shown`, a choice left out of the Corrigida version until the owner decides).
 
 ### X10. The fighter's 100-px stand-off is 68 px
 - **Where:** `fighter_walk` 1068:0672, the Right branch (1068:071e–0792).
@@ -1562,7 +1565,7 @@ the next beat. Each is consistent code with a plausible intent, and none is reac
   the normal 32-px step (`fighter_move_tick` → `mover_step`), instead of stopping there.
 - **Effect:** a Right press within 100 px of the opponent puts the fighter exactly 68 px from it.
 - **Confidence:** 9 (code); 6 (that 100 px was the intent).
-- **Port:** not ported yet (`src/xilindro/`); the fix will be `Fixes.xilindro_standoff_100` (`--fix xilindro_standoff_100`, on in the Corrigida version).
+- **Port:** ported (unit `fighters`, src/xilindro/); the fix is `Fixes.xilindro_standoff_100` (`--fix xilindro_standoff_100`, on in the Corrigida version).
 
 ### X11. The fighter leaves the screen on the left
 - **Where:** `fighter_walk` 1068:0672 (x test 1068:069c, x ≥ 400 at 06fd); the recoil after a hit (PgUp 1068:1a7f,
@@ -1572,7 +1575,7 @@ the next beat. Each is consistent code with a plausible intent, and none is reac
 - **Effect:** after a recoil or a Right clamp (X10) leaves x off the 32-px grid, the fighter's left edge goes off
   the screen (to x −49 by a recoil, −31 by walking); on the right x can reach 431.
 - **Confidence:** 9 (code); 6 (effect).
-- **Port:** not ported yet (`src/xilindro/`); the fix will be `Fixes.xilindro_fighter_stays_on_screen` (`--fix xilindro_fighter_stays_on_screen`, on in the Corrigida version).
+- **Port:** ported and reproduced (units `fighters` and `arena`, src/xilindro/); the fix is `Fixes.xilindro_fighter_stays_on_screen` (`--fix xilindro_fighter_stays_on_screen`, on in the Corrigida version): a walk's step is cut to land on 0 or 400, and a recoil stops at x 0 (it still happens from x 51 up, shorter).
 
 ### Harmless (XILINDRO)
 

@@ -450,9 +450,9 @@ expectation for runs with fixes, e.g. `result won 32768004 | won 500`
     planner's shots (`--start 3210`), the result, then NOITE back in
     `3fprisao` (`expect`, `state`): the win adds 32768003 in the Original,
     500 with the fixes; the loss adds 6553600 and keeps the life in the
-    Original (K1, K2), adds 100 and takes a life with the fixes. (The
-    `3fhall` branch needs XILINDRO's `minigameWon[3]`; it is covered once
-    XILINDRO's route is scripted.)
+    Original (K1, K2), adds 100 and takes a life with the fixes. The
+    `3fhall` branch, with XILINDRO's `minigameWon[3]` won first, is
+    `xilindro-serial-hall.input` (README.md "XILINDRO").
   - `full.input` and `onebutton.input` do not pass `3farmcai` (their
     route leaves the prison by the street escape): unchanged.
 - **Smoke**: `tools/smoke.py --minigame serial [--fix all] [--monkey
