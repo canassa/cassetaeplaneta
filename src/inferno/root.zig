@@ -19,7 +19,7 @@ const Game = core.game.Game;
 /// Every unit ported and the game checked (the last step of the port,
 /// docs/inferno/DESIGN.md "Finishing"): only then does NOITE's WinExec run
 /// it instead of the stub, and `--minigame inferno` play it.
-pub const ready = false;
+pub const ready = true;
 
 /// The window class and caption FindWindow looks for (DGROUP 1090:0084).
 pub const title = "Inferno";

@@ -36,8 +36,8 @@
 //!   (asynchronously, at the target's next poll), not by a nested
 //!   SendMessage as in Windows.
 //! Programs not registered or not `ready` (the minigames whose port is not
-//! finished; ENCAIXE, TIRO, SERIAL, SALGIN, INV and XILINDRO are), or every one with
-//! `--minigame-stub`, stay the backend's stub (`Sim.winExec`).
+//! finished; ENCAIXE, TIRO, SERIAL, SALGIN, INV, XILINDRO and INFERNO are), or
+//! every one with `--minigame-stub`, stay the backend's stub (`Sim.winExec`).
 
 const std = @import("std");
 const p = @import("platform.zig");
