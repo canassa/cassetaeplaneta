@@ -15,7 +15,7 @@
 50 ?fight_controls_screen delay 2050
 30000 dump fight
 90000 dump lost
-# The fair fight (`fight_fair`): the clock still ends it, 27 to 91; mane.WAV
+# The Corrigida's fight (`fight_fair`, `fight_easy_ai`): the clock still ends it with the player lower; mane.WAV
 # closes the window at 104040.
 0 ?fight_fair delay 9000
 95000 result lost -1000

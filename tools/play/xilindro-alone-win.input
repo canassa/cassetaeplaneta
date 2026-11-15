@@ -156,97 +156,205 @@
 55620 !fight_fair hold right 20
 55660 !fight_fair key up
 57000 !fight_fair dump won
-# The fair fight (`fight_fair`, docs/fights/FAIRNESS.md): the reactor of
-# `tools/fight_plan.py` (the lines below are its): it answers each tell 300 ms
-# after it shows, steps back (or, against the wall, blocks or jumps) and
-# kicks in the follow-through. A KO with the fighter untouched, 13650; the
-# window closes at 65000.
+# The Corrigida's easy opponent (`fight_easy_ai`, docs/fights/EASY_AI.md): the
+# lines below are an expert's (`tools/fight_plan.py --player bot --bot expert,1
+# --gate fight_easy_ai`, the `expert` bot of core/fight_bot.zig, which answers
+# each tell 220-300 ms after it shows and kicks whatever stands open). A KO
+# with the fighter at 77 (11550); the window closes at 65600.
 # fair-plan fight begin
-+30 ?fight_fair hold right 20
-+1220 ?fight_fair hold left 20
-+130 ?fight_fair hold right 20
-+40 ?fight_fair key s
-+560 ?fight_fair hold right 20
-+1270 ?fight_fair hold left 20
-+130 ?fight_fair hold right 20
-+40 ?fight_fair key s
-+1630 ?fight_fair key insert
-+530 ?fight_fair key s
-+600 ?fight_fair hold right 20
-+1200 ?fight_fair hold right 20
-+1070 ?fight_fair hold left 20
-+130 ?fight_fair hold right 20
-+40 ?fight_fair key s
-+1830 ?fight_fair key insert
-+530 ?fight_fair key s
-+600 ?fight_fair hold right 20
-+1270 ?fight_fair hold left 20
-+130 ?fight_fair hold right 20
-+40 ?fight_fair key s
-+560 ?fight_fair hold right 20
-+1270 ?fight_fair hold left 20
-+130 ?fight_fair hold right 20
-+40 ?fight_fair key s
-+2030 ?fight_fair key down
-+530 ?fight_fair key s
-+600 ?fight_fair hold right 20
-+1400 ?fight_fair hold right 20
-+1270 ?fight_fair hold left 20
-+130 ?fight_fair hold right 20
-+40 ?fight_fair key s
-+1830 ?fight_fair key insert
-+530 ?fight_fair key s
-+600 ?fight_fair hold right 20
-+1670 ?fight_fair hold left 20
-+130 ?fight_fair hold right 20
-+40 ?fight_fair key s
-+560 ?fight_fair hold right 20
-+1470 ?fight_fair hold left 20
-+130 ?fight_fair hold right 20
-+40 ?fight_fair key s
-+2030 ?fight_fair key down
-+530 ?fight_fair hold right 20
-+1070 ?fight_fair hold left 20
-+130 ?fight_fair hold right 20
-+40 ?fight_fair key s
-+560 ?fight_fair hold right 20
-+2670 ?fight_fair hold left 20
-+130 ?fight_fair hold right 20
-+40 ?fight_fair key s
-+1830 ?fight_fair key insert
-+530 ?fight_fair key s
-+600 ?fight_fair hold right 20
-+1200 ?fight_fair hold right 20
-+1070 ?fight_fair hold left 20
-+130 ?fight_fair hold right 20
-+40 ?fight_fair key s
-+1630 ?fight_fair key down
-+530 ?fight_fair hold right 20
-+1070 ?fight_fair hold left 20
-+130 ?fight_fair hold right 20
-+40 ?fight_fair key s
-+560 ?fight_fair hold right 20
-+1470 ?fight_fair hold left 20
-+130 ?fight_fair hold right 20
-+40 ?fight_fair key s
-+1960 ?fight_fair hold right 20
-+1270 ?fight_fair hold left 20
-+130 ?fight_fair hold right 20
-+40 ?fight_fair key s
-+560 ?fight_fair hold right 20
-+1470 ?fight_fair hold left 20
-+130 ?fight_fair hold right 20
-+40 ?fight_fair key s
-+2030 ?fight_fair key down
-+530 ?fight_fair key s
-+600 ?fight_fair hold right 20
-+1070 ?fight_fair hold left 20
-+130 ?fight_fair hold right 20
-+40 ?fight_fair key s
-+560 ?fight_fair hold right 20
-+1270 ?fight_fair hold left 20
-+130 ?fight_fair hold right 20
-+40 ?fight_fair key s
++551 ?fight_easy_ai hold right 100
++150 ?fight_easy_ai hold right 250
++500 ?fight_easy_ai key down
++550 ?fight_easy_ai key a
++600 ?fight_easy_ai hold right 150
++200 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai hold right 150
++150 ?fight_easy_ai key d
++600 ?fight_easy_ai hold right 100
++250 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai hold right 150
++150 ?fight_easy_ai hold left 100
++200 ?fight_easy_ai hold right 150
++300 ?fight_easy_ai key d
++500 ?fight_easy_ai hold right 150
++200 ?fight_easy_ai hold right 150
++250 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai key a
++550 ?fight_easy_ai hold right 150
++250 ?fight_easy_ai hold right 100
++150 ?fight_easy_ai hold right 150
++150 ?fight_easy_ai key a
++450 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai hold right 150
++150 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold left 150
++50 ?fight_easy_ai hold left 100
++150 ?fight_easy_ai hold right 200
++250 ?fight_easy_ai key f
++550 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai hold right 150
++250 ?fight_easy_ai hold right 100
++200 ?fight_easy_ai key s
++550 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 150
++250 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold left 9500
++50 ?fight_easy_ai key down
++550 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai hold right 100
++350 ?fight_easy_ai key s
++550 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 200
++250 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai key s
++450 ?fight_easy_ai hold right 100
++250 ?fight_easy_ai hold right 200
++250 ?fight_easy_ai hold right 200
++400 ?fight_easy_ai key down
++500 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai key f
++600 ?fight_easy_ai hold right 150
++250 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 100
++150 ?fight_easy_ai hold right 100
++200 ?fight_easy_ai key a
++550 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 150
++200 ?fight_easy_ai hold right 150
++250 ?fight_easy_ai hold right 100
++250 ?fight_easy_ai key a
++450 ?fight_easy_ai hold right 100
++150 ?fight_easy_ai hold right 100
++150 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 100
++450 ?fight_easy_ai hold left 100
++150 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai key f
++600 ?fight_easy_ai hold right 100
++250 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 150
++150 ?fight_easy_ai key s
++550 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 100
++250 ?fight_easy_ai hold right 150
++200 ?fight_easy_ai key d
++500 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 150
++200 ?fight_easy_ai hold right 100
++400 ?fight_easy_ai hold left 100
++250 ?fight_easy_ai hold right 200
++900 ?fight_easy_ai key f
++600 ?fight_easy_ai hold right 100
++250 ?fight_easy_ai hold right 150
++150 ?fight_easy_ai hold right 150
++150 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai key a
++650 ?fight_easy_ai key a
++600 ?fight_easy_ai hold right 100
++150 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai hold left 100
++250 ?fight_easy_ai hold right 450
++50 ?fight_easy_ai hold left 100
++200 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 100
++200 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 100
++150 ?fight_easy_ai key d
++450 ?fight_easy_ai hold right 200
++250 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai hold right 150
++250 ?fight_easy_ai hold right 150
++250 ?fight_easy_ai key a
++450 ?fight_easy_ai hold right 150
++150 ?fight_easy_ai hold right 150
++200 ?fight_easy_ai hold right 100
++150 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold left 100
++150 ?fight_easy_ai hold right 100
++150 ?fight_easy_ai key s
++1350 ?fight_easy_ai key a
++600 ?fight_easy_ai hold right 150
++250 ?fight_easy_ai hold right 200
++250 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 150
++250 ?fight_easy_ai key a
++600 ?fight_easy_ai key d
++600 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai hold right 100
++150 ?fight_easy_ai hold left 100
++150 ?fight_easy_ai hold right 1300
++100 ?fight_easy_ai key down
++500 ?fight_easy_ai key f
++600 ?fight_easy_ai hold right 100
++250 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai key d
++450 ?fight_easy_ai hold right 200
++250 ?fight_easy_ai hold right 150
++200 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai hold left 100
++150 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai key a
++550 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 100
++250 ?fight_easy_ai hold right 150
++150 ?fight_easy_ai key s
++500 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 250
++300 ?fight_easy_ai key down
++700 ?fight_easy_ai key s
++450 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai hold right 100
++200 ?fight_easy_ai hold right 100
++450 ?fight_easy_ai key insert
++550 ?fight_easy_ai key s
++600 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 150
++450 ?fight_easy_ai hold left 100
++250 ?fight_easy_ai hold right 250
++850 ?fight_easy_ai hold right 100
++200 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai key a
++600 ?fight_easy_ai hold right 100
++200 ?fight_easy_ai hold right 150
++250 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai key a
++500 ?fight_easy_ai hold right 200
++250 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai key s
++450 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 200
++250 ?fight_easy_ai key f
++450 ?fight_easy_ai hold right 100
++250 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 150
++150 ?fight_easy_ai hold right 150
++150 ?fight_easy_ai key a
++600 ?fight_easy_ai hold right 150
++150 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 150
++150 ?fight_easy_ai hold right 150
++250 ?fight_easy_ai key s
 # fair-plan fight end
-0 ?fight_fair delay 3000
-61000 result won 13650
+64000 result won 13650 | won 11550

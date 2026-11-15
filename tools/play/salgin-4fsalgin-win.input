@@ -22,41 +22,107 @@
 10500 dump gym
 11000 !fight_fair hold up 52000
 12000 !fight_fair dump fight
-# The fair fight (`fight_fair`, docs/fights/FAIRNESS.md): `tools/fight_plan.py
-# --player fast` (the lines below are its): it answers each tell
-# 300 ms after it shows, by a kick in the wind-up when in reach (or a step
-# back and a kick in the follow-through, a block, a jump), the player
-# untouched (+9100). The fight ends later than the held key's, so the
-# checks below move on by 4000 ms.
+# The Corrigida's easy opponent (`fight_easy_ai`, docs/fights/EASY_AI.md): the
+# lines below are an expert's (`tools/fight_plan.py --player bot --bot expert,1
+# --gate fight_easy_ai`, the `expert` bot of core/fight_bot.zig, which answers
+# each tell 220-300 ms after it shows and kicks whatever stands open): a KO
+# well before the held key's (the window closes near 50 s). The checks below
+# keep the Original's times.
 # fair-plan fight begin
-+1033 ?fight_fair key s
-+530 ?fight_fair hold right 20
-+1400 ?fight_fair hold right 20
-+1470 ?fight_fair key s
-+3400 ?fight_fair key s
-+1800 ?fight_fair key s
-+2000 ?fight_fair key s
-+3600 ?fight_fair key s
-+5000 ?fight_fair key s
-+3400 ?fight_fair key s
-+2200 ?fight_fair key s
-+1800 ?fight_fair key s
-+2200 ?fight_fair key s
-+2000 ?fight_fair key s
-+2000 ?fight_fair key s
-+2000 ?fight_fair key s
-+2000 ?fight_fair key s
-+2200 ?fight_fair key s
-+2200 ?fight_fair key s
-+3400 ?fight_fair key s
-+2000 ?fight_fair key s
-+1800 ?fight_fair key s
-+2000 ?fight_fair key s
-+3200 ?fight_fair key s
-+1800 ?fight_fair key s
++584 ?fight_easy_ai hold right 100
++150 ?fight_easy_ai hold right 250
++750 ?fight_easy_ai key a
++1250 ?fight_easy_ai hold right 150
++200 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 200
++650 ?fight_easy_ai key s
++500 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 100
++150 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai key d
++550 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 200
++250 ?fight_easy_ai hold right 200
++250 ?fight_easy_ai key f
++450 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 200
++450 ?fight_easy_ai key down
++500 ?fight_easy_ai key d
++600 ?fight_easy_ai key f
++600 ?fight_easy_ai key a
++1400 ?fight_easy_ai key f
++600 ?fight_easy_ai key d
++1400 ?fight_easy_ai key s
++600 ?fight_easy_ai key d
++600 ?fight_easy_ai key s
++600 ?fight_easy_ai key s
++600 ?fight_easy_ai key a
++600 ?fight_easy_ai key d
++600 ?fight_easy_ai key d
++600 ?fight_easy_ai key a
++600 ?fight_easy_ai key s
++600 ?fight_easy_ai key d
++600 ?fight_easy_ai key s
++1600 ?fight_easy_ai key d
++600 ?fight_easy_ai key s
++1600 ?fight_easy_ai key a
++600 ?fight_easy_ai key a
++600 ?fight_easy_ai key a
++600 ?fight_easy_ai key s
++600 ?fight_easy_ai key d
++600 ?fight_easy_ai key a
++700 ?fight_easy_ai key down
++500 ?fight_easy_ai key s
++600 ?fight_easy_ai key f
++1400 ?fight_easy_ai key a
++750 ?fight_easy_ai hold left 100
++250 ?fight_easy_ai hold right 100
++150 ?fight_easy_ai key s
++450 ?fight_easy_ai key s
++600 ?fight_easy_ai key f
++600 ?fight_easy_ai key f
++1400 ?fight_easy_ai key a
++1400 ?fight_easy_ai key f
++750 ?fight_easy_ai key s
++450 ?fight_easy_ai key a
++750 ?fight_easy_ai key s
++450 ?fight_easy_ai key a
++600 ?fight_easy_ai key a
++600 ?fight_easy_ai key a
++650 ?fight_easy_ai hold left 100
++150 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai key d
++550 ?fight_easy_ai key d
++600 ?fight_easy_ai key a
++1400 ?fight_easy_ai key d
++600 ?fight_easy_ai hold left 100
++100 ?fight_easy_ai key down
++500 ?fight_easy_ai hold right 150
++200 ?fight_easy_ai key a
++1600 ?fight_easy_ai key a
++600 ?fight_easy_ai key d
++750 ?fight_easy_ai key s
++450 ?fight_easy_ai key a
++600 ?fight_easy_ai key d
++600 ?fight_easy_ai hold left 100
++200 ?fight_easy_ai hold right 2900
++100 ?fight_easy_ai key down
++500 ?fight_easy_ai key s
++700 ?fight_easy_ai key insert
++500 ?fight_easy_ai key a
++700 ?fight_easy_ai hold left 100
++200 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai key s
++500 ?fight_easy_ai key s
++600 ?fight_easy_ai key d
++600 ?fight_easy_ai key d
++600 ?fight_easy_ai key d
++600 ?fight_easy_ai key d
++600 ?fight_easy_ai key f
++600 ?fight_easy_ai key a
++600 ?fight_easy_ai key s
 # fair-plan fight end
-0 ?fight_fair delay 4000
-70000 result won 8300 | won 9100
-70000 expect espquete
-70000 state
-70000 dump espquete
+71500 result won 8300 | won 5700
+71500 expect espquete
+71500 state
+71500 dump espquete

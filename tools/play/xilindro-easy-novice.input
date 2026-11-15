@@ -1,0 +1,10 @@
+# XILINDRO alone in the Corrigida's easy opponent (`fight_easy_ai`, docs/fights/EASY_AI.md):
+# a first-time player: walks in, throws a random blow now and then, answers a blow it sees coming 400-700 ms late.
+# The bot (`core/fight_bot.zig`, `--fight-bot PROFILE,SEED`) plays the round
+# itself through the arena's key handler, seeing only the screen and never the
+# opponent's AI; the run is deterministic. Seed 1: won by the 90-s clock, the
+# fighter at 27 to the opponent's 25 (23 hits landed, 17 taken);
+# the window closes at 101350. `tools/fight_bots.py` plays it over many seeds.
+#
+#   zig-out/bin/noite --minigame xilindro --headless --ms 105350 --fix all --fight-bot novice,1 --input tools/play/xilindro-easy-novice.input
+103350 result won 4050

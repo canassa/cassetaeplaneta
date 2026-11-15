@@ -1,10 +1,10 @@
-# SALGIN alone in the Corrigida's fair fight (`fight_fair`, docs/fights/FAIRNESS.md
+# SALGIN alone in the Corrigida's fair fight without the easy opponent (`--fix all,-fight_easy_ai`; docs/fights/FAIRNESS.md
 # "Checks"): a masher that presses A (the punch) every beat (200 ms) from the
 # round's start must not win. It throws most punches out of reach, at the
 # opponent waiting one step away, which then steps in on the whiff: the
 # strike comes while the fighter is still in its 3-beat punch.
 #
-#   zig-out/bin/noite --minigame salgin --headless --ms 110000 --fix all --input tools/play/salgin-fair-mash.input
+#   zig-out/bin/noite --minigame salgin --headless --ms 110000 --fix all,-fight_easy_ai --input tools/play/salgin-fair-mash.input
 #
 # It lands 12 of its punches in a wind-up (of 47 tells); the clock ends the
 # round 38 to 63 and mane.WAV closes the window at 104040.

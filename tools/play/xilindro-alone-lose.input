@@ -2,10 +2,10 @@
 # from up to 130 px and jumps back, every 6-7 beats (about 1.3 s), and the
 # fighter, on guard, takes every blow: its energy is below 1 at about 35 s
 # and 31 end ticks later the window closes with a loss of -1000, at 39700
-# (Original) or 78000 (`--fix all`: the fair fight, below).
+# (Original) or 101150 (`--fix all`: the easy opponent, below).
 #
 #   zig-out/bin/noite --minigame xilindro --headless --ms 42000 --input tools/play/xilindro-alone-lose.input
-#   zig-out/bin/noite --minigame xilindro --headless --ms 83000 --fix all --input tools/play/xilindro-alone-lose.input
+#   zig-out/bin/noite --minigame xilindro --headless --ms 105000 --fix all --input tools/play/xilindro-alone-lose.input
 # The Corrigida (`--fix all`) shows XILINDRO's controls screen first; Enter takes
 # it down 50 ms after it opened, PORRADA stands for 2 s (the frozen intro,
 # `fight_controls.start_delay_ms`) and the round then plays as the
@@ -16,7 +16,9 @@
 20000 dump fight
 37000 dump lost
 41000 !fight_controls_screen result lost -1000
-# The fair fight (`fight_fair`) takes longer: the opponent telegraphs,
-# stands at the edge of reach and pauses; the window closes at 78000.
-0 ?fight_fair delay 30000
+# The Corrigida's fight (`fight_fair`, `fight_easy_ai`: docs/fights/FAIRNESS.md,
+# EASY_AI.md) takes longer: the opponent telegraphs, dithers, waits and guards,
+# so the fighter is not knocked out and the 90-s clock ends it, 91 to 29 or so;
+# the window closes at 101150.
+0 ?fight_fair delay 52000
 48000 ?fight_controls_screen result lost -1000

@@ -16,7 +16,7 @@
 10283 ?fight_controls_screen key return
 10283 ?fight_controls_screen delay 2050
 12000 dump fight
-# The fair fight (`fight_fair`) ends later: SALGIN closes near 114 s.
+# The Corrigida's fight (`fight_fair`, `fight_easy_ai`) ends later: SALGIN closes near 114 s.
 0 ?fight_fair delay 9000
 108000 result lost -1000
 108000 expect 4fbar

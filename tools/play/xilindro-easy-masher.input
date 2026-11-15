@@ -1,0 +1,10 @@
+# XILINDRO alone in the Corrigida's easy opponent (`fight_easy_ai`, docs/fights/EASY_AI.md):
+# a button masher: a random key every 100-250 ms.
+# The bot (`core/fight_bot.zig`, `--fight-bot PROFILE,SEED`) plays the round
+# itself through the arena's key handler, seeing only the screen and never the
+# opponent's AI; the run is deterministic. Seed 1: won by the 90-s clock, the
+# fighter at 35 to the opponent's 27 (23 hits landed, 15 taken);
+# the window closes at 101300. `tools/fight_bots.py` plays it over many seeds.
+#
+#   zig-out/bin/noite --minigame xilindro --headless --ms 105300 --fix all --fight-bot masher,1 --input tools/play/xilindro-easy-masher.input
+103300 result won 5250

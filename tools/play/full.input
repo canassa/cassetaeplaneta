@@ -11,7 +11,7 @@
 #   --fix all,-avi_exit_ignores_timer
 # The hall's TIRO, the pharaoh's ENCAIXE and the gym's SALGIN are the real
 # minigames (scripted wins, tools/tiro_plan.py, tools/encaixe_plan.py and a
-# held Up for SALGIN, in the Corrigida a fair fight from tools/fight_plan.py);
+# held Up for SALGIN, in the Corrigida the easy opponent beaten by tools/fight_plan.py's expert bot);
 # with `--minigame-stub` the run fails at their `result` lines. The
 # street's XILINDRO runs too, unplayed (B21, below).
 # The garden's JARDIM at the end stays the stub (`--minigame-stub=jardim`),
@@ -359,37 +359,118 @@
 +10283 ?fight_controls_screen key return
 +1000 !fight_fair dump salgin
 +59000 !fight_fair result won
-# The fair fight (`fight_fair`, docs/fights/FAIRNESS.md): `tools/fight_plan.py
-# --player fast --block salgin` (the lines below are its): it answers each
-# tell 300 ms after it shows, the player untouched (9100); the result is
-# checked 9 s after the last kick, as the held-S fight's 9 s after its KO.
+# The Corrigida's easy opponent (`fight_easy_ai`, docs/fights/EASY_AI.md): the
+# lines below are an expert's (`tools/fight_plan.py --player bot --bot expert,1
+# --gate fight_easy_ai --block salgin`, the `expert` bot of core/fight_bot.zig,
+# which answers each tell 220-300 ms after it shows and kicks whatever stands
+# open): a KO with the player at 56; the result is checked 9 s after its last
+# kick, as the held-S fight's 9 s after its KO.
 # fair-plan salgin begin
-+30 ?fight_fair hold right 20
-+3287 ?fight_fair key s
-+530 ?fight_fair hold right 20
-+1470 ?fight_fair key s
-+530 ?fight_fair hold right 20
-+1470 ?fight_fair key s
-+2000 ?fight_fair key s
-+2000 ?fight_fair key s
-+2000 ?fight_fair key s
-+3200 ?fight_fair key s
-+2000 ?fight_fair key s
-+1800 ?fight_fair key s
-+2200 ?fight_fair key s
-+1800 ?fight_fair key s
-+2200 ?fight_fair key s
-+1800 ?fight_fair key s
-+1800 ?fight_fair key s
-+2200 ?fight_fair key s
-+2200 ?fight_fair key s
-+2000 ?fight_fair key s
-+2000 ?fight_fair key s
-+2000 ?fight_fair key s
-+2200 ?fight_fair key s
-+2000 ?fight_fair key s
-+1800 ?fight_fair key s
-+2200 ?fight_fair key s
++2568 ?fight_easy_ai hold right 100
++150 ?fight_easy_ai hold right 250
++350 ?fight_easy_ai key insert
++550 ?fight_easy_ai key a
++600 ?fight_easy_ai hold right 150
++200 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 200
++350 ?fight_easy_ai key d
++600 ?fight_easy_ai hold right 100
++250 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai hold right 150
++150 ?fight_easy_ai hold right 100
++200 ?fight_easy_ai hold right 150
++550 ?fight_easy_ai key f
++450 ?fight_easy_ai hold right 150
++250 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai key s
++1300 ?fight_easy_ai key f
++600 ?fight_easy_ai key a
++600 ?fight_easy_ai key s
++600 ?fight_easy_ai key s
++1400 ?fight_easy_ai key f
++600 ?fight_easy_ai key s
++600 ?fight_easy_ai key s
++600 ?fight_easy_ai key f
++600 ?fight_easy_ai key s
++1050 ?fight_easy_ai key d
++550 ?fight_easy_ai key a
++600 ?fight_easy_ai key d
++600 ?fight_easy_ai key s
++600 ?fight_easy_ai key f
++600 ?fight_easy_ai key s
++600 ?fight_easy_ai key d
++1400 ?fight_easy_ai key f
++600 ?fight_easy_ai key a
++600 ?fight_easy_ai key d
++600 ?fight_easy_ai hold left 100
++200 ?fight_easy_ai hold right 150
++350 ?fight_easy_ai key a
++450 ?fight_easy_ai key f
++600 ?fight_easy_ai hold left 100
++200 ?fight_easy_ai hold right 150
++500 ?fight_easy_ai key down
++750 ?fight_easy_ai key a
++800 ?fight_easy_ai key f
++550 ?fight_easy_ai key f
++600 ?fight_easy_ai key a
++1400 ?fight_easy_ai key a
++1600 ?fight_easy_ai key f
++600 ?fight_easy_ai key f
++1400 ?fight_easy_ai key a
++600 ?fight_easy_ai key f
++750 ?fight_easy_ai key s
++450 ?fight_easy_ai key a
++600 ?fight_easy_ai key f
++600 ?fight_easy_ai key s
++1600 ?fight_easy_ai key a
++600 ?fight_easy_ai key a
++600 ?fight_easy_ai key f
++1400 ?fight_easy_ai key f
++600 ?fight_easy_ai key s
++600 ?fight_easy_ai key d
++600 ?fight_easy_ai key d
++600 ?fight_easy_ai key a
++600 ?fight_easy_ai key d
++600 ?fight_easy_ai hold left 100
++250 ?fight_easy_ai hold right 150
++450 ?fight_easy_ai key s
++500 ?fight_easy_ai key f
++600 ?fight_easy_ai key a
++600 ?fight_easy_ai key f
++1400 ?fight_easy_ai key f
++600 ?fight_easy_ai key a
++750 ?fight_easy_ai hold left 100
++150 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai key a
++500 ?fight_easy_ai key d
++600 ?fight_easy_ai key a
++600 ?fight_easy_ai key s
++1000 ?fight_easy_ai hold left 100
++200 ?fight_easy_ai hold right 500
++100 ?fight_easy_ai hold left 100
++200 ?fight_easy_ai hold right 200
++200 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 100
++200 ?fight_easy_ai hold right 250
++250 ?fight_easy_ai hold right 100
++150 ?fight_easy_ai key d
++450 ?fight_easy_ai key d
++700 ?fight_easy_ai key down
++500 ?fight_easy_ai key a
++600 ?fight_easy_ai key s
++600 ?fight_easy_ai hold left 100
++200 ?fight_easy_ai hold right 100
++150 ?fight_easy_ai hold left 100
++200 ?fight_easy_ai hold right 150
++250 ?fight_easy_ai key s
++600 ?fight_easy_ai key a
++600 ?fight_easy_ai key s
++600 ?fight_easy_ai key f
++600 ?fight_easy_ai key s
++600 ?fight_easy_ai key f
++600 ?fight_easy_ai key a
++600 ?fight_easy_ai key a
 # fair-plan salgin end
 +9000 ?fight_fair result won
 +0 wait espquete 10000

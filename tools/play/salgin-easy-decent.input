@@ -1,0 +1,10 @@
+# SALGIN alone in the Corrigida's easy opponent (`fight_easy_ai`, docs/fights/EASY_AI.md):
+# a decent player (see xilindro-easy-decent.input).
+# The bot (`core/fight_bot.zig`, `--fight-bot PROFILE,SEED`) plays the round
+# itself through the arena's key handler, seeing only the screen and never the
+# opponent's AI; the run is deterministic. Seed 1: won by a KO, the
+# fighter at 12 to the opponent's -1 (62 hits landed, 21 taken);
+# the window closes at 99850. `tools/fight_bots.py` plays it over many seeds.
+#
+#   zig-out/bin/noite --minigame salgin --headless --ms 103850 --fix all --fight-bot decent,1 --input tools/play/salgin-easy-decent.input
+101850 result won 1200
