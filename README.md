@@ -30,18 +30,19 @@ player walks over to a door first; a tap on the player walks, even over an
 item he hides), anything else walks; an inventory
 item is tapped then placed with the next click, or dragged. ENCAIXE
 (3ffarao's Tetris, `src/encaixe/`, `docs/encaixe/DESIGN.md`), TIRO
-(3fhall's shooting gallery, `src/tiro/`, `docs/tiro/DESIGN.md`) and SERIAL
-(3farmcai's Serial Killer, `src/serial/`, `docs/serial/DESIGN.md`) are
+(3fhall's shooting gallery, `src/tiro/`, `docs/tiro/DESIGN.md`), SERIAL
+(3farmcai's Serial Killer, `src/serial/`, `docs/serial/DESIGN.md`) and SALGIN
+(4fsalgin's gym fight, `src/salgin/`, `docs/salgin/DESIGN.md`) are
 ported: NOITE runs them as second programs (`src/platform/host.zig`), and
-`--minigame encaixe|tiro|serial` plays one alone. The other minigames (separate
+`--minigame encaixe|tiro|serial|salgin` plays one alone. The other minigames (separate
 EXEs) are stubbed, and the ported ones too with `--minigame-stub`: they
 report a win, or a loss with `--minigame-result lose`; their window shows 1.5 s
 after `WinExec` and answers the game's hello after 100 ms
 (`--minigame-startup MS`, `--minigame-reply MS`). A held key repeats as on
 Windows (500 ms, then every 33 ms; `--key-repeat DELAY,PERIOD|off`), in
 the window, the browser and headless runs. A minigame gets every key
-(TIRO and SERIAL: LEFT, RIGHT, SPACE); NOITE gets Enter, Esc and Space only to skip
-videos.
+(TIRO and SERIAL: LEFT, RIGHT, SPACE; SALGIN: the arrows, PgUp, Home, End,
+Insert); NOITE gets Enter, Esc and Space only to skip videos.
 Saves go to `save/` (`--save DIR`).
 
 ## Testing the port
@@ -54,7 +55,7 @@ Saves go to `save/` (`--save DIR`).
   `report FILE` (the state as JSON, as the web page's Relatório),
   `focus 0|1`, `freeze MS` (a time jump: the clock runs on while nothing is
   dispatched, as in a hidden web page), `result won|lost|none [SCORE] [| won|lost|none [SCORE]]`
-  (the last real minigame's 0x40a; the part after `|` is what a run with a `--fix` must get), `quit`…; input goes to the active window's
+  (the last real minigame's 0x40a; the part after `|` is what a run with a `--fix` must get), `close` (the user closes the active window: WM_CLOSE), `quit`…; input goes to the active window's
   program), `--dump DIR [--dump-every MS]` writes PNG frames of the screen
   (and of the SDL window), `--scene NAME [--take ID,…]` starts in any INI
   scene carrying those items, `--trace FILE` logs every message. A panic or
@@ -72,13 +73,13 @@ Saves go to `save/` (`--save DIR`).
   pixels do not stay on the corridor's Mona Lisa (B52; the Original fails it).
   `--fix all --ms 4000 --input tools/play/sala-street-door.input` checks that a click at (20, 120) takes the
   living room's street exit (a Corrigida addition); `sala-street-door-orig.input` is the Original's miss.
-- **Playthrough**: `./zig-out/bin/noite --headless --ms 600000 --input tools/play/full.input`
+- **Playthrough**: `./zig-out/bin/noite --headless --ms 660000 --input tools/play/full.input`
   plays from the title screen to the sportsman ending, checking every scene
-  (the hall's TIRO and the pharaoh's ENCAIXE with scripted wins).
+  (the hall's TIRO, the pharaoh's ENCAIXE and the gym's SALGIN with scripted wins).
   With the fixes: add `--fix all,-avi_exit_ignores_timer`
   (the script follows this run's hall doors and the 3fstreet shortcut of BUGS.md B21;
   both versions play the same timeline, TIRO's 16 presses included).
-  One-button: `--one-button --ms 480000 --input tools/play/onebutton.input` (the
+  One-button: `--one-button --ms 540000 --input tools/play/onebutton.input` (the
   whole game with left clicks only and TIRO's keys, doors clicked from afar, items dropped and
   offered by tap-tap and by dragging; the same with `--fix all,-avi_exit_ignores_timer`) and
   `--one-button --scene 1fquarbo --ms 30000 --input tools/play/onebutton-corridor.input`;
@@ -117,6 +118,17 @@ Saves go to `save/` (`--save DIR`).
   SERIAL's start time: rerun it when that moves; `--check FILE` simulates a script, `--trace FILE`
   prints every tick). `tools/smoke.py --minigame serial [--fix all] [--monkey SEED]` presses random
   aim keys and SPACE for 130 s.
+- **SALGIN**: `--minigame salgin --ms 60000 --input tools/play/salgin-alone-win.input` (Up held
+  from the start: the key repeat kicks as each move ends, a KO at 51 s, `result won 8200`) and
+  `--ms 100000 --input tools/play/salgin-alone-lose.input` (no key: the clock ends the round with
+  the player behind, `lost -1000`); `--ms 2000 --input tools/play/salgin-close.input` closes the
+  window at 0.5 s (new script command `close`: BUGS.md S7, `won 9100 | lost -1000`); from NOITE,
+  `--scene 4fsalgin --ms 72000 --input tools/play/salgin-4fsalgin-win.input` (NOITE hides, adds
+  the score, the garden cutscene `espquete`, which starts JARDIM) and `--ms 110000 --input
+  tools/play/salgin-4fsalgin-lose.input` (-1000, a life less, back to `4fbar`). Each the same
+  with `--fix all`. A held attack key is all a win takes, so the scripts need no planner.
+  `tools/smoke.py --minigame salgin [--fix all] [--monkey SEED]` presses and holds random fight
+  keys for 110 s.
 - **SDL without a display**: `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy`
   (or `disk` with `SDL_AUDIO_DISK_OUTPUT_FILE=out.raw` to capture the mix).
 
@@ -137,5 +149,7 @@ Corrigida = `--fix all`), whether videos can be skipped (on by
 default) and the one-button control (on by default on touch screens), then
 runs the game; saves go to localStorage, apart per version. "Jogo" picks
 the whole game or one ported minigame alone (Encaixe Perfeito, Tiro ao
-Álvaro, Serial Killer). On a touch screen the on-screen pad shows the keys
-of the window on top: for TIRO and SERIAL ◀, a fire button and ▶.
+Álvaro, Serial Killer, Porrada na Sala de Ginástica). On a touch screen the
+on-screen pad shows the keys of the window on top: for TIRO and SERIAL ◀, a
+fire button and ▶; for SALGIN its eight keys as on the numeric keypad
+(Salto = Home, ▲, Soco = PgUp; ◀, Pulo = Insert, ▶; Defesa = End, ▼).

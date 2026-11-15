@@ -328,10 +328,10 @@ the player, XILINDRO's dead MM_WOM_DONE case and unguarded reaction row,
 
 ## Integration
 
-Both fights are skeletons, off (`root.zig` `ready = false`) and in
-`main.minigames`: until the finishing step sets `ready`, NOITE's WinExec
-keeps the stub and `--minigame salgin|xilindro` says the program is not
-ported yet.
+Both fights are in `main.minigames`. SALGIN is finished (`root.zig`
+`ready = true`): NOITE's WinExec runs it and `--minigame salgin` plays
+it. XILINDRO is still off (`ready = false`): NOITE's WinExec keeps the
+stub and `--minigame xilindro` says the program is not ported yet.
 
 ### The launch from NOITE
 
@@ -372,24 +372,27 @@ ported yet.
 
 - `noite --minigame salgin|xilindro [--headless …]`: the fight alone (its
   task 0, its title, `\SALGIN` / `\XILINDRO`); prints its result.
-- Web (finishing step): both in `web_main.minigames` and in `MINIGAMES` /
-  the "Jogo" select of `web/noite.js`/`index.html`; `tools/web/files.py`
-  finds their files in their directories (the two share names such as
-  `FUNDLUTA.BMP` and `PORRADA.MID`, each in its own directory). The
-  on-screen pad needs the fight's keys (owner question 6).
-- Harness scripts: the keys by number (`key 0x21` PgUp, `0x24` Home,
-  `0x23` End, `0x2d` Insert; the arrows by name). The finishing step adds
-  the names `pgup`, `home`, `end`, `insert` to `script.keyCode`.
+- Web: SALGIN is in `web_main.minigames` and in `MINIGAMES` / the "Jogo"
+  select of `web/noite.js`/`index.html` ("Porrada na Sala de Ginástica");
+  `tools/web/files.py` finds its files in `SALGIN/` (`PORRADA.MID` is
+  found at the disc root first; XILINDRO, when finished, has its own
+  copies of the shared names in `XILINDRO/`). The on-screen pad
+  (`PAD_KEYS.salgin`) shows the eight keys as on the numeric keypad:
+  Home ▲ PgUp / ◀ Insert ▶ / End ▼, the four new ones labelled Salto, Pulo,
+  Soco, Defesa (owner question 6).
+- Harness scripts: the key names `pgup`, `home`, `end`, `insert` (or
+  numbers: `0x21`, `0x24`, `0x23`, `0x2d`); `close` closes the active
+  window as the user would (WM_CLOSE), for S7/X6.
 
 ## Platform: keys, repeat, timers
 
 - **Keys.** The fights take eight keys: the four arrows, PgUp (VK_PRIOR
-  0x21), Home (0x24), End (0x23), Insert (0x2d). SDL and the web page
-  pass only the arrows, Enter, Esc and Space today: the finishing step
-  adds the four (SDL: `SDLK_PAGEUP`, `HOME`, `END`, `INSERT`; the page:
-  keyCodes 33, 36, 35, 45) to the backends' key maps; `Sim.filterInput`
-  already gives a minigame every key it gets (NOITE never sees them: it
-  has no use for them and they skip no video). Every key-up matters
+  0x21), Home (0x24), End (0x23), Insert (0x2d). SDL (`SDLK_PAGEUP`,
+  `HOME`, `END`, `INSERT`) and the web page (keyCodes 33, 36, 35, 45:
+  `GAME_KEYS` in noite.js, `web.Key`) pass them besides the arrows, Enter,
+  Esc and Space; `Sim.filterInput` gives a minigame every key it gets
+  (NOITE never gets them in a scene that uses them: it has no use for
+  them and they skip no video). Every key-up matters
   (Left/Right key-ups stop the walk; every key-up redraws the arena).
 - **Repeat.** As TIRO: one generator in `Sim` (Windows 3.1's 500/33 ms),
   on by default. The latches make repeats harmless while a move plays;
@@ -408,48 +411,42 @@ ported yet.
 
 ## Tests
 
-- **Planner** `tools/fight_plan.py --game salgin|xilindro --start MS
-  (--win|--lose) [--relative-to MS]` (finishing step; MS: the fight's
-  WM_CREATE, 0 alone, WinExec + 1500 from NOITE). It simulates the round
-  on the virtual clock: the 50 ms system-timer messages and the
-  `GetTickCount` stamps (beat, clock second, end ticks), the latches, both
-  fighters' x, strips and frame counts, the opponent's approach and
-  attack, `time()` → `srand`/`rand` (S5/X3), the reaction and damage
-  tables, the energy bar, the KO and clock ends, and plans key presses
-  (≥ 110 ms apart) that win, checked with the flags off and with `--fix
-  all`. When one script cannot win in both versions, the Corrigida gets
-  its own (`*-fixed.input`). `--check FILE` / `--trace FILE` simulate a
-  script; the trace must match the port's (`noite --trace`) tick for tick
-  on random games before the planner is trusted.
-- **Scripts** (`tools/play/`), each run Original and `--fix all`:
-  - `salgin-alone-win.input` / `xilindro-alone-win.input` (`--minigame
-    <n> --ms 120000`): the planner's presses, `result won N`;
-  - `salgin-alone-lose.input` / `xilindro-alone-lose.input`: no key at
-    all; the opponent's attacks win (KO or the clock), `result lost
-    -1000` (SALGIN closes on `mane.WAV`'s end);
-  - `salgin-close.input` / `xilindro-close.input`: the window closed at
-    5 s (a new harness command `close`, the platform's `.quit` event:
-    WM_CLOSE to the active window; `quit` only ends the run): the
-    Original reports a win worth 9,100 / 13,650 (S7/X6), the Corrigida a
-    loss;
-  - `salgin-4fsalgin-win.input` / `-lose.input` (`--scene 4fsalgin`): the
-    gym's animation, NOITE hidden (`dump`), the fight, `espquete` with the
-    score added / `4fbar` with a life less;
-  - `xilindro-3fstreet-win.input` / `-lose.input` (`--scene 3fstreet`,
-    no stale guard timer on a direct start): `3fstree2` / `3fstree1`;
-  - `full.input` and `onebutton.input`: SALGIN between the sportsman's
-    quiz and `espquete` becomes the real fight (the planner's winning
-    presses, the result checked after the later of the two versions'
-    ends); the 3fstreet line launches the real XILINDRO while B21 sends
-    NOITE to the hall: the script plays it through (or the route is
-    re-planned around it), re-tuned in the finishing step since every
-    later random choice moves with it.
-- **Smoke**: `tools/smoke.py --minigame salgin|xilindro [--fix all]
-  [--monkey SEED]`: random presses of the eight keys and holds of
-  Left/Right, ≥ 110 ms apart, for 120 s, seeds 1–5; no panic or leak, and
-  a result.
-- **Web**: `tools/web/test.py` plays each fight from the "Jogo" select:
-  it starts, PgUp is answered.
+- **Planner.** SALGIN needed none: Up held from the start wins by KO in
+  both versions (Windows' key repeat presses it again every 33 ms, so a
+  kick starts as soon as the latches clear, and in range every kick
+  lands while the opponent attacks every 7-8 beats), and with no key the
+  opponent wins on the clock. The scripts hold a key and check the result
+  after the later of the two versions' ends. A planner simulating the
+  round (beat, clock, latches, `time()` → `srand`/`rand`, S5/X3) is still
+  the plan if XILINDRO's scripts need exact presses.
+- **Scripts** (`tools/play/`), each run Original and `--fix all`
+  (README.md "SALGIN"):
+  - `salgin-alone-win.input` (`--minigame salgin --ms 60000`): Up held
+    52 s from 300 ms, KO at 51 s, `result won 8200` in both;
+  - `salgin-alone-lose.input` (`--ms 100000`): no key; the clock ends the
+    round with the player behind, `result lost -1000` (closed on
+    `mane.WAV`'s end, 92.6 s / 91.2 s);
+  - `salgin-close.input` (`--ms 2000`): `close` at 0.5 s: `won 9100 |
+    lost -1000` (S7);
+  - `salgin-4fsalgin-win.input` / `-lose.input` (`--scene 4fsalgin`):
+    the gym's animation, the WinExec at 8733, SALGIN at 10233, Up held
+    from 11000: `espquete` with +8300 (Original) / +8200 (Corrigida, S5's
+    single seed); no key: -1000, a life less, `4fbar`;
+  - `full.input` and `onebutton.input`: after the sportsman's quiz the
+    gym starts the real SALGIN; Up held from 11000 into `4fsalgin` wins
+    (+8300 / +8200, +8100 / +8300 in the one-button run), then
+    `espquete`. The runs are now `--ms 660000` and `--ms 540000`;
+  - XILINDRO (when finished): `xilindro-alone-win|lose`, `xilindro-close`
+    (13,650, X6), `xilindro-3fstreet-win|lose` (`--scene 3fstreet`, no
+    stale guard timer on a direct start: `3fstree2` / `3fstree1`), and
+    the 3fstreet line of `full.input`, which then launches the real
+    XILINDRO while B21 sends NOITE to the hall.
+- **Smoke**: `tools/smoke.py --minigame salgin [--fix all] [--monkey
+  SEED]`: random presses and holds of the eight keys, ≥ 110 ms apart, for
+  110 s, seeds 1–5; no panic or leak, and a result.
+- **Web**: `tools/web/test.py` plays SALGIN from the "Jogo" select: it
+  starts and Up held 10 s adds a tile to the opponent's energy bar; on a
+  touch screen the pad shows the eight keys and a held ▲ does the same.
 - **Unit tests** (optional, tagged): `oracle=emulated` from tools/oracle
   (far code, DGROUP 1090, `_aFchkstk` 1080:00e4 runs as is) as worth it:
   `fighter_walk` (S10/S11, X10/X11), `opponent_walk`,
@@ -578,11 +575,12 @@ noite -p salgin failed <unit> "why" / release <unit>
 
 ## Finishing
 
-Once every unit of a program has landed: the keys (Platform), the script
-key names and the `close` command, the planner and the scripts (Tests), the smoke option
-(`KEYS_FOR` in `tools/smoke.py`), `full.input` re-tuned, the web entries;
-then `ready = true` in `src/<n>/root.zig` and the README's minigame list.
-BUGS.md's S/X "Port:" lines then say "ported and reproduced".
+Once every unit of a program has landed: the scripts (Tests), the smoke
+option (`KEYS_FOR` in `tools/smoke.py`), `full.input` re-tuned, the web
+entries; then `ready = true` in `src/<n>/root.zig` and the README's
+minigame list. BUGS.md's S/X "Port:" lines then say "ported". SALGIN is
+finished (the keys, the script key names and `close` came with it, so
+XILINDRO has them already); XILINDRO is not.
 
 ## Owner questions
 
@@ -602,8 +600,10 @@ BUGS.md's S/X "Port:" lines then say "ported and reproduced".
    banner, and for how long? The proposal: in the band, behind the
    fighters, for the round's first 2 s.
 6. **The on-screen pad** (web, one-button mode or a fight alone on a touch
-   screen): the fights use eight keys. Which pad (`PAD_KEYS`): all eight
-   (← → ↑ ↓ + PgUp, Home, End, Insert labelled as moves), or a subset?
+   screen): the fights use eight keys. SALGIN's pad (`PAD_KEYS.salgin`)
+   now shows all eight as on the numeric keypad: Salto (Home) ▲ Soco
+   (PgUp) / ◀ Pulo (Insert) ▶ / Defesa (End) ▼. Keep it, relabel it, or
+   drop keys (Insert deals no damage)?
 7. **X7** (`xilindro_double_ko_by_energy`, in `all`): a double KO with the
    fighter ahead is a "win" whose score (fighterEnergy × 150) is 0 or
    negative. Keep that score, or floor it at 0?

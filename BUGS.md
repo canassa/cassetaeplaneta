@@ -1338,7 +1338,7 @@ Addresses are Ghidra `seg:off` in `/SALGIN.EXE`; the game is described in `docs/
   3 (the sweep 1 either way): 1.5 per attack on average instead of 1.75, and the two sides hit equally hard.
 - **Confidence:** 9 (code); 6 (that it is a bug: a second per-strip table exists for the opponent and is indexed
   the same way, but the designers could have balanced the fight by ear).
-- **Port:** not ported yet (`src/salgin/`); the fix will be `Fixes.salgin_opponent_damage_table` (`--fix salgin_opponent_damage_table`, a choice left out of the Corrigida version until the owner decides).
+- **Port:** ported and reproduced (unit `arena`, src/salgin/); the fix is `Fixes.salgin_opponent_damage_table` (`--fix salgin_opponent_damage_table`, a choice left out of the Corrigida version until the owner decides).
 
 ### S2. Blocking takes the full damage
 - **Where:** `salgin_scene_handle_message`, the beat's attack branch (1068:26a5–27fb); End key 1068:1ec1.
@@ -1348,7 +1348,7 @@ Addresses are Ghidra `seg:off` in `/SALGIN.EXE`; the game is described in `docs/
 - **Effect:** the block (End) and the jump (Insert) protect nothing. `g_reactionStrips` shows the block holding
   (strip 7 again) against the punch and both kicks, so the player sees a parry and loses the energy anyway.
 - **Confidence:** 9 (code); 7 (that it is a bug).
-- **Port:** not ported yet (`src/salgin/`); the fix will be `Fixes.salgin_block_holds` (`--fix salgin_block_holds`, a choice left out of the Corrigida version until the owner decides).
+- **Port:** ported and reproduced (unit `arena`, src/salgin/); the fix is `Fixes.salgin_block_holds` (`--fix salgin_block_holds`, a choice left out of the Corrigida version until the owner decides).
 
 ### S3. Releasing Left or Right cuts short whatever move is playing
 - **Where:** `salgin_scene_handle_message`, `WM_KEYUP` `VK_LEFT` 1068:1fc4 and `VK_RIGHT` 1068:209d.
@@ -1359,7 +1359,7 @@ Addresses are Ghidra `seg:off` in `/SALGIN.EXE`; the game is described in `docs/
   attack (or a reaction) into the guard pose at once; the blow was dealt at the key press, so only the animation
   is lost, but the player now stands in guard, and the arrow's latch is free again before the move ends.
 - **Confidence:** 9 (code); 8 (effect).
-- **Port:** not ported yet (`src/salgin/`); the fix will be `Fixes.salgin_keyup_stops_walk_only` (`--fix salgin_keyup_stops_walk_only`, on in the Corrigida version).
+- **Port:** ported and reproduced (unit `arena`, src/salgin/); the fix is `Fixes.salgin_keyup_stops_walk_only` (`--fix salgin_keyup_stops_walk_only`, on in the Corrigida version).
 
 ### S4. Insert is not locked by the other moves
 - **Where:** `salgin_scene_handle_message`, the latch stores after each move key (Down 1068:14df–1503, Up 1739–1757,
@@ -1370,7 +1370,7 @@ Addresses are Ghidra `seg:off` in `/SALGIN.EXE`; the game is described in `docs/
 - **Effect:** Insert starts the jump in the middle of an attack or a block, replacing it (and playing its two
   waves); every other key waits for the move to end.
 - **Confidence:** 9 (code); 6 (that it is a bug).
-- **Port:** not ported yet (`src/salgin/`); the fix will be `Fixes.salgin_insert_locked` (`--fix salgin_insert_locked`, a choice left out of the Corrigida version until the owner decides).
+- **Port:** ported (unit `arena`, src/salgin/); the fix is `Fixes.salgin_insert_locked` (`--fix salgin_insert_locked`, a choice left out of the Corrigida version until the owner decides).
 
 ### S5. The opponent's attack is reseeded from the clock second on every choice
 - **Where:** `opponent_choose_attack` 1068:0b85 (`time(NULL)` 1068:0b97, `srand` 0ba0, `rand` 0bae).
@@ -1381,7 +1381,7 @@ Addresses are Ghidra `seg:off` in `/SALGIN.EXE`; the game is described in `docs/
   in a fixed descending order (3, 2, 1, 0, …), with a repeat about every 4 s. Two attacks in the same second are the
   same attack.
 - **Confidence:** 9.
-- **Port:** not ported yet (`src/salgin/`); the fix will be `Fixes.salgin_seed_once` (`--fix salgin_seed_once`, on in the Corrigida version).
+- **Port:** ported and reproduced (unit `fighters`, src/salgin/); the fix is `Fixes.salgin_seed_once` (`--fix salgin_seed_once`, on in the Corrigida version).
 
 ### S6. A loss closes only when `mane.WAV` reports its end
 - **Where:** `salgin_scene_handle_message`, the end tick (`g_endReady` set only on a player win, 1068:0fe9) and
@@ -1393,7 +1393,7 @@ Addresses are Ghidra `seg:off` in `/SALGIN.EXE`; the game is described in `docs/
   screen stays forever with every key ignored; no result reaches NOITE, whose poll waits for the window to go away.
   The window has no system menu, so only the Windows task list can close it (S7).
 - **Confidence:** 9 (code); 6 (effect, needs a failing sound setup).
-- **Port:** not ported yet (`src/salgin/`). No fix flag: the port's WaveMix always plays `mane.WAV` to its end and posts its `MM_WOM_DONE`, so the loss always closes.
+- **Port:** ported (unit `arena`, src/salgin/). No fix flag: the port's WaveMix always plays `mane.WAV` to its end and posts its `MM_WOM_DONE`, so the loss always closes (`tools/play/salgin-alone-lose.input`).
 
 ### S7. Closing the window mid-fight reports a win
 - **Where:** `salgin_scene_handle_message`, `WM_DESTROY` 1068:10dd–114c.
@@ -1402,7 +1402,7 @@ Addresses are Ghidra `seg:off` in `/SALGIN.EXE`; the game is described in `docs/
 - **Effect:** ending SALGIN from the task list (End Task: `WM_CLOSE` → `DestroyWindow`) before the opponent has
   landed more than the player is a win; at the start, 91–91, it is worth 9,100 points, the best score.
 - **Confidence:** 9 (code); 7 (that a player finds it).
-- **Port:** not ported yet (`src/salgin/`); the fix will be `Fixes.salgin_close_mid_fight_loses` (`--fix salgin_close_mid_fight_loses`, on in the Corrigida version).
+- **Port:** ported and reproduced (unit `arena`, src/salgin/); the fix is `Fixes.salgin_close_mid_fight_loses` (`--fix salgin_close_mid_fight_loses`, on in the Corrigida version).
 
 ### S8. The hit-reaction health counters drift from the energy bar
 - **Where:** `Fighter.health` (+0x50) and `Opponent.health` (+0x46) in `salgin_scene_handle_message`: the
@@ -1415,7 +1415,7 @@ Addresses are Ghidra `seg:off` in `/SALGIN.EXE`; the game is described in `docs/
   player never shows it; the opponent shows it only in its last 5 energy points, and never once five sweeps have
   landed.
 - **Confidence:** 9 (code); 6 (that it is a bug).
-- **Port:** not ported yet (`src/salgin/`); the fix will be `Fixes.salgin_weak_reaction_by_energy` (`--fix salgin_weak_reaction_by_energy`, a choice left out of the Corrigida version until the owner decides).
+- **Port:** ported (unit `arena`, src/salgin/); the fix is `Fixes.salgin_weak_reaction_by_energy` (`--fix salgin_weak_reaction_by_energy`, a choice left out of the Corrigida version until the owner decides).
 
 ### S9. The PORRADA banner never stays on screen
 - **Where:** `salgin_create_banner` 1068:0119 (`mover_blit_to_dc` to `GetDC(hwnd)`), `salgin_redraw_arena` 1068:0c81.
@@ -1424,7 +1424,7 @@ Addresses are Ghidra `seg:off` in `/SALGIN.EXE`; the game is described in `docs/
   y 140–434, which contains it, from the background and redraws only the two fighters, on the first beat and after.
 - **Effect:** "PORRADA" is not seen (at most for one beat).
 - **Confidence:** 9 (code); 7 (effect: the blit goes to a window that is not visible yet).
-- **Port:** not ported yet (`src/salgin/`); the fix will be `Fixes.salgin_banner_shown` (`--fix salgin_banner_shown`, a choice left out of the Corrigida version until the owner decides).
+- **Port:** ported and reproduced (unit `hud`, src/salgin/); the fix is `Fixes.salgin_banner_shown` (`--fix salgin_banner_shown`, a choice left out of the Corrigida version until the owner decides).
 
 ### S10. The fighter's 100-px stand-off is 68 px
 - **Where:** `fighter_walk` 1068:0672, the Right branch (1068:072f–0780).
@@ -1433,7 +1433,7 @@ Addresses are Ghidra `seg:off` in `/SALGIN.EXE`; the game is described in `docs/
 - **Effect:** a Right press within 100 px of the opponent puts the fighter exactly 68 px from it (moving it by less
   than a step, or back if closer). The same clamp in `opponent_walk` 1068:0a08 is never reached.
 - **Confidence:** 9 (code); 7 (that 100 px was the intent).
-- **Port:** not ported yet (`src/salgin/`); the fix will be `Fixes.salgin_standoff_100` (`--fix salgin_standoff_100`, on in the Corrigida version).
+- **Port:** ported and reproduced (unit `fighters`, src/salgin/); the fix is `Fixes.salgin_standoff_100` (`--fix salgin_standoff_100`, on in the Corrigida version).
 
 ### S11. The wall tests use the position before the step
 - **Where:** `fighter_walk` 1068:0672 (`x < 1` at 1068:069c, `x >= 400` at 06fd).
@@ -1441,7 +1441,7 @@ Addresses are Ghidra `seg:off` in `/SALGIN.EXE`; the game is described in `docs/
 - **Effect:** after a Right clamp (S10) leaves x off the 32-px grid, walking left ends at x −31…−1, the fighter's left
   edge off the screen; on the right x can reach 431. (The same tests in `opponent_walk` are never reached.)
 - **Confidence:** 9 (code); 6 (effect).
-- **Port:** not ported yet (`src/salgin/`); the fix will be `Fixes.salgin_walls_after_step` (`--fix salgin_walls_after_step`, on in the Corrigida version).
+- **Port:** ported and reproduced (unit `fighters`, src/salgin/); the fix is `Fixes.salgin_walls_after_step` (`--fix salgin_walls_after_step`, on in the Corrigida version).
 
 ### Harmless (SALGIN)
 
