@@ -1,8 +1,8 @@
 # Full playthrough in the one-button mode (src/one_button.zig): the left
-# button only, no keys but TIRO's and SALGIN's, title screen to the
-# sportsman ending.
+# button only, no keys but the minigames' (TIRO's, XILINDRO's and SALGIN's),
+# title screen to the sportsman ending.
 #
-#   zig-out/bin/noite --headless --ms 540000 --one-button --input tools/play/onebutton.input [--dump DIR]
+#   zig-out/bin/noite --headless --ms 600000 --one-button --input tools/play/onebutton.input [--dump DIR]
 #
 # full.input's route, but doors are clicked from wherever the player
 # stands (the player walks over first), the keyboard walks are clicks, and
@@ -161,7 +161,142 @@
 # Door 5 (this run): the disco.
 +1000 click 565 200
 +0 wait 4finifes 33000
-+1000 dump disco
+# XILINDRO, launched when the street video ended, shows its window over
+# the disco 1395 ms after the hall: no hello reached it (B21), so NOITE
+# stays shown below and nothing gets its result. Its keys are
+# xilindro-alone-win.input's (a KO, the fighter untouched), from XILINDRO's
+# first beat at 352563; its window closes 60545 ms after this wait.
++815 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++800 key up
++1200 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++800 key up
++1200 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++800 key up
++1200 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++800 key up
++1200 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++800 key up
++1200 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++560 hold left 20
++600 hold right 20
++40 key up
++4990 result won 13650
+# 12 s more in the disco: the quiz below draws its question from the clock
+# second, and this timing asks the Olympics question again.
++13000 dump disco
 
 # Act 4 — the disco (a dragged offer to the boy).
 +100 click 500 100

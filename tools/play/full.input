@@ -11,7 +11,7 @@
 # The hall's TIRO, the pharaoh's ENCAIXE and the gym's SALGIN are the real
 # minigames (scripted wins, tools/tiro_plan.py, tools/encaixe_plan.py and a
 # held Up for SALGIN); with `--minigame-stub` the run fails at their
-# `result` lines.
+# `result` lines. The street's XILINDRO runs too, unplayed (B21, below).
 
 # Title menu: JOGAR, then NOVO JOGO; the opening video ends in the bedroom.
 22000 dump title
@@ -149,7 +149,12 @@
 +0 wait 3fprisao 5000
 +1000 hold right 400
 +800 rclick 338 300
-# The street escape; the guard's stale timer ends it in the hall.
+# The street escape; the guard's stale timer ends it in the hall. XILINDRO,
+# launched when the video ended, shows its window 1395 ms into the hall,
+# over the pharaoh's video: no hello reached it (BUGS.md B21), so NOITE
+# stays shown below and gets no result. Nobody fights: it loses about 40 s
+# later, a few seconds after ENCAIXE has started over it
+# (onebutton.input fights it).
 +1000 rclick 460 200
 +0 wait 3fhall 63000
 # Door 4: the pharaoh. His video ends in the real ENCAIXE (it starts
