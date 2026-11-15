@@ -30,7 +30,8 @@ Reverse-engineering the 1995 ATR Multimedia point-and-click adventure
   `src/serial/` — SERIAL.EXE's (`docs/serial/DESIGN.md`); `src/salgin/` —
   SALGIN.EXE's (`docs/salgin/DESIGN.md`); `src/inv/` — INV.EXE's
   (`docs/inv/DESIGN.md`); `src/xilindro/` — XILINDRO.EXE's
-  (`docs/xilindro/DESIGN.md`, sharing SALGIN's design).
+  (`docs/xilindro/DESIGN.md`, sharing SALGIN's design); `src/inferno/` —
+  INFERNO.EXE's (`docs/inferno/DESIGN.md`).
 - `tools/cli/` — the `noite` port tracker (uv workspace member);
   `db/port.sqlite` — its database (local, not in git; `noite import` builds it).
 

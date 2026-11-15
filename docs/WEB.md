@@ -141,13 +141,13 @@ map $arg_h $noite_cache {
   file the static rules missed — run over the playthrough and six smoke
   runs (plain, `--offers`, `--minigame-result lose`, `--monkey 1-3`), none was missing.
   A ported minigame's names (`src/encaixe/`, `src/tiro/`, `src/serial/`,
-  `src/salgin/`, `src/inv/`, `src/xilindro/`) are looked for at the disc root, then in its
+  `src/salgin/`, `src/inv/`, `src/xilindro/`, `src/inferno/`) are looked for at the disc root, then in its
   EXE's directory, as the host does (`ENCAIXE/TETRFUN.BMP`, `PECA*.BMP`,
   `TIRO/FUNDTIRO.BMP`, `TIRO/*.WAV`, `SERIAL/FUNDO.BMP`, `SERIAL/3S*.BMP`,
   `SALGIN/FUNDLUTA.BMP`, `SALGIN/VB*.BMP`, `SALGIN/MA*.BMP`,
-  `INV/ESPACO.BMP`, `INV/*.WAV`, `XILINDRO/FUNDLUTA.BMP`, `XILINDRO/S[AB]*.BMP`…;
-  `DOOM1.MID`, `DOOM2.MID`, `PAC.MID` and
-  `PORRADA.MID` are found at the root first).
+  `INV/ESPACO.BMP`, `INV/*.WAV`, `XILINDRO/FUNDLUTA.BMP`, `XILINDRO/S[AB]*.BMP`,
+  `INFERNO/FUNDO.BMP`, `INFERNO/SONIC*.WAV`…; `DOOM1.MID`, `DOOM2.MID`, `PAC.MID`,
+  `PORRADA.MID` and `MARIO.MID` are found at the root first).
   Left out: the EXEs and DLLs, the stubbed minigames' directories,
   installers, drivers, the other fonts, unreferenced files.
   `manifest.py` downloads identical files once: `HD\*.AVI` clips that are
@@ -164,7 +164,7 @@ map $arg_h $noite_cache {
   gesture) once the files are loaded; the choice is kept in localStorage
   (`noite:prefs`, the page works without it) and passed to
   `noite_start(fixes, skip_videos, one_button, minigame)`; "Jogo" sets
-  `minigame` (0 the whole game, 1 Encaixe Perfeito, 2 Tiro ao Álvaro, 3 Serial Killer, 4 Porrada na Sala de Ginástica, 5 Invasores, 6 Xilindro alone: `MINIGAMES` in
+  `minigame` (0 the whole game, 1 Encaixe Perfeito, 2 Tiro ao Álvaro, 3 Serial Killer, 4 Porrada na Sala de Ginástica, 5 Invasores, 6 Xilindro, 7 Inferno alone: `MINIGAMES` in
   noite.js, disabled until its `ready`; `noite_start` returns 3 for an
   unported one). A line under the canvas names the
   version and reloads into the other one (`?versao=corrigida|original`,
@@ -211,7 +211,7 @@ map $arg_h $noite_cache {
   `PAD_KEYS` in noite.js): for TIRO, SERIAL and INV ◀, a fire button (Space) and ▶;
   for SALGIN and XILINDRO their eight keys laid out as on the numeric keypad (Home ▲ PgUp /
   ◀ Insert ▶ / End ▼, the four new ones labelled Salto, Pulo, Soco,
-  Defesa). Keys pass to the game as pressed (`GAME_KEYS`: the arrows, Enter,
+  Defesa); for INFERNO the four arrows (UP the high jump, DOWN the low one). Keys pass to the game as pressed (`GAME_KEYS`: the arrows, Enter,
   Esc, Space, and the fights' PgUp, End, Home and Insert), the browser's
   repeats dropped: `Sim` repeats a held key (500 ms, then every 33 ms).
 - **Loop.** `noite_frame` (`src/web_main.zig`), called on every
@@ -247,7 +247,7 @@ map $arg_h $noite_cache {
   The Corrigida version keeps its own (`noite:corrigida:save:…`): a save
   can hold what only one version produces (a 32-bit score, B19; a scene
   only the fixes reach), so the versions never load each other's.
-- **Minigames.** ENCAIXE, TIRO, SERIAL, SALGIN, INV and XILINDRO run in the same wasm as a second task
+- **Minigames.** ENCAIXE, TIRO, SERIAL, SALGIN, INV, XILINDRO and INFERNO run in the same wasm as a second task
   (`src/platform/host.zig`, docs/encaixe/DESIGN.md) and the canvas shows
   its window. The others are stubbed as in the native port (a win after a
   few seconds); while one "runs" the page shows a note instead of the
@@ -391,7 +391,10 @@ then "Jogo" = Invasores: SPACE sends the shot up from the cannon
 for 15 s walk in and kick until the opponent's energy bar gets a tile
 (`xilindro.png`, `xilindro-kick.png`), and on a touch screen the pad shows
 the eight fight keys and ▶ and ▲ tapped in turn do the same
-(`xilindro-touch.png`).
+(`xilindro-touch.png`); then "Jogo" = Inferno: a held Right walks the hero
+off his starting place (`inferno.png`, `inferno-walk.png`), and on a touch
+screen the pad shows the four arrows and a held ▶ does the same
+(`inferno-touch.png`).
 Screenshots go to
 `zig-out/web-test/` (`title.png`, `bedroom.png`, `drawer.png`,
 `window-*.png`, `cache.png`).

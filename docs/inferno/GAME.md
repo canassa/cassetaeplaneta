@@ -124,8 +124,9 @@ y = 408, colour 0x00EDEEEE, transparent.
 - **The clock** (checked on every message, 1068:4bf2): 180,000 ms after `g_startTick` the handler
   sets `g_timeUp`, posts `0x40a (g_lives, g_lives ? 500 : g_score − 1000)` to NOITE, re-arms timer
   1 and restarts the clock as a grace period. During it every message at least 100 ms after the
-  last report posts it again (H2), and from 1 s on every message posts `WM_DESTROY`. The game keeps
-  running meanwhile. With a life left (always, here) the report is a flat 500.
+  last report posts it again (H2), and from 1 s on every message posts `WM_DESTROY`, the posted
+  `WM_DESTROY` included, so the game never quits (H8). The game keeps running meanwhile. With a life
+  left (always, here) the report is a flat 500.
 - **The lives:** `inferno_lose_life` posts `WM_DESTROY` at 0 lives and reports nothing (H3).
 - **`WM_CLOSE`** (End Task only) posts the same report (H4); `0x12` (`WM_QUIT`) too, but never
   arrives.

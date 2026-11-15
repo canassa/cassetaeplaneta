@@ -226,7 +226,7 @@ Order of work: 1–4 and 10 first (anchors), then 5–9 and 11–12, then the `1
 ## Phase 4 results
 
 All 27 groups are done. The game is described in `GAME.md`, its bugs in `BUGS.md` (section
-INFERNO, H1–H7). What phase 4 corrected in the earlier picture:
+INFERNO, H1–H8). What phase 4 corrected in the earlier picture:
 - **`0x12` is `WM_QUIT`**, not `WM_QUERYENDSESSION` (0x11); its case is dead.
 - **Timers:** hero move 10 (55 ms, also counts the big hero's `powerTimer` down), hero animation 15
   (180 ms), 0xc the drinks' animation (the present), cross 3 (120 ms), hazards 0xe (60 ms). The

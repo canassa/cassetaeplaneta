@@ -194,7 +194,7 @@ cross gives +300 and makes the hero big for about 9.8 s; hazards are stomped for
 
 ## 8. Original bugs
 
-In `BUGS.md`, section INFERNO (H1–H7, and a Harmless list): the trailing `0x40c` and the time-out's
+In `BUGS.md`, section INFERNO (H1–H8, and a Harmless list): the trailing `0x40c` and the time-out's
 repeated reports reach NOITE's hall, a loss on lives reports nothing, closing the window with a life
 left is a win, a hazard the hero runs into costs nothing, a life lost wipes the occupancy grid, and a
 stomp in the scroll zone keeps the stomp latch set. `sonicpul.wav` opened twice and `sonicf.WAV`'s

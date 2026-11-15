@@ -33,10 +33,11 @@ item is tapped then placed with the next click, or dragged. ENCAIXE
 (3fhall's shooting gallery, `src/tiro/`, `docs/tiro/DESIGN.md`), SERIAL
 (3farmcai's Serial Killer, `src/serial/`, `docs/serial/DESIGN.md`), SALGIN
 (4fsalgin's gym fight, `src/salgin/`, `docs/salgin/DESIGN.md`), INV
-(4fsacaet's space invaders, `src/inv/`, `docs/inv/DESIGN.md`) and XILINDRO
-(3fstreet's jail fight, `src/xilindro/`, `docs/xilindro/DESIGN.md`) are
+(4fsacaet's space invaders, `src/inv/`, `docs/inv/DESIGN.md`), XILINDRO
+(3fstreet's jail fight, `src/xilindro/`, `docs/xilindro/DESIGN.md`) and INFERNO
+(3fpapmal's platformer in hell, `src/inferno/`, `docs/inferno/DESIGN.md`) are
 ported: NOITE runs them as second programs (`src/platform/host.zig`), and
-`--minigame encaixe|tiro|serial|salgin|inv|xilindro` plays one alone. The other minigames (separate
+`--minigame encaixe|tiro|serial|salgin|inv|xilindro|inferno` plays one alone. The other minigames (separate
 EXEs) are stubbed, and the ported ones too with `--minigame-stub`: they
 report a win, or a loss with `--minigame-result lose`; their window shows 1.5 s
 after `WinExec` and answers the game's hello after 100 ms
@@ -44,7 +45,7 @@ after `WinExec` and answers the game's hello after 100 ms
 Windows (500 ms, then every 33 ms; `--key-repeat DELAY,PERIOD|off`), in
 the window, the browser and headless runs. A minigame gets every key
 (TIRO, SERIAL and INV: LEFT, RIGHT, SPACE; SALGIN and XILINDRO: the arrows, PgUp,
-Home, End, Insert); NOITE gets Enter, Esc and Space only to skip videos.
+Home, End, Insert; INFERNO: the arrows); NOITE gets Enter, Esc and Space only to skip videos.
 Saves go to `save/` (`--save DIR`).
 
 ## Testing the port
@@ -163,6 +164,19 @@ Saves go to `save/` (`--save DIR`).
   with a temporary trace, and shift with XILINDRO's start (26095 ms later from `3fstreet`).
   `tools/smoke.py --minigame xilindro [--fix all] [--monkey SEED]` presses and holds random fight
   keys for 110 s.
+- **INFERNO**: `--minigame inferno --ms 180900 --input tools/play/inferno-alone-win.input` (32
+  stomps, the 3 minutes survived, `result won 500`), `--ms 30000 --input
+  tools/play/inferno-alone-lose.input` (no key: five hazards walk into the hero, no result,
+  BUGS.md H3) and `--ms 3000 --input tools/play/inferno-close.input` (the window closed at 2 s: `won
+  500`, H4); from NOITE, `--scene 3fpapmal --ms 198300 --input
+  tools/play/inferno-3fpapmal-win.input` (the Original's H1/H2: two lives lost and the prison with
+  +1000; the fixed run's hall with +500) and `--ms 50000 --input
+  tools/play/inferno-3fpapmal-lose.input` (no report: NOITE finds the window gone, a life less, the
+  hall). Each the same with `--fix all`. The win's jumps are `tools/inferno_plan.py [--start MS]`,
+  planned against the port (INFERNO starts 17403 ms into `--scene 3fpapmal`). The Original runs
+  stop before 181 s of INFERNO, where it spins on `WM_DESTROY` for good (H8: the port panics).
+  `tools/smoke.py --minigame inferno [--fix all] [--monkey SEED]` holds LEFT/RIGHT and presses
+  UP/DOWN at random for 190 s.
 - **SDL without a display**: `SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy`
   (or `disk` with `SDL_AUDIO_DISK_OUTPUT_FILE=out.raw` to capture the mix).
 
@@ -183,7 +197,9 @@ Corrigida = `--fix all`), whether videos can be skipped (on by
 default) and the one-button control (on by default on touch screens), then
 runs the game; saves go to localStorage, apart per version. "Jogo" picks
 the whole game or one ported minigame alone (Encaixe Perfeito, Tiro ao
-Álvaro, Serial Killer, Porrada na Sala de Ginástica, Invasores, Xilindro).
+Álvaro, Serial Killer, Porrada na Sala de Ginástica, Invasores, Xilindro,
+Inferno).
 On a touch screen the on-screen pad shows the keys of the window on top: for
 TIRO, SERIAL and INV ◀, a fire button and ▶; for SALGIN and XILINDRO their eight keys as on the numeric keypad
-(Salto = Home, ▲, Soco = PgUp; ◀, Pulo = Insert, ▶; Defesa = End, ▼).
+(Salto = Home, ▲, Soco = PgUp; ◀, Pulo = Insert, ▶; Defesa = End, ▼); for
+INFERNO the four arrows.

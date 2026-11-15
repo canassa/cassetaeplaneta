@@ -1808,13 +1808,14 @@ Harmless, the last kill's speed-up) and `WM_QUIT` comes first.
 
 ## INFERNO.EXE (the "Inferno" platformer minigame)
 
-Addresses are Ghidra `seg:off` in `/INFERNO.EXE`; the game is described in `docs/inferno/GAME.md`.
-`inferno_scene_handle_message` is 1068:4bdc. The letter is H (for hell): I is INV's. Left out as
-design: a survived game is worth a flat 500 whatever `g_score` is (as SERIAL), so the points
-collected in play never reach NOITE; the game, its timers and its 3-minute clock keep running while
-the window is inactive (`WM_ACTIVATE` pauses only the music and the sound); a second cross picked up
-while big makes the hero small again (`hero_toggle_size` toggles); the score can go negative. Each is
-consistent code with a plausible intent.
+Addresses are Ghidra `seg:off` in `/INFERNO.EXE`; the game is described in `docs/inferno/GAME.md`;
+the port is `src/inferno/` (docs/inferno/DESIGN.md). `inferno_scene_handle_message` is 1068:4bdc.
+The letter is H (for hell): I is INV's. Left out as design: a survived game is worth a flat 500
+whatever `g_score` is (as SERIAL), so the points collected in play never reach NOITE; the game, its
+timers and its 3-minute clock keep running while the window is inactive (`WM_ACTIVATE` pauses only
+the music and the sound); a second cross picked up while big makes the hero small again
+(`hero_toggle_size` toggles); the score can go negative. Each is consistent code with a plausible
+intent.
 
 ### H1. The "ready" message follows the result, and the hall takes it for its own minigame
 - **Where:** `APPWNDPROC` 1038:0353, the post at 1038:0365–0385 (the empty `if (g_noiteWnd)` at 036e);
@@ -1828,10 +1829,13 @@ consistent code with a plausible intent.
   `minigameRunning` and hides the main window; its `WM_SYSTIMER` test then finds no
   "Tiro ao Alvaro" window and posts itself `(0x40a, 0, 0)`.
 - **Effect:** after INFERNO reports, the hall counts a lost TIRO game: a life (`6fsaida` at 0
-  lives), and `3fhall` again; while `0x40c` keep coming this can repeat.
-- **Confidence:** 9 (code, both sides); 6 (how many losses: the order of the posts is not traced).
-- **Port:** not ported yet (NOITE's `3fpapmal` and `3fhall` are ported as is; the headless
-  minigame stub posts one `0x40c` and one `0x40a`).
+  lives), and `3fhall` again; while `0x40c` keep coming this can repeat. In the port's run of a
+  time-out it is two losses, 50 ms apart (the hall's system timer), before H2's repost.
+- **Confidence:** 9 (code, both sides); 7 (how many losses: traced in the port only).
+- **Port:** reproduced (unit `app`, src/inferno/app.zig; NOITE's `3fpapmal` and `3fhall` as they
+  are); `Fixes.inferno_ready_once` posts one `0x40c`, after the hello. `tools/play/
+  inferno-3fpapmal-win.input`: the Original ends in `3fprisao` with 2 lives lost and +1000, the
+  fixed run in `3fhall` with +500.
 
 ### H2. The time-out result is posted again for a second, and the hall takes it for TIRO's
 - **Where:** `inferno_scene_handle_message`, the clock block 1068:4bf2–4d14 (time-out 4c26, reposts
@@ -1846,7 +1850,9 @@ consistent code with a plausible intent.
 - **Effect:** surviving the 3 minutes adds 1000 instead of 500, marks the TIRO minigame won and puts
   the player in the prison instead of the hall, after the losses of H1 that fit in between.
 - **Confidence:** 9 (code, both sides); 7 (effect: the second report comes 100 ms after the first).
-- **Port:** not ported yet (as H1).
+- **Port:** reproduced (unit `hell`, src/inferno/hell.zig `clock`); `Fixes.inferno_report_once`
+  posts the result once, at the time-out. The Original's second report comes 100 ms after the first,
+  after H1's two losses (`tools/play/inferno-3fpapmal-win.input`).
 
 ### H3. Losing the last life reports nothing
 - **Where:** `inferno_lose_life` 1068:58b2 (`PostMessage(hwnd, WM_DESTROY)` at 1068:5919); the
@@ -1858,7 +1864,10 @@ consistent code with a plausible intent.
   `g_score − 1000` branch, the only path that sends INFERNO's points, is never taken (only in the
   sub-tick race of a `0x40a` trigger handled between the post and the `WM_DESTROY`).
 - **Confidence:** 9 (code); 7 (that a loss report was meant: the time-out report computes one).
-- **Port:** not ported yet.
+- **Port:** reproduced (unit `score`, src/inferno/score.zig `loseLife`); the fix is
+  `Fixes.inferno_loss_reports` (`--fix inferno_loss_reports`, a choice left out of the Corrigida
+  version until the owner decides). `tools/play/inferno-alone-lose.input` and
+  `inferno-3fpapmal-lose.input`: no result, NOITE's fallback takes a life with the score unchanged.
 
 ### H4. Closing the window with a life left reports a win
 - **Where:** `inferno_scene_handle_message`, `WM_CLOSE` 1068:4d50.
@@ -1868,7 +1877,9 @@ consistent code with a plausible intent.
 - **Effect:** ending INFERNO from the task list at any time with a life left is a win worth 500
   (then H1 takes a life in the hall).
 - **Confidence:** 9 (code); 7 (that a player finds it).
-- **Port:** not ported yet.
+- **Port:** reproduced (unit `hell`, the `WM_CLOSE` case; the window's close in the port is End
+  Task); the fix is `Fixes.inferno_close_forfeits` (`--fix inferno_close_forfeits`, a choice left out
+  of the Corrigida version until the owner decides). `tools/play/inferno-close.input`: won 500.
 
 ### H5. A hazard the hero runs into kills it without costing a life
 - **Where:** `hero_collide` 1068:0260, the hazard branch of a small hero (side hit); its callers
@@ -1881,7 +1892,9 @@ consistent code with a plausible intent.
 - **Effect:** jumping into a coal, devil or fire low enough to miss the stomp plays the death and
   removes the hazard for free; only a hazard that walks into the hero costs a life.
 - **Confidence:** 9 (code); 7 (effect).
-- **Port:** not ported yet.
+- **Port:** reproduced (unit `hero`, src/inferno/hero.zig `collide`); the fix is
+  `Fixes.inferno_side_hit_costs_life` (`--fix inferno_side_hit_costs_life`, on in the Corrigida
+  version). `tools/inferno_plan.py` probes with it on, so the scripted win never side-hits.
 
 ### H6. A life lost wipes the whole occupancy grid
 - **Where:** `hazard_hit_player` 1068:3f86 (`occupancy_grid_clear(grid, NULL)` after
@@ -1896,7 +1909,9 @@ consistent code with a plausible intent.
   The phantom cells block like walls with no object: the hero's step into one stops it as on the
   floor (a jump ends and the hero is put back on the floor line).
 - **Confidence:** 9 (the wipe); 6 (the phantom cells: from the vacate arithmetic, not traced).
-- **Port:** not ported yet.
+- **Port:** reproduced (unit `hazard`, src/inferno/hazard.zig `hitPlayer`); the fix is
+  `Fixes.inferno_hit_keeps_grid` (`--fix inferno_hit_keeps_grid`, on in the Corrigida version). The
+  scripted loss (no key) loses a life every 5.46 s in both versions.
 
 ### H7. A stomp in the scroll zone blocks the stomp points until a landing outside it
 - **Where:** `hero_move_tick` 1068:0bf7, the two landing resets; `g_stompScored` 1090:02da, set by
@@ -1907,7 +1922,9 @@ consistent code with a plausible intent.
 - **Effect:** after a stomp landed in the scroll zone, later stomps still remove the hazard but give
   no points until the hero lands once outside the zone.
 - **Confidence:** 9 (code); 7 (effect).
-- **Port:** not ported yet.
+- **Port:** reproduced (unit `hero`, `moveTick`); the fix is `Fixes.inferno_scroll_landing_clears_stomp`
+  (`--fix inferno_scroll_landing_clears_stomp`, on in the Corrigida version). The scripted win never
+  walks, so it never matters there.
 
 ### H8. The time-out never ends: every WM_DESTROY posts another
 - **Where:** `inferno_scene_handle_message`, the clock block 1068:4bf2–4d14 (the `WM_DESTROY` post
