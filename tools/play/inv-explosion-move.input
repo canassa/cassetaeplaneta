@@ -1,0 +1,17 @@
+# INV alone, LEFT and SPACE during the cannon's explosion (BUGS.md I2).
+#
+#   zig-out/bin/noite --minigame inv --headless --ms 15000 --input tools/play/inv-explosion-move.input
+#   zig-out/bin/noite --minigame inv --headless --ms 15000 --fix all --input tools/play/inv-explosion-move.input
+#
+# With no key the first bomb hits the cannon between 2370 and 2390 ms
+# (inv-alone-lose.input); LEFT is held from 2400, in the explosion's
+# first cannon tick, and SPACE pressed at 2600, before the 7 frames end:
+# - Original: the cannon drives off showing the frozen explosion frame
+#   and fires; the shot kills an invader and the bombs end the game at
+#   8440 ms with -1900;
+# - `--fix all`: the cannon holds still and cannot fire until the explosion
+#   ends; the game goes as with no key: -2000 at 12275 ms.
+2400 hold left 150
+2500 dump moved
+2600 key space
+13000 result lost -1900 | lost -2000

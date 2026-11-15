@@ -1,0 +1,8 @@
+# INV alone, a loss: no key. The bombs hit the cannon where it stands four
+# times (-500 each); the fourth ends the game at 12275 ms in both versions
+# (`tools/inv_plan.py --lose`).
+#
+#   zig-out/bin/noite --minigame inv --headless --ms 15000 --input tools/play/inv-alone-lose.input
+#   zig-out/bin/noite --minigame inv --headless --ms 15000 --fix all --input tools/play/inv-alone-lose.input
+3000 dump hit
+13000 result lost -2000

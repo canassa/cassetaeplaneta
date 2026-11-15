@@ -1,0 +1,16 @@
+# NOITE's flying saucer (4fsacaet) starts the real INV, which loses: 0x40a
+# lost with -2000 (a negative score lowers NOITE's), the Martian's scene
+# (4fmarte), then a life less and back to the bar (4fbar).
+#
+#   zig-out/bin/noite --headless --scene 4fsacaet --ms 46000 --input tools/play/inv-4fsacaet-lose.input
+#   zig-out/bin/noite --headless --scene 4fsacaet --ms 46000 --fix all --input tools/play/inv-4fsacaet-lose.input
+#
+# As inv-4fsacaet-win: INV starts at 26808. No key (inv-alone-lose.input):
+# the fourth bomb hit ends it at 39083 in both versions.
+28000 dump inv
+39500 result lost -2000
+39500 expect 4fmarte
+39500 state
++0 wait 4fbar 10000
++0 state
++0 dump bar

@@ -1,0 +1,50 @@
+# NOITE's flying saucer (4fsacaet) starts the real INV, which wins: NOITE
+# gets 0x40c (hides), then 0x40a won with +2000, shows itself, adds the
+# score and goes to the Martian's thanks (4fmarte2), the ESOTEBOY cutscene
+# and back to the bar (4fbar), with no life taken.
+#
+#   zig-out/bin/noite --headless --scene 4fsacaet --ms 76000 --input tools/play/inv-4fsacaet-win.input
+#   zig-out/bin/noite --headless --scene 4fsacaet --ms 76000 --fix all --input tools/play/inv-4fsacaet-win.input
+#
+# The saucer's wave ends at 25308 (the WinExec); INV starts 1500 ms later
+# (26808). The keys are `tools/inv_plan.py --win --start 26808`
+# (inv-alone-win.input's game shifted): the win at 37408 in both versions.
+20000 dump saucer
+27408 key left
+27518 key space
+27739 key space
+28000 dump inv
+28070 key space
+28511 hold left 90
+28621 key space
+28842 key space
+29173 key space
+29614 key space
+30225 key space
+30776 key left
+30886 key space
+31727 key left
+31837 key space
+32498 hold left 210
+32728 key space
+32949 key space
+33225 key space
+33611 key space
+34052 hold left 90
+34162 key space
+34823 hold right 510
+35353 key space
+35464 key space
+35685 key space
+36016 key left
+36126 key space
+36567 hold left 150
+36737 key space
+37500 result won 2000
+37500 expect 4fmarte2
+37500 state
+40000 dump martian
++0 wait ESOTEBOY 15000
++0 wait 4fbar 30000
++0 state
++0 dump bar

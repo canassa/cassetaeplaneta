@@ -1,0 +1,17 @@
+# INV alone, SPACE held for 4 s with Windows' key repeat (BUGS.md I1).
+#
+#   zig-out/bin/noite --minigame inv --headless --ms 25000 --key-repeat 500,33 --input tools/play/inv-held-space.input
+#   zig-out/bin/noite --minigame inv --headless --ms 25000 --key-repeat 500,33 --fix all --input tools/play/inv-held-space.input
+#
+# (500,33 is the default of every run; the flag makes the script independent
+# of it.) One step left, then SPACE held under the third column:
+# - Original: the press and every repeat with the shot free fire again;
+#   the gun kills its way up the columns above it, and the formation
+#   lands at 19762 ms with +500 (three results in that tick: BUGS.md, INV
+#   Harmless);
+# - `--fix all`: the latch holds the repeats off: one shot, one kill, and
+#   the bombs end it at 14330 ms with -1900.
+600 key left
+700 hold space 4000
+2500 dump held
+20000 result lost 500 | lost -1900
