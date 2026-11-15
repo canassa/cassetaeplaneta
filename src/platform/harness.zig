@@ -154,6 +154,11 @@ pub const Harness = struct {
                     // Back to the loop: what fell due is polled at once.
                     return true;
                 },
+                .close => if (h.otherActive()) {
+                    h.host.?.close();
+                } else {
+                    _ = g.send(.{ .id = msg.wm.close });
+                },
                 .quit => {
                     g.quit = true;
                     return true;
@@ -196,7 +201,7 @@ pub const Harness = struct {
 
     /// `step` for a minigame run alone: the program-neutral commands
     /// (input to the active window, dump, log, focus, freeze, result,
-    /// quit). True if it did anything; `quit` sets `quit.*`.
+    /// close, quit). True if it did anything; `quit` sets `quit.*`.
     pub fn stepAlone(h: *Harness, hs: *Host, quit: *bool) bool {
         const now = hs.machine.ticks();
         var did = false;
@@ -212,6 +217,7 @@ pub const Harness = struct {
                 .dump => |name| h.dumpScreen(hs.shownScreen(), now, name),
                 .log => |text| std.debug.print("[{d}] log: {s}\n", .{ now, text }),
                 .focus => |on| hs.focus(on),
+                .close => hs.close(),
                 .freeze => |ms| {
                     std.debug.print("[{d}] freeze {d} ms\n", .{ now, ms });
                     hs.machine.freeze(ms);

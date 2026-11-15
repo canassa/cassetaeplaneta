@@ -227,6 +227,13 @@ pub const Host = struct {
         _ = t.inbox.push(.{ .activate = on });
     }
 
+    /// The user closes the active window (`.quit`: the program sends
+    /// itself WM_CLOSE).
+    pub fn close(h: *Host) void {
+        const t = h.activeTask() orelse &h.tasks[0];
+        _ = t.inbox.push(.quit);
+    }
+
     fn activeTask(h: *Host) ?*Task {
         const id = h.active orelse return null;
         const t = &h.tasks[id];

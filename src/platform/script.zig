@@ -47,12 +47,14 @@
 //!                       the part after `|`, when given, is what a run with
 //!                       a `--fix` on must get instead (a bug that changes
 //!                       the result, as SERIAL's BUGS.md K1/K2)
+//!     close             close the active window, as the user (the web page's
+//!                       tab closed, Windows' End Task): WM_CLOSE to it
 //!     quit              end the run
 //!
 //! A minigame run alone (`--minigame encaixe`) takes the input, `dump`,
-//! `log`, `focus`, `freeze`, `result` and `quit` commands; the others need
-//! NOITE. Once it has quit, its remaining `result` and `log` lines still
-//! run.
+//! `log`, `focus`, `freeze`, `result`, `close` and `quit` commands; the
+//! others need NOITE. Once it has quit, its remaining `result` and `log`
+//! lines still run.
 //!
 //! Mouse commands keep track of the buttons held, as `wParam` (MK_*).
 
@@ -76,6 +78,7 @@ pub const Action = union(enum) {
     focus: bool,
     freeze: u32,
     result: ResultCheck,
+    close,
     quit,
 };
 
@@ -297,6 +300,8 @@ pub fn parse(gpa: std.mem.Allocator, text: []u8) ParseError!Script {
                 if (words.peek() != null) return bad(line_no, "extra words after the fixed result");
             }
             try s.steps.append(gpa, .{ .at = t, .action = .{ .result = r } });
+        } else if (eq(u8, cmd, "close")) {
+            try s.steps.append(gpa, .{ .at = t, .action = .close });
         } else if (eq(u8, cmd, "quit")) {
             try s.steps.append(gpa, .{ .at = t, .action = .quit });
         } else return bad(line_no, "unknown command");
