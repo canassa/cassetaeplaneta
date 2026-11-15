@@ -65,7 +65,6 @@ fn animationPrevFrame(obj: *Object) i16 {
 /// SceneObject slot 2E play (hwnd dropped): exit_play (exit), animated3d_play (player, control_panel) / default.
 pub fn play(g: *Game, obj: *Object, bd: *Backdrop) void {
     switch (obj.kind) {
-        // @orig 1048:25c1 exit_play
         .exit => exitPlay(g, obj, bd),
         // @orig 10c0:22a8 animated3d_play
         .player, .control_panel => animationPlay(g, obj, bd),
@@ -138,11 +137,9 @@ fn animationStopAndRedraw(g: *Game, obj: *Object, bd: *Backdrop) void {
 /// SceneObject slot 32 tick: exit_tick (exit), player_tick (player), control_panel_tick (control_panel) / default.
 pub fn tick(g: *Game, obj: *Object, bd: *Backdrop) void {
     switch (obj.kind) {
-        // @orig 1048:2785 exit_tick
         .exit => exitTick(g, obj, bd),
         // @orig 1048:246b player_tick
         .player => animated3dTick(g, obj, bd),
-        // @orig 1078:069d control_panel_tick
         .control_panel => controlPanelTick(g, obj, bd),
         // scene_object_tick_default (absorbed)
         .scene_object, .wall_strip, .portable => {},
