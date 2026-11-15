@@ -61,8 +61,13 @@
   // kick). INFERNO walks with LEFT/RIGHT and jumps with UP (high) and DOWN
   // (low): the four arrows. SAUNA's Pacman runs to the wall with an arrow:
   // the four arrows too (a tap on the maze walks him there as well).
+  // JARDIM (the owner's pad): the arrows turn and walk, SPACE in the
+  // middle opens a door (PAD_LABELS) and CTRL bottom right fires; Shift
+  // (run) and Caps Lock (strafe) are left out.
   // Proposals waiting for the owner: change or drop the entries here.
-  const PAD_KEYS = { "": [37, 38, 39, 40], encaixe: [37, 38, 39, 40], tiro: [37, 32, 39], serial: [37, 32, 39], salgin: [36, 38, 33, 37, 45, 39, 35, 40], inv: [37, 32, 39], xilindro: [36, 38, 33, 37, 45, 39, 35, 40], inferno: [37, 38, 39, 40], sauna: [37, 38, 39, 40] };
+  const PAD_KEYS = { "": [37, 38, 39, 40], encaixe: [37, 38, 39, 40], tiro: [37, 32, 39], serial: [37, 32, 39], salgin: [36, 38, 33, 37, 45, 39, 35, 40], inv: [37, 32, 39], xilindro: [36, 38, 33, 37, 45, 39, 35, 40], inferno: [37, 38, 39, 40], sauna: [37, 38, 39, 40], jardim: [37, 38, 39, 40, 32, 17] };
+  // A program's own label for a pad key (text, aria-label); else the page's.
+  const PAD_LABELS = { jardim: { 32: ["Abrir", "Abrir porta"] } };
   // The files of the current manifest, by hashed URL. The name must not
   // start with "noite-": loaders before the hashes deleted every
   // "noite-*" cache but their own (their caches are migrated below).
@@ -666,10 +671,20 @@
     if (program === padProgram) return;
     padProgram = program;
     const keys = PAD_KEYS[program] || PAD_KEYS[""];
+    const labels = PAD_LABELS[program] || {};
     for (const b of $("dpad").querySelectorAll("button")) {
       const show = keys.includes(Number(b.dataset.key));
       if (!show) b.dispatchEvent(new Event("lostpointercapture"));
       b.hidden = !show;
+      if (b.dataset.text === undefined) {
+        b.dataset.text = b.textContent;
+        b.dataset.aria = b.getAttribute("aria-label");
+        b.dataset.wordDefault = b.classList.contains("word") ? "1" : "0";
+      }
+      const own = labels[b.dataset.key];
+      b.textContent = own ? own[0] : b.dataset.text;
+      b.setAttribute("aria-label", own ? own[1] : b.dataset.aria);
+      b.classList.toggle("word", own ? true : b.dataset.wordDefault === "1");
     }
   }
 
