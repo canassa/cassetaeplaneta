@@ -178,6 +178,9 @@ pub const Game = struct {
     // @orig g_columnDepth (each view column's wall distance: the sprites'
     // depth buffer)
     columnDepth: [world.view_columns]i32 = @splat(0),
+    // @orig g_hudTextBuffer initdata=skip (the HUD's sprintf buffer, right
+    // after g_columnDepth: the sprites' clip reads its first dword)
+    hudTextBuffer: [16]u8 = @splat(0),
     // @orig g_appActive
     appActive: i16 = 0,
     // @orig g_phase1Waves (g_phase1Waves[7]/[8] are swapped against the
@@ -195,8 +198,7 @@ pub const Game = struct {
     conditionFalse: world.Condition = .{ .kind = .flag, .value = 0 },
     // No counterpart: g_setSystemTimer / g_killSystemTimer (`setSystemTimer`),
     // g_moduleHandle, g_biosTickPtr (dead), g_angleRadians and the FP
-    // constants (unit `tables`: precomputed), g_hudTextBuffer (a local
-    // buffer), the minimap's pens and brushes (colours in unit `hud`),
+    // constants (unit `tables`: precomputed), the minimap's pens and brushes (colours in unit `hud`),
     // g_occupancyCount/Object (the occupancy grid is dead in JARDIM),
     // g_game / g_jardimGame (this Game).
 

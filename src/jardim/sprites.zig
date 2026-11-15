@@ -12,7 +12,7 @@
 //! byte offset `(x + c - 20) & 0xfffc` of `g_columnDepth`; the right-hand clip test reads one
 //! column past the sprite's end, which for a sprite reaching the view's right edge (x + width
 //! > 500) is offset 480: the first dword of `g_hudTextBuffer` (10d0:1bfe), ASCII of the last
-//! HUD text, never a wall distance. The port reads it as "no wall" (the largest distance).
+//! HUD text (`Game.hudTextBuffer`, read as the original does), never a wall distance.
 
 const std = @import("std");
 const msg = @import("../core/msg.zig");
@@ -141,7 +141,7 @@ pub fn flush(g: *Game, q: *SpriteQueue, bd: *Backdrop) void {
 fn depthAt(g: *const Game, v: i16) i32 {
     const idx: usize = (@as(u16, @bitCast(v)) & 0xfffc) >> 2;
     if (idx < world.view_columns) return g.columnDepth[idx];
-    if (idx == world.view_columns) return std.math.maxInt(i32);
+    if (idx == world.view_columns) return std.mem.readInt(i32, g.hudTextBuffer[0..4], .little);
     @panic("sprites: g_columnDepth read far outside the array (latent in the original)");
 }
 

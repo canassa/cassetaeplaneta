@@ -171,10 +171,14 @@ pub fn presentHud(g: *Game, bd: *Backdrop) void {
 }
 
 /// `sprintf(text, "%N.Nd", value)`: the precision pads the digits with
-/// zeros to `prec` (a negative value: "-" then the digits), then `suffix`.
+/// zeros to `prec` (a negative value: "-" then the digits), then `suffix`,
+/// and the terminating NUL; the bytes after it keep the longer texts' tails
+/// (the sprites' clip reads them).
 fn formatInt(buf: *[16]u8, value: i16, comptime prec: usize, suffix: []const u8) []const u8 {
     const sign: []const u8 = if (value < 0) "-" else "";
-    return std.fmt.bufPrint(buf, "{s}{d:0>" ++ std.fmt.comptimePrint("{d}", .{prec}) ++ "}{s}", .{ sign, @abs(value), suffix }) catch unreachable;
+    const text = std.fmt.bufPrint(buf[0 .. buf.len - 1], "{s}{d:0>" ++ std.fmt.comptimePrint("{d}", .{prec}) ++ "}{s}", .{ sign, @abs(value), suffix }) catch unreachable;
+    buf[text.len] = 0;
+    return text;
 }
 
 // @orig 1028:43e9 labyrinth_draw_hud
@@ -192,13 +196,13 @@ pub fn drawHud(g: *Game, bd: *Backdrop) void {
         }
     }
     const style: platform.TextStyle = .{ .color = 0xffff, .bk_mode = .transparent };
-    var buf: [16]u8 = undefined;
+    const buf = &g.hudTextBuffer;
     const surf = bd.surface();
-    _ = g.plat.textOut(surf, style, 0xe1, hud_y, formatInt(&buf, bd.level, 2, ""));
-    _ = g.plat.textOut(surf, style, 0x134, hud_y, formatInt(&buf, bd.ammo, 3, ""));
-    _ = g.plat.textOut(surf, style, 0x188, hud_y, formatInt(&buf, bd.health, 3, "%"));
-    _ = g.plat.textOut(surf, style, 0x1ed, hud_y, formatInt(&buf, bd.score, 3, ""));
-    _ = g.plat.textOut(surf, style, 0x246, hud_y, formatInt(&buf, bd.lives, 2, ""));
+    _ = g.plat.textOut(surf, style, 0xe1, hud_y, formatInt(buf, bd.level, 2, ""));
+    _ = g.plat.textOut(surf, style, 0x134, hud_y, formatInt(buf, bd.ammo, 3, ""));
+    _ = g.plat.textOut(surf, style, 0x188, hud_y, formatInt(buf, bd.health, 3, "%"));
+    _ = g.plat.textOut(surf, style, 0x1ed, hud_y, formatInt(buf, bd.score, 3, ""));
+    _ = g.plat.textOut(surf, style, 0x246, hud_y, formatInt(buf, bd.lives, 2, ""));
     const face = bd.face.?;
     if (bd.health > 100) {
         face.curFrame = 0;
@@ -220,6 +224,10 @@ test "formatInt is sprintf's %N.Nd" {
     try std.testing.expectEqualStrings("005%", formatInt(&b, 5, 3, "%"));
     try std.testing.expectEqualStrings("-005", formatInt(&b, -5, 3, ""));
     try std.testing.expectEqualStrings("-32768", formatInt(&b, std.math.minInt(i16), 3, ""));
+    // A shorter text leaves the longer one's tail after its NUL.
+    _ = formatInt(&b, 1234, 3, "");
+    _ = formatInt(&b, 3, 2, "");
+    try std.testing.expectEqualSlices(u8, &.{ '0', '3', 0, '4' }, b[0..4]);
 }
 
 test "fillRect clips and picks the nearest colour" {
