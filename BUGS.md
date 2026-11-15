@@ -1326,6 +1326,23 @@ Addresses are Ghidra `seg:off` in `/TIRO.EXE`; the game is described in `docs/ti
   (`--fix tiro_close_forfeits`, on in the Corrigida version): after `WM_CLOSE` the result is
   `(0, g_score)`, a loss that keeps the points. `tools/play/tiro-close.input`: `won 300 | lost 300`.
 
+### T8. A target's hit animation is drawn under the walking targets
+- **Where:** `target_redraw_overlapping` 1068:06df (the four `CMP word ptr [BX+DI+0x1c],0x0` / `JNZ` tests of
+  `SceneObject.curFrame`, the first at 1068:06fd), called by `target_tick` 1068:07f4 right after the hit target's own
+  redraw and by `target_move_tick` 1068:1288 after each walking step (`projectile_redraw_overlapping` 1068:1511 the
+  same before drawing the arrow).
+- **What the code does:** the overlap redraw draws only the targets whose frame is 0, the walking ones, in index
+  order (`[0]`, `[1]` upper row, then `[2]`, `[3]` lower row); a target in its hit animation (frames 1-8) is skipped.
+  A walking step first restores the background over its rectangle, which erases what it covered of a falling target.
+- **Effect:** while a target falls (0.44 s), any walking target that overlaps it is drawn over it, on every one of its
+  own frames too, whatever the row: a walker behind it (the upper row, or its own row) cuts into the falling picture
+  or hides it. `tools/play/tiro-hit-depth.input`: target `[0]` is hit at (244, 85) and `[1]`, walking on the same row,
+  covers it (pixels (270, 140) and (280, 150) are the walker's).
+- **Confidence:** 9 (code); 9 (effect, seen in the port's frames).
+- **Port:** ported and reproduced (unit `visibility`, src/tiro/); the fix is `Fixes.tiro_hit_target_depth`
+  (`--fix tiro_hit_target_depth`, on in the Corrigida version): every redraw draws the four targets back to front,
+  the upper row then the lower one, in each row the walking targets and then the falling one.
+
 ### Latent (TIRO)
 
 - **`perspective_backdrop_set_layer` 1020:0118 stores before it checks the index:** `layers[layer-1] = obj`, and only

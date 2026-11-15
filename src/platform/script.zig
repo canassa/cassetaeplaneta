@@ -32,8 +32,11 @@
 //!     drawn ID 0|1      fail the run unless portable ID is (1) or is not
 //!                       (0) on the screen: visible and most of its frame
 //!                       showing where it stands
-//!     pixel X Y INDEX   fail the run unless the screen's pixel at X Y has
-//!                       palette index INDEX (0x for hex)
+//!     pixel X Y INDEX [| INDEX]
+//!                       fail the run unless the screen's pixel at X Y has
+//!                       palette index INDEX (0x for hex); the INDEX after
+//!                       `|`, when given, is what a run with a `--fix` on
+//!                       must show instead (as `result`)
 //!     where ID          print where portable ID is: on a scene (its scene
 //!                       names, position, visible, moving), carried, used
 //!     offer SLOT X Y    open the panel, drag inventory slot SLOT (0-7) to
@@ -105,8 +108,9 @@ pub const SceneExpect = struct { name: []const u8, fixed: ?[]const u8 = null };
 /// `drawn ID 0|1`: whether portable ID must be on the screen.
 pub const Drawn = struct { id: i16, on: bool };
 
-/// `pixel X Y INDEX`: the palette index the screen must show there.
-pub const Pixel = struct { x: u16, y: u16, index: u8 };
+/// `pixel X Y INDEX [| INDEX]`: the palette index the screen must show
+/// there, and the one a run with fixes must show instead, if it differs.
+pub const Pixel = struct { x: u16, y: u16, index: u8, fixed: ?u8 = null };
 
 pub const SceneJump = struct {
     name: []const u8,
@@ -268,7 +272,12 @@ pub fn parse(gpa: std.mem.Allocator, text: []u8) ParseError!Script {
             const x = try num(u16, words.next(), line_no);
             const y = try num(u16, words.next(), line_no);
             const index = try num(u8, words.next(), line_no);
-            try s.steps.append(gpa, .{ .at = t, .action = .{ .pixel = .{ .x = x, .y = y, .index = index } } });
+            var fixed: ?u8 = null;
+            if (words.next()) |sep| {
+                if (!eq(u8, sep, "|")) return bad(line_no, "want `|` before the fixed index");
+                fixed = try num(u8, words.next(), line_no);
+            }
+            try s.steps.append(gpa, .{ .at = t, .action = .{ .pixel = .{ .x = x, .y = y, .index = index, .fixed = fixed } } });
         } else if (eq(u8, cmd, "where")) {
             try s.steps.append(gpa, .{ .at = t, .action = .{ .where = try num(i16, words.next(), line_no) } });
         } else if (eq(u8, cmd, "offer")) {

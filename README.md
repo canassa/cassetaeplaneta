@@ -107,6 +107,8 @@ Saves go to `save/` (`--save DIR`).
   `result won 2100`) and `tools/play/tiro-alone-lose.input` (-750); from NOITE, `--scene 3fhall
   --ms 42000 --input tools/play/tiro-3fhall-win.input` (NOITE hides, +2100, the prison) and
   `--ms 32000 --input tools/play/tiro-3fhall-lose.input` (-1050, a life less, the hall);
+  `--minigame tiro --ms 16000 --input tools/play/tiro-hit-depth.input` checks two pixels of a falling
+  target that a walking one covers in the Original (T8; `pixel X Y INDEX | INDEX`, the Corrigida's after `|`);
   `--minigame tiro --ms 30000 --input tools/play/tiro-endless.input` holds SPACE (BUGS.md T1,
   T3: no result in the Original, none either with the fixes: 15 arrows left). Each script is the
   same with `--fix all` and gives the same result: 16 presses, the Original ending after the 15th

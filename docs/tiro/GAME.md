@@ -133,7 +133,9 @@ The target hit need not be the one that stopped the arrow (BUGS T5).
 ## The hit animation
 
 `target_hit`: the target stops (`mover_stop_moving_dc`), its timer is set to 55 ms, the score
-changes (below), `animation_play` starts and the first hit frame is drawn. Each 55-ms tick then
+changes (below), `animation_play` starts and the first hit frame is drawn. Every redraw of the
+targets (`target_redraw_overlapping`, after a target's frame or step and the arrow's step) draws
+only the walking ones (frame 0), over the falling one whatever their row (BUGS T8). Each 55-ms tick then
 shows the next frame (`target_tick`) while `hitFrame` counts 0→8; at 8 (about 0.44 s)
 `target_respawn` (`1068:0991`) puts the timer back to 100 ms, erases the target, draws a new
 identity and re-enters it: `[0]` and `[1]` at x 0x18 moving right, `[2]` and `[3]` at x 565 moving

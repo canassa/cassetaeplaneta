@@ -197,11 +197,38 @@ pub fn redrawOverlapping(g: *Game, obj: *Object, bd: *Backdrop, flag: i16) void 
 
 /// Draws each of the four targets whose `curFrame` (SceneObject+0x1a) is 0.
 /// The original reads g_targets without a null test.
+/// BUGS.md T8: so a target in its hit animation (`curFrame` != 0) is drawn
+/// under every walking one, whatever its row; `tiro_hit_target_depth`
+/// draws all four in `drawOrder`.
 fn drawIdleTargets(g: *Game, bd: *Backdrop) void {
+    if (g.fixes.tiro_hit_target_depth) {
+        for (drawOrder(g)) |target| render.draw(g, target, bd);
+        return;
+    }
     for (g.targets) |t| {
         const target = t.?;
         if (target.curFrame == 0) render.draw(g, target, bd);
     }
+}
+
+/// Not in the original (T8's fix): the four targets back to front, the
+/// upper row (`[0]`, `[1]`) behind the lower one (`[2]`, `[3]`), as the
+/// original's index order draws the walking ones; within a row the walking
+/// targets first, then the one falling (hit animation, `curFrame` != 0).
+pub fn drawOrder(g: *Game) [4]*Object {
+    var out: [4]*Object = undefined;
+    var n: usize = 0;
+    for ([_]usize{ 0, 2 }) |row| {
+        for ([_]bool{ false, true }) |falling| {
+            for (g.targets[row..][0..2]) |t| {
+                const target = t.?;
+                if ((target.curFrame != 0) != falling) continue;
+                out[n] = target;
+                n += 1;
+            }
+        }
+    }
+    return out;
 }
 
 // @orig 1068:06df target_redraw_overlapping

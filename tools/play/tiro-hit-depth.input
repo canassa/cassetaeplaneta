@@ -1,0 +1,40 @@
+# TIRO alone: a hit target's fall drawn under a walking target (BUGS.md T8).
+# The shots are the first eight of tiro-alone-win.input; the eighth hits
+# target [0] at (244, 85) at 15305, and target [1], walking right on the
+# same row, passes over it during its 0.44-s hit animation.
+#
+#   zig-out/bin/noite --minigame tiro --headless --ms 16000 --input tools/play/tiro-hit-depth.input
+#   zig-out/bin/noite --minigame tiro --headless --ms 16000 --fix all --input tools/play/tiro-hit-depth.input
+#
+# At 15420 (hit frame 3, [1] at x 224) the pixel (270, 140) is in both
+# pictures:
+# - Original: the walking target's (index 69): every redraw draws the
+#   walking targets over the falling one (target_redraw_overlapping skips
+#   a target whose frame is not 0);
+# - `--fix all` (`tiro_hit_target_depth`): the falling target's (50),
+#   drawn in front within its row.
+# shot 1: right, girl
+2160 key left
+2280 key space
+# shot 2: left, girl
+3490 key right
+3610 key space
+# shot 3: straight, girl
+4930 key right
+5050 key space
+# shot 4: right, girl
+6320 key right
+6440 key space
+# shot 5: right, girl
+7660 key space
+# shot 6: left, girl
+9040 key right
+9160 key space
+# shot 7: left, girl
+12210 key space
+# shot 8: straight, girl (target [0], hit at 15305)
+13920 key right
+14040 key space
+15420 dump fall
+15420 pixel 270 140 69 | 50
+15420 pixel 280 150 102 | 24

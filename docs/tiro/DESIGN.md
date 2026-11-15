@@ -7,7 +7,7 @@ zig-developer skill hold for everything this file does not override.
 Ghidra (program `TIRO.EXE`, through the tracker snapshot `noite -p tiro
 show`) is the specification; `GAME.md` (rules, protocol), `DATA.md`
 (classes, vtables, globals), `FUNCTIONS.md` (names, dead code),
-`QUALITY.md` (the medium /Od build), BUGS.md T1–T7.
+`QUALITY.md` (the medium /Od build), BUGS.md T1–T8.
 
 ## Decisions
 
@@ -73,7 +73,7 @@ show`) is the specification; `GAME.md` (rules, protocol), `DATA.md`
   of its program: in practice the `dib` copies and `read_dib_info`) and
   the two decompiles are shown identical in the unit's commit; the TIRO
   wrapper carries TIRO's `@orig` tag.
-- **Faithful first, the owner's rule.** T1–T7 are reproduced as they are
+- **Faithful first, the owner's rule.** T1–T8 are reproduced as they are
   by default. Each fix exists only behind its own `Fixes` flag (off by
   default). Corrigida (`Fixes.all()`) takes all six.
 - **Two programs in one process**, as ENCAIXE (`src/platform/host.zig`,
@@ -318,6 +318,7 @@ DC's default font) draws on it and `tiro_blit_score_box` blits the box.
 | T5 hit by x alone | `tiro_hit_needs_row` | gallery | the second stage matches a target when the x ranges overlap with touching edges counted (`a <= t+75 and t <= a+55`) **and** the y ranges overlap (arrow y..y+27, target y..y+95), in the same 2, 3, 1, 0 order | yes |
 | T6 restore strip one step too wide | `tiro_target_restore_one_step` | render | `target_restore_background`'s rect (and its `addDirtyRect`) adds \|stepX\| once, as `mover_restore_background` | yes |
 | T7 a close with points scored is a win | `tiro_close_forfeits` | gallery | the scene handler notes `WM_CLOSE` (port state `closing`); the `WM_DESTROY` that follows posts `(0, g_score)`: a loss that keeps the points | yes (owner's decision) |
+| T8 a falling target drawn under the walking ones | `tiro_hit_target_depth` | visibility | `target_redraw_overlapping` draws all four targets in `drawOrder`: the upper row, then the lower one, in each the walking targets and then the falling one (drawing only) | yes |
 
 Each unit ports the buggy code and keeps the fixed path only under its
 flag (`g.fixes.tiro_…`). T1 matters only with key repeats (Platform). The

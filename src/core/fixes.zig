@@ -227,7 +227,7 @@ pub const Fixes = struct {
     /// point, so rotations before its first fall step erase its whole frame
     /// (no leftover rotations drawn at the top; drawing only).
     encaixe_spawn_syncs_previous_position: bool = false,
-    // ---- TIRO.EXE (BUGS.md T1–T7). The src/tiro/ units port each bug as
+    // ---- TIRO.EXE (BUGS.md T1–T8). The src/tiro/ units port each bug as
     // it is and keep the fix only behind its flag. ----
     /// T1: SPACE sets its latch on key-down, so a held SPACE fires once (no
     /// shot and no arrow spent per key repeat), as LEFT/RIGHT already do.
@@ -251,6 +251,10 @@ pub const Fixes = struct {
     /// T7: closing the window (End Task) reports a loss, 0x40a (0, g_score),
     /// instead of judging the score so far (a win when it is positive).
     tiro_close_forfeits: bool = false,
+    /// T8: a target in its hit animation is drawn in depth order with the
+    /// others (upper row behind the lower one, the falling target in front
+    /// within its row) instead of under every walking target.
+    tiro_hit_target_depth: bool = false,
     // ---- SERIAL.EXE (BUGS.md K1–K6). The src/serial/ units port each bug
     // as it is and keep the fix only behind its flag. ----
     /// K1: the 0x40a result's wParam says whether the player survived

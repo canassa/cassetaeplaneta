@@ -230,6 +230,7 @@ pub const Harness = struct {
                     return true;
                 },
                 .result => |r| h.checkResult(now, r),
+                .pixel => |px| h.checkScreenPixel(hs.tasks[0].screen, now, px),
                 .quit => {
                     quit.* = true;
                     return true;
@@ -488,16 +489,26 @@ pub const Harness = struct {
         h.failed = true;
     }
 
-    /// `pixel X Y INDEX`: fails the run unless the screen shows that index there.
+    /// `pixel X Y INDEX [| INDEX]`: fails the run unless the screen shows
+    /// that index there (the one after `|` with a `--fix` on).
     fn checkPixel(h: *Harness, g: *Game, px: script.Pixel) void {
+        h.checkScreenPixel(g.plat.screen(), g.plat.ticks(), px);
+    }
+
+    /// `checkPixel` on `scr` (a minigame alone: its own screen).
+    fn checkScreenPixel(h: *Harness, scr: *const p.Screen, now: u32, px: script.Pixel) void {
         if (px.x >= p.client_width or px.y >= p.client_height) {
-            std.debug.print("[{d}] pixel {d},{d}: FAILED, off the screen\n", .{ g.plat.ticks(), px.x, px.y });
+            std.debug.print("[{d}] pixel {d},{d}: FAILED, off the screen\n", .{ now, px.x, px.y });
             h.failed = true;
             return;
         }
-        const got = g.plat.screen().pixels[@as(usize, px.y) * p.screen_width + px.x];
-        if (got == px.index) return;
-        std.debug.print("[{d}] pixel {d},{d}: FAILED, the screen has index {d}, not {d}\n", .{ g.plat.ticks(), px.x, px.y, got, px.index });
+        const want = if (h.fixesOn()) px.fixed orelse px.index else px.index;
+        const got = scr.pixels[@as(usize, px.y) * p.screen_width + px.x];
+        if (got == want) {
+            if (h.opts.verbose) std.debug.print("[{d}] pixel {d},{d}: ok ({d})\n", .{ now, px.x, px.y, got });
+            return;
+        }
+        std.debug.print("[{d}] pixel {d},{d}: FAILED, the screen has index {d}, not {d}\n", .{ now, px.x, px.y, got, want });
         h.failed = true;
     }
 
