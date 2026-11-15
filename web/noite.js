@@ -44,10 +44,11 @@
     { name: "serial", title: "Serial Killer", ready: true },
   ];
   // The on-screen pad's keys (KeyboardEvent.keyCode) while that program's
-  // window is on top (`noite_top_program`): TIRO aims with LEFT/RIGHT and
-  // fires with SPACE, so its pad has a fire button (32) instead of UP and
-  // DOWN. A proposal waiting for the owner: change or drop the entry here.
-  const PAD_KEYS = { "": [37, 38, 39, 40], encaixe: [37, 38, 39, 40], tiro: [37, 32, 39] };
+  // window is on top (`noite_top_program`): TIRO and SERIAL aim with
+  // LEFT/RIGHT and fire with SPACE, so their pad has a fire button (32)
+  // instead of UP and DOWN. A proposal waiting for the owner: change or
+  // drop the entry here.
+  const PAD_KEYS = { "": [37, 38, 39, 40], encaixe: [37, 38, 39, 40], tiro: [37, 32, 39], serial: [37, 32, 39] };
   // The files of the current manifest, by hashed URL. The name must not
   // start with "noite-": loaders before the hashes deleted every
   // "noite-*" cache but their own (their caches are migrated below).
