@@ -7,6 +7,7 @@ const std = @import("std");
 const host = @import("../platform/host.zig");
 const platform = @import("../platform/platform.zig");
 const Fixes = @import("../core/fixes.zig").Fixes;
+const fight_smooth = @import("../core/fight_smooth.zig");
 
 pub const core = struct {
     pub const game = @import("core/game.zig");
@@ -36,6 +37,7 @@ pub const program: host.Program = .{
     .nextDue = nextDue,
     .quit = quit,
     .exit = exit,
+    .view = view,
 };
 
 fn of(ctx: *anyopaque) *Game {
@@ -64,6 +66,16 @@ fn step(ctx: *anyopaque) bool {
 
 fn nextDue(ctx: *anyopaque) ?u32 {
     return of(ctx).queue.nextDue();
+}
+
+/// The picture to present (`Fixes.fight_smooth_motion`), or null for the
+/// screen.
+fn view(ctx: *anyopaque, now: u32) ?*const platform.Screen {
+    return fight_smooth.view(struct {
+        pub const render = units.render;
+        pub const dib = units.dib;
+        pub const hud = units.hud;
+    }, of(ctx), now);
 }
 
 fn quit(ctx: *anyopaque) bool {

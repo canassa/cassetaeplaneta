@@ -21,6 +21,7 @@ const render = @import("behaviour/render.zig");
 const visibility = @import("behaviour/visibility.zig");
 const fight_controls = @import("../core/fight_controls.zig");
 const fight_fair = @import("../core/fight_fair.zig");
+const fight_smooth = @import("../core/fight_smooth.zig");
 
 /// `salgin_redraw_arena`'s band: y 0x8c, 640 x 0x127.
 const band_y: i16 = 0x8c;
@@ -117,16 +118,23 @@ pub fn redrawArena(g: *Game, scene: *Scene) void {
                 std.debug.panic("salgin hud: arena band restore left its buffers ({s})", .{@errorName(e)});
         }
     }
-    // The Corrigida's frozen intro (`fight_controls_screen`) is PORRADA's
-    // time instead: the banner then goes when the round starts.
-    const intro = g.controls.phase == .intro;
-    const after_start = g.fixes.salgin_banner_shown and !g.fixes.fight_controls_screen and scene.clock >= 89;
-    if (intro or after_start) {
+    if (bannerShown(g, scene)) {
         if (g.banner) |b| render.draw(g, b, bd);
     }
     render.draw(g, g.opponent.?, bd);
     render.draw(g, g.fighter.?, bd);
     g.plat.wingBitBlt(0, band_y, band_w, band_h, bd.surface(), 0, band_y);
+    // The Corrigida's smooth motion: the moves this redraw shows.
+    if (g.fixes.fight_smooth_motion) fight_smooth.noteDrawn(&g.smooth, g.fighter.?.x, g.opponent.?.x, g.plat.ticks());
+}
+
+/// `redrawArena` draws PORRADA. The Corrigida's frozen intro
+/// (`fight_controls_screen`) is PORRADA's time instead: the banner then
+/// goes when the round starts.
+pub fn bannerShown(g: *Game, scene: *Scene) bool {
+    const intro = g.controls.phase == .intro;
+    const after_start = g.fixes.salgin_banner_shown and !g.fixes.fight_controls_screen and scene.clock >= 89;
+    return intro or after_start;
 }
 
 /// The Corrigida's controls screen (`fight_controls_screen`, not in the

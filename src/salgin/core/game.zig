@@ -47,6 +47,9 @@ pub const Game = struct {
     /// The Corrigida's fair fight (`fight_fair`; not in the original):
     /// the opponent's AI.
     fair: fight_fair.Ai = .{},
+    /// The Corrigida's smooth motion (`fight_smooth_motion`; not in the
+    /// original): the presented picture (`core/fight_smooth.zig`).
+    smooth: @import("../../core/fight_smooth.zig").State = .{},
 
     // ---- struct Game ----
     // @orig Game+0x2
@@ -250,6 +253,7 @@ pub const Game = struct {
     /// The task ends: its local heap goes with it (what SALGIN never frees,
     /// e.g. the strips `scene_object_dtor` leaves, is not a leak here).
     pub fn destroy(g: *Game) void {
+        g.smooth.deinit(g.gpa);
         g.heap.deinit();
         g.gpa.destroy(g);
     }

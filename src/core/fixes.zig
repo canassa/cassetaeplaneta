@@ -389,6 +389,12 @@ pub const Fixes = struct {
     /// attack; no clash double damage, no trades; the fighter's blows do
     /// double damage.
     fight_fair: bool = false,
+    /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"),
+    /// both fights: each fighter's move (the 32-px walk step, the 100-px
+    /// jump back and recoil) is shown over its beat at display rate
+    /// (`core/fight_smooth.zig`, a presented picture, never the screen or
+    /// the backdrop); positions, hits, timers and results are the game's.
+    fight_smooth_motion: bool = false,
     // ---- SAUNA.EXE (BUGS.md P1–P8). The src/sauna/ units port each bug as
     // it is and keep the fix only behind its flag. ----
     /// P1: a step's meeting test looks past the mover's own cells: it finds

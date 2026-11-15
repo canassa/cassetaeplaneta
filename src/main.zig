@@ -47,6 +47,7 @@ pub const core = struct {
     pub const stub = @import("core/stub.zig");
     pub const fight_controls = @import("core/fight_controls.zig");
     pub const fight_fair = @import("core/fight_fair.zig");
+    pub const fight_smooth = @import("core/fight_smooth.zig");
 };
 pub const platform = struct {
     pub const api = @import("platform/platform.zig");
