@@ -67,7 +67,10 @@ Then "Jogo" = Xilindro: XILINDRO starts alone and Right and Up pressed in
 turn walk in and kick the opponent until its energy bar gets a tile
 (xilindro.png, xilindro-kick.png); on a touch screen the pad shows the
 eight fight keys and ▶ and ▲ tapped in turn do the same
-(xilindro-touch.png).
+(xilindro-touch.png). Then "Jogo" = Inferno: INFERNO starts alone and a
+held Right walks the hero off his starting place (inferno.png,
+inferno-walk.png); on a touch screen the pad shows the four arrows and a
+held ▶ does the same (inferno-touch.png).
 Exits non-zero on the first failed check or on a page error.
 """
 
@@ -835,6 +838,67 @@ def main():
             check(not terrors, "touch Xilindro: no page errors")
             tctx.close()
 
+        # INFERNO's hero stands at x 153 (y 306, 62 px tall) and nothing
+        # crosses that spot in the first 5 s (the first hazard walks away
+        # to the left); a held Right walks him 5 px per 55 ms.
+        hero_js = """() => {
+            const d = document.getElementById("screen").getContext("2d").getImageData(150, 300, 40, 70).data;
+            let sum = 0;
+            for (let i = 0; i < d.length; i += 4) sum = (sum * 31 + d[i] + 7 * d[i + 1] + 13 * d[i + 2]) % 1000000007;
+            return sum;
+        }"""
+
+        def inferno_alone():
+            """Jogo: Inferno alone. It starts, a held Right walks the hero off
+            his starting place, no page errors."""
+            page.goto(url)
+            load()
+            check(not page.is_disabled("#jogo option[value=inferno]"), "the loader offers Inferno alone")
+            page.select_option("#jogo", "inferno")
+            page.check('input[name="versao"][value="original"]')
+            play()
+            time.sleep(1)
+            shot("inferno.png")
+            before = page.evaluate(hero_js)
+            page.keyboard.down("ArrowRight")
+            time.sleep(1.5)
+            page.keyboard.up("ArrowRight")
+            time.sleep(0.3)
+            after = page.evaluate(hero_js)
+            shot("inferno-walk.png")
+            check(before is not None and after is not None and before != after,
+                  "Inferno runs: a held Right walks the hero")
+            check(not errors, "Inferno: no page errors")
+
+        def inferno_touch():
+            """Inferno alone on a touch screen: the pad's keys are the four
+            arrows and a held ▶ walks the hero."""
+            tctx = browser.new_context(viewport={"width": 844, "height": 390}, has_touch=True, is_mobile=True)
+            tpage = tctx.new_page()
+            terrors = []
+            tpage.on("pageerror", lambda e: terrors.append(str(e)))
+            tpage.goto(url)
+            tpage.wait_for_function("window.noite.ready || window.noite.failure", timeout=600_000)
+            tpage.select_option("#jogo", "inferno")
+            tpage.click("#play")
+            tpage.wait_for_function("window.noite.started || window.noite.failure", timeout=60_000)
+            time.sleep(1)
+            shown = tpage.evaluate("""() => Array.from(document.querySelectorAll('#dpad button'))
+                .filter((b) => !b.hidden).map((b) => Number(b.dataset.key))""")
+            check(sorted(shown) == [37, 38, 39, 40], f"touch Inferno: the pad shows the four arrows ({shown})")
+            before = tpage.evaluate(hero_js)
+            right = tpage.locator('#dpad [data-key="39"]').bounding_box()
+            cdp = tctx.new_cdp_session(tpage)
+            cdp.send("Input.dispatchTouchEvent", {"type": "touchStart",
+                     "touchPoints": [{"x": right["x"] + right["width"] / 2, "y": right["y"] + right["height"] / 2}]})
+            time.sleep(1.5)
+            cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+            time.sleep(0.3)
+            tpage.screenshot(path=str(out / "inferno-touch.png"))
+            check(tpage.evaluate(hero_js) != before, "touch Inferno: a held ▶ walks the hero")
+            check(not terrors, "touch Inferno: no page errors")
+            tctx.close()
+
         def manifest():
             return page.evaluate("""async () => {
                 const html = await (await fetch("./", { cache: "no-cache" })).text();
@@ -1013,6 +1077,8 @@ def main():
         inv_touch()
         xilindro_alone()
         xilindro_touch()
+        inferno_alone()
+        inferno_touch()
         browser.close()
     if not args.url:
         httpd.shutdown()
