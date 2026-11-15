@@ -393,10 +393,10 @@ pub fn wallStripCtor(
 
 /// The Animation fields every strip constructor ends with.
 fn animationTail(obj: *Object, play_once_rewinds: i16) void {
-    obj.anim.unk10[1] = 0;
     obj.anim.running = 0;
     obj.anim.playOnce = 0;
-    obj.anim.unk10[0] = @bitCast(play_once_rewinds);
+    obj.anim.framesLeft = 0;
+    obj.anim.rewinds = play_once_rewinds;
 }
 
 // @orig 10c0:76a4 animation_ctor_strips_no_hitbox
@@ -685,7 +685,7 @@ pub fn actorCtorStrips(
     obj.mover.timerId = timer_id;
     obj.anim.timerPeriod = timer_period;
     obj.mover.timerPeriod = timer_period;
-    obj.anim.unk10[0] = @bitCast(play_once_rewinds);
+    obj.anim.rewinds = play_once_rewinds;
 }
 
 // @orig 10c0:6cdc player_ctor
