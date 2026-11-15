@@ -1,0 +1,69 @@
+# SAUNA alone, a win: the 96 peanuts and 4 corks with no ghost met. The
+# ghosts turn at random from srand(GetTickCount()) at SAUNA's start (0
+# here), so the moves are `tools/sauna_plan.py` (it probes the port): 52
+# arrows, most pressed 10 ms after Pacman steps onto a junction so he turns
+# without stopping, and 3 left clicks that stop him on a junction. The
+# last peanut goes at 21400: won, 9600 + 1000, in both versions (Pacman
+# never meets a ghost, so the P-bugs only change pictures: P4 after each
+# cork, P5 on each click).
+#
+#   zig-out/bin/noite --minigame sauna --headless --ms 22500 --input tools/play/sauna-alone-win.input
+#   zig-out/bin/noite --minigame sauna --headless --ms 22500 --fix all --input tools/play/sauna-alone-win.input
+500 key left
+950 click 160 344
+1035 key right
+2000 dump start
+2385 key up
+3075 key right
+3140 key left
+5040 key up
+5400 key down
+6565 key right
+7310 key up
+7375 key down
+7625 key right
+8205 key up
+8380 key right
+9125 key up
+9575 click 608 232
+9660 key down
+10350 key up
+11000 dump half
+11700 key left
+11950 key down
+12145 key right
+12265 key left
+12900 key up
+13095 key left
+13675 key down
+13850 key left
+14355 key up
+14550 key down
+14745 key left
+14810 key right
+14875 key up
+15180 key left
+15430 key down
+16100 key right
+16275 key down
+16635 key right
+17195 key down
+17370 key left
+17490 key right
+17555 key left
+18005 key down
+18125 key up
+18190 key down
+18330 key left
+18580 key up
+18700 click 32 376
+18785 key right
+19530 key up
+19725 key right
+19845 key left
+19910 key right
+20415 key down
+20590 key right
+21095 key down
+21290 key right
+22000 result won 10600

@@ -1,0 +1,16 @@
+# NOITE's sauna (3fsauna): a right click plays the attendant once and his
+# wave (GLOBO2.WAV, 1.415 s), whose end launches the real SAUNA; NOITE
+# gets 0x40c at 3965 and hides. No key: the ghosts catch the standing
+# Pacman three times and SAUNA reports lost -1900 (the Original at 19425,
+# the Corrigida at 20415); NOITE shows itself, adds -1900, takes a life
+# (3 -> 2) and goes to the hall (3fhall).
+#
+#   zig-out/bin/noite --headless --scene 3fsauna --ms 25000 --input tools/play/sauna-3fsauna-lose.input
+#   zig-out/bin/noite --headless --scene 3fsauna --ms 25000 --fix all --input tools/play/sauna-3fsauna-lose.input
+1000 rclick 450 330
+2000 dump attendant
+6000 dump sauna
++0 wait 3fhall 20000
++0 result lost -1900
++0 state
++0 expect 3fhall

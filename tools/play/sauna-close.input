@@ -1,0 +1,9 @@
+# SAUNA alone, the window closed at 2 s (Windows' End Task, the web page's
+# tab closed: WM_CLOSE, then WM_DESTROY with wParam 0): the score so far
+# (the start's peanut, 100) and the loss's -1000, in both versions (End
+# Task forfeits: design, BUGS.md SAUNA).
+#
+#   zig-out/bin/noite --minigame sauna --headless --ms 3000 --input tools/play/sauna-close.input
+#   zig-out/bin/noite --minigame sauna --headless --ms 3000 --fix all --input tools/play/sauna-close.input
+2000 close
+2500 result lost -900

@@ -1,0 +1,11 @@
+# SAUNA alone, a loss: no key at all. Pacman stands where he starts (his
+# peanut eaten as he is placed: 100) and the ghosts, turning at random,
+# catch him three times: -500, -500, then the last life (no -500) and the
+# loss's -1000. The Original loses at 42790, the Corrigida at 44825 (the
+# ghosts meet him otherwise and wait while he dies, BUGS.md P1, P2, P6),
+# both lost -1900.
+#
+#   zig-out/bin/noite --minigame sauna --headless --ms 47000 --input tools/play/sauna-alone-lose.input
+#   zig-out/bin/noite --minigame sauna --headless --ms 47000 --fix all --input tools/play/sauna-alone-lose.input
+5000 dump start
+46000 result lost -1900

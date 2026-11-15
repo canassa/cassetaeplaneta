@@ -1,0 +1,74 @@
+# NOITE's sauna (3fsauna): a right click plays the attendant once and his
+# wave (GLOBO2.WAV, 1.415 s), whose end launches the real SAUNA; NOITE
+# gets 0x40c at 3965 and hides. The moves are `tools/sauna_plan.py --scene
+# 3fsauna --prefix FILE --start 4100` (FILE: the right click below; the
+# ghosts' rand seed is SAUNA's start time, so this game is not
+# sauna-alone-win.input's): 53 arrows and 2 clicks, no ghost met. SAUNA eats
+# the last peanut and reports won 10600 (9600 + 1000); NOITE shows itself,
+# adds it and at 26420 goes to the hall (3fhall) with its 3 lives, in
+# both versions.
+#
+#   zig-out/bin/noite --headless --scene 3fsauna --ms 28000 --input tools/play/sauna-3fsauna-win.input
+#   zig-out/bin/noite --headless --scene 3fsauna --ms 28000 --fix all --input tools/play/sauna-3fsauna-win.input
+1000 rclick 450 330
+2000 dump attendant
+4100 key right
+4955 key left
+6000 dump sauna
+6635 key up
+7325 key left
+7445 key right
+9400 key down
+10235 key left
+10980 key up
+11045 key down
+11295 key left
+11875 key up
+12050 key left
+12795 key up
+13795 key right
+14540 key up
+14735 key right
+15315 key down
+15490 key right
+16235 key up
+16430 key down
+16550 key up
+16615 key down
+17910 key left
+18030 key right
+18095 key left
+18215 key right
+18410 key up
+19760 key left
+20010 key down
+20205 key left
+20730 key up
+20925 key left
+21505 key down
+21680 key left
+22130 click 80 104
+22215 key left
+22465 key up
+22660 key down
+22725 key up
+22810 key down
+22875 key up
+22960 key down
+23025 key up
+23220 key right
+23470 key left
+23720 key down
+24830 click 32 408
+25025 key right
+25090 key left
+25175 key up
+25240 key down
+25765 key up
+25940 key right
+26170 key down
+26365 key left
++0 wait 3fhall 3000
++0 result won 10600
++0 state
++0 expect 3fhall
