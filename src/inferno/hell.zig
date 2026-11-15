@@ -67,8 +67,9 @@ fn postReport(g: *Game) void {
 /// The clock, run first on every message: the 3-minute time-out posts the
 /// result and restarts `startTick` as the grace period's start; during the
 /// grace second the result is reposted every 100 ms (H2) and WM_DESTROY is
-/// posted by every message once it has lasted a second.
-fn clock(g: *Game) void {
+/// posted by every message once it has lasted a second, the WM_DESTROY
+/// included (H8).
+fn clock(g: *Game, m: Msg) void {
     const now = g.plat.ticks();
     const elapsed: i32 = @bitCast(now -% g.startTick);
     if (elapsed < 180000 or g.timeUp != 0) {
@@ -80,7 +81,20 @@ fn clock(g: *Game) void {
                 postReport(g);
             }
             const grace: i32 = @bitCast(now -% g.startTick);
-            if (grace >= 1000) _ = g.post(.{ .id = msg.wm.destroy });
+            if (grace >= 1000) {
+                if (g.fixes.inferno_destroy_once) {
+                    // H8's fix: one WM_DESTROY, then WM_QUIT ends the loop.
+                    if (!g.destroyPosted) _ = g.post(.{ .id = msg.wm.destroy });
+                    g.destroyPosted = true;
+                } else {
+                    // H8: each WM_DESTROY posts the next, so the posted
+                    // queue never empties and WM_QUIT never comes: the
+                    // original spins here without yielding (Windows 3.1
+                    // freezes). The port stops instead.
+                    if (m.id == msg.wm.destroy) @panic("inferno: every WM_DESTROY posts another, the time-out never ends (original hang, BUGS.md H8)");
+                    _ = g.post(.{ .id = msg.wm.destroy });
+                }
+            }
         }
     } else {
         g.timeUp = 1;
@@ -95,7 +109,7 @@ fn clock(g: *Game) void {
 /// handled.
 // @orig 1068:4bdc inferno_scene_handle_message
 pub fn handleMessage(g: *Game, scene: *Scene, m: Msg) i16 {
-    clock(g);
+    clock(g, m);
     switch (m.id) {
         msg.wm.mousemove,
         msg.wm.lbuttondown,

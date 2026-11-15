@@ -221,6 +221,9 @@ pub const Game = struct {
     /// BUGS.md H1's fix (`Fixes.inferno_ready_once`): 0x40c was posted to
     /// a NOITE window once.
     readyPosted: bool = false,
+    /// BUGS.md H8's fix (`Fixes.inferno_destroy_once`): the grace second's
+    /// WM_DESTROY was posted.
+    destroyPosted: bool = false,
     // No counterpart: g_setSystemTimer / g_killSystemTimer (`setSystemTimer`),
     // g_instance, g_moduleHandle, g_modulePath(Buf) (the EXE's directory is
     // the host's `Program.dir`), g_game / g_infernoGame (this Game); the

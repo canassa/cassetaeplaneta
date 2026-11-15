@@ -1909,6 +1909,26 @@ consistent code with a plausible intent.
 - **Confidence:** 9 (code); 7 (effect).
 - **Port:** not ported yet.
 
+### H8. The time-out never ends: every WM_DESTROY posts another
+- **Where:** `inferno_scene_handle_message`, the clock block 1068:4bf2–4d14 (the `WM_DESTROY` post
+  4cea), run before the switch on every message, the `WM_DESTROY` case 1068:4dbe included;
+  `APPWNDPROC` 1038:0353 (`PostQuitMessage` on `WM_DESTROY`).
+- **What the code does:** once the grace second after the time-out is over, every message posts
+  `WM_DESTROY` to INFERNO's own window. The posted `WM_DESTROY` is such a message: handling it posts
+  the next one before `APPWNDPROC` calls `PostQuitMessage`. `WM_QUIT` comes only when no posted
+  message is left, and one always is.
+- **Effect:** 181 s into the game INFERNO spins on `WM_DESTROY` for good, with the music and the
+  waves already closed, and never yields: Windows 3.1's cooperative scheduler runs nothing else
+  (NOITE included) until the task is ended from Ctrl+Alt+Del. The only way to win hangs the machine.
+  Every run that survives the 3 minutes reaches it.
+- **Confidence:** 9 (code); 6 (effect: it rests on `WM_QUIT` coming after the posted messages, as in
+  the port's queue and in Win32; the Windows 3.1 order is not verified).
+- **Port:** reproduced up to the loop: `hell.clock` panics naming H8 when the posted `WM_DESTROY`
+  would post another (the host would otherwise run the loop 50,000 messages a frame while NOITE
+  goes on, which Windows 3.1 did not do); `Fixes.inferno_destroy_once` (`--fix
+  inferno_destroy_once`, on in the Corrigida version) posts one `WM_DESTROY` and INFERNO quits at
+  181 s. The time-out scripts stop at 180.9 s (alone) or 198.3 s (from `3fpapmal`) for the Original.
+
 ### Harmless (INFERNO)
 
 - **`hazard_ctor` gets 4 strips for 3-entry tables:** `inferno_create_hazards` 1068:3bf8 passes

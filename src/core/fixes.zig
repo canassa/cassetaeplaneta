@@ -378,7 +378,7 @@ pub const Fixes = struct {
     /// P8: a score of five digits is drawn one character to the left, so
     /// all six characters fit the 192-px box that is restored and blitted.
     sauna_score_fits_box: bool = false,
-    // ---- INFERNO.EXE (BUGS.md H1-H7). The src/inferno/ units port each
+    // ---- INFERNO.EXE (BUGS.md H1-H8). The src/inferno/ units port each
     // bug as it is and keep the fix only behind its flag; NOITE's 3fpapmal
     // and 3fhall stay as they are (docs/inferno/DESIGN.md "Fixes"). ----
     /// H1: AppWndProc posts 0x40c ("ready") once, to NOITE's window (after
@@ -410,6 +410,11 @@ pub const Fixes = struct {
     /// H7: a landing in the scroll zone clears the stomp latch too, so every
     /// stomp of a small hero scores +150.
     inferno_scroll_landing_clears_stomp: bool = false,
+    /// H8: the time-out's grace second posts WM_DESTROY once, so WM_QUIT
+    /// comes and INFERNO ends; the original posts another on every message,
+    /// the WM_DESTROY included, and spins there for good (the Original port
+    /// panics naming H8).
+    inferno_destroy_once: bool = false,
     // ---- JARDIM.EXE (BUGS.md J1–J7). The src/jardim/ units port each bug
     // as it is and keep the fix only behind its flag
     // (docs/jardim/DESIGN.md "Fixes"). ----
