@@ -1,6 +1,7 @@
 # BUGS.md B37: both prison doors right-clicked inside one 200 ms door tick.
 #
 #   zig-out/bin/noite --headless --ms 70000 --scene 3fprisao --input tools/play/b37-prison-doors.input
+#   expect-panic
 #
 # The street door (3sportcd) finishes first and enters 3fstreet; the other
 # door's 0x402 (exit 0) then takes 3fstreet's video exit to 3fhall at once,

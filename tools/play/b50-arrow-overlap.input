@@ -1,3 +1,12 @@
+# BUGS.md B50: releasing an arrow while another is held stops the player for
+# good. Left is held, then right, then left is released: the Original leaves
+# the player standing still (x 250 in both `state` lines); with
+# `--fix arrow_release_resumes_held` he walks on towards right (x 300, then 450).
+# The script asserts nothing, it only has to run; read the `state` lines.
+#
+#   zig-out/bin/noite --headless --ms 9000 --input tools/play/b50-arrow-overlap.input
+#   zig-out/bin/noite --headless --ms 9000 --fix all --input tools/play/b50-arrow-overlap.input
+
 0 scene 1fcorred 300 130 1 1 0 0 0
 +1500 hold left 1000
 +600 hold right 3000

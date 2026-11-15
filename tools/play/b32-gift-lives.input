@@ -6,7 +6,7 @@
 # (y 438-440), the moose's tick flushes the gift's rectangle as it is, and
 # the bars the engine redraws afterwards never reach the screen.
 #
-#   zig-out/bin/noite --headless --ms 12000 --one-button --input tools/play/b32-gift-lives.input --dump DIR
+#   zig-out/bin/noite --headless --ms 12000 --one-button --input tools/play/b32-gift-lives.input [--dump DIR]
 #
 # The "end" dump shows the "3" without its top (19 of its 29 yellow pixels);
 # with `--fix bars_over_scene_animation` it stays whole.

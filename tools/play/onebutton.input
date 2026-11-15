@@ -3,6 +3,7 @@
 # title screen to the sportsman ending.
 #
 #   zig-out/bin/noite --headless --ms 600000 --one-button --input tools/play/onebutton.input [--dump DIR]
+#   zig-out/bin/noite --headless --ms 600000 --one-button --fix all,-avi_exit_ignores_timer --input tools/play/onebutton.input
 #
 # full.input's route, but doors are clicked from wherever the player
 # stands (the player walks over first), the keyboard walks are clicks, and

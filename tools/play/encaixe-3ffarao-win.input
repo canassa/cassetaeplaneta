@@ -3,6 +3,7 @@
 # and goes to the hall.
 #
 #   zig-out/bin/noite --headless --scene 3ffarao --ms 120000 --input tools/play/encaixe-3ffarao-win.input
+#   zig-out/bin/noite --headless --scene 3ffarao --ms 120000 --fix all --input tools/play/encaixe-3ffarao-win.input
 #
 # The pharaoh video ends at 35055, WinExec; ENCAIXE starts 1500 ms later
 # (36555, seed 800000036). The moves are `tools/encaixe_plan.py --start
