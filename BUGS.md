@@ -1963,16 +1963,32 @@ intent.
 - **Where:** `inferno_scene_handle_message`, the clock block 1068:4bf2–4d14 (the `WM_DESTROY` post
   4cea), run before the switch on every message, the `WM_DESTROY` case 1068:4dbe included;
   `APPWNDPROC` 1038:0353 (`PostQuitMessage` on `WM_DESTROY`).
-- **What the code does:** once the grace second after the time-out is over, every message posts
-  `WM_DESTROY` to INFERNO's own window. The posted `WM_DESTROY` is such a message: handling it posts
-  the next one before `APPWNDPROC` calls `PostQuitMessage`. `WM_QUIT` comes only when no posted
-  message is left, and one always is.
+- **What the code does:** the clock block runs first on every message, with no test of the message:
+  once `g_timeUp` is set and `now − g_startTick ≥ 1000` (4ce4–4d00; `g_startTick` is not moved
+  again, and nothing clears `g_timeUp`), it calls `PostMessage(hwnd, WM_DESTROY, 0, 0)` (4d04–4d0f)
+  with the handler's own `hwnd`. A posted `WM_DESTROY` is such a message: the clock posts the next
+  one, then the `WM_DESTROY` case (4dbe) only stops and frees the waves, closes WaveMix and MCI and
+  returns 0, and `APPWNDPROC` (0406) calls `PostQuitMessage(0)` and then `DefWindowProc`, which
+  destroys nothing for a `WM_DESTROY`. Nothing in INFERNO calls `DestroyWindow` (it does not import
+  it; only `DefWindowProc`'s `WM_CLOSE` does), so the window stays valid and every post succeeds;
+  one message is posted per message handled, so the queue never fills either.
+  `app_message_loop` 1038:01b7 takes messages with `PeekMessage(PM_REMOVE)` and calls
+  `WaitMessage` only when none is there. In Windows 3.1 `PostQuitMessage` only sets a flag in the
+  task's queue (`wPostQMsg`), and `GetMessage`/`PeekMessage` look for posted messages before they
+  turn that flag into `WM_QUIT`, so `WM_QUIT` never comes while a posted message is waiting, and one
+  always is. They yield to other tasks only when they find no message.
 - **Effect:** 181 s into the game INFERNO spins on `WM_DESTROY` for good, with the music and the
   waves already closed, and never yields: Windows 3.1's cooperative scheduler runs nothing else
   (NOITE included) until the task is ended from Ctrl+Alt+Del. The only way to win hangs the machine.
   Every run that survives the 3 minutes reaches it.
-- **Confidence:** 9 (code); 6 (effect: it rests on `WM_QUIT` coming after the posted messages, as in
-  the port's queue and in Win32; the Windows 3.1 order is not verified).
+- **Confidence:** 9 (code, from the disassembly); 8 (effect: not run on Windows 3.1; the queue
+  order is from Matt Pietrek's description of Windows 3.1's `GetMessage`/`PeekMessage` ("Inside the
+  Windows Messaging System", Dr. Dobb's Journal, February 1993: posted messages come before the rest,
+  the queue's "PostQuitMessage() has been called" flag, no yield while messages are waiting), the
+  1995 Wine reimplementation of the 16-bit `PeekMessage` (windows/message.c: the posted messages,
+  then the hardware input, then `wPostQMsg` → `WM_QUIT`; `Yield` only when nothing is found) and
+  Raymond Chen ("Why is there a special PostQuitMessage function?", The Old New Thing, 2005-11-04:
+  `WM_QUIT` is generated "only when the message queue is otherwise empty").
 - **Port:** reproduced up to the loop: `hell.clock` panics naming H8 when the posted `WM_DESTROY`
   would post another (the host would otherwise run the loop 50,000 messages a frame while NOITE
   goes on, which Windows 3.1 did not do); `Fixes.inferno_destroy_once` (`--fix
