@@ -184,9 +184,9 @@ pub const PortablePart = struct {
     unk38: i16 = 0,
     // @orig Portable+0x3a (far pointer: the current strip's DIB at construction)
     icon: ?*Dib = null,
-    // @orig Portable+0x40
+    // @orig Portable+0x42 (the icon width; control_panel_draw_inventory_item reads it)
     iconW: i16 = 0,
-    // @orig Portable+0x42
+    // @orig Portable+0x44 (the icon height)
     iconH: i16 = 0,
 };
 
