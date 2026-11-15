@@ -97,6 +97,9 @@ show`) is the specification; `GAME.md` (rules, protocol), `DATA.md`
 - **SAUNA stays out of the playthroughs** (the owner's choice):
   `full.input` and `onebutton.input` keep their routes, which never take
   the sauna's hall door; SAUNA is tested by its own scripts (Tests).
+- **The touch pad** (the owner's decision): the four arrows, each
+  running Pacman to the next wall (`PAD_KEYS.sauna`); taps on the maze
+  walk him as well.
 
 ## Source layout
 
@@ -447,8 +450,8 @@ attendant's last tick (1.6 s after the click); the real SAUNA's comes
   and the pad, runs Pacman over the peanuts of his row and the score box
   changes). **The touch pad** (one-button mode, or a minigame alone on a
   touch screen) follows the program on top (`noite_top_program`): SAUNA's
-  is the four arrows (`PAD_KEYS.sauna = [37, 38, 39, 40]`), a proposal
-  for the owner. A tap on the picture is a left click that SAUNA receives
+  is the four arrows (`PAD_KEYS.sauna = [37, 38, 39, 40]`), as the owner
+  decided. A tap on the picture is a left click that SAUNA receives
   as is (the minigame filter passes the mouse): Pacman walks to it, so a
   touch screen can play by tapping as well as with the pad. A long press
   would be a right click on NOITE only; SAUNA's right click (playOnce) is
@@ -693,8 +696,3 @@ noite -p sauna failed <unit> "why" / release <unit>
    `asset` from `assets/SAUNA/`, `documented` from Ghidra.
 8. `noite test`, commit (commit skill), `noite -p sauna finish <unit>` from
    the main checkout.
-
-## Owner questions
-
-1. **The touch pad**: the four arrows (each runs Pacman to the next wall),
-   a proposal like the other pads; taps on the maze walk him as well.

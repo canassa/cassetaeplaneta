@@ -80,6 +80,9 @@ protocol), `DATA.md` (classes, vtables, globals), `FUNCTIONS.md` (names, dead co
   destructors never run). `Game.local()` is the task's heap (an arena freed by `Game.destroy`):
   every `operator new`/`_fmalloc` of JARDIM allocates there, and the faithful leak is not a leak
   of the port.
+- **The touch pad** (the owner's decision): the four arrows, SPACE (open) in the centre and CTRL
+  (fire) bottom right; running (SHIFT) and strafing (CAPS LOCK) are left out
+  (`PAD_KEYS.jardim` at the integration, Integration).
 
 ## Source layout
 
@@ -500,12 +503,11 @@ score change; closing the window is a loss with −1000. `--minigame-stub` keeps
   Jardim") when `ready`; the "Jogo" select offers "Jogar só o minijogo: Jardim";
   `tools/web/files.py` finds its files in `JARDIM\` (as TIRO's). **Touch pad** (one-button mode,
   or a minigame alone on a touch screen; `PAD_KEYS` follows the program on top): JARDIM needs
-  turn (LEFT/RIGHT), walk (UP/DOWN), fire (CTRL) and open (SPACE). Proposal, an owner question:
-  the four arrows where they are, SPACE (open, a door glyph) in the centre, CTRL (fire, a
-  crosshair) in the bottom-right corner of the 3×3 grid, i.e. `PAD_KEYS.jardim = [37, 38, 39,
-  40, 32, 17]` with `#dpad [data-key="17"] { grid-area: 3 / 3; }`; running (SHIFT) and strafing
-  (CAPS LOCK held) left out, or as two latching buttons in the top corners (1/1, 1/3) whose state
-  `GetKeyState` reports while they are lit.
+  turn (LEFT/RIGHT), walk (UP/DOWN), fire (CTRL) and open (SPACE). The owner's decision
+  (Decisions): the four arrows where they are, SPACE (open, a door glyph) in the centre, CTRL
+  (fire, a crosshair) in the bottom-right corner of the 3×3 grid, i.e. `PAD_KEYS.jardim = [37, 38,
+  39, 40, 32, 17]` with `#dpad [data-key="17"] { grid-area: 3 / 3; }`; running (SHIFT) and
+  strafing (CAPS LOCK held) left out.
 
 ### The harness, smoke and full.input
 
@@ -705,10 +707,8 @@ README's "Running the port"/"Testing the port" entries.
    `4fjarvamp` does). Which side, and is `espanf` in the Corrigida's first ending what you want?
 3. **J4** in Corrigida: every wall looks different (the texture moves with the wall). It is in
    `all` as a clear bug; say if you would rather keep the original look.
-4. **The touch pad**: the arrows, SPACE (open) in the centre and CTRL (fire) bottom right; run
-   and strafe left out, or as two latching buttons?
-5. **Timers**: keep the queue's exact 50/55-ms periods (≈ 38 ticks a second), or quantise
+4. **Timers**: keep the queue's exact 50/55-ms periods (≈ 38 ticks a second), or quantise
    timers to Windows 3.1's 55-ms tick (36 a second; would apply to every program and replan
    TIRO's and ENCAIXE's scripts)?
-6. **J5 in the Original**: the port panics where the original crashes (a smoke "orig" line), as
+5. **J5 in the Original**: the port panics where the original crashes (a smoke "orig" line), as
    NOITE's latent faults. Keep it a crash, or draw the rows silently in both versions?

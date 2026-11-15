@@ -92,6 +92,8 @@ build), BUGS.md I1–I2 and its INV Harmless list.
   `4fbar` and never the esoteric's detour (`4fsacaet`, INV, `4fmarte2`,
   the `ESOTEBOY` cutscene). INV is tested by its own scripts only
   (`inv-*.input`, alone and from `--scene 4fsacaet`).
+- **The touch pad** (the owner's decision): ◀, a fire button (SPACE)
+  and ▶ (`PAD_KEYS.inv`).
 
 ## Source layout
 

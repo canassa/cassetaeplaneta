@@ -77,9 +77,8 @@ dead code), `QUALITY.md` (the large-model `/Od` build), BUGS.md H1–H8.
   wrapper carries INFERNO's `@orig` tag.
 - **Faithful first, the owner's rule.** H1–H8 are reproduced as they are
   by default; each fix exists only behind its own `Fixes` flag (off by
-  default). Corrigida (`Fixes.all()`) takes the clear bugs (H1, H2, H5,
-  H6, H7, H8); H3 and H4 change what a result is worth and are `choices`
-  until the owner says (Owner questions).
+  default). Corrigida (`Fixes.all()`) takes all eight; H3 and H4, which
+  change what a result is worth, by the owner's decision (below).
 - **The class methods live in their class units.** TIRO puts a class's
   SceneObject overrides in the slot's behaviour unit (Target's moveTick in
   `movement`). INFERNO's overrides call the game code directly
@@ -116,6 +115,22 @@ dead code), `QUALITY.md` (the large-model `/Od` build), BUGS.md H1–H8.
   `full.input` and `onebutton.input` never take the pope's door (3fpapmal),
   so they never start INFERNO. It is tested by its own scripts only
   (`inferno-*.input`, alone and from `--scene 3fpapmal`).
+- **H3 and H4 in the Corrigida** (the owner's decision): a loss on lives
+  reports `(0, g_score − 1000)`, so INFERNO's points reach NOITE, and
+  closing the window (End Task) is a loss reported the same way, not the
+  time-out's 500 win. The same rule for every minigame: a loss reports
+  the game's points, and a close is a loss (TIRO T7, SERIAL K6, SALGIN
+  S7, XILINDRO X6; ENCAIXE, INV, SAUNA and JARDIM already do both).
+- **H8 stays in the Original** (the owner's decision): the original
+  hangs a second after the time-out (BUGS.md H8, checked against the
+  disassembly and Windows 3.1's queue order), so the port's Original stops
+  there on a panic naming H8; the Corrigida keeps `inferno_destroy_once`.
+- **Arrows only** (the owner's decision): the numpad + and − (VK_ADD,
+  VK_SUBTRACT), the original's second jump keys, are not mapped in SDL or
+  the page; UP and DOWN jump. Scripts can still send them (`key 107`,
+  `key 109`).
+- **The touch pad** (the owner's decision): the four arrows, UP the high
+  jump and DOWN the low one (`PAD_KEYS.inferno`, Integration).
 
 ## Source layout
 
@@ -331,8 +346,8 @@ blits the 192×32 box at (416, 400).
 |---|---|---|---|---|
 | H1 0x40c before every message | `inferno_ready_once` | app | AppWndProc posts 0x40c only while `g_noiteWnd` is set and `readyPosted` is not, then sets `readyPosted`: one "ready", after the hello | yes |
 | H2 the time-out result reposted | `inferno_report_once` | hell | the clock block's grace second posts nothing; the result goes once, at the time-out; `WM_DESTROY` still comes 1 s later | yes |
-| H3 a loss reports nothing | `inferno_loss_reports` | score | `inferno_lose_life` at 0 lives posts 0x40a (0, `g_score` − 1000) to `g_noiteWnd` before its `WM_DESTROY` | no (choice) |
-| H4 End Task with a life left is a win | `inferno_close_forfeits` | hell | `WM_CLOSE` posts 0x40a (0, 0) — (0, `g_score` − 1000) with `inferno_loss_reports` — instead of the time-out's report | no (choice) |
+| H3 a loss reports nothing | `inferno_loss_reports` | score | `inferno_lose_life` at 0 lives posts 0x40a (0, `g_score` − 1000) to `g_noiteWnd` before its `WM_DESTROY` | yes (owner's decision) |
+| H4 End Task with a life left is a win | `inferno_close_forfeits` | hell | `WM_CLOSE` posts 0x40a (0, 0) — (0, `g_score` − 1000) with `inferno_loss_reports` — instead of the time-out's report | yes (owner's decision) |
 | H5 running into a hazard is free | `inferno_side_hit_costs_life` | hero | `hero_collide`'s side hit of a small hero also calls `inferno_lose_life` (−500, a life, `sonicmor`, `WM_DESTROY` at 0) | yes |
 | H6 a life lost wipes the grid | `inferno_hit_keeps_grid` | hazard | `hazard_hit_player` does not call `occupancy_grid_clear(grid, NULL)`: every object keeps its cells (the parked hazard vacates its own), the floor wall stays | yes |
 | H7 scroll-zone landing keeps the stomp latch | `inferno_scroll_landing_clears_stomp` | hero | `hero_move_tick`'s scroll-zone landing clears `g_stompScored` too | yes |
@@ -437,8 +452,8 @@ there.
   with LEFT, RIGHT (walk), UP (the jump) and DOWN (the low jump), so its
   `PAD_KEYS` entry is the four arrows, `inferno: [37, 38, 39, 40]` (the
   default pad's keys; listed so the pad follows the program on top as for
-  TIRO), a proposal for the owner. The numpad + and − (0x6b/0x6d) jump
-  too; the pad does not need them.
+  TIRO), as the owner decided. The numpad + and − (0x6b/0x6d) jump too;
+  the pad does not need them.
 
 ## Platform
 
@@ -449,10 +464,8 @@ Nothing new is needed to run INFERNO; what it relies on, all present
   (`Sim.filterInput`, `sim.KeyRepeat`). INFERNO latches every key
   (`g_key*Held`, cleared on WM_KEYUP), so repeats do nothing; a held
   LEFT/RIGHT walks until released, as on Windows. The numpad + and −
-  (VK_ADD/VK_SUBTRACT) are not mapped by SDL or the page; scripts can send
-  them (`key 107`, `key 109`). Optional, platform code: map SDL's keypad
-  plus/minus and the page's `NumpadAdd`/`NumpadSubtract` to them for a
-  minigame task.
+  (VK_ADD/VK_SUBTRACT) are not mapped by SDL or the page, by the owner's
+  decision (arrows only); scripts can send them (`key 107`, `key 109`).
 - **Mouse**: swallowed by the handler; nothing needed.
 - **Timers**: SetTimer/SetSystemTimer ids 10 (55 ms), 15 (180 ms), 0xc,
   3 (120 ms), 0xe (60 ms) and system timer 1 (55 ms): `core/queue.zig`.
@@ -491,9 +504,9 @@ standing hero is reached by a hazard every 5.46 s.
     reported). It stops before 181 s, where the Original panics (H8);
     with `--fix all` INFERNO quits at 181000.
   - `inferno-alone-lose.input` (`--ms 30000`): no key; five hits, the last
-    at 27300, `result none` (H3).
-  - `inferno-close.input` (`--ms 3000`): `close` at 2 s, `result won 500`
-    (H4; `--fix all,inferno_close_forfeits` gets lost 0).
+    at 27300, `result none | lost -3500` (H3).
+  - `inferno-close.input` (`--ms 3000`): `close` at 2 s, `result won 500 |
+    lost -1000` (H4).
 - **From NOITE** (`--scene 3fpapmal`; the pope's video ends at 15903,
   INFERNO starts at 17403):
   - `inferno-3fpapmal-win.input` (`--ms 198300`): the planner's jumps
@@ -501,15 +514,17 @@ standing hero is reached by a hazard every 5.46 s.
     the Original's H1/H2 (2 lives lost, +1000, the prison), the fixed
     run's hall (+500). The harness's `expect NAME | NAME` checks the
     second name when a fix is on, as `result` does.
-  - `inferno-3fpapmal-lose.input` (`--ms 50000`): no key; no report (H3),
-    NOITE's WM_SYSTIMER finds the window gone at 44750: `3fhall`, a life
-    less, the score unchanged, in both versions.
+  - `inferno-3fpapmal-lose.input` (`--ms 50000`): no key; `3fhall` and a
+    life less in both versions. The Original posts no report (H3), NOITE's
+    WM_SYSTIMER finds the window gone at 44750 and the score is unchanged;
+    the Corrigida reports lost −3500.
 - **full.input / onebutton.input**: unchanged. Their route takes the
   hall's TIRO, pharaoh and disco doors, never the pope's punishment, so
   they never start INFERNO (Decisions).
 - **Smoke**: `tools/smoke.py --minigame inferno [--fix all] [--monkey
   SEED]` (190 s): random holds of LEFT/RIGHT (100–1500 ms) and presses of
-  UP/DOWN; a run passes with a result or none (the lives ran out, H3),
+  UP/DOWN; a run passes with a result or none (the lives ran out in the
+  Original, H3),
   and an Original run that reaches the time-out is an "orig" line (H8).
   `tools/smoke.py` (every scene) starts the real INFERNO from `3fpapmal`.
 - **Unit tests** (optional, tagged): `oracle=emulated` from tools/oracle
@@ -648,23 +663,3 @@ noite -p inferno failed <unit> "why" / release <unit>
    `asset` from `assets/INFERNO/`, `documented` from Ghidra.
 8. `noite test`, commit (commit skill), `noite -p inferno finish <unit>`
    from the main checkout.
-
-## Owner questions
-
-1. **H3 in the Corrigida?** `inferno_loss_reports` makes a loss on lives
-   report (0, `g_score` − 1000), the formula the time-out report already
-   has, so INFERNO's points reach NOITE. After five −500 hits that is
-   typically −3000 or less off NOITE's score, where the Original takes 0.
-   A choice (off in `all`) until you say.
-2. **H4 in the Corrigida?** `inferno_close_forfeits` makes closing
-   INFERNO's window (End Task; in the port, the window's close while
-   INFERNO is on top) a loss, (0, 0), instead of a 500 win. A choice (off
-   in `all`) until you say.
-3. **Numpad + and −** (the original's second jump keys): map them in SDL
-   and the page (platform code), or leave the arrows only?
-4. **H8 in the Original**: the original hangs a second after the time-out
-   (every survived game). The port's Original stops there on a panic
-   naming H8 (the web page shows its crash report); the alternative is to
-   let the Original end as the Corrigida does. Which?
-5. **The touch pad**: the four arrows (UP the high jump, DOWN the low
-   one), a proposal like the other pads.

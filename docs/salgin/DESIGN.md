@@ -85,6 +85,10 @@ and X1–X11.
   task) takes every `operator new` / `_nmalloc`; what the original never
   frees (the strips, `scene_object_dtor` frees nothing) is not a leak of
   the port.
+- **The touch pad** (the owner's decision): both fights' pads show all
+  eight keys as on the numeric keypad, Salto (Home) ▲ Soco (PgUp) / ◀
+  Pulo (Insert) ▶ / Defesa (End) ▼, with the same labels for XILINDRO
+  (whose Home is the high kick) (`PAD_KEYS.salgin`, `PAD_KEYS.xilindro`).
 
 ## Source layout
 
@@ -381,7 +385,7 @@ salgin|xilindro` plays one alone.
   `XILINDRO/` (`PORRADA.MID` is found at the disc root first, for both).
   The on-screen pad (`PAD_KEYS.salgin`, `PAD_KEYS.xilindro`) shows the
   eight keys as on the numeric keypad: Home ▲ PgUp / ◀ Insert ▶ / End ▼,
-  the four new ones labelled Salto, Pulo, Soco, Defesa (owner question 6).
+  the four new ones labelled Salto, Pulo, Soco, Defesa (Decisions).
 - Harness scripts: the key names `pgup`, `home`, `end`, `insert` (or
   numbers: `0x21`, `0x24`, `0x23`, `0x2d`); `close` closes the active
   window as the user would (WM_CLOSE), for S7/X6.
@@ -633,17 +637,10 @@ finished (the keys, the script key names and `close` came with SALGIN).
 5. **S9 / X9** (`*_banner_shown`): should Corrigida show the PORRADA
    banner, and for how long? The proposal: in the band, behind the
    fighters, for the round's first 2 s.
-6. **The on-screen pad** (web, one-button mode or a fight alone on a touch
-   screen): the fights use eight keys. SALGIN's pad (`PAD_KEYS.salgin`)
-   now shows all eight as on the numeric keypad: Salto (Home) ▲ Soco
-   (PgUp) / ◀ Pulo (Insert) ▶ / Defesa (End) ▼, and XILINDRO's
-   (`PAD_KEYS.xilindro`) the same buttons, though its Home is the high
-   kick. Keep it, relabel it (per fight), or drop keys (Insert deals no
-   damage)?
-7. **X7** (`xilindro_double_ko_by_energy`, in `all`): a double KO with the
+6. **X7** (`xilindro_double_ko_by_energy`, in `all`): a double KO with the
    fighter ahead is a "win" whose score (fighterEnergy × 150) is 0 or
    negative. Keep that score, or floor it at 0?
-8. **S10 / X10, S11 / X11** are in `all` as clear slips (the clamp then
+7. **S10 / X10, S11 / X11** are in `all` as clear slips (the clamp then
    the step; the wall test before the step). They change where the
    fighter stands (100 px instead of 68 from the opponent, never off the
    screen): say if either should be a choice instead. XILINDRO's X11 fix
