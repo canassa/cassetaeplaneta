@@ -4,7 +4,8 @@
 //! pick-up/drop it calls. The code is SAUNA's body (same source, same /Od
 //! large-model build), transcribed from JARDIM's own decompile.
 //!
-//! The scene handler answers first (`labyrinth_scene.handleMessage`) and returns
+//! The scene handler answers first (scene slot 00, the phase's handler, which ends in
+//! `labyrinth_scene.handleMessage`) and returns
 //! 1 for every message but 1, 2, 0xf, 0x10, 0x1c, 0x111, 0x30f, 0x311 and 0x402,
 //! so the seven cases 0x100, 0x101, 0x118, 0x200, 0x201, 0x204 and 0x205 (the
 //! keys, the timers, the mouse, the panel, the pick-up and the drop; every use of
@@ -35,7 +36,6 @@ const Backdrop = world.Backdrop;
 const Scene = world.Scene;
 const game_unit = @import("game.zig");
 const lists = @import("lists.zig");
-const labyrinth_scene = @import("labyrinth_scene.zig");
 const panels = @import("panels.zig");
 const scene_unit = @import("scene.zig");
 const animation = @import("behaviour/animation.zig");
@@ -115,7 +115,8 @@ fn redrawAndFlush(g: *Game) void {
 /// GameVtbl slot 00 handleMessage (game_handle_message): the engine default under the scene's handler. Non-zero = handled.
 // @orig 1058:0000 game_handle_message
 pub fn handleMessage(g: *Game, m: Msg) i32 {
-    if (labyrinth_scene.handleMessage(g, sceneOf(g), m) != 0) return 1;
+    // Scene slot 00: the phase's handler (it ends in `labyrinth_scene.handleMessage`).
+    if (sceneOf(g).handleMessage(g, m) != 0) return 1;
     return switch (m.id) {
         msg.wm.keydown => keyDown(g, m),
         msg.wm.keyup => keyUp(g, m),
