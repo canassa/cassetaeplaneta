@@ -57,6 +57,8 @@ key or a click takes it down), then PORRADA stands for 2 s before the round star
 fair (`fight_fair`, `docs/fights/FAIRNESS.md`): the opponent stops within reach, shows each attack for
 2 beats (its first frame and its sound) before it lands, and can be dodged (←), blocked (↓, not the
 sweep), jumped (↑, the sweep) or hit first; F9 in a Debug build shows its state over the arena.
+The fighters' steps, jumps back and recoils are shown moving over their beat at the display rate
+(`fight_smooth_motion`), the fight itself unchanged.
 JARDIM's Corrigida (`--fix all`) moves like Wolfenstein 3D: W / S or ↑ / ↓ walk, A / D strafe,
 ← / → turn, Shift runs, Ctrl or Space fire, E opens a door or takes an exit, Esc quits; the
 movement is continuous at Wolf3D's speeds (5.6 cells a second walking, 11.2 running, 122.5° a

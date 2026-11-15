@@ -251,3 +251,24 @@ fight (`fight_fair`, `src/core/fight_fair.zig`; research, tuning and checks in
   punish it while it stands; block a punch or a kick; jump the sweep; or hit first.
 - PORRADA's frozen intro (the controls screen) holds the opponent; without the screen it stands 10 beats.
 - F9 (Debug builds) shows the gap, the AI's phase and the beat count over the arena.
+
+## Smooth motion (Corrigida)
+
+With `fight_smooth_motion` (`--fix all`; `src/core/fight_smooth.zig`, TIRO's mechanism) the window
+shows each fighter's move over its beat instead of in one go: the walk's 32-px step per beat (the opponent's approach, the fighter's step per
+press) and the opponent's 100-px jump back after its move or a reel. Only the presented picture
+changes (`host.Program.view`, every web frame, every SDL loop turn and every harness dump): the
+arena band is rebuilt there as `salgin_redraw_arena` does it (the background band, PORRADA while it
+shows, the opponent, the fighter) with each fighter at its shown x; the clock, the energy tiles and
+the F9 overlay lie above the band and come from the screen. Positions, reach checks, hits,
+energies, timers, `rand()` and results are the game's, so every script keeps its result.
+
+- A move is seen where the screen shows it: the fighter's x changed since the last arena redraw.
+  It runs one beat (200 ms) from where the picture showed the fighter then, so a move that starts
+  during another carries on from it. The picture lags the game by at most one beat.
+- A step (at most 32 px) is linear: consecutive steps chain into a steady 160 px/s walk (2-3 px a
+  60-Hz frame). A longer move (the 100-px jump back and recoil, the Right clamp) is eased out
+  (1 - (1 - t)^2): it leaves fast, as the blow or the end of the move that caused it, and slows
+  into its landing (15, 14, 12, 11, 10, 8, 8, 6, 4, 4, 2, 1 px a 16-ms frame for 100 px), a hop
+  rather than a fast walk with no walking frames.
+- The animation frames stay one per beat (there is no in-between art).

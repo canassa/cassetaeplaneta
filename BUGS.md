@@ -1034,6 +1034,10 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
   no trades; the fighter's blows do {2, 4, 2, 4}. The opponent's damage is unchanged. The Original's
   opponent hits on the beat it arrives (in XILINDRO from beyond the fighter's reach), with nothing on screen
   to say it is coming.
+- `Fixes.fight_smooth_motion` (SALGIN, XILINDRO): each fighter's move (the 32-px walk step per beat, the 100-px
+  jump back, XILINDRO's 100-px recoil) is shown over one beat at the display rate, steps linear and longer moves
+  eased out, in the presented picture only (`core/fight_smooth.zig`, `host.Program.view`: the arena band rebuilt
+  with the fighters at their shown x); positions, hits, energies, timers and results are the original's.
 - `Fixes.jardim_smooth_movement` (JARDIM): Wolfenstein 3D's movement (`src/jardim/wolf.zig`). A 14-ms motion
   timer polls the keys and moves the player in Wolf3D's 70-Hz tics counted against the clock: walk 5.6 cells a
   second, run 11.2, back 3.7, turn 122.5° a second (245 running), no acceleration (id's WL_PLAY.C
