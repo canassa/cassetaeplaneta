@@ -156,6 +156,53 @@ protocol), `DATA.md` (classes, vtables, globals), `FUNCTIONS.md` (names, dead co
     sound notifications go on. The key that took it down is ignored until released; the time it
     was up moves `g_startTick` on (J1's fixed bonus counts the time played) and the motion clock
     restarts.
+- **Fair enemies** (the owner's request, from the enemy investigation's ranked proposal,
+  `docs/jardim/ENEMIES.md` §7; GAME.md "Fair enemies (Corrigida)" has the rules). Two flags, both
+  in `all`:
+  - `jardim_fair_enemies` (`src/jardim/enemies.zig`, not a port unit). It takes effect only with
+    `jardim_smooth_movement`: it is built on the Corrigida's architecture (the player moved by the
+    14-ms motion timer, the enemies acting on the game tick, view-only frames that only draw), and
+    the 1995-control runs (`--fix all` less the movement flags) keep the 1995 enemies and their
+    scripts' results.
+  - **Instances, not a per-cell table.** The proposal's side table `enemy[80][57]` would have to be
+    moved with every object write; instead `Game.fair` holds up to 64 `Enemy` instances built from
+    the map the first time a backdrop ticks (each phase's backdrop is new), and the map keeps the
+    type's object in the instance's cell. So the original's shot, touch, `hit` and the respawn's
+    `placeObjects` work unchanged; a kill is seen as the instance's cell no longer holding its
+    object. The draw finds the instance by its cell (`placeForDraw`): its position between two
+    cells (the map's cell changes at the step's start, so collisions and shots stay per cell), its
+    frame; `sprites.drawEntry` skips the original's enemy logic. Dying instances are queued by
+    `sprites.flush` (their cell is empty) and drawn from a white copy of their strip, made once.
+  - **The clock.** `enemies.think` runs from the game tick (`labyrinth_input.tick`, before the
+    tick's frame), once per instance, on `plat.ticks()` deadlines: steps, reactions, wind-ups and
+    cooldowns keep their average rate whatever the tick rate (10 a second with `render_cost_ms`),
+    the copies drawn or the display's frame rate; the walking frames come from the clock too, so
+    the view-only frames animate and slide the enemies between the ticks. With the frame cost a
+    250-ms wind-up lasts 3 ticks (300 ms).
+  - **Melee range 1 = the 8 cells around the player.** An enemy may stand in any of them (its
+    blow needs it, and the original's map is mostly 1-cell corridors where the only cell ahead is
+    the neighbour), never in his cell, and never in a cell whose centre is within 24 units of him
+    (the original drew an enemy at 16 units over the whole view): it waits a cell further until
+    he moves. A blow needs a clear line not cutting a wall's corner, so a diagonal neighbour round
+    a corner cannot hit.
+  - **Life-taking enemies: 10 health a blow, contact free** (recommended and applied). With the
+    tell and the cooldown, the blows are readable damage; a life per bump (J6's rule) would make
+    the three strongest enemies end a life in one touch while their blows take a tenth of one, and
+    walking into an enemy that stands next to you is easy in a 1-cell corridor. Walking into any
+    enemy only blocks; `EnemyTuning.contact_hurts` brings back the original's touch (once per
+    contact).
+  - **The final enemy** stands and animates: it is the goal, walked into for the win.
+  - **Respawn.** Killed enemies stay dead after a lost life; the living go home and forget the
+    player (`EnemyTuning.kills_stay_dead`). The original's respawn brings back every enemy (it
+    places the map again without removing anything): with moving enemies that would double every
+    enemy that had walked off its cell, so a respawn rule had to be chosen; this one is an owner
+    question (below).
+  - **The numbers** are all in `enemies.EnemyTuning` (with comments); F9 in a Debug build shows the
+    nearest enemy and logs every tick (the fights' precedent), `zig build -Djardim-probe` is the
+    planner's build (the log from the start, the objects map, no motion frames).
+  - `jardim_shot_substeps` (`labyrinth_input.shotSubsteps`): the 32-unit flight a tick in four
+    8-unit steps to the same end point, each new cell met as the original's step meets its one.
+    The 1995-control scripts aim along the axes and keep their results with it.
 - **Two programs in one process**, as ENCAIXE and TIRO (`src/platform/host.zig`): JARDIM is a
   task with its own state, queue, timers, window and screen; the protocol runs through the
   platform as in Windows. The host needs nothing new for JARDIM; the platform needs the keys and
@@ -705,23 +752,20 @@ What JARDIM needed that the other minigames did not (on main, outside the tracke
 
 ## Tests
 
-- **Planning.** Every route was planned against the port with a temporary probe (not committed):
-  a ReleaseFast build printing JARDIM's state on every game tick (position, angle, health, lives,
-  ammo, level, score, weapon, shot, variant) and the object and wall map when it changes (for
-  the Corrigida also without its view-only motion frames, which change no state: about 4×
-  faster), driven by a closed-loop planner: each step re-runs the script so far and reads the end
-  state; a BFS over the current walls and objects (enemies and the cells next to them are
-  obstacles; a bra or bazooka too while the crossbow is held) gives the path; the planner picks
-  up a crossbow first, detours to a medkit within 14 cells when health is under 45, shoots (after
-  turning to the axis) the first shootable enemy in a clear line ahead within 7 cells (not the
-  Original's Chato: J2 keeps him), opens a door on the way, takes the exit doors and in phase 3
-  walks into the final enemy wherever it has moved. The 1995 controls: presses only (48-unit
-  turns, 15-unit steps along the axes, 30 ms apart; CTRL, SPACE). The Corrigida's: Left/Right
-  held for the turn's tics (14 units each), W (Shift+W beyond 2.5 cells) for the distance to the
-  next straight run's last cell (at most 4 cells), E, Space. The losses walk to the nearest Seios:
-  the 1995 one walks into it, the Corrigida's presses into it and backs off again and again.
-  Planned with the enemies' animation fixed and the frame cost in place, so the enemies animate,
-  attack at range per drawn copy and step one cell per animation cycle.
+- **Planning.** The 1995 routes were planned against the port with a temporary probe (not
+  committed): a build printing JARDIM's state on every game tick (position, angle, health, lives,
+  ammo, level, score, weapon, shot, variant) and the object and wall map when it changes, driven
+  by a closed-loop planner: each step re-runs the script so far and reads the end state; a BFS
+  over the current walls and objects (enemies and the cells next to them are obstacles; a bra or
+  bazooka too while the crossbow is held) gives the path; the planner picks up a crossbow first,
+  detours to a medkit within 14 cells when health is under 45, shoots (after turning to the axis)
+  the first shootable enemy in a clear line ahead within 7 cells (not the Original's Chato: J2
+  keeps him), opens a door on the way, takes the exit doors and in phase 3 walks into the final
+  enemy wherever it has moved. The 1995 controls: presses only (48-unit turns, 15-unit steps
+  along the axes, 30 ms apart; CTRL, SPACE); the loss walks into the nearest Seios. Planned with
+  the enemies' animation fixed and the frame cost in place, so the enemies animate, attack at
+  range per drawn copy and step one cell per animation cycle. The Corrigida's routes come from the
+  committed planner (below).
 - **Scripts** (`tools/play/`). The 1995 controls, each Original and with every bug fix on the 1995
   controls (`--fix all` less `jardim_smooth_movement`, `jardim_wolf_keys`,
   `jardim_controls_screen`, `jardim_game_timer_only`, `jardim_wall_margin`):
@@ -737,21 +781,38 @@ What JARDIM needed that the other minigames did not (on main, outside the tracke
   - `jardim-4fjarvamp-win.input` (`--scene 4fjarvamp --ms 76000`): the alone win from 1500; the
     Original's result is lost in the ping-pong (`6fsaida`, J7), the fixed run's reaches NOITE
     (`6fsai2`).
-  The Corrigida (`--fix all`):
-  - `jardim-corrigida-alone-win.input` (`--ms 130000`): Enter at 300, phase 2 at 48.6 s, phase 3
-    at 69.9 s, the final enemy at 126550 (lives 3, 1800 points): `won 9720`;
-  - `jardim-corrigida-alone-lose.input` (`--ms 27000`): once per contact, three contacts with a
-    Seios: lost at 24934, −1500;
+  The Corrigida (`--fix all`, the fair enemies; planned by `tools/jardim_plan.py`, below):
+  - `jardim-corrigida-alone-win.input` (`--ms 132000`): Enter at 300, phase 2 at 39.2 s, phase 3
+    at 77.4 s, 11 enemies shot on the way (2 Bussufs, 5 Alemaos, 3 Chatos, a Bicho), the final
+    enemy at 129547 (lives 3, 3200 points): `won 10937`;
+  - `jardim-corrigida-alone-lose.input` (`--ms 77000`): towards the Seios of column 38, faced from
+    within 4 cells; health stays 100 % until it stands next to the player (`pixel 395 415 251` at
+    11400, the HUD's "1"; its first blow at 11730: 90 %, `pixel … 10` at 11900); three lives to
+    it and two more enemies: lost at 76130, −2000;
+  - `jardim-corrigida-idle.input` (`--ms 61000`): standing at phase 1's start for a minute, the
+    window closed: `lost -1000` (no life lost), with and without the fair enemies;
   - `jardim-corrigida-espquete-win.input` / `-lose` and `jardim-corrigida-4fjarvamp-win.input`: the
     same shifted to 21165 and 1500; J7's check: the final enemy is `espanf` after `espquete`
-    (`pixel 360 235 179` at 144665) and `vamanf` after `4fjarvamp` (67 at the same moment);
+    (`pixel 262 250 163` at 150625) and `vamanf` after `4fjarvamp` (220 at the same moment);
   - `jardim-controls.input` (`--ms 7500`): the controls screen up until Enter (its frame's pixel),
     then ← to north, W 1 s, D (strafe east), → twice, Shift+W back: the minimap marker's pixels
     after each move.
   - `jardim-close.input` (`--ms 3000`), both versions: the window closed at 2 s (in the Corrigida
     with the controls screen up), `lost -1000`.
-  JARDIM has no randomness: the plans depend only on the key times relative to its WM_CREATE
-  (its timers run from there), so a script moves with JARDIM's start time by a shift.
+  JARDIM has no randomness (the fair enemies' reaction times use the CRT's rand(), never
+  seeded): the plans depend only on the key times relative to its WM_CREATE (its timers run from
+  there), so a script moves with JARDIM's start time by a shift.
+- **The Corrigida's planner** (`tools/jardim_plan.py`, committed): the fair enemies react to where
+  the player is, so it asks the port. `zig build -Djardim-probe --prefix zig-out/probe` builds the
+  probe: the fair enemies' log on every tick from the start (the player, every enemy's cell and
+  state) and the map's objects and closed doors when they change, and no drawing (the motion
+  frames and, with the fair enemies, the tick's frames change no state): about 2 s for 130 s of
+  play. `--win` crosses the three phases (a crossbow first; an enemy the weapon kills, chasing or
+  near, shot when within 7 cells in a clear line; a BFS around the rest; a medkit under 55 health;
+  arrows or a crossbow when ammunition is low; doors and exit doors with E; the final enemy walked
+  into), `--lose` walks to the nearest Seios and stands facing it once one is within 4 cells.
+  Runs of at most 4 cells, A/D to centre across a run, re-planned after each move (about 170
+  probes for the win).
 - **Measured** (headless, the probe, `jardim-controls.input`'s moves): the Corrigida walks 178.7
   units a second (5.59 cells; Wolf3D 5.61), runs 358 (11.2; 11.2), backs 119 (3.72; 3.74),
   strafes 179 (5.59), turns 980 angle units a second (122.5°; 122.5°), 1960 running (245°).
@@ -763,7 +824,8 @@ What JARDIM needed that the other minigames did not (on main, outside the tracke
   the screen down and a held ▲ walks.
 - **Unit tests**: the six 32-bit routines and the tables (`oracle=emulated`), `Queue.keyState`,
   `wolf.zig` (the speeds in JARDIM's units, the box), `controls.zig` (the screen keeps the game,
-  the key translation).
+  the key translation), `enemies.zig` (the tuning, the line of sight), the per-pixel wall blit
+  against the 1995 blit's rows (`scaled.zig`), `renderView` with `jardim_texture_per_pixel`.
 
 ## Units
 
@@ -877,4 +939,9 @@ noite -p jardim failed <unit> "why" / release <unit>
 
 ## Owner questions
 
-None open (the owner's answers are under "Decisions").
+- **The respawn with fair enemies.** The original's respawn brings back every enemy killed (it
+  places the map again). The Corrigida's fair enemies keep the killed ones dead and send the living
+  ones home (`EnemyTuning.kills_stay_dead`): a death costs the score and the position, not the
+  fights already won. Keep it, or restore the original's rule (every enemy back at its cell)?
+
+The answered ones are under "Decisions".

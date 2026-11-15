@@ -1064,6 +1064,22 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
   0x40b/0x40c/0x40a handshake, WM_PAINT and WM_DESTROY go on as ever, Esc still quits. The time it was up is
   added to `g_startTick` (J1's fixed bonus counts the time played). The drawing is the fights'
   (`core/controls_screen.zig`).
+- `Fixes.jardim_fair_enemies` (JARDIM, with `jardim_smooth_movement`): fair enemies (`src/jardim/enemies.zig`,
+  docs/jardim/GAME.md "Fair enemies (Corrigida)", the numbers in `EnemyTuning`). In the original every
+  enemy type is one object drawn in many cells whose logic runs in the sprite draw: each drawn copy hits for
+  1 health per animation cycle at any distance (R·N/F a second: frames, copies, frames per strip) and steps a
+  cell along the view axis, into the player's cell and past him, merging with its copies. Here each placed
+  enemy is an instance with its own cell, walk, frame and timers, run once per game tick in milliseconds; it
+  chases (a cell per 600 ms, Seios and Bicho 800, Alemão 450) only after seeing the player (a clear line, a
+  300–800-ms reaction), stops next to him (Alemão 2 cells away), and attacks in sight and reach (1 cell,
+  Alemão 4) after a 250-ms wind-up with its attack frame and wave, then waits 1200 ms: Bussuf and Chato 5,
+  Seios, Siri and Bicho 10, Alemão Wolf3D's (256 − 16·cells)/256 chance of 8/4/2; 500 ms without hits after
+  one. Walking into an enemy only blocks. A hit flashes the view's border red and the face; a kill flashes
+  the enemy white; enemies slide between cells. A life lost sends the living enemies home; the killed stay
+  dead (the original's respawn brings every enemy back).
+- `Fixes.jardim_shot_substeps` (JARDIM): the shot's 32-unit step a tick is taken in four 8-unit steps, so a
+  diagonal shot cannot step over the corner of a cell holding an enemy (the original samples one point a
+  cell along its line).
 
 ---
 
@@ -2355,7 +2371,8 @@ reports a loss with −1000 (both forfeits); health has no cap; a blocked step d
 slide along the wall and drops the speed to 16; every enemy on screen, at any distance, costs 1
 health per animation cycle; enemies move only while on screen; a death restores every pickup and
 every killed enemy and costs 500 points; the fists hit nothing; the game runs on while inactive.
-Each is consistent code with a plausible intent.
+Each is consistent code with a plausible intent. The Corrigida replaces the enemies' rules
+(`Fixes.jardim_fair_enemies`, "Corrigida additions").
 
 ### J1. The win's time bonus is a penalty
 - **Where:** `labyrinth_backdrop_handle_message`, the `WM_DESTROY` win branch 1028:3d71–3d81;
@@ -2453,7 +2470,10 @@ Each is consistent code with a plausible intent.
   the player has moved more than half a cell (16 units) away from that cell or the enemy has left it
   (`labyrinth_input.touchObject`/`leaveContact`, also used by the Corrigida's continuous movement,
   `src/jardim/wolf.zig`). Pressing into it, held or repeated, costs once. `jardim-alone-lose.input`
-  shows it (the Original loses two lives at once, the fix one).
+  shows it (the Original loses two lives at once, the fix one). With the Corrigida's fair enemies
+  (`Fixes.jardim_fair_enemies`, "Corrigida additions") contact costs nothing at all: an enemy walked into
+  only blocks, and Seios, Siri and Bicho take 10 health a blow instead of a life a contact
+  (`EnemyTuning.contact_hurts` brings this rule back).
 
 ### J7. The variant and NOITE's ack never reach JARDIM: the final enemy is always the vampire's, and from `4fjarvamp` the result is lost
 - **Where:** `APPWNDPROC` 1020:0353 (the `FindWindow("Noite Animal")` branch at the top of every message,

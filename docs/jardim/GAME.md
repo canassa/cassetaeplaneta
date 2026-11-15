@@ -267,6 +267,59 @@ Common rules:
   (Chato's step; its attack slot is `g_phase3Waves[0]`, never opened, so silent), `bibliaok`/`bicho`
   (Bicho). The shrimp plays `acai`.
 
+## Fair enemies (Corrigida)
+
+Not the original's rules: the Corrigida's `jardim_fair_enemies` (with the Wolf-like movement;
+`src/jardim/enemies.zig`, every number in its `EnemyTuning`; docs/jardim/ENEMIES.md is the
+investigation, docs/jardim/DESIGN.md "Decisions" the choices). The original's enemies above
+(one shared Portable per type, logic in the sprite draw, damage from every drawn copy at any
+distance, steps along the view axis into and past the player) stay in the Original.
+
+- **Instances.** Each enemy placed on the map is its own instance (its cell, its walk between two
+  cells, its frame, its timers, alive or not); the map still holds the type's object in the
+  instance's cell, so the shots, the touch and the phases' `hit` are the original's. The logic runs
+  once per instance on each game tick (timer 1, about 10 a second with the frame cost), timed in
+  milliseconds; the drawing (every frame, the motion frames too) only shows it.
+- **Sight.** An enemy sees the player along a line from its cell's centre to him clear of walls and
+  closed doors (not through a corner between two walls), up to 16 cells, whichever way he faces.
+  Until it first sees him it stands (and animates); then it reacts after 300–800 ms (the CRT's
+  `rand()`, never seeded) and chases; it keeps chasing 1.5 s after it last saw him.
+- **Chase.** A step every 600 ms (Bussuf, Siri, Chato), 800 ms (Seios, Bicho) or 450 ms (Alemão):
+  one cell along the larger axis towards the player, else the smaller, only into an empty floor
+  cell that no other enemy holds, walks out of or dies in, never the player's cell and never a
+  cell whose centre is within 24 units of him. It stops at 1 cell (Chebyshev: the 8 cells around
+  him) or, for Alemão, 2. It is drawn sliding between the two cells over the step.
+- **Attacks.** In sight and within reach (1 cell; Alemão 4), and not walking: a 250-ms wind-up (its
+  last frame, the attack pose, and its attack wave: the tell; Chato's attack slot is silent, so his
+  step wave), then the blow if the player is still in sight and reach, then 1200 ms of cooldown.
+  Bussuf and Chato take 5 health, Seios, Siri and Bicho 10; Alemão shoots with Wolf3D's chance
+  (256 − 16·cells)/256 for 8 (1 cell), 4 (up to 3) or 2. After a hit the player cannot be hit for
+  500 ms, and after a life lost not until the respawn.
+- **Contact.** Walking into an enemy only blocks: no damage, no life (the blows are the damage;
+  `contact_hurts` would bring back the original's touch, once per contact by J6's rule). The final
+  enemy is still the win, and it stands and animates (it neither moves nor attacks).
+- **Feedback.** A hit draws a 4-px red border round the view for 150 ms and the face one step worse
+  for 300 ms; a kill draws the enemy white for its next 2 game frames (about 200 ms), then it is
+  gone. Animation at 8 frames a second (the walking frames; the last is the attack pose).
+- **Deaths.** A life lost: the scream, then the original's respawn (the pickups placed again, the
+  player at the start, −500), but the killed enemies stay dead and the living ones go back to
+  their own cells and forget the player.
+- **Shots** (`jardim_shot_substeps`, also in the Corrigida): the shot's cell a tick is reached in four
+  8-unit steps, each new cell met as the original's step meets its one: a diagonal shot no longer
+  steps over a cell's corner. Which weapon kills which enemy is the original's (the tables above):
+  one shot kills.
+- **Measured** (the probe, `jardim-corrigida-alone-lose.input` and `-win.input`): one Seios next to
+  the player takes 10 health every 1.5 s (6.7 a second, a life in 15 s; a Bussuf would take 3.3);
+  two Seios and a Bussuf around him about 10 a second (the 500 ms after each hit swallow the blows
+  that come together; a life in 10 s). The original's: about 8 a second for one Seios drawn 6 cells
+  away. A kill is one shot: the shot flies a cell a tick (about 10 cells a second), so 0.1 s a cell
+  of distance; from the key to the white flash 0.34–0.41 s for Bussufs, 0.18–0.68 s for Alemaos,
+  0.02–0.19 s for Chatos and 0.48 s for a Bicho shot on the win route (Seios and Siri the same with
+  the bra or the bazooka), then 0.2 s of flash.
+- **Debug** (Debug builds): F9 shows the nearest enemy's state and the player's in the view and logs
+  every tick's (`[ms] fair player …`); `zig build -Djardim-probe` logs from the start, with the
+  map's objects, and skips the motion frames (`tools/jardim_plan.py`).
+
 ## Lives and deaths
 
 Health starts at 100, lives at 3, both carried across phases. Health ≤ 0 costs a life and resets

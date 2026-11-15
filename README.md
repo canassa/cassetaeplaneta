@@ -61,7 +61,11 @@ JARDIM's Corrigida (`--fix all`) moves like Wolfenstein 3D: W / S or ↑ / ↓ w
 ← / → turn, Shift runs, Ctrl or Space fire, E opens a door or takes an exit, Esc quits; the
 movement is continuous at Wolf3D's speeds (5.6 cells a second walking, 11.2 running, 122.5° a
 second turning) and slides along walls, and a controls screen comes first
-(`docs/jardim/DESIGN.md` "Decisions").
+(`docs/jardim/DESIGN.md` "Decisions"). Its enemies are fair (`jardim_fair_enemies`): each one chases
+on its own once it has seen the player, stops next to him, and shows each blow (its attack pose and
+sound, 250 ms) before it lands; a hit flashes the view's border red, a kill flashes the enemy white;
+the walls keep their textures up close. F9 in a Debug build shows the nearest enemy's state.
+Its enemies' numbers are in `src/jardim/enemies.zig` (`EnemyTuning`).
 Saves go to `save/` (`--save DIR`).
 
 ## Testing the port
@@ -250,13 +254,17 @@ Saves go to `save/` (`--save DIR`).
   --input tools/play/jardim-4fjarvamp-win.input` (the Original loses the win in the 0x40c/0x40a
   ping-pong, BUGS.md J7: `6fsaida`). Each also runs with every bug fix on the 1995 controls (the
   header's `--fix all,-jardim_smooth_movement,…`). The Corrigida's movement, keys and controls
-  screen: `jardim-corrigida-alone-win.input` (`--ms 130000 --fix all`: won 9720),
-  `jardim-corrigida-alone-lose.input`, `jardim-corrigida-espquete-win.input` (the final enemy is
-  `espanf`, checked by a pixel), `jardim-corrigida-espquete-lose.input`,
-  `jardim-corrigida-4fjarvamp-win.input` and `jardim-controls.input` (the controls screen, then a
-  walk, a strafe, two turns and a run, checked on the minimap). JARDIM has no randomness; the moves
-  were planned against the port with a temporary state probe (docs/jardim/DESIGN.md "Tests") and
-  depend only on JARDIM's start: the NOITE scripts are the alone ones shifted to it. The game ticks
+  screen and fair enemies: `jardim-corrigida-alone-win.input` (`--ms 132000 --fix all`: won 10937),
+  `jardim-corrigida-alone-lose.input` (a Seios faced from 4 cells hurts only once next to the
+  player: the HUD's health checked by a pixel), `jardim-corrigida-idle.input` (a minute standing at
+  the start costs nothing), `jardim-corrigida-espquete-win.input` (the final enemy is `espanf`,
+  checked by a pixel), `jardim-corrigida-espquete-lose.input`, `jardim-corrigida-4fjarvamp-win.input`
+  and `jardim-controls.input` (the controls screen, then a walk, a strafe, two turns and a run,
+  checked on the minimap). The Corrigida's routes come from `tools/jardim_plan.py --win|--lose OUT`
+  (a closed-loop planner over the `zig build -Djardim-probe` build's state log); the 1995 ones were
+  planned with a temporary probe (docs/jardim/DESIGN.md "Tests"). JARDIM's runs depend only on its
+  start (the fair enemies' rand() is never seeded): the NOITE scripts are the alone ones shifted to
+  it. The game ticks
   at most 10 times a second: a period PC's frame cost (`render_cost_ms`, "Platform: frame cost").
   `tools/smoke.py --minigame jardim [--fix all] [--monkey SEED]` presses and holds random arrows,
   Ctrl, Space, Shift and Caps Lock (and W, A, S, D, E with `--fix all`) for 60 s. The playthroughs
