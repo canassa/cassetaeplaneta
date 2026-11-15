@@ -13,7 +13,7 @@ and clip of the disc, unused art first (docs/WEB.md, "Asset explorer").
    JPEG poster and a thumbnail. AFLC clips are decoded by the port's
    decoder (avidump.zig, src/platform/flic.zig), which keeps the damaged
    frames ffmpeg drops; anything else (SAMPLE.AVI, Cinepak) by ffmpeg.
-3. Writes OUT: index.html, app.js, style.css (tools/explorer/web/),
+3. Writes OUT: index.html (with style.css inlined), app.js (tools/explorer/web/),
    data.json and m/<hash>.{png,t.png,mp4,jpg}. Every URL but index.html
    carries `?h=<hash>` (immutable caching, as the game's files). OUT is
    replaced.
@@ -417,10 +417,14 @@ def main():
         return hashlib.sha256(b).hexdigest()[:16]
     web = os.path.join(HERE, "web")
     html = open(os.path.join(web, "index.html")).read()
-    for fn in ("app.js", "style.css"):
-        b = open(os.path.join(web, fn), "rb").read()
-        open(os.path.join(out, fn), "wb").write(b)
-        html = html.replace('"%s"' % fn, '"%s?h=%s"' % (fn, h(b)))
+    # The stylesheet is inlined: the server sends .css as
+    # application/octet-stream with nosniff, which browsers refuse.
+    link = '<link rel="stylesheet" href="style.css">'
+    assert link in html
+    html = html.replace(link, "<style>\n" + open(os.path.join(web, "style.css")).read() + "</style>")
+    b = open(os.path.join(web, "app.js"), "rb").read()
+    open(os.path.join(out, "app.js"), "wb").write(b)
+    html = html.replace('"app.js"', '"app.js?h=%s"' % h(b))
     html = html.replace('data-data="data.json"', 'data-data="data.json?h=%s"' % h(blob))
     open(os.path.join(out, "index.html"), "w").write(html)
 

@@ -377,7 +377,10 @@ nix develop .#explorer -c python3 tools/explorer/build.py OUT/explorer
 - **Page** (`web/`: plain HTML, CSS and JS, no build step): `data.json`
   lists the items; filters (status, folder, program, type, text) and the
   open item live in the URL hash. Every URL but `index.html` carries
-  `?h=`; the media are named by content. The game's page loads none of
+  `?h=`; the media are named by content. The stylesheet is inlined: the
+  server sends `.css` (and `.png`, `.jpg`, `.mp4`) as
+  `application/octet-stream` with `nosniff`, which browsers refuse for a
+  stylesheet (images and clips still load). The game's page loads none of
   it. ~1,640 items, ~50 MB.
 
 ## Testing

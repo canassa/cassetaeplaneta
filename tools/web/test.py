@@ -175,6 +175,8 @@ def explorer(browser, url, out, check):
         total = page.evaluate("ITEMS.length")
         unused = page.evaluate("ITEMS.filter((i) => i.status === 'unused').length")
         check(n == unused and 0 < n < total, f"{name}: /explorer/ lists the {n} unused files of {total}")
+        check(page.evaluate("getComputedStyle(document.querySelector('#grid')).display") == "grid",
+              f"{name}: the page is styled")
         width = page.evaluate("document.documentElement.scrollWidth")
         check(width <= opts["viewport"]["width"], f"{name}: no horizontal scroll ({width} px)")
         page.wait_for_function("[...document.querySelectorAll('.card img')].slice(0, 4).every((i) => i.complete && i.naturalWidth)",
@@ -185,6 +187,12 @@ def explorer(browser, url, out, check):
         page.wait_for_function("(() => { const i = document.querySelector('#d-stage img, #d-stage canvas, #d-stage video');"
                                " return i && (i.tagName !== 'IMG' || (i.complete && i.naturalWidth)); })()", timeout=30_000)
         check(page.locator("#d-meta dd").count() >= 5, f"{name}: a click opens the file's details")
+        # Playwright's Chromium has no H.264: there the clip is only checked to be there.
+        if page.locator("#d-stage video").count() and page.evaluate(
+                "document.createElement('video').canPlayType('video/mp4; codecs=\"avc1.640028\"')"):
+            page.evaluate("document.querySelector('#d-stage video').muted = true; document.querySelector('#d-stage video').play()")
+            page.wait_for_function("document.querySelector('#d-stage video').currentTime > 0.3", timeout=30_000)
+            check(True, f"{name}: the clip plays")
         if name == "explorer":
             page.screenshot(path=str(out / "explorer-detail.png"))
         check(not errors, f"{name}: no page errors ({errors[:2]})")
