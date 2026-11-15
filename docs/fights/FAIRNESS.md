@@ -3,6 +3,11 @@
 > The research behind the Corrigida's fair fight (`Fixes.fight_fair`, `src/core/fight_fair.zig`). The
 > owner approved it for the Corrigida (`--fix all`), so the note below about keeping it out of `all` no
 > longer holds. Section 5, at the end, is what the port does, how it differs from this plan and the checks.
+>
+> The owner then found the fair fight "still too hard" for a beginner. The Corrigida's opponent is now this
+> fair fight with a personality on top (`Fixes.fight_easy_ai`, `src/core/fight_easy.zig`): the research and
+> its numbers are in `docs/fights/EASY_AI.md`. Everything below describes the fair fight alone, which is
+> `--fix all,-fight_easy_ai`; section 5's last part has the player bots' win rates for it, before and after.
 
 Scope: the shared fight engine of XILINDRO.EXE and SALGIN.EXE as described in `docs/xilindro/GAME.md`,
 `docs/salgin/GAME.md` and `src/xilindro/arena.zig`/`fighters.zig`. Numbers are XILINDRO's unless noted.
@@ -347,6 +352,16 @@ table; a blow in the wind-up cuts the attack (*interrupt*).
 
 The opponent's damage is the Original's (XILINDRO {4, 2, 2, 6}; SALGIN the Corrigida's {1, 2, 1, 2}).
 
+### The easy opponent on top (`fight_easy_ai`)
+
+The fair fight's opponent is a metronome: approach, tell, strike, hop back, pause, a cycle of 6-7 beats whatever
+the player does. `fight_easy_ai` keeps the moves, the tells and `strikeOutcome` and changes what the opponent
+decides whenever it is free (`docs/fights/EASY_AI.md` "The easy opponent"): it dithers, waits, guards (strip 7:
+the punch and the kicks, not the sweep), backs off, starts a blow from too far now and then, counters a blocked
+blow, shrugs some hits off and eases off when it leads. The fair fight's `windup_beats` stays 2 (a quarter of the
+easy opponent's wind-ups, half in SALGIN, are a lazy 3), so every tell is still readable; the tuning knobs below
+are the fair fight's and still apply.
+
 ### The debug overlay
 
 F9 in a fight, in a Debug build with `fight_fair` on (SDL window or a script's `key f9`), toggles a box
@@ -357,7 +372,8 @@ also prints one line to stderr (`[ms] fair gap ...`), which `tools/fight_plan.py
 
 ### Checks
 
-Three scripted players bound the tuning (`--fix all`, 2026-11 values):
+Three scripted players bound the tuning (`--fix all,-fight_easy_ai`, 2026-11 values; with the easy opponent
+the scripts are the `expert` bot's recordings instead, `docs/fights/EASY_AI.md`):
 
 | Player | XILINDRO | SALGIN |
 |---|---|---|
@@ -378,3 +394,11 @@ the KO falls on a given beat: then everything after the fight plays as in the he
 replaces (the SERIAL after XILINDRO in `xilindro-serial-hall.input`, the disco after XILINDRO in
 `onebutton.input`).
 
+### The fair fight against the player bots
+
+`tools/fight_bots.py` (`core/fight_bot.zig`, 100 seeds a cell, `--fix all,-fight_easy_ai`) measures the fair fight
+with players that see only the screen (docs/fights/EASY_AI.md "Measuring"). A beginner, who reacts to a tell
+400-700 ms late and walks into the opponent, wins XILINDRO's fair fight 22% of the time (and is knocked out in
+about half of the rounds); a button masher 0%, a decent player (250-350 ms) 100%, SALGIN's novice 100% (it
+lands about 31 hits and knocks the opponent out before the clock) and its masher 35%. That is the owner's
+"still too hard", measured, and the reason for the easy opponent.

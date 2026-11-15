@@ -161,6 +161,22 @@ and X1–X11.
   also holds the rules and the F9 debug overlay (Debug builds) whose beat
   log `tools/fight_plan.py` reads to plan the scripts' Corrigida fights.
   It decides on its schedule and on what the screen shows, never on keys.
+- **An easy opponent on top of it, in the Corrigida only** (the owner's
+  decision, `fight_easy_ai`; `core/fight_easy.zig`, research and numbers
+  in `docs/fights/EASY_AI.md`). The fair cycle is a metronome, "still too
+  hard" for a beginner. The opponent now decides, whenever it is free
+  (arrived, or a pause, a wait or a guard is over), on a personality table
+  rolled with the game's `rand()`: attack / wait / guard / back off /
+  feint, 58 / 15 / 10 / 10 / 7 in range, dithering on the way in, a blow
+  from too far now and then, a counter after a blocked blow, hits taken
+  without reeling, a beat of mercy after its own, less aggression when
+  it leads. The tells, the strike's rules and the 2-beat wind-up are the
+  fair fight's. SALGIN has its own numbers (`fight_easy.salgin`): no
+  recoil lets a player land twice XILINDRO's hits, so the fighter's
+  blows keep the Original's damage and the opponent's are 2.5 times the
+  table's. Player bots (`core/fight_bot.zig`, `--fight-bot`,
+  `tools/fight_bots.py`) measure it; `tools/fight_plan.py --player bot`
+  records the `expert` bot as the scripts' Corrigida fights.
 - **S1 stays out of Corrigida** (the owner's decision):
   `salgin_opponent_damage_table` is a choice (`Fixes.choices`), so the
   opponent keeps hitting by the player's table (1.5 per attack).
@@ -547,8 +563,15 @@ salgin|xilindro` plays one alone.
   9,100), the faster `--player fast` from NOITE, whose last kick is held
   with `--ko-at` for XILINDRO so the KO falls on the beat the Original
   fight's does and what follows (SERIAL, the disco quiz) is unchanged.
-  `*-fair-mash.input` (Corrigida only) press A every beat and lose. The
-  lose scripts' Corrigida checks move later (`?fight_fair delay`, `wait`).
+  `*-fair-mash.input` (Corrigida only, `--fix all,-fight_easy_ai`) press A
+  every beat and lose. The lose scripts' Corrigida checks move later
+  (`?fight_fair delay`, `wait`). With the easy opponent the Corrigida's
+  fights are `?fight_easy_ai` lines recorded from the `expert` bot
+  (`tools/fight_plan.py --player bot --bot expert,N --gate fight_easy_ai`:
+  the script runs with `--fight-bot expert,N,log`, the bot's key log
+  becomes the block, and the replay is the same run); the
+  `*-easy-{novice,masher,decent}.input` scripts let a bot play a whole
+  round.
   The lists below are the Original's.
 - **Scripts** (`tools/play/`), each run Original and `--fix all`
   (README.md "SALGIN"):

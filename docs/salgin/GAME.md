@@ -252,6 +252,31 @@ fight (`fight_fair`, `src/core/fight_fair.zig`; research, tuning and checks in
 - PORRADA's frozen intro (the controls screen) holds the opponent; without the screen it stands 10 beats.
 - F9 (Debug builds) shows the gap, the AI's phase and the beat count over the arena.
 
+## Easy opponent (Corrigida)
+
+On top of the fair fight, `--fix all` turns on `fight_easy_ai` (the decisions are `src/core/fight_easy.zig`,
+carried out by `arena.zig`'s `easyDecide`; research, the behaviour table, tuning and win rates in
+`docs/fights/EASY_AI.md`). The moves, the tells and the strike's rules are the fair fight's; what changes is what
+the opponent *decides* whenever it is free (it has arrived in range, or a pause, a wait or a guard is over). It
+rolls on a personality table with the game's own `rand()`, and never reads a key:
+
+- **In range** it attacks (the wind-up, then the strike), waits, guards, backs off or feints, 58 / 15 / 10 / 10 / 7 in 100;
+  an open fighter (in a blow of its own) is punished 35% of the time first. It attacks less when it leads by 18 energy
+  points and more when it trails by 25.
+- **Walking in** it stands 1-2 beats instead of stepping 20% of the time; one step out of reach it now and then (12%)
+  starts a blow from there, which whiffs unless the fighter walks in.
+- **Wait** is a stance for 1-4 beats (the stance, strip 6, frame 0), in reach: it can be hit.
+- **Guard** is strip 7 (the art's guard pose) for 2-4 beats. It holds the punch and both kicks (no damage, no recoil,
+  `soco`) and the sweep goes under it, as the fighter's own block works. A blocked blow is countered 25% of the time:
+  the guard ends at once and a 3-beat wind-up follows, a beat longer than the usual tell.
+- **A hit** it takes without reeling 60% of the time unless it is winding up or striking (the
+  damage and the pain wave happen, the opponent goes on with what it was doing); a hit in the wind-up always cuts the attack.
+  After the reel it guards 15% of the time and backs off 25% (a hop of 100 px, then a pause).
+- **Wind-ups** are 2 beats, 50% of them a lazy 3. The fighter's whiffed blow (the Original's tell for "step in now") is punished 50% of the time.
+- **Mercy**: after it lands a hit it stands one more beat before it decides again.
+- **Damage.** SALGIN's fighter has no recoil, so a player lands about 60 hits to XILINDRO's 23 and knocks any opponent out in a minute. The easy opponent therefore takes the fighter's blows at the Original's damage {1, 2, 1, 2} (the fair fight doubled them) and hits for 2.5 times the table's {1, 2, 1, 2} ({3, 5, 3, 5}, with rounding).
+- F9 (Debug builds) shows the phases `wait` and `guard` too; `tools/fight_bots.py` plays it with player bots.
+
 ## Smooth motion (Corrigida)
 
 With `fight_smooth_motion` (`--fix all`; `src/core/fight_smooth.zig`, TIRO's mechanism) the window

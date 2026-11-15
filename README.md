@@ -57,6 +57,10 @@ key or a click takes it down), then PORRADA stands for 2 s before the round star
 fair (`fight_fair`, `docs/fights/FAIRNESS.md`): the opponent stops within reach, shows each attack for
 2 beats (its first frame and its sound) before it lands, and can be dodged (←), blocked (↓, not the
 sweep), jumped (↑, the sweep) or hit first; F9 in a Debug build shows its state over the arena.
+On top of that the opponent is an easy early-ladder one (`fight_easy_ai`, `docs/fights/EASY_AI.md`): it
+dithers on the way in, waits, guards (the punch and the kicks, not the sweep), backs off after a hit or
+a blow of its own, now and then starts a blow from too far or counters a blocked one, shrugs off some
+hits and eases off when it leads; the beginner's fight is won about three times in four.
 The fighters' steps, jumps back and recoils are shown moving over their beat at the display rate
 (`fight_smooth_motion`), the fight itself unchanged.
 JARDIM's Corrigida (`--fix all`) moves like Wolfenstein 3D: W / S or ↑ / ↓ walk, A / D strafe,
@@ -100,7 +104,11 @@ Saves go to `save/` (`--save DIR`).
   that does not run is dropped with its time: the fights' scripts take the Corrigida's controls
   screen down this way); input goes to the active window's program), `--dump DIR [--dump-every MS]` writes PNG frames of the screen
   (and of the SDL window), `--scene NAME [--take ID,…]` starts in any INI
-  scene carrying those items, `--trace FILE` logs every message. A panic or
+  scene carrying those items, `--trace FILE` logs every message,
+  `--fight-bot PROFILE[,SEED]` lets a player bot play SALGIN's or XILINDRO's round
+  (`idle|masher|novice|decent|expert`, `src/core/fight_bot.zig`), `--fight-tune key=value,…` turns the
+  easy opponent's dials (`fight_easy.Style`) and `--epoch N` sets the headless `time()` (the games'
+  `srand` seed). A panic or
   segfault prints the scene and the last 64 messages; a message loop that
   stops the clock is reported as a hang (`timeout -s SEGV` gives the stack
   of any other hang).
@@ -180,11 +188,14 @@ Saves go to `save/` (`--save DIR`).
   tools/play/salgin-4fsalgin-lose.input` (-1000, a life less, back to `4fbar`). Each also runs
   with `--fix all`. In the Original a held attack key is all a win takes. The Corrigida's runs take
   the controls screen down (`?fight_controls_screen key return` 50 ms after it opened) and `delay
-  2050` the rest (PORRADA's 2 s); its fight is the fair one (`fight_fair`), where a held key loses,
-  so the Original's keys are `!fight_fair` lines and the Corrigida's win is `?fight_fair` lines
-  planned by `tools/fight_plan.py` (below): a KO with the player untouched, `won 9100`.
-  `--minigame salgin --ms 110000 --fix all --input tools/play/salgin-fair-mash.input` presses A
-  every beat: it loses (docs/fights/FAIRNESS.md "Checks").
+  2050` the rest (PORRADA's 2 s); its fight is the Corrigida's (`fight_fair`, `fight_easy_ai`), where a
+  held key loses, so the Original's keys are `!fight_fair` lines and the Corrigida's win is
+  `?fight_easy_ai` lines recorded by `tools/fight_plan.py --player bot` (below) from the `expert` bot
+  of `src/core/fight_bot.zig`: a KO with the player at 37 (`won 3700`).
+  `--minigame salgin --ms 110000 --fix all,-fight_easy_ai --input tools/play/salgin-fair-mash.input`
+  presses A every beat in the fair fight alone: it loses (docs/fights/FAIRNESS.md "Checks").
+  `--minigame salgin --ms 108240 --fix all --fight-bot novice,1 --input tools/play/salgin-easy-novice.input`
+  (also `-masher`, `-decent`) lets a player bot play the round (below).
   `tools/smoke.py --minigame salgin [--fix all] [--monkey SEED]` presses and holds random fight
   keys for 110 s.
 - **INV**: `--minigame inv --ms 15000 --input tools/play/inv-alone-win.input` (the 20 invaders
@@ -215,18 +226,29 @@ Saves go to `save/` (`--save DIR`).
   held key loses: the win steps Right and kicks Up in the 200 ms between the opponent's arrival and
   its attack, and steps back Left while it is far, so it never attacks; the keys were planned
   against the port with a temporary trace, and shift with XILINDRO's start (26095 ms later from
-  `3fstreet`). The Corrigida's runs take the controls screen down as SALGIN's, and fight the fair
-  fight with `?fight_fair` lines from `tools/fight_plan.py`, the fighter untouched (`won 13650`):
-  the reactor alone; from NOITE the faster `--player fast`, whose last kick is held back with
-  `--ko-at` so that the KO falls on the Original fight's beat and all that follows (the SERIAL of
-  `xilindro-serial-hall.input`) plays as before.
-  `--minigame xilindro --ms 100000 --fix all --input tools/play/xilindro-fair-mash.input` presses A
-  every beat: it loses.
-  **`tools/fight_plan.py SCRIPT [--block NAME] [--player react|fast|mash|idle] [--ko-at MS]
-  [--end-at MS]`** plans a script's Corrigida fight between its `# fair-plan NAME begin` / `end`
-  lines: it probes the port (the script's `--fix` command, with F9 on: a Debug build logs every
-  beat of the fair fight), reads the opponent's phase, adds the next answer and probes again.
-  Rerun it when what comes before the fight moves.
+  `3fstreet`). The Corrigida's runs take the controls screen down as SALGIN's, and fight the easy
+  opponent with `?fight_easy_ai` lines recorded from the `expert` bot by `tools/fight_plan.py --player
+  bot` (a KO about a minute in; the fighter's energy, so the score, varies: `won 11550` alone); in
+  `onebutton.input` the block ends where the old fight's did and all that follows plays as before.
+  `--minigame xilindro --ms 100000 --fix all,-fight_easy_ai --input tools/play/xilindro-fair-mash.input`
+  presses A every beat in the fair fight alone: it loses.
+  `--minigame xilindro --ms 105350 --fix all --fight-bot novice,1 --input
+  tools/play/xilindro-easy-novice.input` (also `-masher`, `-decent`) lets a player bot play the round:
+  deterministic, `result won 4050` for that seed.
+  **`tools/fight_plan.py SCRIPT [--block NAME] [--player react|fast|mash|idle|bot] [--bot PROFILE,SEED]
+  [--gate FIX] [--ko-at MS] [--end-at MS]`** plans a script's Corrigida fight between its
+  `# fair-plan NAME begin` / `end` lines: `--player bot` runs the script with a player bot
+  (`--fight-bot expert,1,log`), which logs the keys it sends, and writes them as the block's `--gate`
+  lines (`fight_easy_ai` for the easy opponent; the replay is the same run); `react` and `fast` probe
+  the port instead (the script's `--fix` command, with F9 on: a Debug build logs every beat of the
+  fair fight), read the opponent's phase, add the next answer and probe again (they plan the fair
+  fight alone: `--gate fight_fair`). Rerun it when what comes before the fight moves.
+  **`tools/fight_bots.py [--seeds N] [--game xilindro,salgin] [--bots idle,masher,novice,decent,expert]
+  [--fixes NAME=ARG …] [--tune key=value,…] [--stats]`** plays the player bots of
+  `src/core/fight_bot.zig` over many seeds (`--fight-bot PROFILE,SEED --epoch E`, headless; a
+  ReleaseFast build via `--exe` is 2x faster) and prints win rates, hits landed and taken, and the
+  opponent's time by phase for `orig`, `fair` (`all,-fight_easy_ai`) and `easy` (`all`);
+  `docs/fights/EASY_AI.md` has the table.
   `--minigame xilindro --ms 18000 --fix all --input tools/play/xilindro-controls.input` shows the
   controls screen (`controls` dump), PORRADA's frozen 2 s (a press there does nothing) and A, S,
   D, F, ↑ and ↓ in the round.

@@ -1034,6 +1034,16 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
   no trades; the fighter's blows do {2, 4, 2, 4}. The opponent's damage is unchanged. The Original's
   opponent hits on the beat it arrives (in XILINDRO from beyond the fighter's reach), with nothing on screen
   to say it is coming.
+- `Fixes.fight_easy_ai` (SALGIN, XILINDRO; on top of `fight_fair`, which it needs): an easy early-ladder opponent
+  (`core/fight_easy.zig`, docs/fights/EASY_AI.md), the owner's answer to the fair fight being "still too hard" for
+  a beginner. The moves, the 2-beat tells and the strike's rules are the fair fight's; the opponent decides what to
+  do whenever it is free on a personality table (rand(): attack 58, wait 15, guard 10, back off 10, feint 7 in
+  100): it dithers on the way in, waits in its stance, guards (strip 7: it holds the punch and the kicks, the sweep
+  goes under it), starts a blow from too far now and then (it whiffs), counters a blocked blow 25% of the time (a
+  3-beat wind-up), takes some hits without reeling, backs off or guards after one, stands a beat after it lands
+  one, and attacks less when it leads. It never reads a key. SALGIN's has other numbers (the fighter's blows at
+  the Original's damage, the opponent's 2.5 times the table's). Win rates of the player bots over 100 seeds before
+  and after are in EASY_AI.md.
 - `Fixes.fight_smooth_motion` (SALGIN, XILINDRO): each fighter's move (the 32-px walk step per beat, the 100-px
   jump back, XILINDRO's 100-px recoil) is shown over one beat at the display rate, steps linear and longer moves
   eased out, in the presented picture only (`core/fight_smooth.zig`, `host.Program.view`: the arena band rebuilt
