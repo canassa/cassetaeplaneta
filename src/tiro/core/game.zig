@@ -172,6 +172,8 @@ pub const Game = struct {
     /// BUGS.md T7's fix (`Fixes.tiro_close_forfeits`): WM_CLOSE came, so the
     /// WM_DESTROY that follows reports a loss.
     closing: bool = false,
+    /// `Fixes.tiro_smooth_motion`: the presented picture (`tiro/smooth.zig`).
+    smooth: @import("../smooth.zig").State = .{},
 
     pub fn create(gpa: std.mem.Allocator, plat: Platform) !*Game {
         const g = try gpa.create(Game);
@@ -182,6 +184,7 @@ pub const Game = struct {
     /// The task ends: its local heap goes with it (what TIRO never frees,
     /// e.g. the strips `scene_object_dtor` leaves, is not a leak here).
     pub fn destroy(g: *Game) void {
+        g.smooth.deinit(g.gpa);
         g.heap.deinit();
         g.gpa.destroy(g);
     }

@@ -260,6 +260,9 @@ pub const Sdl = struct {
         var ms: i32 = if (to) |t| @max(0, @as(i32, @bitCast(t -% now))) else 100;
         // Wake up often enough to feed the audio stream and the video.
         if (s.audio != null or s.sim.videos.items.len > 0) ms = @min(ms, 10);
+        // And at the display rate anyway: a program's `view` (host.zig)
+        // changes between its timer ticks (TIRO's smooth motion).
+        ms = @min(ms, 16);
         var e: c.Event = undefined;
         if (c.SDL_WaitEventTimeout(&e, ms)) s.held = e;
     }

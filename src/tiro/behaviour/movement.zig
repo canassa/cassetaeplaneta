@@ -382,6 +382,8 @@ fn targetMoveTick(g: *Game, obj: *Object, bd: *Backdrop) void {
     moverStep(obj);
     if (occupancy.canStep(g, obj, bd)) {
         render.resetRects(obj);
+        // `Fixes.tiro_smooth_motion` shows the walk between its steps.
+        if (g.fixes.tiro_smooth_motion) object.Step.note(obj, g.plat.ticks());
         moverPlaceAt(g, obj, obj.nextX, obj.nextY, bd);
         visibility.redrawOverlapping(g, obj, bd, 1);
         visibility.blitToDc(g, obj, bd);

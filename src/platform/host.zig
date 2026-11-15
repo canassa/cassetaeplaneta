@@ -76,6 +76,11 @@ pub const Program = struct {
     quit: *const fn (ctx: *anyopaque) bool,
     /// app_exit, then frees the state (Windows ending the task).
     exit: *const fn (ctx: *anyopaque) void,
+    /// Not Windows: the picture the backend shows for the program's window
+    /// at `now` instead of its screen (TIRO's `Fixes.tiro_smooth_motion`
+    /// draws its moving figures between their steps there), or null for
+    /// the screen. Called on every present, so at the backend's frame rate.
+    view: ?*const fn (ctx: *anyopaque, now: u32) ?*const p.Screen = null,
 };
 
 pub const Options = struct {
@@ -159,6 +164,8 @@ pub const Host = struct {
     pumping: bool = false,
     /// Task 0's program when it is a minigame run alone (null: NOITE).
     primary_program: ?*const Program = null,
+    /// That program's state, once `main` started it (`setPrimaryCtx`).
+    primary_ctx: ?*anyopaque = null,
 
     /// `machine` is the backend's platform, `sim` its `Sim`. Task 0 is
     /// the program `main` runs: `title` is its window's.
@@ -182,6 +189,21 @@ pub const Host = struct {
     /// Task 0's platform: what `main` gives its program.
     pub fn primary(h: *Host) p.Platform {
         return h.tasks[0].platform();
+    }
+
+    /// `main` started the minigame run alone: `ctx` is its state (for
+    /// `Program.view`).
+    pub fn setPrimaryCtx(h: *Host, ctx: ?*anyopaque) void {
+        h.primary_ctx = ctx;
+    }
+
+    /// The picture to show for `t`'s window now: its program's `view`, or
+    /// its screen.
+    fn shown(h: *Host, t: *Task) *const p.Screen {
+        const prog = t.program orelse (if (t.id == 0) h.primary_program else null) orelse return t.screen;
+        const ctx = t.ctx orelse (if (t.id == 0) h.primary_ctx else null) orelse return t.screen;
+        const f = prog.view orelse return t.screen;
+        return f(ctx, h.machine.ticks()) orelse t.screen;
     }
 
     /// True while no other task exists: task 0 then is the backend.
@@ -208,7 +230,7 @@ pub const Host = struct {
 
     /// The screen the backend shows now (the harness's dumps).
     pub fn shownScreen(h: *Host) *const p.Screen {
-        if (h.top()) |t| return t.screen;
+        if (h.top()) |t| return h.shown(t);
         return h.tasks[0].screen;
     }
 
@@ -306,7 +328,7 @@ pub const Host = struct {
                 h.endTask(t);
                 continue;
             }
-            if (h.top() == t) h.machine.presentScreen(t.screen);
+            if (h.top() == t) h.machine.presentScreen(h.shown(t));
         }
     }
 
@@ -381,9 +403,9 @@ pub const Host = struct {
 
     fn syncMachine(h: *Host) void {
         if (h.alone()) return;
-        const shown = h.top();
-        h.machine.showMain(shown != null);
-        if (shown) |s| if (s.id != 0) h.machine.presentScreen(s.screen) else h.machine.present();
+        const top_task = h.top();
+        h.machine.showMain(top_task != null);
+        if (top_task) |s| if (s.id != 0) h.machine.presentScreen(h.shown(s)) else h.machine.present();
     }
 
     // ---- what a task's platform does differently ----------------------------
@@ -447,9 +469,12 @@ pub const Host = struct {
     }
 
     fn present(h: *Host, t: *Task) void {
-        if (h.alone()) return h.machine.present();
+        if (h.alone()) {
+            const scr = h.shown(t);
+            return if (scr == t.screen) h.machine.present() else h.machine.presentScreen(scr);
+        }
         if (h.top() != t) return;
-        if (t.id == 0) h.machine.present() else h.machine.presentScreen(t.screen);
+        if (t.id == 0) h.machine.present() else h.machine.presentScreen(h.shown(t));
     }
 
     fn poll(h: *Host, t: *Task) ?Event {

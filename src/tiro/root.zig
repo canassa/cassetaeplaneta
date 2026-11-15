@@ -14,6 +14,8 @@ pub const core = struct {
     pub const world = @import("core/world.zig");
 };
 pub const units = @import("units.zig");
+/// Not a port unit: `Fixes.tiro_smooth_motion`'s presented picture.
+pub const smooth = @import("smooth.zig");
 const Game = core.game.Game;
 
 /// Every unit ported and the game checked (the last step of the port,
@@ -36,6 +38,7 @@ pub const program: host.Program = .{
     .nextDue = nextDue,
     .quit = quit,
     .exit = exit,
+    .view = view,
 };
 
 fn of(ctx: *anyopaque) *Game {
@@ -66,6 +69,12 @@ fn nextDue(ctx: *anyopaque) ?u32 {
     return of(ctx).queue.nextDue();
 }
 
+/// The picture to present (`Fixes.tiro_smooth_motion`), or null for the
+/// screen.
+fn view(ctx: *anyopaque, now: u32) ?*const platform.Screen {
+    return smooth.view(of(ctx), now);
+}
+
 fn quit(ctx: *anyopaque) bool {
     return of(ctx).quit;
 }
@@ -79,5 +88,6 @@ fn exit(ctx: *anyopaque) void {
 
 test {
     _ = units;
+    _ = smooth;
     std.testing.refAllDecls(core);
 }

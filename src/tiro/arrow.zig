@@ -89,6 +89,8 @@ pub fn stepMove(g: *Game, obj: *Object, bd: *Backdrop, dir: *i16) void {
         obj.mover.moving = 0;
         visibility.hideAndInvalidate(g, obj, 0, bd);
     } else {
+        // `Fixes.tiro_smooth_motion` shows the flight between its steps.
+        if (g.fixes.tiro_smooth_motion) object.Step.note(obj, g.plat.ticks());
         movement.placeAt(g, obj, obj.nextX, obj.nextY, bd);
         visibility.redrawOverlapping(g, obj, bd, 1);
         visibility.blitToDc(g, obj, bd);

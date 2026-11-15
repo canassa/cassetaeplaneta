@@ -81,6 +81,7 @@ export fn noite_start(fixes: bool, skip_videos: bool, one_button_mode: bool, min
         if (!p.ready) return 3;
         const ctx = p.start(gpa, hs.primary(), fx) catch return 2;
         alone = .{ .prog = p, .ctx = ctx };
+        hs.setPrimaryCtx(ctx);
         return 0;
     }
     const g = Game.create(gpa, hs.primary()) catch return 1;
@@ -132,6 +133,7 @@ fn aloneFrame(prog: *const host.Program, ctx: *anyopaque) i32 {
     }
     if (prog.quit(ctx)) {
         alone = null;
+        hs.setPrimaryCtx(null);
         prog.exit(ctx);
         backend.show();
         return 1;

@@ -238,6 +238,23 @@ pub const StatusBarPart = struct {
     textX: i16 = 0,
 };
 
+/// Not in the original (`Fixes.tiro_smooth_motion`): a target's walk step
+/// or the arrow's flight step, as `movement` / `arrow` took it: from where,
+/// to where and when (the platform's ticks). Read by `tiro/smooth.zig` only.
+pub const Step = struct {
+    valid: bool = false,
+    fromX: i16 = 0,
+    fromY: i16 = 0,
+    toX: i16 = 0,
+    toY: i16 = 0,
+    at: u32 = 0,
+
+    /// Records the step `obj` is about to take to (`nextX`, `nextY`).
+    pub fn note(obj: *Object, now: u32) void {
+        obj.step = .{ .valid = true, .fromX = obj.x, .fromY = obj.y, .toX = obj.nextX, .toY = obj.nextY, .at = now };
+    }
+};
+
 pub const Object = struct {
     kind: Kind,
 
@@ -302,6 +319,11 @@ pub const Object = struct {
     portable: PortablePart = .{},
     panel: ControlPanelPart = .{},
     status: StatusBarPart = .{},
+
+    // ---- Port state, no counterpart ----
+    /// `Fixes.tiro_smooth_motion` (`tiro/smooth.zig`): the last walk or
+    /// flight step.
+    step: Step = .{},
 
     /// The original's `asX` downcasts: the object if it is one, else null.
     pub fn as(obj: *Object, class: Class) ?*Object {

@@ -319,9 +319,30 @@ DC's default font) draws on it and `tiro_blit_score_box` blits the box.
 | T6 restore strip one step too wide | `tiro_target_restore_one_step` | render | `target_restore_background`'s rect (and its `addDirtyRect`) adds \|stepX\| once, as `mover_restore_background` | yes |
 | T7 a close with points scored is a win | `tiro_close_forfeits` | gallery | the scene handler notes `WM_CLOSE` (port state `closing`); the `WM_DESTROY` that follows posts `(0, g_score)`: a loss that keeps the points | yes (owner's decision) |
 | T8 a falling target drawn under the walking ones | `tiro_hit_target_depth` | visibility | `target_redraw_overlapping` draws all four targets in `drawOrder`: the upper row, then the lower one, in each the walking targets and then the falling one (drawing only) | yes |
+| — (Corrigida addition) | `tiro_smooth_motion` | `smooth.zig` (not a unit) | the presented picture shows the walking targets and the flying arrow between their steps (below) | yes (owner's request) |
 
 Each unit ports the buggy code and keeps the fixed path only under its
-flag (`g.fixes.tiro_…`). T1 matters only with key repeats (Platform). The
+flag (`g.fixes.tiro_…`).
+
+**Smooth motion** (`tiro_smooth_motion`, `src/tiro/smooth.zig`). TIRO
+draws each step straight into the backdrop and blits it: a target jumps
+20 px every 100 ms (10 pictures a second), the arrow 10 px every 55 ms,
+whatever the display rate (the port's timers keep those periods exactly;
+Windows 3.1's 55 ms tick would make the targets' 100 ms about 110). The
+fix changes no game state: the target and arrow steps record where they
+came from and when (`Object.step`, port state), and the host asks the
+program for the picture to present (`host.Program.view`, on every
+present: each web frame, each SDL loop turn, at most 16 ms apart, and the
+harness's dumps). `smooth.view` copies the screen and, for each figure
+between two steps, rebuilds the rectangle covering its game and shown
+positions from the background and every object in the game's order at
+its shown position: `from + (to - from) * (now - stepAt) / (due -
+stepAt)` up to its timer's next tick (the picture lags the game by at most
+one step; a stop, a wrap, a hit or a respawn shows the game's position at
+once). The occupancy grid, the hit tests, timers, `rand()` and scores are
+untouched, so every script keeps its result; `pixel` checks read the
+screen, not the picture. The mechanism would fit other programs with
+stepping sprites (a `view` per program), but only TIRO has it. T1 matters only with key repeats (Platform). The
 Latent (`perspective_backdrop_set_layer`, dead) and Harmless (`WinMain`'s
 uninitialised return, not ported: the host ignores exit codes) entries get
 no flag.

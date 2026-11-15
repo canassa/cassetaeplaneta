@@ -334,6 +334,7 @@ fn runAlone(gpa: std.mem.Allocator, prog: *const platform.host.Program, hs: *pla
     }
     const plat = hs.primary();
     const ctx = try prog.start(gpa, plat, hs.opts.fixes);
+    hs.setPrimaryCtx(ctx);
     var quit = false;
     var storm_tick: u32 = 0;
     var storm_count: u32 = 0;
@@ -356,6 +357,7 @@ fn runAlone(gpa: std.mem.Allocator, prog: *const platform.host.Program, hs: *pla
         plat.wait(due);
     }
     const ended = prog.quit(ctx);
+    hs.setPrimaryCtx(null);
     prog.exit(ctx);
     if (ended and !quit) hn.finishAlone(hs);
     for (hs.results.items) |r| std.debug.print("[{d}] {s}: {s}, score {d}\n", .{ r.at, prog.name, if (r.won) "won" else "lost", r.score });

@@ -255,6 +255,12 @@ pub const Fixes = struct {
     /// others (upper row behind the lower one, the falling target in front
     /// within its row) instead of under every walking target.
     tiro_hit_target_depth: bool = false,
+    /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"):
+    /// the walking targets and the flying arrow are shown between their
+    /// steps at display rate (`tiro/smooth.zig`, a presented picture, never
+    /// the screen or the backdrop); positions, timers, hits and scores are
+    /// the original's.
+    tiro_smooth_motion: bool = false,
     // ---- SERIAL.EXE (BUGS.md K1–K6). The src/serial/ units port each bug
     // as it is and keep the fix only behind its flag. ----
     /// K1: the 0x40a result's wParam says whether the player survived
