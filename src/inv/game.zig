@@ -20,6 +20,7 @@ const lists = @import("lists.zig");
 const invaders = @import("invaders.zig");
 const missiles = @import("missiles.zig");
 const saucer = @import("saucer.zig");
+const invasion = @import("invasion.zig");
 const occupancy = @import("behaviour/occupancy.zig");
 const visibility = @import("behaviour/visibility.zig");
 const render = @import("behaviour/render.zig");
@@ -162,14 +163,14 @@ pub fn createStatusBar(g: *Game) ?*Object {
 
 /// GameVtbl slot 05 init (`game_init`, the base start-up, called by
 /// `onCreate` with the scene name): the scene (createInitScene, then the
-/// scene's create builds the backdrop), the global objects, the status
+/// InvScene's create, `invasion.create`, builds the backdrop), the global objects, the status
 /// bar, control panel and player (attached to the backdrop, shown as the
 /// scene wants), the player's idle animation, and `scene_started` posted.
 // @orig 1088:3f0c game_init
 pub fn init(g: *Game, name: []const u8) *Game {
     g.scene = createInitScene(g, name);
     const s = g.scene.?;
-    _ = scene_unit.create(g, s);
+    _ = invasion.create(g, s);
     lists.attachToScene(g, &g.globalObjects, s);
     g.statusBar = createStatusBar(g);
     _ = occupancy.attach(g, g.statusBar.?, s.backdrop.?);
@@ -202,7 +203,7 @@ pub fn takeExit(g: *Game, exit_index: i16) *Game {
     g.oldScene = cur;
     g.scene = scene_unit.createNewScene(g, cur, exit_index);
     const s = g.scene.?;
-    _ = scene_unit.create(g, s);
+    _ = invasion.create(g, s);
     if (g.oldScene) |old| _ = scene_unit.scalarDtor(g, old, 1);
     g.oldScene = null;
     lists.attachToScene(g, &g.globalObjects, s);
