@@ -186,3 +186,99 @@ update-list flush.
   eaten), `pacman3.wav` (caught), `control.wav` (looped while powered; the only wave with a notify
   window, whose `MM_WOM_DONE` flushes every channel), `ROLHAS01.WAV` (restarted by `APPWNDPROC` on
   every `WM_PAINT`).
+
+## Arcade rules (Corrigida)
+
+Everything above is the 1995 game (the Original, and the Corrigida's bug fixes P1-P8 on it). With
+`Fixes.sauna_arcade_rules` (`--fix all`) SAUNA plays by **arcade Pac-Man's rules** on SAUNA's maze
+and art, the owner's request after he found the Corrigida's Pacman and ghosts "messy", "janky",
+"too fast" and the pathfinding "horrible". The rules are `docs/sauna/PACMAN.md` (level 1 only);
+the code is `src/sauna/arcade/` (design: DESIGN.md "Arcade rules (Corrigida)"). The original's
+Pacman and Ghost code does not run: the objects only carry the pictures, and the sprites are drawn
+onto the presented picture (`sauna_clean_render`'s view, BUGS.md P9).
+
+**The grid.** The maze's corridors are two cells (32 px) wide with one-cell walls, so a corridor's
+centre line runs along cell borders and every peanut and cork sits on it. The tile grid is the
+grid of those corners: tile (a, b) is the 16-px square centred on pixel (16 a, 16 b), floor when
+the four cells around the corner are not wall (the dot of cell (c, r) is on tile (c + 1, r + 1)). The
+result is a one-tile-wide maze with 323 floor tiles (36 of them junctions, one every three tiles along a corridor), the 100
+dots and the cup in the middle as the ghost house. Two repairs of `g_maze`, checked against
+`3fpac2.bmp`: the cup's four "shoulder" cells that the picture draws as wall but the maze leaves
+open (cells 16, 17, 22, 23 of row 12) are wall; the boxes the picture draws closed are not floor.
+
+**Speeds** (level 1's table, a frame of the arcade being 60 a second and its tile 8 px, so a
+screen pixel is half an arcade pixel; tiles are 16 screen px):
+
+| Actor | Before (Original) | Arcade, level 1 | tiles/s | px/s |
+|---|---|---|---|---|
+| Pacman | 16 px / 55 ms | 80 % | 7.5 | 120 |
+| Pacman on a dot row | the same | one frame's stop a dot | 7.06 | 113 |
+| Pacman, corks on | the same | 90 % | 8.44 | 135 |
+| a ghost | 16 px / 55 ms | 75 % | 7.03 | 112.5 |
+| a frightened ghost | the same | 50 % | 4.69 | 75 |
+| a ghost in the house | the same | 40 % | 3.75 | 60 |
+| Blinky, Elroy 1 / 2 | the same | 80 % / 85 % | 7.5 / 7.97 | 120 / 127.5 |
+| the 1995 actors, for comparison | 18.18 | | 18.18 | 290.9 |
+
+Pacman is 41 % of what he was (and a ghost 39 %). Each of these is a 16-frame table of steps, as
+the arcade's (`sim.zig`: `1111111111111111` for Pacman, `0111111111111111` for a ghost, ...).
+
+**Pacman.** Tile of his centre; he runs straight and **stops at a wall** at the centre of the tile
+before it. The wanted direction is held (an arrow or WASD): when the tile next to his current tile
+in that direction is floor he takes it **at once**, wherever he is in the tile: 4 pixels (8 screen
+px) before the centre entering from the right or from below, 3 from the left or from above, and 4
+or 3 after it; and while off the centre line of the lane he drifts one arcade pixel toward it
+for each one he moves, so a corner is cut at 45 degrees (the arcade's cornering). A reverse is
+always possible. A direction released before it could be taken stays wanted for 400 ms (a tap
+before a junction still turns there); a key held is wanted until released. He starts the game
+moving left, and standing still (a wall) he starts as soon as a way opens. A left click wants the
+direction of its larger leg from Pacman (the touch pad's taps). Eating: a peanut stops him one
+frame, a cork three.
+
+**The ghosts**, in the arcade's way: they move to the centre of a tile in a straight line; one
+pixel after passing a centre they decide the exit from the **next** tile (never turning back, but
+if it is the only way), by the straight-line distance (squared) of the neighbouring tile to their
+target tile, ties up, left, down, right; their one forced turn-around is a change of mode. Targets in
+chase: **Blinky** Pacman's tile; **Pinky** 4 tiles ahead of him (facing up also 4 left: the arcade's
+overflow bug, `sim.up_overflow`); **Inky** the end of the vector from Blinky through the tile 2
+ahead of Pacman, doubled; **Clyde** Pacman's tile when 8 tiles or more away, else his corner. In
+scatter each aims for its corner outside the maze (Blinky top right, Pinky top left, Inky bottom
+right, Clyde bottom left) and settles in a loop of 12 tiles there. Schedule of level 1, from the
+start of the game: scatter 7 s, chase 20, scatter 7, chase 20, scatter 5, chase 20, scatter 5, chase
+for good; the clock stops while the corks are on; every change turns the ghosts around.
+**Blinky's Cruise Elroy**: with 8 dots left he runs at 80 % and with 4 left at 85 %, chasing in
+scatter too (not until Clyde has left the house after a death).
+
+**The house** is the cup (7 x 4 tiles) with its door at the top. Blinky starts outside above the
+door, Pinky in the middle, Inky left and Clyde right, bobbing. They leave by the arcade's counters
+(personal: Pinky at once, Inky after 12 dots, Clyde after 25 more; after a death, global: 3, 7, 13
+dots), or when Pacman eats nothing for 4 s, the first one inside; they go to the door's column and
+up to the tile above it, then left. The numbers are the arcade's (30, 60; 7, 17, 32; Elroy at 20 and
+10 left) times 100 / 244, SAUNA having 100 dots to the arcade's 244.
+
+**The corks are the energizers.** A cork stops Pacman three frames, turns every ghost around and
+frightens them for **6 s** (the arcade's level 1; the Original's 5 s), 5 flashes: the ghosts swap
+pictures with Pacman as SAUNA does (the power's picture swap is kept), and in the last 2.3 s the
+ghosts flip between the two pictures every 14 frames. The frightened ghosts choose a pseudo-random
+exit at each tile (a generator that restarts from the same seed at each life) and run at 50 %.
+`control.wav` loops for the time (stopped at the end or at a catch). A ghost that meets Pacman
+frightened is eaten: +500 (SAUNA's, every time) and `pacman4.wav`; having no picture of eyes, it goes
+**back to its place in the house at once** and leaves again, as SAUNA sent it home at once; the game
+stands half a second. A ghost not frightened that meets him (the same tile) costs a life: -500 (the
+last life: the loss's -1000 only), `pacman3.wav`, half a second of standing, Pacman's 6-picture
+death (the ghosts hidden), a second of READY, and everything back at its start (the house counters
+now the global ones, the scatter and chase clock restarted); the dots stay eaten.
+
+**What stays SAUNA's:** the score (a peanut +100, a cork 0, a ghost +500, a catch -500), three
+lives, the win at the last of the 100 dots (+1000 and the won flag 0xffff), the loss at the third
+catch (-1000), the 0x40a result, the waves and the music, End Task forfeiting (also **Esc**).
+
+**What is the arcade's and not SAUNA's** (owner decisions, DESIGN.md): the game starts with a READY
+second and Pacman moving left, the controls screen, the tile grid and every speed above.
+
+**Controls screen** (`sauna_controls_screen`): from the start a panel in Portuguese lists the arrows
+and WASD, Esc (leaves: a loss) and the goal; the game gets no input and no timer until a key or a
+click takes it down (the key that does is not a move).
+
+**Debug** (Debug builds, F9): small squares for each ghost's target tile and a square for the mode
+(white scatter, black chase, red frightened), over the picture.

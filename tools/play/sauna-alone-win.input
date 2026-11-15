@@ -7,8 +7,11 @@
 # never meets a ghost, so the P-bugs only change pictures: P4 after each
 # cork, P5 on each click).
 #
+# The `--fix all,-sauna_arcade_rules,-sauna_controls_screen` run is the bug fixes on the
+# 1995 rules; the Corrigida's arcade game has its own scripts, sauna-corrigida-*.
+#
 #   zig-out/bin/noite --minigame sauna --headless --ms 22500 --input tools/play/sauna-alone-win.input
-#   zig-out/bin/noite --minigame sauna --headless --ms 22500 --fix all --input tools/play/sauna-alone-win.input
+#   zig-out/bin/noite --minigame sauna --headless --ms 22500 --fix all,-sauna_arcade_rules,-sauna_controls_screen --input tools/play/sauna-alone-win.input
 500 key left
 950 click 160 344
 1035 key right

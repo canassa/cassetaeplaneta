@@ -77,7 +77,11 @@ inferno-walk.png); on a touch screen the pad shows the four arrows and a
 held ▶ does the same (inferno-touch.png). Then "Jogo" = Sauna Mista:
 SAUNA starts alone and Left runs Pacman along his row, eating peanuts:
 the score box changes (sauna.png, sauna-run.png); on a touch screen the
-pad shows the four arrows and ◀ does the same (sauna-touch.png). Then
+pad shows the four arrows and ◀ does the same (sauna-touch.png). In the Corrigida
+the controls screen comes first and keeps the game still (sauna-controls.png), Enter takes it
+down and, after the READY second, Pacman runs on his own and eats peanuts
+(sauna-arcade.png); on a phone a tap on an arrow takes it down
+(sauna-corrigida-touch.png). Then
 "Jogo" = Jardim: JARDIM starts alone, a held Up walks the player: the
 minimap's square moves (jardim.png, jardim-walk.png), and a held Ctrl
 shows the fists' punch (jardim-punch.png); on a touch screen the pad shows
@@ -1084,6 +1088,57 @@ def main():
             check(not terrors, "touch Sauna Mista: no page errors")
             tctx.close()
 
+        def sauna_corrigida():
+            """Jogo: Sauna Mista alone in the Corrigida (the arcade rules): the
+            controls screen is up (the score box is still " 0100" under it),
+            Enter takes it down, a second of READY, then Pacman runs left on
+            his own and eats peanuts; WASD steer."""
+            page.goto(url)
+            load()
+            page.select_option("#jogo", "sauna")
+            page.check('input[name="versao"][value="corrigida"]')
+            play()
+            time.sleep(1.5)
+            shot("sauna-controls.png")
+            before = page.evaluate(score_js)
+            time.sleep(1.5)
+            check(page.evaluate(score_js) == before, "Corrigida Sauna Mista: the game stands under the controls screen")
+            page.keyboard.press("Enter")
+            time.sleep(3)
+            shot("sauna-arcade.png")
+            check(page.evaluate(score_js) != before, "Corrigida Sauna Mista: after the READY second Pacman runs and eats peanuts")
+            page.keyboard.press("w")
+            time.sleep(0.5)
+            page.keyboard.press("d")
+            time.sleep(0.5)
+            check(not errors, "Corrigida Sauna Mista: no page errors")
+
+        def sauna_corrigida_touch():
+            """Sauna Mista alone in the Corrigida on a phone: the pad shows the
+            four arrows; a tap on one takes the controls screen down, and
+            Pacman runs."""
+            tctx = browser.new_context(viewport={"width": 844, "height": 390}, has_touch=True, is_mobile=True)
+            tpage = tctx.new_page()
+            terrors = []
+            tpage.on("pageerror", lambda e: terrors.append(str(e)))
+            tpage.goto(url)
+            tpage.wait_for_function("window.noite.ready || window.noite.failure", timeout=600_000)
+            tpage.select_option("#jogo", "sauna")
+            tpage.check('input[name="versao"][value="corrigida"]')
+            tpage.click("#play")
+            tpage.wait_for_function("window.noite.started || window.noite.failure", timeout=60_000)
+            time.sleep(1.5)
+            shown = tpage.evaluate("""() => Array.from(document.querySelectorAll('#dpad button'))
+                .filter((b) => !b.hidden).map((b) => Number(b.dataset.key))""")
+            check(sorted(shown) == [37, 38, 39, 40], f"Corrigida touch Sauna Mista: the pad shows the four arrows ({shown})")
+            before = tpage.evaluate(score_js)
+            tpage.locator('#dpad [data-key="38"]').tap()
+            time.sleep(3.5)
+            tpage.screenshot(path=str(out / "sauna-corrigida-touch.png"))
+            check(tpage.evaluate(score_js) != before, "Corrigida touch Sauna Mista: a tap takes the screen down and Pacman runs")
+            check(not terrors, "Corrigida touch Sauna Mista: no page errors")
+            tctx.close()
+
         # JARDIM's minimap (114x160 at 513, 42): the player's red square
         # moves with every step; the hands (145-495, 261-341) punch while
         # Ctrl is held.
@@ -1437,6 +1492,8 @@ def main():
         inferno_touch()
         sauna_alone()
         sauna_touch()
+        sauna_corrigida()
+        sauna_corrigida_touch()
         jardim_alone()
         jardim_touch()
         jardim_corrigida()

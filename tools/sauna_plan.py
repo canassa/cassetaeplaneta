@@ -3,6 +3,7 @@
 
     nix develop -c python3 tools/sauna_plan.py [--scene 3fsauna --prefix FILE --start MS]
         [-o FILE] [--exe PATH] [-j N]
+    nix develop -c python3 tools/sauna_plan.py --arcade --start MS [--min-eaten N] [-o FILE]
 
 SAUNA's ghosts turn at random: `srand(GetTickCount())` on 0x401, so a game
 follows from the absolute time SAUNA starts and from the moves. The planner
@@ -45,6 +46,13 @@ ghost, so P1, P2, P6 and P7 never act and P4, P5, P8 only change pictures:
 both versions play the same game (`result won`, 96 peanuts + 1000 =
 10600).
 
+`--arcade` plans the Corrigida's game (`--fix all`: the arcade rules, docs/sauna/PACMAN.md) instead:
+`zig build sauna-plan` (src/sauna/plan.zig) runs the game's own clock and simulation and searches
+for a win by beam search (it tries a few widths); `--start` is the ms at which the controls screen
+is taken down (the script's first line, `key return`), and the game starts then. `--min-eaten N`
+asks for a win that eats at least N ghosts (a cork's power used). The ghosts have no randomness
+but the frightened ones, from a fixed seed, so the game follows from the keys alone.
+
 Alone, SAUNA starts at 0. From NOITE (`--scene 3fsauna`), `--prefix` is a
 script with the right click on the attendant and `--start` the time SAUNA
 can take input (after its 0x40c); the probes run the whole NOITE run.
@@ -83,7 +91,7 @@ _counter = itertools.count()
 
 
 def load_maze():
-    src = (ROOT / "src" / "sauna" / "core" / "game.zig").read_text()
+    src = (ROOT / "src" / "sauna" / "core" / "maze_data.zig").read_text()
     block = src[src.index("pub const initial_maze"):]
     rows = re.findall(r'^\s*"([ 123]{40})",$', block, re.M)[:30]
     assert len(rows) == 30, len(rows)
@@ -336,8 +344,35 @@ def value(st):
     return (len(st.dots), dist_to_dot(st.pos, st.dots) + st.at / STEP * 0.2)
 
 
+def arcade(args):
+    """The Corrigida's arcade game: the planner (src/sauna/plan.zig) writes the keys."""
+    tries = [(100, 6, 120), (100, 8, 60), (300, 6, 120), (300, 8, 60), (600, 8, 120), (600, 6, 60)]
+    for beam, depth, danger in tries:
+        cmd = ["zig", "build", "sauna-plan", "--", "--start", str(args.start), "--beam", str(beam),
+               "--depth", str(depth), "--danger", str(danger), "--min-eaten", str(args.min_eaten)]
+        r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
+        if r.returncode == 0:
+            break
+        print(f"beam {beam} depth {depth} danger {danger}: {r.stdout.strip() or r.stderr.strip()[-200:]}", file=sys.stderr)
+    else:
+        sys.exit("no win found")
+    lines = [l for l in r.stdout.splitlines() if l.strip()]
+    keys = [l for l in lines if not l.startswith("#")]
+    result = next(l for l in lines if l.startswith("# result")).split(maxsplit=2)[2]
+    end = int(next(l for l in lines if l.startswith("# end")).split()[2])
+    text = f"{args.start} key return\n" + "".join(l + "\n" for l in keys) + f"{end + 400} result {result}\n"
+    summary = next(l for l in lines if l.startswith("# plan"))
+    if args.out:
+        args.out.write_text(text)
+    else:
+        sys.stdout.write(text)
+    print(f"{summary[2:]}; beam {beam} depth {depth} danger {danger}", file=sys.stderr)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--arcade", action="store_true", help="plan the Corrigida's arcade game (--fix all)")
+    ap.add_argument("--min-eaten", type=int, default=0, help="with --arcade: ghosts the win must eat")
     ap.add_argument("--scene", help="the NOITE scene the probes start in (3fsauna)")
     ap.add_argument("--prefix", type=pathlib.Path, help="script lines before the moves (the launch)")
     ap.add_argument("--start", type=int, default=500, help="the first move's earliest time (ms)")
@@ -345,6 +380,8 @@ def main():
     ap.add_argument("--exe", default=str(ROOT / "zig-out" / "bin" / "noite"))
     ap.add_argument("-j", "--jobs", type=int, default=os.cpu_count())
     args = ap.parse_args()
+    if args.arcade:
+        return arcade(args)
     probe = Probe(args)
     st = plan(probe, args.start, args.jobs)
     moves = [m for m in st.moves if m[1] is not None]

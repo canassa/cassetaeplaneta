@@ -169,7 +169,7 @@ fn soRestoreBackground(g: *Game, obj: *Object, bd: *Backdrop, flag: i16) void {
 
 /// BitBlt(pixels, x, y, w, h, pixels2, x, y, SRCCOPY): the dotted background
 /// (hdc2) onto the working bitmap (hdc), clipped to the bitmaps.
-fn bitBlt(bd: *Backdrop, x: i16, y: i16, w: i16, h: i16) void {
+pub fn bitBlt(bd: *Backdrop, x: i16, y: i16, w: i16, h: i16) void {
     const dst = bd.surface();
     const stride = dst.stride();
     const bw: i32 = dst.width;
@@ -296,7 +296,7 @@ fn pacmanRestoreBackground(g: *Game, obj: *Object, bd: *Backdrop) void {
 
 /// The dot picture's rectangle copied from the clean background into the
 /// second bitmap (`bits2`), colour key `g_transparentColor`.
-fn eraseDot(g: *Game, bd: *Backdrop, dot: *Object) void {
+pub fn eraseDot(g: *Game, bd: *Backdrop, dot: *Object) void {
     const h = position.height(dot);
     const w = position.width(dot);
     const bg = bd.background orelse return;

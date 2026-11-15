@@ -1,0 +1,61 @@
+# SAUNA alone, the Corrigida's arcade game (`--fix all`: `sauna_arcade_rules`,
+# `sauna_controls_screen`; docs/sauna/PACMAN.md): the controls screen (a key takes it
+# down at 1100), a second of READY, then 46 arrow presses, planned by
+# `tools/sauna_plan.py --arcade --start 1100 --min-eaten 1` (the planner runs the
+# game's own clock and simulation: the ghosts have no randomness but the
+# frightened ones', from a fixed seed). Most presses come a tile before a
+# junction (the direction is kept until the first moment it can be taken: the
+# arcade's pre-turn) and he never meets a ghost but one, eaten under the
+# power of a cork (+500); the last dot goes at 41612 and SAUNA reports won
+# 11100 (9600 + 500 + 1000). Rerun the planner when SAUNA's start moves.
+#
+#   zig-out/bin/noite --minigame sauna --headless --ms 43000 --fix all --input tools/play/sauna-corrigida-arcade-win.input
+500 dump controls
+1100 key return
+2308 key right
+4628 key up
+5380 key right
+5748 key up
+5828 key down
+7588 key left
+8068 key up
+8404 key left
+9540 key down
+9860 key left
+11108 key up
+11444 key left
+13108 key up
+15156 key right
+20196 key down
+20292 key up
+21204 key left
+21684 key down
+22036 key left
+23140 key up
+23444 key left
+25220 key down
+25572 key left
+26676 key up
+27012 key left
+27476 key down
+27860 key right
+28084 key left
+28260 key down
+28596 key right
+28932 key down
+30308 key right
+31748 key left
+31812 key down
+32148 key left
+33172 key down
+33492 key left
+34020 key right
+34468 key up
+34788 key right
+35812 key up
+36132 key right
+37284 key down
+37620 key right
+39140 key up
+41396 key left
+42012 result won 11100

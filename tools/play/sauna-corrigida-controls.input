@@ -1,0 +1,13 @@
+# SAUNA alone, the Corrigida's controls screen: up from the start (a dump at 500),
+# the game gets nothing until a key: D at 1000 takes the screen down and is not a
+# move (the READY second follows, then Pacman runs left), and the window closed
+# at 4000 reports the peanuts of 2 s of running (7 of them, +700) and the loss's
+# -1000: `lost -200`. A game that had run under the screen, or taken the D, would
+# show another score.
+#
+#   zig-out/bin/noite --minigame sauna --headless --ms 5000 --fix all --input tools/play/sauna-corrigida-controls.input
+500 dump controls
+1000 key d
+2500 dump play
+4000 close
+4500 result lost -200

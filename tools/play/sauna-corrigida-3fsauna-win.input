@@ -1,0 +1,62 @@
+# NOITE's sauna (3fsauna) with the Corrigida's arcade game: a right click plays
+# the attendant once and his wave, whose end launches the real SAUNA; NOITE gets
+# 0x40c at 3965 and hides; SAUNA shows its controls screen, which a key takes down
+# at 6000, and the arcade game plays the 46 arrow presses planned by
+# `tools/sauna_plan.py --arcade --start 6000 --min-eaten 1` (a ghost eaten under
+# the power of a cork). SAUNA reports won 11100 (9600 + 500 + 1000) at 46512; NOITE
+# shows itself, adds it and goes to the hall (3fhall) with its 3 lives.
+#
+#   zig-out/bin/noite --headless --scene 3fsauna --ms 50000 --fix all --input tools/play/sauna-corrigida-3fsauna-win.input
+1000 rclick 450 330
+2000 dump attendant
+6000 key return
+7208 key right
+9528 key up
+10280 key right
+10648 key up
+10728 key down
+12488 key left
+12968 key up
+13304 key left
+14440 key down
+14760 key left
+16008 key up
+16344 key left
+18008 key up
+20056 key right
+25096 key down
+25192 key up
+26104 key left
+26584 key down
+26936 key left
+28040 key up
+28344 key left
+30120 key down
+30472 key left
+31576 key up
+31912 key left
+32376 key down
+32760 key right
+32984 key left
+33160 key down
+33496 key right
+33832 key down
+35208 key right
+36648 key left
+36712 key down
+37048 key left
+38072 key down
+38392 key left
+38920 key right
+39368 key up
+39688 key right
+40712 key up
+41032 key right
+42184 key down
+42520 key right
+44040 key up
+46296 key left
++0 wait 3fhall 5000
++0 result won 11100
++0 state
++0 expect 3fhall

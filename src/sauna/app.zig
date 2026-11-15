@@ -25,6 +25,7 @@ const game_unit = @import("game.zig");
 const game_input = @import("game_input.zig");
 const sound = @import("sound.zig");
 const backdrop = @import("backdrop.zig");
+const controls = @import("arcade/controls.zig");
 
 /// The current scene's backdrop (the original reads `g_game->scene->backdrop`
 /// unchecked; a null scene is treated as a null backdrop).
@@ -111,12 +112,15 @@ fn defWindowProc(g: *Game, m: Msg) i32 {
 /// WM_ACTIVATEAPP, WM_COMMAND, palette messages and the 0x40b hello (stores
 /// NOITE's window). The 0x40a result is posted by the scene's handler, not
 /// here.
-pub fn wndProc(g: *Game, m: Msg) i32 {
+pub fn wndProc(g: *Game, m_in: Msg) i32 {
+    var m = m_in;
     if (g.started != 0) {
         if (g.noiteWnd != 0 and g.handshakePending != 0) {
             _ = g.plat.postTo(g.noiteWnd, .{ .id = msg.noite.minigame_ready, .wparam = g.mainWindow });
             g.handshakePending = 0;
         }
+        // Not in the original: the Corrigida's controls screen stands in front of the game.
+        if (g.fixes.sauna_controls_screen and g.fixes.sauna_arcade_rules) m = controls.gate(g, m) orelse return 0;
         if (game_input.handleMessage(g, m) != 0) return defWindowProc(g, m);
     }
     switch (m.id) {
@@ -124,6 +128,7 @@ pub fn wndProc(g: *Game, m: Msg) i32 {
         wm.create => {
             _ = game_unit.onCreate(g);
             g.started = 1;
+            if (g.fixes.sauna_controls_screen and g.fixes.sauna_arcade_rules) controls.open(g);
             g.setSystemTimer(1, 50);
         },
         wm.destroy => {

@@ -208,7 +208,7 @@ pictures swap, the ghosts flee, a ghost eaten is +500 and goes home); a ghost me
 
 ## Original bugs
 
-In `BUGS.md`, section SAUNA (P1–P8, and a Harmless list).
+In `BUGS.md`, section SAUNA (P1–P9, and a Harmless list).
 
 ## Decompiler residue
 

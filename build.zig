@@ -100,6 +100,26 @@ pub fn build(b: *std.Build) void {
     manifest.addFileInput(b.path("tools/web/files.txt"));
     web_step.dependOn(&b.addInstallFileWithDir(manifest_json, web_dir, "manifest.json").step);
 
+    // `zig build sauna-plan -- --start MS`: plans a win of the Corrigida's arcade SAUNA as an input
+    // script (src/sauna/plan.zig, driven by `tools/sauna_plan.py --arcade`).
+    const plan_step = b.step("sauna-plan", "Plan a SAUNA arcade win (tools/sauna_plan.py --arcade)");
+    {
+        const plan_mod = b.createModule(.{
+            .root_source_file = b.path("src/sauna/plan.zig"),
+            .target = target,
+            .optimize = .ReleaseFast,
+        });
+        const plan = b.addExecutable(.{
+            .name = "sauna-plan",
+            .root_module = plan_mod,
+            .use_llvm = false,
+            .use_lld = false,
+        });
+        const run_plan = b.addRunArtifact(plan);
+        run_plan.addPassthruArgs();
+        plan_step.dependOn(&run_plan.step);
+    }
+
     // `noite initdata` generates a program that prints the defaults of the
     // `// @orig g_*` fields and runs it here against the port's module.
     const dump_step = b.step("initdata", "Print the defaults of the @orig g_* fields (noite initdata)");

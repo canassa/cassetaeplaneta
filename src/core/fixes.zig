@@ -421,6 +421,22 @@ pub const Fixes = struct {
     /// P8: a score of five digits is drawn one character to the left, so
     /// all six characters fit the 192-px box that is restored and blitted.
     sauna_score_fits_box: bool = false,
+    /// P9: the actors are never shown cut off: the presented picture rebuilds each
+    /// actor's rectangle from the dotted background and draws every actor whole over
+    /// it (`sauna/arcade/view.zig`), where the original's erase rectangle wipes the
+    /// other actors on it until their own next tick.
+    sauna_clean_render: bool = false,
+    /// Not a bug but a Corrigida addition: SAUNA plays by the arcade Pac-Man's rules
+    /// (`sauna/arcade/`, docs/sauna/PACMAN.md): tile movement with the arcade's
+    /// cornering and a queued direction, level 1's speeds, the four ghosts' targets,
+    /// the scatter and chase schedule, the house, the corks as energizers, WASD. It
+    /// supersedes P1, P2, P4-P7 (the original's actors do not run); the score, the
+    /// lives, the win and the result to NOITE stay SAUNA's. Needs `sauna_clean_render`'s
+    /// presentation (it brings its own).
+    sauna_arcade_rules: bool = false,
+    /// Not a bug but a Corrigida addition: a screen listing the controls and the goal
+    /// before the arcade game starts. Needs `sauna_arcade_rules`.
+    sauna_controls_screen: bool = false,
     // ---- INFERNO.EXE (BUGS.md H1-H8). The src/inferno/ units port each
     // bug as it is and keep the fix only behind its flag; NOITE's 3fpapmal
     // and 3fhall stay as they are (docs/inferno/DESIGN.md "Fixes"). ----

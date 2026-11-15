@@ -1,0 +1,13 @@
+# SAUNA alone, the Corrigida's arcade game: the controls screen comes down at
+# 1100 and no other key: after the READY second Pacman runs left along his
+# row (7 peanuts, +700), stops at the wall, and the ghosts (Blinky chasing,
+# Pinky, Inky and Clyde by their targets, the house letting them out by the
+# arcade's dot counters and its timer) catch him three times: -500, -500 and the
+# last life, then the loss's -1000: `lost -1200` at 35548. Each catch sends the ghosts home
+# and back to the start (the death shows alone).
+#
+#   zig-out/bin/noite --minigame sauna --headless --ms 37000 --fix all --input tools/play/sauna-corrigida-arcade-lose.input
+500 dump controls
+1100 key return
+20000 dump chase
+36500 result lost -1200

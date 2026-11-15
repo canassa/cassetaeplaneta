@@ -7,7 +7,7 @@ zig-developer skill hold for everything this file does not override.
 Ghidra (program `SAUNA.EXE`, through the tracker snapshot `noite -p sauna
 show`) is the specification; `GAME.md` (rules, protocol), `DATA.md`
 (classes, vtables, globals, the maze), `FUNCTIONS.md` (names, dead code),
-`QUALITY.md` (the large /Od build), BUGS.md P1, P2, P4–P8.
+`QUALITY.md` (the large /Od build), BUGS.md P1, P2, P4–P9.
 
 ## Decisions
 
@@ -77,7 +77,8 @@ show`) is the specification; `GAME.md` (rules, protocol), `DATA.md`
   `dib` copies and `read_dib_info`) and the decompiles are shown identical.
 - **Faithful first, the owner's rule.** The bugs are reproduced as they are
   by default. Each fix exists only behind its own `Fixes` flag (off by
-  default). Corrigida (`Fixes.all()`) takes all seven.
+  default). Corrigida (`Fixes.all()`) takes all seven, P9 and the Corrigida's
+  additions ("Arcade rules", below).
 - **Two programs in one process**, as ENCAIXE and TIRO (`src/platform/host.zig`):
   SAUNA is a task with its own state, queue, timers, window and screen; the
   protocol runs through the platform as in Windows. The host needs nothing
@@ -104,6 +105,18 @@ show`) is the specification; `GAME.md` (rules, protocol), `DATA.md`
   the won flag stays WM_DESTROY's wParam: 0xffff when the last dot is eaten,
   0 at the third catch. The win is completion. BUGS.md "The won flag of the other minigames".
 
+- **The Corrigida plays arcade Pac-Man (the owner's request, after he played
+  the web build).** He found the sprites messy and flickering, the controls
+  janky, the game too fast and the ghosts' pathfinding horrible; he asked for
+  "a faithful reskin of Pac-Man". `Fixes.sauna_arcade_rules` replaces the
+  actors' rules by the arcade's on SAUNA's maze and art (GAME.md "Arcade
+  rules (Corrigida)", PACMAN.md), `sauna_clean_render` is the picture fix for
+  the flicker (BUGS.md P9: a port-independent bug of the 1995 drawing), and
+  `sauna_controls_screen` the controls screen. The Original stays the 1995
+  game, and the 1995 rules stay available with every bug fix
+  (`--fix all,-sauna_arcade_rules,-sauna_controls_screen`). The decisions
+  below are listed for the owner in "Arcade rules (Corrigida)".
+
 ## Source layout
 
 ```
@@ -112,6 +125,11 @@ src/sauna/core/             types only (not units)
   game.zig                  Game: SaunaGame + every SAUNA DGROUP global (the maze too); queue, send/post, timers, heap
   object.zig                Object (kinds pacman / ghost / dot / control_panel), parts, Frame, ObjectList
   world.zig                 Scene (+ SaunaScene), Backdrop (two bitmaps), OccupancyGrid + Occupancy, DrawList, UpdateList, Condition
+src/sauna/arcade/           the Corrigida's arcade game (not units, no `@orig`): `maze.zig` (the tile grid), `sim.zig` (the rules, pure),
+                            `driver.zig` (the clock and phases), `glue.zig` (the game inside SAUNA), `view.zig` (the presented picture),
+                            `controls.zig` (the controls screen)
+src/sauna/plan.zig          dev tool: the arcade planner (`zig build sauna-plan`, `tools/sauna_plan.py --arcade`)
+src/sauna/core/maze_data.zig  the initial maze (game.zig re-exports it; the planner reads it alone)
 src/sauna/<unit>.zig        module units
 src/sauna/behaviour/        behaviour units (one group of SceneObject slots)
 src/sauna/units.zig         generated index (`noite -p sauna unit sync`)
@@ -374,6 +392,82 @@ no turn buffering, eating a ghost stops Pacman, the AI, the cork's 0
 points, the last life's missing −500, `ROLHAS01.WAV` on every `WM_PAINT`,
 the game running while inactive) is ported as it is, with no flag.
 
+## Arcade rules (Corrigida)
+
+The owner's request (Decisions): `Fixes.sauna_arcade_rules`, with `sauna_clean_render` (the
+picture) and `sauna_controls_screen`. Research: `docs/sauna/PACMAN.md`; the rules as played:
+GAME.md "Arcade rules (Corrigida)". The code is `src/sauna/arcade/`, outside the port units (no
+original function, no `@orig`); the 1995 units are called only where the game's own bookkeeping is
+wanted (`score.zig`, `lists.zig`, `render.eraseDot`/`bitBlt`, `visibility.hide`).
+
+**Layers.**
+- `maze.zig`: `Tiles.build(&g.maze)`: the 16-px corner grid (GAME.md), the dots on it, the cup as the
+  house. Pure.
+- `sim.zig`: `Sim`: the rules in the arcade's units (60 frames, 8-px tiles of "arcade pixels", the
+  16-frame speed tables, two sub-steps a frame): Pacman's `step`/`steer` (cornering), the ghosts'
+  `steerGhost` (one tile ahead, up-left-down-right ties, reversals, frightened randomness from a fixed
+  LCG seed restarted with each life), `targetOf`, the schedule, the release counters, Elroy, the
+  corks. `Sim.frame(want, &events)` returns what happened. Pure and copyable (the planner looks ahead).
+- `driver.zig`: `Driver`: the clock (frame `n` is at `t0 + n * 1000 / 60`; a tick runs the frames due,
+  at most 6, so the speeds hold whatever the timer's jitter), the phases (READY 1 s, play, eaten 0.5
+  s, catch 0.5 s, death 0.9 s, back to READY), the wanted direction with its grace time. Its effects
+  (`fx`: `dot`, `caught`, `ghostEaten`, `frightEnded`) are the game's or the planner's.
+- `glue.zig`: the hook `maze.handleMessage` calls first when the flag is on (`arcade.handle`): the
+  arrows and WASD, a click (steers), Esc (`WM_CLOSE`: forfeits), F9 (Debug builds), timer 0x12
+  (16 ms) and `scene_started`; the original's timers 0x10, 0x11 and 10 are swallowed (killed at the
+  start). `Fx` does SAUNA's bookkeeping with the original's own functions: `score.eatPeanut`,
+  `powerWaves`, `eatGhost`, `loseLife` (its third call sends the loss's WM_DESTROY), `powerStopWave`,
+  the dot's erasure from the dotted bitmap (`render.eraseDot`, `bitBlt`) and the win's
+  `WM_DESTROY` 0xffff. The objects (`g.pacman`, `scene.ghosts`) carry the strips and frames; their
+  `x`, `y`, `curStrip` and `curFrame` follow the sim, nothing else of theirs runs. **Nothing but the
+  dots is ever drawn into the backdrop or the screen** (begin hides the actors the start-up drew).
+- `view.zig`: `host.Program.view` (the picture the backend presents at its frame rate, and the
+  harness dumps): a copy of the screen, the dotted background rebuilt under each actor and the
+  actors drawn whole over it (Pacman, then the ghosts), each at its position between the previous
+  frame and the current, in proportion to the time since the frame (smooth at any display rate; the
+  picture lags the game by under a frame); the controls panel over it while it is up; F9's squares.
+  With `sauna_clean_render` alone (the 1995 rules) it draws the actors where the game has them, whole.
+- `controls.zig`: the gate in `app.wndProc` (from WM_CREATE: no input and no timer until a key or a
+  click; Esc passes) and the panel (`core/controls_screen.zig`, as the fights' and JARDIM's).
+
+**Decisions** (each for the owner; the first three he can overrule with a constant):
+1. **Tile grid and speeds.** Corridors are 32 px wide with the dots on their centre lines, so the
+   tile is the 16-px grid of corners (a junction every three tiles), and the speeds are the arcade's
+   in tiles a second (an 8-px tile of the arcade = a 16-px tile): Pacman 7.5 tiles/s (120 px/s) against
+   the Original's 18.2 (291). If it feels slow, the table is `sim.zig`'s speed strings.
+2. **Scoring stays SAUNA's** (+100 a peanut, 0 a cork, +500 a ghost every time, -500 a catch): the
+   arcade's 10, 50 and 200/400/800/1600 chain are not adopted (NOITE adds SAUNA's score to its own,
+   in SAUNA's scale). **Question:** the chain (500, 1000, 2000, 4000)?
+3. **Frightened for 6 s with 5 flashes** (the arcade's level 1) instead of SAUNA's 5 s; SAUNA's picture
+   swap kept (Pacman wears the ghost picture for the whole time, the ghosts flip back to theirs when
+   flashing). **Question:** 5 s?
+4. **An eaten ghost returns to the house at once** and leaves again (no eyes picture on the disc:
+   `3SP*` are the only actor pictures; SAUNA itself sent it home at once). **Question:** art for eyes?
+5. **Pacman starts moving left by himself** after a 1-s READY (also after a death), where the
+   Original stands until a key; a half-second stands on an eaten ghost and on a catch.
+6. **Counters scaled** by 100 / 244: Inky 12 and Clyde 25 dots (the arcade's 30 and 60), global 3, 7, 13
+   (7, 17, 32), Elroy at 8 and 4 dots left (20, 10).
+7. **The arcade's quirks kept**: Pinky's and Inky's up-facing overflow (`sim.up_overflow`), the tie
+   order, a catch by the same tile. **Not** applied: the two no-up-turn zones, tunnels and levels
+   (SAUNA's maze has none, and the game is one level: the win is the 100 dots).
+8. **The four ghosts look the same** (SAUNA's art has one ghost picture); only F9 shows who aims where.
+9. **Esc forfeits** (as closing the window: lost, -1000) and **a click steers** by its larger leg;
+   JARDIM's Esc quits without a result: **Question:** which?
+
+P1, P2 and P4-P7 are about the 1995 actors and do nothing with the arcade rules (P8, the score box,
+still applies). `--fix all,-sauna_arcade_rules,-sauna_controls_screen` plays the 1995 rules with every
+fix (the second run of the older scripts).
+
+**Planner.** `tools/sauna_plan.py --arcade --start MS [--min-eaten N]` runs `zig build sauna-plan`
+(`src/sauna/plan.zig`, ReleaseFast, no port code but the arcade files): a beam search over the
+decisions at each tile Pacman enters (go on, or press another open way; a press is released 50 ms
+later and the driver keeps it 400 ms), running the very `Driver` the game runs with a 16-ms tick,
+ranked by dots (then ghosts eaten, speed, distance to the next dot, and a ghost nearby), each
+candidate checked to survive the next `--depth` decisions. The game has no randomness but the
+frightened ghosts', from a fixed seed, so a plan holds with no probing; the script it writes was
+verified by running it (`won 11100` at 41612). Rerun it when the controls screen's dismissal time
+moves.
+
 ## Integration
 
 **Finished**: every unit is ported, `ready = true`; NOITE's `3fsauna` runs
@@ -523,8 +617,9 @@ and `GetTickCount` (`plat.ticks()`) is the task's virtual clock.
   15,000 probes). Pacman never meets a ghost, so P1, P2, P6 and P7 never
   act and P4, P5 and P8 change only pictures: one script for both
   versions.
-- **Scripts** (`tools/play/`), each run in the Original and with `--fix
-  all`:
+- **Scripts** (`tools/play/`), the 1995 ones each run in the Original and with `--fix
+  all,-sauna_arcade_rules,-sauna_controls_screen` (the bug fixes on the 1995 rules), the
+  `sauna-corrigida-*` ones with `--fix all` (the arcade game):
   - `sauna-alone-win.input` (`--minigame sauna --ms 22500`): the
     planner's 52 arrows and 3 clicks eat the 100 dots, `result won 10600`
     at 21400;
@@ -539,14 +634,30 @@ and `GetTickCount` (`plat.ticks()`) is the task's virtual clock.
     and goes to `3fhall` with its 3 lives;
   - `sauna-3fsauna-lose.input` (`--ms 25000`): no key, `result lost
     -1900`, `3fhall` with a life less (3 → 2) and the score −1900.
-  The plans are tied to SAUNA's start time (the ghosts' `rand` seed): rerun
-  the planner when it moves.
+  - `sauna-corrigida-arcade-win.input` (`--fix all --ms 43000`): the controls screen
+    down at 1100, 46 presses planned by `sauna_plan.py --arcade --start 1100 --min-eaten 1`:
+    one ghost eaten under a cork, `result won 11100` at 41612;
+  - `sauna-corrigida-arcade-lose.input` (`--ms 37000`): no key, `result lost -1200` at 35548;
+  - `sauna-corrigida-3fsauna-win.input` and `-lose.input` (`--scene 3fsauna`): the same from
+    NOITE (the screen down at 6000): `won 11100`, the hall; `lost -1200`, the hall with 2 lives;
+  - `sauna-corrigida-controls.input` (the screen holds the game; the key that takes it down is no
+    move: `lost -200` after a close) and `sauna-corrigida-esc.input` (Esc forfeits: `lost -900`).
+  The 1995 plans are tied to SAUNA's start time (the ghosts' `rand` seed): rerun
+  the planner when it moves. The arcade plans depend on the dismissal time only.
+- **Unit tests** of the arcade game (`zig build test`): `maze.zig` (the grid: 323 floor tiles, 36
+  junctions, no dead end, 100 dots), `sim.zig` (the tile function, the speed tables' sums, a second
+  of running, the pre-turn of 4 and 3 pixels and the cut, the post-turn, buffered input, the four
+  targets, the schedule's seven changes, the house order, the frightened mode and the eaten ghost,
+  a ghost never reversing or turning off a centre), `driver.zig` (the clock, the grace time) and
+  `glue.zig`, `controls.zig` (keys, the screen's gate).
 - **Smoke**: `tools/smoke.py --minigame sauna [--fix all] [--monkey SEED]`
-  (above).- **Smoke**: `tools/smoke.py --minigame sauna [--fix all] [--monkey SEED]`
-  (above).
+  (above); with `--fix all` Enter takes the controls screen down first and
+  WASD join the arrows (random play loses in 10 to 40 s).
 - **Web**: `tools/web/test.py` plays "Jogo" = Sauna Mista: SAUNA starts and
   Left, from the keyboard and from the pad, runs Pacman over the peanuts
-  of his row (the score box changes).
+  of his row (the score box changes); in the Corrigida the controls screen
+  holds the game, Enter takes it down and Pacman runs by himself after the
+  READY second (and on a phone a tap on an arrow takes it down).
 - **Unit tests** (optional, tagged): `oracle=emulated` from tools/oracle
   (large model: far code and data, DGROUP 10b0; `_aFchkstk` 1098:00f8 is
   in the EXE and runs as is), as worth it: `pacman_can_step` and

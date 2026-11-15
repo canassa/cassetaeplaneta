@@ -2366,6 +2366,50 @@ object, and a message after that would reach a freed object; no path to one is k
   scripted win never shows it: 96 peanuts are 9600 on the screen, and the win's +1000 is never
   drawn.
 
+### P9. Actors are erased with rectangles that wipe each other: the sprites show cut off and flicker
+- **Where:** `ghost_restore_background` 1080:173c and `pacman_restore_background` 1080:0d05 (called
+  by `mover_place_at` 1020:0be1, `scene_object_redraw` 10a0:3858, `animation_tick` 1020:26a4,
+  `pacman_tick` 1080:0c43), `ghost_move_tick` 1080:1f05, `pacman_move_tick` 1080:0a8c,
+  `scene_object_redraw_overlapping` 1020:1a69.
+- **What the code does:** each actor's step erases with one BitBlt of the dotted background
+  (`hdc2`) over the rectangle from the smaller of its previous and current position, as wide
+  and as high as its picture plus the step (16 px): up to 56 x 56 px for a 40 x 40 sprite. It then draws
+  only itself (and one `linked` object, `redrawOverlapping`: the first other object its cells found).
+  Any other actor on that rectangle is wiped where they overlap and stays cut until its own next
+  tick, which draws only that actor. The four ghosts share the timer 0x11 and start on one
+  spot, and Pacman has his own timer 0x10 at the same period, started by his first arrow: the two
+  tick at a constant offset, so each tick shows (and the screen is flushed at each) another actor
+  with a piece missing.
+- **Effect:** the sprites show messy and flicker: at the
+  start (the ghosts walking off one spot) whole ghosts vanish for a tick, and later a ghost or Pacman
+  near another loses a rectangle of its picture from one tick to the next (Pacman after the
+  ghosts' tick, a ghost after his). Measured in the port with the window's picture compared with the
+  background and every actor drawn whole (`sauna-alone-lose.input`, 20 s): 704 of 726 ticks show an
+  actor cut, 860 px missing on average (`sauna-alone-win.input`: 524 of 705, 518 px); with a key
+  pressed at 523 ms, frames of 1 ms show Pacman cut from the ghosts' tick (550) to his own (578),
+  whole at 578, cut again at 605 (`zig-out/reports/sauna-arcade/p9-*.png`).
+- **Confidence:** 9 (code: the rectangle and the single redraw, checked against the decompile of
+  `ghost_restore_background`); 9 (effect, measured). Not a port bug: the units are transcriptions and
+  the same drawing runs in the Original; the harness's dumps taken once per 55-ms tick hide the
+  second half.
+- **Port:** reproduced (the units above); the fix is `Fixes.sauna_clean_render`
+  (`--fix sauna_clean_render`, on in the Corrigida version): the presented picture
+  (`host.Program.view`, `src/sauna/arcade/view.zig`) rebuilds each actor's rectangle from the
+  dotted background and draws every actor whole over it, Pacman first and the ghosts over him; the
+  game's drawing, positions, timers, hit tests and results are untouched (no script changes: the same
+  scripts pass). With the same runs: 0 ticks cut. With `sauna_arcade_rules` the actors are never
+  drawn into the screen at all.
+
+### Corrigida addition: the arcade game (not a bug)
+
+SAUNA's rules (16-px steps every 55 ms, 18 a second, with no turn buffering; random turns and a
+chase only when aligned; no modes, no house) are consistent code with a plausible intent (listed
+above under "left out as design"), but they make a janky, very fast game with no pathfinding.
+`Fixes.sauna_arcade_rules` (`--fix sauna_arcade_rules`, in `all`) plays arcade Pac-Man's rules on
+SAUNA's maze and art (`docs/sauna/PACMAN.md`, GAME.md "Arcade rules (Corrigida)"), with
+`Fixes.sauna_controls_screen` for the controls screen. Neither is a bug fix; P1, P2 and P4-P7 act on
+the 1995 actors only.
+
 ### Harmless (SAUNA)
 
 - **`pacman_stop_and_redraw_dc` 1080:0696 sets the power strip and then strip 0:**

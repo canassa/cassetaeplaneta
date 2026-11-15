@@ -1,0 +1,9 @@
+# SAUNA alone, the Corrigida's controls screen (`sauna_controls_screen`): the screen
+# is up from the start (a dump at 500) and Esc leaves it up and quits at 3000: the
+# window closes as End Task does, a loss with -1000 on the score so far (the start's
+# peanut, 100): `lost -900`.
+#
+#   zig-out/bin/noite --minigame sauna --headless --ms 4000 --fix all --input tools/play/sauna-corrigida-esc.input
+500 dump controls
+3000 key escape
+3500 result lost -900

@@ -204,7 +204,7 @@ groups 20–22 last.
 ## Phase 4 results
 
 Groups 1–22 are done (group 4 and the four new routines of group 3 in §RLE path). The game is described in
-`GAME.md`, its bugs in `BUGS.md` (section SAUNA, P1–P8). What phase 4 corrected in the earlier
+`GAME.md`, its bugs in `BUGS.md` (section SAUNA, P1–P9). What phase 4 corrected in the earlier
 picture:
 - **The mouse is live:** the scene handler returns 0 for mouse messages, so `game_handle_message`
   runs them: a left click walks Pacman to the point (`pacman_move_to`), a mouse move below y 440

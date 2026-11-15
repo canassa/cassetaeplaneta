@@ -48,7 +48,7 @@ after `WinExec` and answers the game's hello after 100 ms
 Windows (500 ms, then every 33 ms; `--key-repeat DELAY,PERIOD|off`), in
 the window, the browser and headless runs. A minigame gets every key
 (TIRO, SERIAL and INV: LEFT, RIGHT, SPACE; SALGIN and XILINDRO: the arrows, PgUp,
-Home, End, Insert, and in the Corrigida A, S, D, F; INFERNO and SAUNA: the arrows; SAUNA also the left button; JARDIM: the arrows,
+Home, End, Insert, and in the Corrigida A, S, D, F; INFERNO and SAUNA: the arrows (SAUNA also the left button, and in the Corrigida W, A, S, D and Esc); JARDIM: the arrows,
 Ctrl to fire, Space for doors, Shift to run and Caps Lock held to strafe, read with `GetKeyState`, and in the Corrigida W, A, S, D, E); NOITE
 gets Enter, Esc and Space only to skip videos, and never Shift, Ctrl or Caps Lock.
 The fights' Corrigida keys (`--fix all`): ← / → walk, ↑ jumps, ↓ blocks, A punches, S and D
@@ -71,6 +71,17 @@ bazooka, each with its own ammunition; 1 fists, 2 crossbow, 3 bra or bazooka, Q 
 on the web and an "Arma" button on the touch pad; a pickup of a weapon you have only adds ammunition);
 the 3-D view is a proper raycaster (`jardim_raycaster`: a ray per pixel column, exact wall heights, a floor fixed to the ground, filtered far textures, sprites clipped column by column). F9 in a Debug build shows the nearest enemy's state.
 Its enemies' numbers are in `src/jardim/enemies.zig` (`EnemyTuning`).
+SAUNA's Corrigida (`--fix all`) plays arcade Pac-Man's rules on SAUNA's maze and art
+(`sauna_arcade_rules`, `docs/sauna/PACMAN.md`, GAME.md "Arcade rules (Corrigida)"): the maze as a
+one-tile-wide grid, movement along tile centres with the arcade's cornering (hold or tap an arrow or
+W, A, S, D before a junction and he turns there, cutting the corner), level 1's speeds (Pacman 7.5 tiles
+a second, 120 px/s, against the Original's 291), the four ghosts' own targets (Blinky chases, Pinky aims
+ahead, Inky from Blinky, Clyde by distance), the scatter and chase schedule, the house and its counters,
+Cruise Elroy, and the corks as the energizers (6 s, flashing; an eaten ghost goes back to the house); the
+score, lives, win and the result to NOITE stay SAUNA's. The sprites are drawn whole at the display
+rate (`sauna_clean_render`: BUGS.md P9, the Original's actors wipe each other's pixels between ticks),
+and a controls screen comes first (`sauna_controls_screen`; Esc forfeits). F9 in a Debug build shows
+the ghosts' targets.
 Saves go to `save/` (`--save DIR`).
 
 ## Testing the port
@@ -241,13 +252,25 @@ Saves go to `save/` (`--save DIR`).
   `lost -900`); from NOITE, `--scene 3fsauna --ms 28000 --input
   tools/play/sauna-3fsauna-win.input` (a right click on the attendant, NOITE hides, gets the win,
   +10600, the hall) and `--ms 25000 --input tools/play/sauna-3fsauna-lose.input` (-1900, a life
-  less, the hall). Each the same with `--fix all`: Pacman never meets a ghost in the wins, so the
+  less, the hall). Each also runs with every bug fix on the 1995 rules (the header's `--fix
+  all,-sauna_arcade_rules,-sauna_controls_screen`): Pacman never meets a ghost in the wins, so the
   P-bugs only change pictures there. The ghosts turn at random from `srand(GetTickCount())`, so
   the moves come from `tools/sauna_plan.py [--scene 3fsauna --prefix FILE --start MS]`, which
   models Pacman and probes the port for the ghosts (it closes SAUNA after each move and reads
   the score): rerun it when SAUNA's start time moves (4100 from `--scene 3fsauna`'s click at
-  1000). `tools/smoke.py --minigame sauna [--fix all] [--monkey SEED]` presses and holds random
-  arrows and clicks the maze for 120 s. The playthroughs never enter the sauna.
+  1000). The Corrigida's arcade game (`--fix all`): `--minigame sauna --ms 43000 --fix all --input
+  tools/play/sauna-corrigida-arcade-win.input` (the controls screen down at 1100, 46 presses, one ghost
+  eaten under a cork: `result won 11100` at 41612), `--ms 37000 --input
+  tools/play/sauna-corrigida-arcade-lose.input` (no key: three catches, `lost -1200`), `--ms 5000
+  --input tools/play/sauna-corrigida-controls.input` (the screen holds the game; the key that takes it
+  down is no move) and `--ms 4000 --input tools/play/sauna-corrigida-esc.input` (Esc forfeits); from
+  NOITE `--scene 3fsauna --ms 50000 --fix all --input tools/play/sauna-corrigida-3fsauna-win.input`
+  (+11100, the hall) and `--ms 45000 --input tools/play/sauna-corrigida-3fsauna-lose.input` (-1200, a
+  life less). The arcade wins come from `tools/sauna_plan.py --arcade --start MS [--min-eaten N]`
+  (`zig build sauna-plan`: a beam search over the game's own clock and simulation, no probing). 
+  `tools/smoke.py --minigame sauna [--fix all] [--monkey SEED]` presses and holds random
+  arrows (and W, A, S, D with `--fix all`, after Enter) and clicks the maze for 120 s. The
+  playthroughs never enter the sauna.
 - **JARDIM**: in the 1995 controls, `--minigame jardim --ms 75000 --input
   tools/play/jardim-alone-win.input` (the three labyrinths and the goal at 72250: `result won
   19370 | won 15340`, BUGS.md J1), `--ms 9000 --input tools/play/jardim-alone-lose.input` (presses

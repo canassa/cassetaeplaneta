@@ -33,6 +33,7 @@ const movement = @import("behaviour/movement.zig");
 const occupancy = @import("behaviour/occupancy.zig");
 const render = @import("behaviour/render.zig");
 const visibility = @import("behaviour/visibility.zig");
+const arcade = @import("arcade/glue.zig");
 
 /// The power mode lasts 5 s (timer 10).
 const POWER_TIMER: u16 = 10;
@@ -50,6 +51,9 @@ fn bdOf(scene: *Scene) *Backdrop {
 pub fn handleMessage(g: *Game, scene: *Scene, m: Msg) i16 {
     if (scene.handlerEnabled == 0) return 0;
     const bd = bdOf(scene);
+    // Not in the original: the arcade game (`arcade/glue.zig`) answers the keys, the mouse, its
+    // timer and the start; the rest is the original's.
+    if (g.fixes.sauna_arcade_rules) if (arcade.handle(g, scene, m)) |answer| return answer;
     // The deferred power start: a cork was eaten (`powerStartPending`), so
     // on the next message of any kind Pacman and the ghosts re-pick their
     // strips and the 5-s timer starts.

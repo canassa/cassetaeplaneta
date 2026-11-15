@@ -1,0 +1,14 @@
+# NOITE's sauna (3fsauna) with the Corrigida's arcade game: the attendant, SAUNA's
+# controls screen (a key takes it down at 6000), then no key: the ghosts catch
+# Pacman three times and SAUNA reports lost -1200 at 40448 (his 7 peanuts, -500,
+# -500, then the last life and -1000); NOITE shows itself, adds -1200, takes a
+# life (3 -> 2) and goes to the hall (3fhall).
+#
+#   zig-out/bin/noite --headless --scene 3fsauna --ms 45000 --fix all --input tools/play/sauna-corrigida-3fsauna-lose.input
+1000 rclick 450 330
+2000 dump attendant
+6000 key return
++0 wait 3fhall 60000
++0 result lost -1200
++0 state
++0 expect 3fhall
