@@ -14,9 +14,12 @@
 //!
 //! Differences from SAUNA's / INFERNO's: before anything else, while `g_noiteWnd`
 //! is 0 every message FindWindow's NOITE and posts 0x40c to it, and until NOITE's
-//! 0x40a ack (`g_noiteAcked`) every message posts it again; the 0x40b hello stores
-//! the variant and posts 0x40c; the system timer is id 10 at 50 ms (killed in
-//! WM_DESTROY) and its WM_SYSTIMER retries the FindWindow. WM_PAINT plays no wave.
+//! 0x40a ack (`g_noiteAcked`) every message posts it again; the 0x40b hello would
+//! store the variant and post 0x40c, but once WM_CREATE has run the game's handler
+//! takes 0x40b and 0x40a first and answers 1, so neither case runs (BUGS.md J7: the
+//! variant stays 0, the ack is never seen); the system timer is id 10 at 50 ms
+//! (killed in WM_DESTROY) and its WM_SYSTIMER retries the FindWindow. WM_PAINT
+//! plays no wave.
 
 const std = @import("std");
 const msg = @import("../core/msg.zig");
@@ -56,7 +59,8 @@ fn postReady(g: *Game) void {
 /// FindWindow("Noite Animal"): stores the window in `g_noiteWnd` and, when found,
 /// posts the 0x40c to it. J7 (`jardim_variant_hello`): the FindWindow result is
 /// not used at all, so NOITE hears nothing from JARDIM before its own 0x40b hello
-/// (espquete takes the first 0x40c for the reply and never sends the hello).
+/// (espquete takes the first 0x40c for the reply and never sends the hello), and
+/// `wndProc` lets the hello and the ack reach their cases.
 fn findNoite(g: *Game) void {
     if (g.fixes.jardim_variant_hello) return;
     g.noiteWnd = g.plat.findWindow(noite_title) orelse 0;
@@ -139,7 +143,11 @@ pub fn wndProc(g: *Game, m: Msg) i32 {
     } else if (g.noiteAcked == 0) {
         postReady(g);
     }
-    if (g.started != 0) {
+    // Once started every message goes to game_handle_message first, whose scene answers 1
+    // for 0x40b and 0x40a: their cases below never run in the original (BUGS.md J7). The
+    // fix lets NOITE's hello and ack through.
+    const handshake = m.id == msg.noite.minigame_hello or m.id == msg.noite.minigame_result;
+    if (g.started != 0 and !(g.fixes.jardim_variant_hello and handshake)) {
         if (game_input.handleMessage(g, m) != 0) return defWindowProc(g, m);
     }
     switch (m.id) {
