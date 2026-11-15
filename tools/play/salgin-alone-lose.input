@@ -1,0 +1,11 @@
+# SALGIN alone, a loss: no key at all. The opponent attacks every 7 or 8
+# beats (about 1.5 s) and the 90-s clock ends the round with the player's
+# energy lower: the opponent wins and the game closes when mane.WAV ends
+# (BUGS.md S6), 92640 ms (Original) or 91240 ms (`--fix all`, S5's single
+# seed picks other attacks).
+#
+#   zig-out/bin/noite --minigame salgin --headless --ms 100000 --input tools/play/salgin-alone-lose.input
+#   zig-out/bin/noite --minigame salgin --headless --ms 100000 --fix all --input tools/play/salgin-alone-lose.input
+30000 dump fight
+90000 dump lost
+95000 result lost -1000

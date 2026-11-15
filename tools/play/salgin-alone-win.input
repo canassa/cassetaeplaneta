@@ -1,0 +1,18 @@
+# SALGIN alone, a win by KO: Up (the flying kick, 2 points) held from the
+# start. Windows' key repeat (500/33 ms) presses it again every 33 ms, so a
+# new kick starts as soon as the latches clear (each move is 3 beats of
+# 200 ms); in range (the opponent walks in to 69-100 px) every kick lands.
+#
+#   zig-out/bin/noite --minigame salgin --headless --ms 60000 --input tools/play/salgin-alone-win.input
+#   zig-out/bin/noite --minigame salgin --headless --ms 60000 --fix all --input tools/play/salgin-alone-win.input
+#
+# The opponent's energy is below 1 on the beat at 51200 in both versions;
+# the hold ends after it (the keys are locked from the KO) and before the
+# window closes, 30 end ticks later (54821). The player keeps 82 energy,
+# 8200 points, in both versions.
+
+300 hold up 52000
+1000 dump start
+20000 dump fight
+53000 dump won
+56000 result won 8200

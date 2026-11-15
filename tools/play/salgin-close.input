@@ -1,0 +1,11 @@
+# SALGIN alone, the window closed before the first blow (Windows' End Task,
+# the web page's tab closed: WM_CLOSE, then WM_DESTROY).
+#
+#   zig-out/bin/noite --minigame salgin --headless --ms 2000 --input tools/play/salgin-close.input
+#   zig-out/bin/noite --minigame salgin --headless --ms 2000 --fix all --input tools/play/salgin-close.input
+#
+# - Original: WM_DESTROY reports won = !(91 < 91), a win of 91 x 100 = 9100
+#   (BUGS.md S7);
+# - `--fix all`: the round is not over, a loss of -1000.
+500 close
+1000 result won 9100 | lost -1000

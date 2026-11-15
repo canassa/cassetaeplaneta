@@ -1,0 +1,13 @@
+# NOITE's gym (4fsalgin) starts the real SALGIN, which loses: no key, the
+# clock ends the round with the player behind (salgin-alone-lose.input).
+# NOITE shows itself, adds -1000, takes a life (2 left) and goes back to
+# the bar (4fbar).
+#
+#   zig-out/bin/noite --headless --scene 4fsalgin --ms 110000 --input tools/play/salgin-4fsalgin-lose.input
+#   zig-out/bin/noite --headless --scene 4fsalgin --ms 110000 --fix all --input tools/play/salgin-4fsalgin-lose.input
+#
+# SALGIN starts at 10233; mane.WAV's end closes it near 105 s.
+12000 dump fight
+108000 result lost -1000
+108000 expect 4fbar
+108000 state
