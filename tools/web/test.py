@@ -56,6 +56,10 @@ Then "Jogo" = Serial Killer: SERIAL starts alone and SPACE fires: the
 bullet leaves the gun (serial.png, serial-fire.png); on a touch screen
 the pad shows ◀, a fire button and ▶, and the fire button fires
 (serial-touch.png).
+Then "Jogo" = Porrada na Sala de Ginástica: SALGIN starts alone and a
+held Up kicks the opponent until its energy bar gets a tile (salgin.png,
+salgin-kick.png); on a touch screen the pad shows the eight fight keys
+and a held ▲ does the same (salgin-touch.png).
 Exits non-zero on the first failed check or on a page error.
 """
 
@@ -645,6 +649,68 @@ def main():
             check(not terrors, "touch SERIAL: no page errors")
             tctx.close()
 
+        # SALGIN's opponent energy tiles (x 333 on, y 20, 16x19 each): only
+        # the player's blows add them (one per 7 points), so a change there
+        # is a kick that landed. Up held 10 s (the game's key repeat kicks
+        # again as each move ends) takes 10 or more points.
+        tiles_js = """() => {
+            const d = document.getElementById("screen").getContext("2d").getImageData(333, 18, 240, 24).data;
+            let sum = 0;
+            for (let i = 0; i < d.length; i += 4) sum = (sum * 31 + d[i] + 7 * d[i + 1] + 13 * d[i + 2]) % 1000000007;
+            return sum;
+        }"""
+
+        def salgin_alone():
+            """Jogo: Porrada na Sala de Ginástica alone. It starts, a held Up
+            kicks (the opponent's energy bar gets a tile), no page errors."""
+            page.goto(url)
+            load()
+            check(not page.is_disabled("#jogo option[value=salgin]"), "the loader offers Porrada alone")
+            page.select_option("#jogo", "salgin")
+            page.check('input[name="versao"][value="original"]')
+            play()
+            time.sleep(1.5)
+            shot("salgin.png")
+            before = page.evaluate(tiles_js)
+            page.keyboard.down("ArrowUp")
+            time.sleep(10)
+            page.keyboard.up("ArrowUp")
+            time.sleep(0.3)
+            after = page.evaluate(tiles_js)
+            shot("salgin-kick.png")
+            check(before is not None and after is not None and before != after,
+                  "Porrada runs: a held Up kicks (the opponent's energy bar loses a tile)")
+            check(not errors, "Porrada: no page errors")
+
+        def salgin_touch():
+            """Porrada alone on a touch screen: the pad's keys are SALGIN's
+            eight and a held ▲ kicks."""
+            tctx = browser.new_context(viewport={"width": 844, "height": 390}, has_touch=True, is_mobile=True)
+            tpage = tctx.new_page()
+            terrors = []
+            tpage.on("pageerror", lambda e: terrors.append(str(e)))
+            tpage.goto(url)
+            tpage.wait_for_function("window.noite.ready || window.noite.failure", timeout=600_000)
+            tpage.select_option("#jogo", "salgin")
+            tpage.click("#play")
+            tpage.wait_for_function("window.noite.started || window.noite.failure", timeout=60_000)
+            time.sleep(1.5)
+            shown = tpage.evaluate("""() => Array.from(document.querySelectorAll('#dpad button'))
+                .filter((b) => !b.hidden).map((b) => Number(b.dataset.key))""")
+            check(sorted(shown) == [33, 35, 36, 37, 38, 39, 40, 45], f"touch Porrada: the pad shows the eight fight keys ({shown})")
+            before = tpage.evaluate(tiles_js)
+            up = tpage.locator('#dpad [data-key="38"]').bounding_box()
+            cdp = tctx.new_cdp_session(tpage)
+            cdp.send("Input.dispatchTouchEvent", {"type": "touchStart",
+                     "touchPoints": [{"x": up["x"] + up["width"] / 2, "y": up["y"] + up["height"] / 2}]})
+            time.sleep(10)
+            cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+            time.sleep(0.3)
+            tpage.screenshot(path=str(out / "salgin-touch.png"))
+            check(tpage.evaluate(tiles_js) != before, "touch Porrada: a held ▲ kicks")
+            check(not terrors, "touch Porrada: no page errors")
+            tctx.close()
+
         def manifest():
             return page.evaluate("""async () => {
                 const html = await (await fetch("./", { cache: "no-cache" })).text();
@@ -817,6 +883,8 @@ def main():
         tiro_touch()
         serial_alone()
         serial_touch()
+        salgin_alone()
+        salgin_touch()
         browser.close()
     if not args.url:
         httpd.shutdown()
