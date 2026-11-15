@@ -16,6 +16,7 @@
 //! the original) takes the opponent's part of the beat (`fairBeat`) and
 //! the blows' hit (`fairLandHit`), after the handler.
 
+const std = @import("std");
 const msg = @import("../core/msg.zig");
 const Msg = msg.Msg;
 const platform = @import("../platform/platform.zig");
@@ -35,6 +36,8 @@ const movement = @import("behaviour/movement.zig");
 const render = @import("behaviour/render.zig");
 const fight_controls = @import("../core/fight_controls.zig");
 const fight_fair = @import("../core/fight_fair.zig");
+const fight_easy = @import("../core/fight_easy.zig");
+const fight_bot = @import("../core/fight_bot.zig");
 
 const VK_PGUP: u16 = 0x21;
 const VK_END: u16 = 0x23;
@@ -372,6 +375,13 @@ fn opponentStep(g: *Game, bd: *Backdrop) void {
 /// WM_CREATE and that message runs with the clock block and the beat, as
 /// the original's first message after WM_CREATE does.
 pub fn handleMessage(g: *Game, scene: *Scene, m: Msg) i16 {
+    const handled = handleOne(g, scene, m);
+    // The test tool's player bot sends its keys after the timer's own turn.
+    botTick(g, scene, m);
+    return handled;
+}
+
+fn handleOne(g: *Game, scene: *Scene, m: Msg) i16 {
     if (fight_fair.isToggle(g.fixes, m)) {
         toggleOverlay(g, scene);
         return 1;
@@ -386,7 +396,7 @@ pub fn handleMessage(g: *Game, scene: *Scene, m: Msg) i16 {
             g.lastPumpTick +%= @bitCast(ms);
             g.lastSecondTick +%= @bitCast(ms);
             _ = run(g, scene, .{ .id = 0 }, false);
-            return handleMessage(g, scene, m);
+            return handleOne(g, scene, m);
         },
         .pass => |p| return run(g, scene, p.m, p.frozen),
     }
@@ -570,6 +580,12 @@ fn run(g: *Game, scene: *Scene, m: Msg, frozen: bool) i16 {
 // ---- the fair fight (Corrigida, `fight_fair`; core/fight_fair.zig) ----------
 
 const tuning = &fight_fair.xilindro;
+const easy_style = &fight_easy.xilindro;
+
+/// The easy opponent (`fight_easy_ai`, `core/fight_easy.zig`) is on.
+fn easyOn(g: *Game) bool {
+    return g.fixes.fight_fair and g.fixes.fight_easy_ai;
+}
 
 fn gapOf(g: *Game) i16 {
     return absInt(0 -% (g.opponent.?.x -% g.fighter.?.x));
@@ -593,6 +609,17 @@ fn fairLandHit(g: *Game, bd: *Backdrop, b: Blow) void {
     const bar = &g.energyBar.?.energyBar;
     const ai = &g.fair;
     if (ai.phase == .reel) return;
+    if (easyOn(g) and ai.phase == .guard and b != .sweep) {
+        // The guard holds the punch and the kicks: nothing lands (the sweep
+        // goes under it). Sometimes it counters at once.
+        _ = sound.play(g, 0, g.socoWave);
+        ai.guards +%= 1;
+        if (fight_easy.counters(easy_style, &g.rand)) {
+            ai.counter = true;
+            ai.left = 1;
+        }
+        return;
+    }
     switch (b) {
         .punch => fighters.playPunchDor1(g),
         .kick => fighters.playKickDor1(g),
@@ -605,10 +632,19 @@ fn fairLandHit(g: *Game, bd: *Backdrop, b: Blow) void {
         f.x = f.mover.targetX;
         render.draw(g, f, bd);
     }
-    const dmg = tuning.fighter_damage[idx(f.curStrip) & 3];
+    var dmg = tuning.fighter_damage[idx(f.curStrip) & 3];
+    if (easyOn(g)) dmg = fight_easy.scaleFighterDamage(easy_style, dmg);
     if (b != .sweep) o.opponent.energy -%= dmg;
     bar.opponentEnergy -%= dmg;
     checkOpponentMark(g, bd);
+    if (easyOn(g) and bar.opponentEnergy >= 6 and fight_easy.shrugsOff(easy_style, switch (ai.phase) {
+        .windup, .strike, .guard => true,
+        else => false,
+    }, &g.rand)) {
+        // It takes the hit without reeling and goes on with what it was doing.
+        ai.shrugs +%= 1;
+        return;
+    }
     movement.stopMoving(g, o, bd);
     if (ai.phase == .windup) ai.interrupts +%= 1;
     var r = reaction(g, f.curStrip, 4, bar.opponentEnergy < 6);
@@ -642,6 +678,8 @@ fn fairRetreat(g: *Game) void {
     if (0 < bar.opponentEnergy and 0 < bar.fighterEnergy) clearAll(g);
     g.fair.phase = .pause;
     g.fair.left = fight_fair.pauseBeats(tuning, g.rand.rand());
+    if (easyOn(g) and g.fair.mercy) g.fair.left += easy_style.mercy_beats;
+    g.fair.mercy = false;
 }
 
 /// The attack's own wave (no pain): the tell's sound.
@@ -653,26 +691,106 @@ fn cueWave(g: *Game, attack: i16) void {
     });
 }
 
-/// In range: a feint, or the wind-up (the attack chosen now, frame 0 shown
-/// and its wave played).
-fn fairArrive(g: *Game, scene: *Scene, bd: *Backdrop, punish: bool) void {
+/// The wind-up (the attack chosen now, frame 0 shown and its wave played).
+/// A counter's is `counter_windup_beats` long.
+fn fairWindup(g: *Game, scene: *Scene, bd: *Backdrop) void {
     const f = g.fighter.?;
     const o = g.opponent.?;
     const ai = &g.fair;
     movement.stopMoving(g, o, bd);
-    if (!punish and fight_fair.isFeint(tuning, g.rand.rand())) {
-        oppPose(g, 4);
-        ai.phase = .feint;
-        ai.left = tuning.feint_beats;
-        return;
-    }
     fighters.chooseAttack(g, o, f.curStrip);
     o.curFrame = 0;
     ai.attack = o.curStrip;
     ai.phase = .windup;
-    ai.left = fight_fair.windupBeats(tuning, scene.secondsLeft);
+    ai.left = if (!easyOn(g)) fight_fair.windupBeats(tuning, scene.secondsLeft) else if (ai.countering) easy_style.counter_windup_beats else fight_easy.windupBeats(easy_style, &g.rand);
+    ai.countering = false;
     ai.windups +%= 1;
     cueWave(g, ai.attack);
+}
+
+/// It comes in, stands `feint_beats` beats in its guard and backs off.
+fn fairFeint(g: *Game, bd: *Backdrop) void {
+    const o = g.opponent.?;
+    const ai = &g.fair;
+    movement.stopMoving(g, o, bd);
+    oppPose(g, 4);
+    ai.phase = .feint;
+    ai.left = tuning.feint_beats;
+}
+
+/// In range: a feint, or the wind-up. The easy opponent rolls on its table.
+fn fairArrive(g: *Game, scene: *Scene, bd: *Backdrop, punish: bool) void {
+    const o = g.opponent.?;
+    if (easyOn(g)) {
+        easyDecide(g, scene, bd, punish);
+        return;
+    }
+    if (!punish and fight_fair.isFeint(tuning, g.rand.rand())) {
+        fairFeint(g, bd);
+        return;
+    }
+    movement.stopMoving(g, o, bd);
+    fairWindup(g, scene, bd);
+}
+
+/// The easy opponent is free (arrived, or a pause, a wait or a guard is
+/// over): it rolls on its personality table (`fight_easy.zig`). `punish`:
+/// the fighter whiffed a blow it can see.
+fn easyDecide(g: *Game, scene: *Scene, bd: *Backdrop, punish: bool) void {
+    const f = g.fighter.?;
+    const o = g.opponent.?;
+    const bar = &g.energyBar.?.energyBar;
+    const ai = &g.fair;
+    const gap = gapOf(g);
+    if (gap > tuning.approach_stop and !punish) {
+        // Not in reach: it walks in (the approach has its own dithering).
+        ai.phase = .approach;
+        ai.left = fight_fair.edgeBeats(tuning, g.rand.rand());
+        return;
+    }
+    const fs: u16 = @bitCast(f.curStrip);
+    const ctx: fight_easy.Context = .{
+        .zone = .reach,
+        .fighter_busy = fs < 4,
+        .fighter_energy = bar.fighterEnergy,
+        .opponent_energy = bar.opponentEnergy,
+    };
+    const c: fight_easy.Choice = if (punish) .attack else fight_easy.choose(easy_style, ctx, &g.rand);
+    ai.choices[@backingInt(c)] +%= 1;
+    switch (c) {
+        .advance => {
+            ai.phase = .approach;
+            ai.left = 0;
+        },
+        .wait => {
+            movement.stopMoving(g, o, bd);
+            oppPose(g, 4);
+            ai.phase = .wait;
+            ai.left = fight_easy.waitBeats(easy_style, &g.rand);
+        },
+        .guard => {
+            movement.stopMoving(g, o, bd);
+            oppPose(g, 7);
+            ai.phase = .guard;
+            ai.left = fight_easy.guardBeats(easy_style, &g.rand);
+        },
+        .retreat => hopBack(g, easy_style.retreat_px),
+        .attack => fairWindup(g, scene, bd),
+        .feint => fairFeint(g, bd),
+    }
+}
+
+/// A hop back of `px` (x at most 500), then a pause.
+fn hopBack(g: *Game, px: i16) void {
+    const o = g.opponent.?;
+    const bar = &g.energyBar.?.energyBar;
+    o.nextX = @min(o.nextX +% px, 500);
+    o.mover.targetX = o.nextX;
+    o.x = o.mover.targetX;
+    oppPose(g, 4);
+    if (0 < bar.opponentEnergy and 0 < bar.fighterEnergy) clearAll(g);
+    g.fair.phase = .pause;
+    g.fair.left = fight_fair.pauseBeats(tuning, g.rand.rand());
 }
 
 /// The fighter has just started a blow (its first frame went by on this
@@ -685,11 +803,10 @@ fn whiffed(g: *Game) bool {
 
 /// Walks in; one step out of reach (the edge) it stands `Ai.left` beats,
 /// or steps in at once on a whiff; in range, the wind-up (or a feint).
-fn fairApproach(g: *Game, scene: *Scene, bd: *Backdrop) void {
+fn fairApproach(g: *Game, scene: *Scene, bd: *Backdrop, punish: bool) void {
     const o = g.opponent.?;
     const ai = &g.fair;
     ai.phase = .approach;
-    const punish = whiffed(g);
     const gap = gapOf(g);
     if (gap > tuning.approach_stop) {
         if (gap <= tuning.approach_stop + 32 and !punish and ai.left > 0) {
@@ -697,6 +814,27 @@ fn fairApproach(g: *Game, scene: *Scene, bd: *Backdrop) void {
             ai.left -= 1;
             if (movement.isMoving(g, o)) movement.stopMoving(g, o, bd);
             return;
+        }
+        if (easyOn(g) and !punish) {
+            // Dithering on the way in; at the edge, now and then a blow from
+            // too far (it whiffs unless the fighter walks in).
+            if (gap <= tuning.approach_stop + 32) {
+                if (fight_easy.whiffs(easy_style, &g.rand)) {
+                    ai.choices[@backingInt(fight_easy.Choice.attack)] +%= 1;
+                    ai.whiffs +%= 1;
+                    fairWindup(g, scene, bd);
+                    return;
+                }
+            } else {
+                const h = fight_easy.hesitation(easy_style, &g.rand);
+                if (h > 0) {
+                    movement.stopMoving(g, o, bd);
+                    oppPose(g, 4);
+                    ai.phase = .wait;
+                    ai.left = h;
+                    return;
+                }
+            }
         }
         if (!movement.isMoving(g, o)) {
             o.mover.direction = 1;
@@ -717,8 +855,10 @@ fn fairStrike(g: *Game, bd: *Backdrop) void {
     const ai = &g.fair;
     const out = fight_fair.strikeOutcome(tuning, ai.attack, f.curStrip, gapOf(g));
     ai.last = out;
+    ai.outcomes[@backingInt(out)] +%= 1;
     switch (out) {
         .hit => {
+            ai.mercy = true;
             fighters.playOpponentMoveWaves(g, ai.attack);
             if (movement.isMoving(g, f)) movement.stopMoving(g, f, bd);
             g.lastFighterMove = f.curStrip;
@@ -733,7 +873,9 @@ fn fairStrike(g: *Game, bd: *Backdrop) void {
             f.curFrame = 0;
             f.anim.framesLeft = g.fighterStripFrames[idx(r)];
             f.fighter.moveFrame = 0;
-            bar.fighterEnergy -%= g.opponentMoveDamage[idx(ai.attack)];
+            var dmg = g.opponentMoveDamage[idx(ai.attack)];
+            if (easyOn(g)) dmg = fight_easy.scaleDamage(easy_style, dmg);
+            bar.fighterEnergy -%= dmg;
             checkFighterMark(g, bd);
         },
         .blocked => {
@@ -754,6 +896,13 @@ fn fairStrike(g: *Game, bd: *Backdrop) void {
     }
 }
 
+/// The fighter whiffed a blow the opponent can see (the easy one sees it
+/// only sometimes).
+fn beatPunish(g: *Game) bool {
+    if (!whiffed(g)) return false;
+    return !easyOn(g) or fight_easy.punishes(easy_style, &g.rand);
+}
+
 /// The fair fight's opponent on a beat (in place of the Original's
 /// approach / attack / step).
 fn fairBeat(g: *Game, scene: *Scene, bd: *Backdrop) void {
@@ -761,6 +910,7 @@ fn fairBeat(g: *Game, scene: *Scene, bd: *Backdrop) void {
     const o = g.opponent.?;
     const ai = &g.fair;
     ai.beat +%= 1;
+    ai.phase_beats[@backingInt(ai.phase)] +%= 1;
     // The Original's opponent step lets the fighter's reaction run.
     f.fighter.reacting = 0;
     if (ai.beat == 1 and !g.fixes.fight_controls_screen) {
@@ -776,7 +926,7 @@ fn fairBeat(g: *Game, scene: *Scene, bd: *Backdrop) void {
                 ai.left = fight_fair.edgeBeats(tuning, g.rand.rand());
             }
         },
-        .approach => fairApproach(g, scene, bd),
+        .approach => fairApproach(g, scene, bd, beatPunish(g)),
         .windup => {
             if (ai.left > 1) ai.left -= 1 else fairStrike(g, bd);
         },
@@ -792,18 +942,53 @@ fn fairBeat(g: *Game, scene: *Scene, bd: *Backdrop) void {
             if (ai.left > 1) ai.left -= 1 else fairRetreat(g);
         },
         .pause => {
-            if (whiffed(g)) {
-                fairApproach(g, scene, bd);
+            const punish = beatPunish(g);
+            if (punish) {
+                fairApproach(g, scene, bd, true);
             } else if (ai.left > 1) {
                 ai.left -= 1;
+            } else if (easyOn(g)) {
+                easyDecide(g, scene, bd, false);
             } else {
                 ai.phase = .approach;
                 ai.left = fight_fair.edgeBeats(tuning, g.rand.rand());
             }
         },
+        .wait => {
+            if (beatPunish(g)) {
+                easyDecide(g, scene, bd, true);
+            } else if (ai.left > 1) {
+                ai.left -= 1;
+            } else easyDecide(g, scene, bd, false);
+        },
+        .guard => {
+            if (ai.left > 1) {
+                ai.left -= 1;
+            } else if (ai.counter) {
+                // It blocked a blow and answers it (slower than a wind-up).
+                ai.counter = false;
+                ai.countering = true;
+                ai.choices[@backingInt(fight_easy.Choice.attack)] +%= 1;
+                fairWindup(g, scene, bd);
+            } else easyDecide(g, scene, bd, false);
+        },
         .reel => {
             o.opponent.moveFrame +%= 1;
             if (o.anim.framesLeft <= o.opponent.moveFrame) {
+                if (easyOn(g)) switch (fight_easy.afterHurt(easy_style, &g.rand)) {
+                    .guard => {
+                        oppPose(g, 7);
+                        ai.phase = .guard;
+                        ai.left = fight_easy.guardBeats(easy_style, &g.rand);
+                        return;
+                    },
+                    .back_off => {
+                        hopBack(g, easy_style.back_off_px);
+                        ai.left += easy_style.mercy_beats;
+                        return;
+                    },
+                    .usual => {},
+                };
                 if (gapOf(g) <= tuning.approach_stop) {
                     fairRetreat(g);
                 } else {
@@ -813,6 +998,50 @@ fn fairBeat(g: *Game, scene: *Scene, bd: *Backdrop) void {
                 }
             } else animation.tick(g, o, bd);
         },
+    }
+}
+
+// ---- the test tool's player bot (`--fight-bot`, core/fight_bot.zig) ----------
+
+fn botView(g: *Game, scene: *Scene) fight_bot.View {
+    const f = g.fighter.?;
+    const o = g.opponent.?;
+    const bar = &g.energyBar.?.energyBar;
+    return .{
+        .t = g.plat.ticks(),
+        .screen = g.controls.phase == .screen,
+        .intro = g.controls.phase == .intro,
+        .over = g.fightOver != 0,
+        .gap = gapOf(g),
+        .fighter_x = f.x,
+        .fighter_strip = f.curStrip,
+        .opponent_strip = o.curStrip,
+        .opponent_frame = o.curFrame,
+        .fighter_energy = bar.fighterEnergy,
+        .opponent_energy = bar.opponentEnergy,
+        .seconds_left = scene.secondsLeft,
+    };
+}
+
+/// On each timer message the bot sends the keys a player would (the 1995
+/// codes, through the gate like a keyboard's).
+fn botTick(g: *Game, scene: *Scene, m: Msg) void {
+    const cfg = fight_bot.config orelse return;
+    if (m.id != msg.wm.systimer or g.energyBar == null or g.fighter == null or g.opponent == null) return;
+    if (g.plat.ticks() < cfg.after) return;
+    const b = &g.bot;
+    if (!b.started) b.start(cfg);
+    if (b.ended) return;
+    const v = botView(g, scene);
+    const out = b.step(v);
+    for (out.slice()) |c| {
+        if (cfg.log_keys) std.debug.print("[{d}] fightbot-key {d} {s}\n", .{ v.t, c.vk, if (c.down) "down" else "up" });
+        const key = if (g.fixes.fight_keys_asdf) fight_controls.untranslate(c.vk) else c.vk;
+        _ = handleMessage(g, scene, .{ .id = if (c.down) msg.wm.keydown else msg.wm.keyup, .wparam = key });
+    }
+    if (v.over) {
+        b.ended = true;
+        fight_bot.report(b, v, &g.fair);
     }
 }
 

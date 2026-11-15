@@ -6,6 +6,7 @@
 //!           [--minigame-stub[=NAME,…]] [--minigame-result win|lose] [--minigame-startup MS] [--minigame-reply MS] [--quiet]
 //!           [--fix NAME,…|all[,-NAME…]] [--skip-videos] [--one-button]
 //!           [--key-repeat DELAY,PERIOD|off]
+//!           [--fight-bot PROFILE[,SEED]] [--fight-tune KEY=VALUE,…] [--epoch N]
 //!
 //! The test harness (`platform/harness.zig`): `--input` plays a script of
 //! timed mouse/keyboard input (`platform/script.zig`), `--dump` writes
@@ -47,6 +48,8 @@ pub const core = struct {
     pub const stub = @import("core/stub.zig");
     pub const fight_controls = @import("core/fight_controls.zig");
     pub const fight_fair = @import("core/fight_fair.zig");
+    pub const fight_bot = @import("core/fight_bot.zig");
+    pub const fight_easy = @import("core/fight_easy.zig");
     pub const fight_smooth = @import("core/fight_smooth.zig");
 };
 pub const platform = struct {
@@ -102,6 +105,8 @@ const Args = struct {
     /// `--one-button`: the left button does what the right one did
     /// (`src/one_button.zig`).
     one_button: bool = false,
+    /// `--epoch N`: the headless time() at tick 0.
+    epoch: ?i32 = null,
     /// `--minigame NAME`: run that minigame alone instead of NOITE.
     alone: ?*const platform.host.Program = null,
     /// `--minigame-stub`: NOITE's WinExec stubs the ported minigames too.
@@ -196,6 +201,23 @@ pub fn main(init: std.process.Init) !void {
                     return error.BadArgument;
                 }
             }
+        } else if (std.mem.eql(u8, a, "--fight-bot")) {
+            // A player bot for the fights (core/fight_bot.zig): PROFILE[,SEED].
+            const v = it.next() orelse return error.MissingValue;
+            core.fight_bot.config = core.fight_bot.parse(v) orelse {
+                std.log.err("--fight-bot {s}: want idle|masher|novice|decent[,SEED]", .{v});
+                return error.BadArgument;
+            };
+        } else if (std.mem.eql(u8, a, "--fight-tune")) {
+            // The easy opponent's dials (core/fight_easy.zig `Style`): key=value,...
+            const v = it.next() orelse return error.MissingValue;
+            if (!core.fight_easy.tune(&core.fight_easy.xilindro, v) or !core.fight_easy.tune(&core.fight_easy.salgin, v)) {
+                std.log.err("--fight-tune {s}: want key=value,... of fight_easy.Style", .{v});
+                return error.BadArgument;
+            }
+        } else if (std.mem.eql(u8, a, "--epoch")) {
+            // Headless: time() at tick 0 (the games' srand seeds).
+            args.epoch = try std.fmt.parseInt(i32, it.next() orelse return error.MissingValue, 10);
         } else if (std.mem.eql(u8, a, "--skip-videos")) {
             args.opts.skip_videos = true;
         } else if (std.mem.eql(u8, a, "--one-button")) {
@@ -269,6 +291,7 @@ pub fn main(init: std.process.Init) !void {
         if (args.harness.dump_dir != null) args.opts.decode_video = true;
         var h = platform.headless.Headless.init(gpa, io, args.opts);
         defer h.deinit();
+        if (args.epoch) |e| h.epoch = e;
         var hs: platform.host.Host = undefined;
         hs.init(gpa, h.platform(), &h.sim, host_opts, title, args.alone);
         defer hs.deinit();

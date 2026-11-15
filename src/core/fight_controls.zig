@@ -48,6 +48,21 @@ pub fn translate(vk: u16) u16 {
     };
 }
 
+/// The key to press for the 1995 key `vk`'s move when `fight_keys_asdf` is on
+/// (the inverse of `translate`; the player bot, `core/fight_bot.zig`, thinks
+/// in the 1995 keys).
+pub fn untranslate(vk: u16) u16 {
+    return switch (vk) {
+        vk_insert => vk_up,
+        vk_end => vk_down,
+        vk_pgup => vk_a,
+        vk_up => vk_s,
+        vk_home => vk_d,
+        vk_down => vk_f,
+        else => vk,
+    };
+}
+
 /// The frozen intro after the screen goes (the arcade fighters' "ROUND 1...
 /// FIGHT!"): PORRADA is shown, the opponent and the clock stand and the
 /// keys do nothing for this long, then the round starts. One place to
@@ -235,6 +250,12 @@ test "the new keys do the 1995 keys' moves" {
     try std.testing.expectEqual(vk_down, translate(vk_f));
     try std.testing.expectEqual(@as(u16, 0x25), translate(0x25));
     try std.testing.expectEqual(vk_pgup, translate(vk_pgup));
+}
+
+test "untranslate undoes translate for the eight moves" {
+    for ([_]u16{ vk_insert, vk_end, vk_pgup, vk_up, vk_home, vk_down, 0x25, 0x27 }) |k| {
+        try std.testing.expectEqual(k, translate(untranslate(k)));
+    }
 }
 
 test "the screen and the intro keep the fight, then the round starts" {

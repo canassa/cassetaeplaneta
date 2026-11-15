@@ -390,6 +390,15 @@ pub const Fixes = struct {
     /// double damage.
     fight_fair: bool = false,
     /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"),
+    /// both fights, on top of `fight_fair` (it does nothing without it): an
+    /// easy early-ladder opponent (`core/fight_easy.zig`). The same moves,
+    /// tells and rules, but it decides on a personality table: it dithers
+    /// on the way in, waits, guards (the punch and the kicks, not the
+    /// sweep), backs off, starts a blow from too far now and then, counters
+    /// a blocked blow only sometimes, takes some hits without reeling,
+    /// and eases off when it leads.
+    fight_easy_ai: bool = false,
+    /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"),
     /// both fights: each fighter's move (the 32-px walk step, the 100-px
     /// jump back and recoil) is shown over its beat at display rate
     /// (`core/fight_smooth.zig`, a presented picture, never the screen or

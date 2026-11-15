@@ -47,6 +47,8 @@ pub const Game = struct {
     /// The Corrigida's fair fight (`fight_fair`; not in the original):
     /// the opponent's AI.
     fair: fight_fair.Ai = .{},
+    /// The test tool's player bot (`--fight-bot`, `core/fight_bot.zig`).
+    bot: @import("../../core/fight_bot.zig").Bot = .{},
     /// The Corrigida's smooth motion (`fight_smooth_motion`; not in the
     /// original): the presented picture (`core/fight_smooth.zig`).
     smooth: @import("../../core/fight_smooth.zig").State = .{},

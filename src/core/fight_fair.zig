@@ -25,6 +25,7 @@ const msg = @import("msg.zig");
 const Msg = msg.Msg;
 const Fixes = @import("fixes.zig").Fixes;
 const fight_controls = @import("fight_controls.zig");
+const fight_easy = @import("fight_easy.zig");
 const platform = @import("../platform/platform.zig");
 const Platform = platform.Platform;
 const Surface = platform.Surface;
@@ -113,6 +114,11 @@ pub const Phase = enum {
     feint,
     /// Hit by the fighter: its reaction plays (it cannot be hit again).
     reel,
+    /// The easy opponent (`fight_easy_ai`): stands in its stance, `left` beats.
+    wait,
+    /// The easy opponent: in its guard (strip 7), `left` beats; it holds the
+    /// punch and the kicks, not the sweep.
+    guard,
 };
 
 /// What the strike did.
@@ -133,6 +139,22 @@ pub const Ai = struct {
     /// Counts for the overlay and the log.
     windups: u16 = 0,
     interrupts: u16 = 0,
+    /// Beats spent in each phase, and the strikes' outcomes (`Phase`,
+    /// `Outcome` order): what `core/fight_bot.zig` reports.
+    /// The easy opponent: it has just blocked a blow and will counter.
+    counter: bool = false,
+    /// The easy opponent: the wind-up now is a counter's.
+    countering: bool = false,
+    /// The easy opponent: it landed the last hit (a beat of mercy follows).
+    mercy: bool = false,
+    /// The easy opponent: blows it guarded, hits it shrugged off, and its
+    /// decisions by `fight_easy.Choice`.
+    guards: u16 = 0,
+    whiffs: u16 = 0,
+    shrugs: u16 = 0,
+    choices: [@typeInfo(fight_easy.Choice).@"enum".field_names.len]u16 = @splat(0),
+    phase_beats: [@typeInfo(Phase).@"enum".field_names.len]u16 = @splat(0),
+    outcomes: [@typeInfo(Outcome).@"enum".field_names.len]u16 = @splat(0),
 };
 
 /// The strike's outcome against a fighter in `fighter_strip` at `gap`.

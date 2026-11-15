@@ -29,6 +29,14 @@ stands in range. While the opponent stands back it walks right to keep
 room behind it. It never throws a blow out of reach, so the opponent's
 whiff punish never comes.
 
+`--player bot --bot PROFILE,SEED` records a player bot (core/fight_bot.zig,
+`expert` for the playthroughs): the script runs with `--fight-bot
+PROFILE,SEED,log` and an empty block, the bot plays the fight and logs
+every key it sends; the keys become the block's lines (`--gate` names the
+fix that runs them, `?fight_fair` by default, `?fight_easy_ai` for the
+easy opponent). The replay is the same run, so the fight is too; the
+result is printed to check it (`--lead MS` moves every key earlier).
+
 `--player mash` presses A (the punch) every beat (200 ms) from the round's
 start; `--player idle` presses nothing. Both are written whole at once.
 
@@ -98,18 +106,21 @@ def command(script):
     sys.exit(f"{script}: no `zig-out/bin/noite ... --fix ...` line in the header")
 
 
+GATE = "fight_fair"
+
+
 def block_lines(actions, base):
-    """The actions [(ms, cmd)] as `+N ?fight_fair cmd` lines from `base`."""
+    """The actions [(ms, cmd)] as `+N ?GATE cmd` lines from `base`."""
     out, t = [], base
     for ms, cmd in sorted(actions, key=lambda a: a[0]):
-        out.append(f"+{ms - t} ?fight_fair {cmd}")
+        out.append(f"+{ms - t} ?{GATE} {cmd}")
         t = ms
     return out
 
 
-def probe(script, name, argv, lines, ms=None, probe_lines=True):
+def probe(script, name, argv, lines, ms=None, probe_lines=True, f9=True):
     pre, _, post = split(script.read_text(), name)
-    extra = ["+0 ?fight_fair log fair-anchor", "+0 ?fight_fair key f9"] if probe_lines else []
+    extra = [f"+0 ?{GATE} log fair-anchor"] + ([f"+0 ?{GATE} key f9"] if f9 else []) if probe_lines else []
     WORK.mkdir(parents=True, exist_ok=True)
     tmp = WORK / f"{script.stem}.{name}.input"
     tmp.write_text("\n".join(pre + extra + lines + post))
@@ -213,11 +224,44 @@ def plan_react(script, name, argv, total_ms, fast=False, ko_at=None, end_at=None
     return actions, anchor
 
 
+KEYS = {0x21: "a", 0x26: "s", 0x24: "d", 0x28: "f", 0x2D: "insert", 0x23: "down"}
+KEYLOG = re.compile(r"^\[(\d+)\] fightbot-key (\d+) (down|up)$", re.M)
+
+
+def plan_bot(script, name, argv, bot, lead):
+    """The keys of a player bot, as the block's actions."""
+    # The anchor first (no bot), then the bot, asleep until the block.
+    a, _, _, _ = probe(script, name, argv, [], f9=False)
+    if a is None:
+        sys.exit("no fair-anchor in the log (is the block reached?)")
+    _, _, res, text = probe(script, name, argv + ["--fight-bot", f"{bot},log,after={a}"], [], f9=False)
+    # This block's fight: from the anchor to the bot's end line (a run can
+    # hold two fights, onebutton.input's).
+    ends = [int(t) for t in re.findall(r"^\[(\d+)\] fightbot: end", text, re.M) if int(t) >= a]
+    last = ends[0] if ends else 1 << 40
+    ev = [(int(t), int(vk), d) for t, vk, d in KEYLOG.findall(text) if a <= int(t) <= last]
+    actions = []
+    for i, (t, vk, d) in enumerate(ev):
+        if d != "down" or vk == 0x0D:
+            continue
+        if vk in (0x25, 0x27):
+            up = next((u for u, k, dd in ev[i + 1 :] if k == vk and dd == "up"), t + 100)
+            actions.append((t - lead, f"hold {'left' if vk == 0x25 else 'right'} {max(5, up - t)}"))
+        elif vk in KEYS:
+            actions.append((t - lead, f"key {KEYS[vk]}"))
+    if not actions:
+        sys.exit("the bot sent no keys")
+    return actions, a
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("script", type=pathlib.Path)
     ap.add_argument("--block", default="fight")
-    ap.add_argument("--player", choices=("react", "fast", "mash", "idle"), default="react")
+    ap.add_argument("--player", choices=("react", "fast", "mash", "idle", "bot"), default="react")
+    ap.add_argument("--bot", default="expert,1", help="with --player bot: PROFILE,SEED")
+    ap.add_argument("--gate", default="fight_fair", help="the fix whose lines these are")
+    ap.add_argument("--lead", type=int, default=-1, help="with --player bot: every key this many ms earlier (-1: after the timer tick it was sent in)")
     ap.add_argument("--ko-at", type=int, help="the KO's beat (ms of the run): the last kick waits for it")
     ap.add_argument("--end-at", type=int, help="end the block with a `log` line this many ms after the line before it")
     ap.add_argument("--check", action="store_true")
@@ -230,7 +274,11 @@ def main():
         a, beats, res, _ = probe(args.script, args.block, argv, block)
         summary(beats, res)
         return
-    if args.player in ("react", "fast"):
+    global GATE
+    GATE = args.gate
+    if args.player == "bot":
+        actions, anchor = plan_bot(args.script, args.block, argv, args.bot, args.lead)
+    elif args.player in ("react", "fast"):
         actions, anchor = plan_react(args.script, args.block, argv, total, args.player == "fast", args.ko_at, args.end_at)
     else:
         a, beats, _, _ = probe(args.script, args.block, argv, [])
