@@ -82,8 +82,22 @@ BUGS.md K1–K6.
   WM_CREATE (Tests).
 - **Faithful first, the owner's rule.** K1–K6 are reproduced as they are
   by default. Each fix exists only behind its own `Fixes` flag (off by
-  default). Corrigida (`Fixes.all()`) takes K1–K4; K5 is a choice
-  (`Fixes.choices`) until the owner decides (Owner questions).
+  default). Corrigida (`Fixes.all()`) takes all six.
+- **The owner's decisions on the Corrigida's K-fixes:**
+  - **K1, survive = win.** `serial_result_won_by_lives` reports a game
+    with lives left after the two minutes as a win, one that loses every
+    life as a loss; not TIRO's `g_score > 0`.
+  - **K2, a flat 500 for a survived game.** `serial_score_in_low_word`
+    keeps what the high word holds: 500 whatever `g_score` is, `g_score`
+    after a lost game (BUGS.md lists the flat 500 as design).
+  - **K3, 47 px.** `serial_hit_needs_row` takes `bala.bmp`'s real 47-px
+    width as part of the fix, besides the row test (the 55 is TIRO's arrow
+    width, copied).
+  - **K5, on.** `serial_lane2_own_timer` is in `all`: lane 2 spawns on its
+    own 5-s timer, as the code means to, so Kennedy and the rabbit come
+    more often. It changes the figures (more `rand()` draws), so the
+    Original and the Corrigida no longer play the same game from the same
+    keys (Tests).
 - **K1/K2 are SERIAL's.** The result is wrong in what SERIAL posts, so its
   fixes live in SERIAL's `gallery` (WM_DESTROY). NOITE's
   `handler_3farmcai` (`src/handlers/3farmcai.zig`) stays as the original:
@@ -318,7 +332,7 @@ the virtual-base residue, the 14 NULL tests. SERIAL's own:
 | K2 the score in the high word | `serial_score_in_low_word` | gallery | the 0x40a lParam is the high word's value sign-extended (`g_lives > 0 ? 500 : g_score`) instead of `MAKELONG(g_lives, …)` | yes |
 | K3 hit by x alone, any lane, 55-px bullet | `serial_hit_needs_row` | gallery | the second stage takes a figure when the x ranges overlap with touching edges counted, with the bullet's real width (`a <= t+w and t <= a+47`), **and** the y ranges overlap (bullet y..y+31, figure y..y+h), in the same lane 2, 1, 0 order, moving figures only | yes |
 | K4 SPACE latch never set | `serial_space_latch` | gallery | the fire branch sets `g_keySpaceHeld` = 1 (WM_KEYUP already clears it): a held SPACE fires once | yes |
-| K5 timer id 10 shared, lane-2 branch dead | `serial_lane2_own_timer` | target | `serial_create_targets` arms target 13's lane-2 timer with id 9 (`g_timerIds[6]`, unused) instead of `g_timerIds[7]` = 10: the handler's test 5 (`timerId13`) then matches it, lane 2 also spawns on its own 5-s timer, and the gun keeps id 10 at 60 ms from the start | no (a choice) |
+| K5 timer id 10 shared, lane-2 branch dead | `serial_lane2_own_timer` | target | `serial_create_targets` arms target 13's lane-2 timer with id 9 (`g_timerIds[6]`, unused) instead of `g_timerIds[7]` = 10: the handler's test 5 (`timerId13`) then matches it, lane 2 also spawns on its own 5-s timer, and the gun keeps id 10 at 60 ms from the start | yes |
 | K6 a close with a life left is a survived game | `serial_close_forfeits` | gallery | the scene handler notes `WM_CLOSE` (port state `closing`); the `WM_DESTROY` that follows reports a lost game: wParam 0, `g_score` where a survived game has 500 | yes (owner's decision) |
 
 Each unit ports the buggy code and keeps the fixed path only under its
@@ -328,22 +342,6 @@ with key repeats (Platform). The harmless entries (the unread shot
 counter, the gun's hit box, `wrapFlag`, the lane-2 toggle's frame reset,
 the dead `0x3bd` case, `WinMain`'s return) get no flag; nor does the
 nested WM_DESTROY (it does nothing visible).
-
-### Owner questions
-
-1. **K1's criterion.** The fix reads a survived game (lives left after the
-   two minutes) as a win, which matches the lParam's flat 500 for one.
-   TIRO's criterion is `g_score > 0`. Survival, or score, or both?
-2. **K2's points.** The fix keeps what the high word holds: a flat 500 for
-   a survived game whatever `g_score` is, `g_score` after a lost one
-   (BUGS.md lists the flat 500 as design). Or `g_score` in both cases?
-3. **K5 (choice, off in Corrigida).** Should the Corrigida give lane 2 its
-   own 5-s timer, so Kennedy and the rabbit come more often (the code's
-   apparent intent, confidence 6), or keep the 10-s toggle the players
-   knew?
-4. **K3's bullet width.** The fix uses `bala.bmp`'s 47 px, not TIRO's 55:
-   is that part of the fix, or should the Corrigida keep 55 and only add
-   the row test?
 
 ## Integration
 
@@ -422,20 +420,31 @@ expectation for runs with fixes, e.g. `result won 32768004 | won 500`
   on the virtual clock what decides the game: the system timers in USER's
   table order (a timer set again keeps its slot, a killed one set again
   goes to the end), every `rand()` in the game's order (lane 0 `% 7`, lane
-  1 `% 6`, the lane-2 toggle's `% 2` drawn before its busy test), the
+  1 `% 6`, the lane-2 toggle's `% 2` drawn before its busy test, and
+  with K5's fix lane 2's own timer, id 9), the
   walks (20 px a tick, frames with wrap, the edge tests), the killers'
   shots and `g_lives`, the clock, the bullet's 20-px Bresenham steps every
   55 ms and the occupancy grid of the first stage (32-px cells, the wall
   cells, every occupy/vacate, stale cells included; the gun's rows are
   left out: no query reaches them), the second stage in both versions
   (K3), the hits. A plan presses SPACE with the bullet free, 110 ms or
-  more after the last press, aim keys before it, and keeps a shot only
-  when both versions hit the same figure with it:
-  - `--win` shoots killers (kind 2) only, as soon as one can be hit: the
-    clock ends the game with lives left (3 shots alone);
+  more after the last press, aim keys before it. The Original and the
+  Corrigida play different games from the same keys (K5's extra
+  `rand()` draws), so it simulates both and keeps a shot when it hits at
+  most one figure in each, a wanted one in at least one, and no figure of
+  the other kind:
+  - `--win` shoots killers (kind 2), as soon as one can be hit: the clock
+    ends both games with lives left;
   - `--lose` shoots kinds 0 and 1 only (each hit frees a lane, so more
-    figures, killers among them, come) until the lives run out.
-  It prints both results (the Original's packed lParam, the Corrigida's).
+    figures, killers among them, come) until the lives run out in both,
+    with no key after the earlier end.
+  When that greedy plan fails it tries again with a lookahead (a shot
+  that hits in one version only gives way to one that hits in both within
+  2 s), with every shot hitting in the Corrigida, or in the Original, and
+  for a win lets the other version's shot hit any figure (a win's result
+  does not depend on the score); `serial-3farmcai-win` needs that last
+  mode. It prints both results (the Original's packed lParam, the
+  Corrigida's).
   `--check FILE` / `--trace FILE` simulate a script, held keys repeating
   as a run does (`--key-repeat`). The trace was checked tick for tick
   (every walk step, bullet step and hit) against the port's on 12 random
@@ -443,20 +452,23 @@ expectation for runs with fixes, e.g. `result won 32768004 | won 500`
   Rerun it when the start time moves.
 - **Scripts** (`tools/play/`), each run Original and `--fix all`, one
   script, the two-part `result` (Platform):
-  - `serial-alone-win.input` (`--minigame serial --ms 125000`): three
-    killers, 4 lives at 120 s: `result won 32768004 | won 500`;
-  - `serial-alone-lose.input` (`--ms 90000`): 34 shots at kinds 0 and 1
-    (+200); the lives run out at 87.6 s: `result won 13107200 | lost 200`
-    (the Original's K1 win);
+  - `serial-alone-win.input` (`--minigame serial --ms 125000`): two
+    shots; the Original hits two killers and has 2 lives at 120 s, the
+    Corrigida one and 3: `result won 32768002 | won 500`;
+  - `serial-alone-lose.input` (`--ms 110000`): 43 shots at kinds 0 and 1;
+    the lives run out at 107.6 s in the Original (+500), 79.4 s in the
+    Corrigida (+1100): `result won 32768000 | lost 1100` (the Original's
+    K1 win);
   - `serial-held-space.input` (`--ms 125000 --key-repeat 500,33`): SPACE
     held 3 s, aimed right: 4 shots in the Original (K4: score 0), 1 with
-    the fixes (-100); both survive with 2 lives;
+    the fixes (-100); the Original survives with 2 lives, the Corrigida's
+    other figures take the five at 109.4 s: `won 32768002 | lost -100`;
   - `serial-3farmcai-win.input` / `serial-3farmcai-lose.input`
     (`--scene 3farmcai`): the video, SERIAL started (a `dump`), the
     planner's shots (`--start 3210`), the result, then NOITE back in
-    `3fprisao` (`expect`, `state`): the win adds 32768003 in the Original,
+    `3fprisao` (`expect`, `state`): the win adds 32768002 in the Original,
     500 with the fixes; the loss adds 6553600 and keeps the life in the
-    Original (K1, K2), adds 100 and takes a life with the fixes. The
+    Original (K1, K2), adds 300 and takes a life with the fixes. The
     `3fhall` branch, with XILINDRO's `minigameWon[3]` won first, is
     `xilindro-serial-hall.input` (README.md "XILINDRO").
   - `full.input` and `onebutton.input` do not pass `3farmcai` (their

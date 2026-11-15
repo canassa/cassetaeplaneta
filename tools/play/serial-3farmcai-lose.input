@@ -1,35 +1,36 @@
 # NOITE's prison escape (3farmcai) starts the real SERIAL, which loses: the
-# killers take the five lives at 32610 ms.
+# killers take the five lives (at 35810 ms in the Original, 25810 with the
+# fixes).
 #
-#   zig-out/bin/noite --headless --scene 3farmcai --ms 36000 --input tools/play/serial-3farmcai-lose.input
-#   zig-out/bin/noite --headless --scene 3farmcai --ms 36000 --fix all --input tools/play/serial-3farmcai-lose.input
+#   zig-out/bin/noite --headless --scene 3farmcai --ms 39000 --input tools/play/serial-3farmcai-lose.input
+#   zig-out/bin/noite --headless --scene 3farmcai --ms 39000 --fix all --input tools/play/serial-3farmcai-lose.input
 #
 # As serial-3farmcai-win: SERIAL starts at 3210. The shots are
-# `tools/serial_plan.py --start 3210 --lose`: kinds 0 and 1 only, +100.
-# - Original: the result is still a win (BUGS.md K1) of MAKELONG(0, 100) =
-#   6553600 (K2): NOITE keeps its 3 lives, adds 6553600 and, the jail fight
-#   not won, goes back to the prison;
-# - `--fix all`: a loss of 100: NOITE adds 100, takes a life (2 left) and
-#   goes back to the prison.
+# `tools/serial_plan.py --start 3210 --lose`: kinds 0 and 1 only, in
+# either version (they play different games, BUGS.md K5).
+# - Original: +100; the result is still a win (BUGS.md K1) of
+#   MAKELONG(0, 100) = 6553600 (K2): NOITE keeps its 3 lives, adds 6553600
+#   and, the jail fight not won, goes back to the prison;
+# - `--fix all`: +300; a loss of 300: NOITE adds 300, takes a life (2
+#   left) and goes back to the prison.
 4000 dump serial
-# shot 1: right, 3snoel (figure 8, kind 0)
-8090 key left
+# shot 1: straight, Original a miss, Corrigida 3skenn (figure 13, kind 1)
+8090 key right
 8210 key space
-# shot 2: right, 3scoel (figure 14, kind 1)
-13220 key space
-# shot 3: straight, 3sbaba (figure 1, kind 0)
-19270 key left
-19390 key space
-# shot 4: straight, 3skenn (figure 13, kind 1)
-23250 key space
-# shot 5: straight, 3sesco (figure 11, kind 1)
-24190 key space
-# shot 6: straight, 3sarab (figure 0, kind 0)
-25050 key space
-# shot 7: right, 3svelh (figure 10, kind 1)
-28090 key right
-28210 key space
-33000 result won 6553600 | lost 100
-33000 expect 3fprisao
-34000 state
-34000 dump prison
+# shot 2: straight, 3snoel (figure 8, kind 0)
+9790 key space
+# shot 3: right, 3scoel (figure 14, kind 1)
+13130 key right
+13250 key space
+# shot 4: left, Original a miss, Corrigida 3skenn (figure 13, kind 1)
+17600 key right
+17720 key space
+# shot 5: left, Original 3skenn (figure 13, kind 1), Corrigida a miss
+22720 key space
+# shot 6: straight, Original a miss, Corrigida 3scoel (figure 14, kind 1)
+23610 key right
+23730 key space
+36500 result won 6553600 | lost 300
+36500 expect 3fprisao
+37500 state
+37500 dump prison

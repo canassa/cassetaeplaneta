@@ -177,8 +177,8 @@ saves only the low word (BUGS B19): on screen the score grows by the lives left,
 The port reproduces NOITE's side as is: `src/handlers/3farmcai.zig` sets
 `minigameWon[2] = @intFromBool(m.wparam != 0)` and adds the whole `m.lparam` (`g.score +%= m.lparam`,
 32-bit wrapping). SERIAL is ported too (`src/serial/`): NOITE's WinExec runs it as a second
-program, so K1 and K2 reach NOITE as above (`tools/play/serial-3farmcai-win.input`: +32,768,003
-with 3 lives left; `-lose`: +6,553,600 and no life taken).
+program, so K1 and K2 reach NOITE as above (`tools/play/serial-3farmcai-win.input`: +32,768,002
+with 2 lives left; `-lose`: +6,553,600 and no life taken).
 
 ## Keys and mouse
 

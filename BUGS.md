@@ -1650,8 +1650,9 @@ consistent code with a plausible intent, and none is reached by a slip.
 - **Confidence:** 9.
 - **Port:** ported and reproduced (unit `gallery`, src/serial/); the fix is
   `Fixes.serial_result_won_by_lives` (`--fix serial_result_won_by_lives`, on in the Corrigida version: won = lives
-  left). NOITE's side stays as the original (`src/handlers/3farmcai.zig`). `tools/play/serial-3farmcai-lose.input`
-  shows it: the lost game keeps NOITE's three lives in the Original, takes one with the fixes.
+  left). The owner's rule: surviving the two minutes is the win, not TIRO's `g_score > 0`. NOITE's side stays as
+  the original (`src/handlers/3farmcai.zig`). `tools/play/serial-3farmcai-lose.input` shows it: the lost game
+  keeps NOITE's three lives in the Original, takes one with the fixes.
 
 ### K2. The score is packed into the high word of the result
 - **Where:** `serial_scene_handle_message`, `WM_DESTROY` 1068:1598–15be; NOITE `handler_3farmcai`
@@ -1665,8 +1666,9 @@ consistent code with a plausible intent, and none is reached by a slip.
 - **Confidence:** 9 (code); 8 (that `MAKELONG(score, …)` or a plain score was meant).
 - **Port:** ported and reproduced (unit `gallery`, src/serial/); the fix is
   `Fixes.serial_score_in_low_word` (`--fix serial_score_in_low_word`, on in the Corrigida version: lParam = 500 or
-  `g_score`, sign-extended). NOITE's side stays as the original (`g.score +%= m.lparam`). The SERIAL scripts in
-  `tools/play/` check both (`result won 32768004 | won 500`).
+  `g_score`, sign-extended). The owner keeps the flat 500 for a survived game, whatever `g_score` is. NOITE's
+  side stays as the original (`g.score +%= m.lparam`). The SERIAL scripts in `tools/play/` check both
+  (`result won 32768002 | won 500`).
 
 ### K3. A hit goes to the first figure that overlaps the bullet in x, in any lane
 - **Where:** `projectile_try_step` 1068:12a5 (first stage) and `serial_scene_handle_message`, the bullet
@@ -1683,7 +1685,8 @@ consistent code with a plausible intent, and none is reached by a slip.
   with no score.
 - **Confidence:** 9 (code); 7 (how often players see it).
 - **Port:** ported and reproduced (unit `gallery`, src/serial/); the fix is
-  `Fixes.serial_hit_needs_row` (`--fix serial_hit_needs_row`, on in the Corrigida version).
+  `Fixes.serial_hit_needs_row` (`--fix serial_hit_needs_row`, on in the Corrigida version): the row test and,
+  by the owner's decision, `bala.bmp`'s 47-px width instead of the 55.
 
 ### K4. The SPACE latch is never set, so a held SPACE fires on every key repeat
 - **Where:** `serial_scene_handle_message`, `WM_KEYDOWN` `VK_SPACE` (test 1068:172b), `WM_KEYUP` 1068:1a91.
@@ -1710,8 +1713,10 @@ consistent code with a plausible intent, and none is reached by a slip.
   over it, so this is not seen).
 - **Confidence:** 9 (code); 6 (that lane 2 was meant to spawn on its own timer).
 - **Port:** ported and reproduced (units `target` and `gallery`, src/serial/); the fix is
-  `Fixes.serial_lane2_own_timer` (`--fix serial_lane2_own_timer`, a choice: left out of the Corrigida version
-  (`Fixes.choices`) until the owner decides).
+  `Fixes.serial_lane2_own_timer` (`--fix serial_lane2_own_timer`, on in the Corrigida version, the owner's
+  decision): lane 2 also spawns every 5 s. The extra `rand()` draws change the figures, so the Original and the
+  Corrigida play different games from the same keys; the SERIAL scripts are planned for both
+  (`tools/serial_plan.py`).
 
 ### K6. Closing the window with a life left reports a survived game
 - **Where:** `serial_scene_handle_message`, `WM_DESTROY` 1068:1577–15be.

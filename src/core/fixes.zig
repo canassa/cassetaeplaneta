@@ -279,8 +279,8 @@ pub const Fixes = struct {
     /// K4: SPACE sets its latch on key-down, so a held SPACE fires once.
     serial_space_latch: bool = false,
     /// K5: lane 2's spawn timer gets an id of its own (9, the unused
-    /// `g_timerIds[6]`), so its 5-s branch runs besides the 10-s toggle.
-    /// A choice until the owner says (`choices`).
+    /// `g_timerIds[6]`), so its 5-s branch runs besides the 10-s toggle
+    /// (in `all`, the owner's decision).
     serial_lane2_own_timer: bool = false,
     /// K6: closing the window (End Task) reports a loss, as when the lives
     /// run out: wParam 0 and the lost game's points (`g_score`; packed as
@@ -466,7 +466,7 @@ pub const Fixes = struct {
 
     /// Flags left out of `all` (`--fix all`, the web build's "Corrigida"
     /// version), e.g. the hall-door reshuffle.
-    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit", "serial_lane2_own_timer", "salgin_opponent_damage_table", "jardim_enemy_blocks_walk" };
+    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit", "salgin_opponent_damage_table", "jardim_enemy_blocks_walk" };
 
     /// `--fix all`: every flag but the `choices`.
     pub fn all() Fixes {

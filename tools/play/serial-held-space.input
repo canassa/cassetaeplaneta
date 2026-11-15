@@ -9,9 +9,10 @@
 # - Original: the press and every repeat with the bullet free fire again: 4
 #   shots, 3spira hit (-100) at 8215, the rabbit (+100) at 10662: score 0;
 # - `--fix all`: the latch holds the repeats off: one shot, 3spira: -100.
-# Nothing else is shot; both survive the clock with 2 lives, so the results
-# differ by K1/K2 only.
+# Nothing else is shot. The Original survives the clock with 2 lives
+# (K1/K2: MAKELONG(2, 500)); the Corrigida's other figures (K5: lane 2 on
+# its own timer) take the five lives at 109400: a loss of -100.
 7200 key right
 7500 hold space 3000
 8300 dump held
-121000 result won 32768002 | won 500
+121000 result won 32768002 | lost -100

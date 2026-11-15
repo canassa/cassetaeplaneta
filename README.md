@@ -117,16 +117,17 @@ Saves go to `save/` (`--save DIR`).
   `tools/tiro_plan.py --start MS --win|--lose` (it simulates the game; the targets follow from
   TIRO's start time: rerun it when that moves; `--check FILE` simulates a script). `tools/smoke.py
   --minigame tiro [--fix all] [--monkey SEED]` presses random aim keys and SPACE for 60 s.
-- **SERIAL**: `--minigame serial --ms 125000 --input tools/play/serial-alone-win.input` (three
-  killers shot, the clock ends it with 4 lives: `result won 32768004 | won 500`) and `--ms 90000
-  --input tools/play/serial-alone-lose.input` (the killers take the five lives: `won 13107200 |
-  lost 200`); from NOITE, `--scene 3farmcai --ms 126000 --input tools/play/serial-3farmcai-win.input`
-  (NOITE hides, gets the result, the prison) and `--ms 36000 --input
+- **SERIAL**: `--minigame serial --ms 125000 --input tools/play/serial-alone-win.input` (killers
+  shot, the clock ends it with lives left: `result won 32768002 | won 500`) and `--ms 110000
+  --input tools/play/serial-alone-lose.input` (the killers take the five lives: `won 32768000 |
+  lost 1100`); from NOITE, `--scene 3farmcai --ms 126000 --input tools/play/serial-3farmcai-win.input`
+  (NOITE hides, gets the result, the prison) and `--ms 39000 --input
   tools/play/serial-3farmcai-lose.input` (the Corrigida takes a life); `--minigame serial --ms
   125000 --key-repeat 500,33 --input tools/play/serial-held-space.input` holds SPACE (BUGS.md K4: 4
-  shots in the Original, 1 with the fixes). Each the same with `--fix all`: one game in both
-  versions, the result differing by BUGS.md K1/K2 only (the Original reports every game as a win,
-  the score packed in the high word), so each `result` line carries both. The shots come from
+  shots in the Original, 1 with the fixes). Each the same with `--fix all`, whose game differs
+  (BUGS.md K5: lane 2 also spawns on its own timer, so other figures come): each shot hits a
+  wanted figure in at least one version, and each `result` line carries both results (K1/K2: the
+  Original reports every game as a win, the score packed in the high word). The shots come from
   `tools/serial_plan.py --start MS --win|--lose` (it simulates the game; the figures follow from
   SERIAL's start time: rerun it when that moves; `--check FILE` simulates a script, `--trace FILE`
   prints every tick). `tools/smoke.py --minigame serial [--fix all] [--monkey SEED]` presses random

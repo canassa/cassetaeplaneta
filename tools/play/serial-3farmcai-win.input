@@ -8,20 +8,56 @@
 #
 # The escape video ends at 1710 (MM_MCINOTIFY: the WinExec); SERIAL starts
 # 1500 ms later (its WM_CREATE at 3210 seeds the figures). The shots are
-# `tools/serial_plan.py --start 3210 --win`: three killers, +600, 3 lives
-# left when the clock ends SERIAL at 123210. The Original reports a win of
-# MAKELONG(3, 500) = 32768003 and NOITE adds it whole (BUGS.md K1, K2; on
-# screen B19 shows the low word); the Corrigida a win of 500.
+# `tools/serial_plan.py --start 3210 --win`. The two versions play
+# different games (BUGS.md K5); each shot hits a killer in at least one of
+# them, and in the other a killer, another figure or nothing (the score of
+# a win does not count). Both have lives left when the clock ends SERIAL at
+# 123210: the Original 2, a win of MAKELONG(2, 500) = 32768002 that NOITE
+# adds whole (BUGS.md K1, K2; on screen B19 shows the low word); the
+# Corrigida 1, a win of 500.
 4000 dump serial
-# shot 1: straight, 3sbabt (figure 2, kind 2)
+# shot 1: straight, Original 3sbabt (figure 2, kind 2), Corrigida 3skenn (figure 13, kind 1)
 9270 key right
 9390 key space
-# shot 2: straight, 3sbabt (figure 2, kind 2)
-34630 key space
-# shot 3: right, 3snoem (figure 9, kind 2)
-118120 key right
-118240 key space
-124000 result won 32768003 | won 500
+# shot 2: right, Original a miss, Corrigida 3sbabt (figure 2, kind 2)
+11760 key right
+11880 key space
+# shot 3: straight, Original 3sarab (figure 0, kind 0), Corrigida 3sbabt (figure 2, kind 2)
+24510 key left
+24630 key space
+# shot 4: right, 3snoem (figure 9, kind 2)
+28120 key right
+28240 key space
+# shot 5: right, Original 3snoem (figure 9, kind 2), Corrigida 3scoel (figure 14, kind 1)
+43250 key space
+# shot 6: straight, Original 3skenn (figure 13, kind 1), Corrigida 3snoem (figure 9, kind 2)
+44070 key left
+44190 key space
+# shot 7: right, Original 3snoem (figure 9, kind 2), Corrigida 3scoel (figure 14, kind 1)
+58130 key right
+58250 key space
+# shot 8: straight, Original a miss, Corrigida 3sbabt (figure 2, kind 2)
+59270 key left
+59390 key space
+# shot 9: right, Original 3snoem (figure 9, kind 2), Corrigida a miss
+63710 key right
+63830 key space
+# shot 10: left, Original a miss, Corrigida 3sbabt (figure 2, kind 2)
+73180 key right
+73300 key space
+# shot 11: straight, Original 3sbabt (figure 2, kind 2), Corrigida 3scoel (figure 14, kind 1)
+89270 key right
+89390 key space
+# shot 12: right, Original 3snoem (figure 9, kind 2), Corrigida 3scoel (figure 14, kind 1)
+98130 key right
+98250 key space
+# shot 13: straight, Original 3sbabt (figure 2, kind 2), Corrigida 3scoel (figure 14, kind 1)
+104350 key left
+104470 key space
+# shot 14: left, Original 3sbabt (figure 2, kind 2), Corrigida 3skenn (figure 13, kind 1)
+108180 key left
+108300 key space
+124000 result won 32768002 | won 500
 124000 expect 3fprisao
 125000 state
 125000 dump prison
