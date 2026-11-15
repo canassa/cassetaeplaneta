@@ -56,8 +56,10 @@
   // (UP the flying kick, DOWN the sweep, LEFT/RIGHT walk), PgUp (33) the
   // punch, Home (36) the jump kick, End (35) the block, Insert (45) the
   // jump; XILINDRO's are the same keys (Home its high kick, UP the middle
-  // kick). Proposals waiting for the owner: change or drop the entries here.
-  const PAD_KEYS = { "": [37, 38, 39, 40], encaixe: [37, 38, 39, 40], tiro: [37, 32, 39], serial: [37, 32, 39], salgin: [36, 38, 33, 37, 45, 39, 35, 40], inv: [37, 32, 39], xilindro: [36, 38, 33, 37, 45, 39, 35, 40] };
+  // kick). INFERNO walks with LEFT/RIGHT and jumps with UP (high) and DOWN
+  // (low): the four arrows. Proposals waiting for the owner: change or drop
+  // the entries here.
+  const PAD_KEYS = { "": [37, 38, 39, 40], encaixe: [37, 38, 39, 40], tiro: [37, 32, 39], serial: [37, 32, 39], salgin: [36, 38, 33, 37, 45, 39, 35, 40], inv: [37, 32, 39], xilindro: [36, 38, 33, 37, 45, 39, 35, 40], inferno: [37, 38, 39, 40] };
   // The files of the current manifest, by hashed URL. The name must not
   // start with "noite-": loaders before the hashes deleted every
   // "noite-*" cache but their own (their caches are migrated below).
