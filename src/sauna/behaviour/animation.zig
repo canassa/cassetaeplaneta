@@ -277,7 +277,7 @@ pub fn refreshPowerStrip(g: *Game, obj: *Object, bd: *Backdrop, dir: i16) void {
 /// current one the object is hidden, switched and shown again (each with an
 /// invalidate). Returns the (new) current strip's Frame.
 // @orig 10a0:3fbe animation_set_strip
-fn setStrip(g: *Game, obj: *Object, strip: i16, bd: *Backdrop) *Frame {
+pub fn setStrip(g: *Game, obj: *Object, strip: i16, bd: *Backdrop) *Frame {
     const new = &obj.frames[@intCast(strip)];
     const cur = position.curStrip(obj);
     if (cur.width == new.width and cur.height == new.height) {
