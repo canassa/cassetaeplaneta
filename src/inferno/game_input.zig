@@ -201,14 +201,12 @@ fn leftDown(g: *Game, m: Msg) i32 {
 
 /// Right button: pick an item out of the panel, else act on the object under the pointer. Always 0.
 fn rightDown(g: *Game, m: Msg) i32 {
-    const bd0 = bdOf(g);
-    const x = scrolled(m.lo(), bd0.originX);
-    const y = scrolled(m.hi(), bd0.originY);
-    _ = .{ x, y };
-    // The panel's contains/getInventoryItemAt (0823..).
+    // The panel's contains/getInventoryItemAt (0823..), on the scrolled point.
     if (hasPanel(g)) @panic("INFERNO builds no ControlPanel");
     const bd = bdOf(g);
-    const q = backdrop_unit.queryRect(g, bd, scrolled(m.lo(), bd.originX), scrolled(m.hi(), bd.originY), 16, 16);
+    const x = scrolled(m.lo(), bd.originX);
+    const y = scrolled(m.hi(), bd.originY);
+    const q = backdrop_unit.queryRect(g, bd, x, y, 16, 16);
     if (q.result <= 0) return 0;
     const hit = q.obj orelse return 0;
     if (hit.is(.exit)) @panic("INFERNO builds no Exit");
