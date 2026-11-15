@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Plan JARDIM's Corrigida routes (the Wolf-like movement and the fair enemies) against the port.
 
-    nix develop -c python3 tools/jardim_plan.py --win OUT      # the three phases, the final enemy
+    nix develop -c python3 tools/jardim_plan.py --win OUT      # the three phases, the goal
     nix develop -c python3 tools/jardim_plan.py --lose OUT     # stand by the Seios until lost
     nix develop -c python3 tools/jardim_plan.py --check FILE   # the probe's summary of a script
 
@@ -19,7 +19,7 @@ any weapon Chato and Bicho) when it is within 7 cells in a clear line; walk arou
 (a BFS over the map, enemy cells closed, the cells next to them dear, beers and phase 1's bras
 avoided); a medkit within 14 steps when health is low, arrows or a crossbow when ammunition is
 low; doors opened with E on the way; the exit doors with E (phase 1 row 77 col 0, phase 2 row
-79 col 42), the final enemy walked into. The moves are the Corrigida's keys: Left/Right held
+79 col 42), the goal walked into. The moves are the Corrigida's keys: Left/Right held
 for the turn's tics (14 angle units each), W (Shift+W beyond 2.5 cells) for a straight run of
 at most 4 cells to a cell's centre, A/D to centre the player across the run, E, Space.
 """

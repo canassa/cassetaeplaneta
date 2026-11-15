@@ -143,7 +143,7 @@ virtual base follows at the vbtable's offset (+4, since the vbptr is at +4).
 | `Actor`, `Player` | 0x56, 0x5c | medium: Actor = Mover part, `animation` at 0x36 (its vbptr is at 0x3a: {−4, 0x1c} → SceneObject at 0x56), `inventory` `ObjectList` at 0x4e; Player = Actor + `lives` (0x56) + `score` long (0x58), NOITE's Player tail |
 | `Game` | 0x560 | medium: vtbl, `scene` +4, `statusBar` +0xc, `controlPanel` +0x10, `player` +0x18, `globalObjects` +0x1c (from `game_init`) |
 | `Scene`, `LabyrinthScene` | 0x90 | skeleton; LabyrinthScene: `screen` +4, `handlerEnabled` +0x60, `backdrop` (far `LabyrinthBackdrop *`) +0x62, `mapFile` +0x66 |
-| `Phase1Scene`, `Phase2Scene`, `Phase3Scene` | 0x90, 0x94, 0x92 | high: the phase's far `Portable *` from +0x6a (phase 1: `crossbow`, `bra`, `enemyBussuf`, `enemySeios`, `medkit`, `beer`, `acai`, `arrows`, `exit` +0x8a, `exitIndex` +0x8e; phase 2: `crossbow`, `bazooka`, `enemyAlemao`, `enemySiri`, `medkit`, `beer`, `shrimp`, `arrows`, `bombs`, `exit` +0x8e, `exitIndex` +0x92; phase 3 as phase 2 with `enemyChato`, `enemyBicho` and `finalEnemy` +0x8e, no exit) |
+| `Phase1Scene`, `Phase2Scene`, `Phase3Scene` | 0x90, 0x94, 0x92 | high: the phase's far `Portable *` from +0x6a (phase 1: `crossbow`, `bra`, `enemyBussuf`, `enemySeios`, `medkit`, `beer`, `acai`, `arrows`, `exit` +0x8a, `exitIndex` +0x8e; phase 2: `crossbow`, `bazooka`, `enemyAlemao`, `enemySiri`, `medkit`, `beer`, `shrimp`, `arrows`, `bombs`, `exit` +0x8e, `exitIndex` +0x92; phase 3 as phase 2 with `enemyChato`, `enemyBicho` and `goal` +0x8e, no exit) |
 | `Backdrop` | 0x452 | skeleton (NOITE's size); `hdcSurface` +4, `bits` +6, `bgImage` +0xe, origin and size +0x16–0x1c are typed in LabyrinthBackdrop |
 | `LabyrinthBackdrop` | 0x73c | high: `playerX`/`playerY` +0x452/+0x456, `viewAngle` +0x45a, `startX`/`startY` +0x45e/+0x462 (the respawn point), `skyScrollX`, `floorScrollX/Y` +0x466–0x46a, `velX`/`velY` +0x46c/+0x470, the view rectangle +0x474–0x482, `moveRamp`/`moveSpeed` +0x484/+0x486 (16.16 speed), `secAtAngle`/`cscAtAngle` +0x488/+0x48c, `wallRows` `char far *[80]` +0x490, `objectRows` `SceneObject far * far *[80]` +0x5d0, `health`, `lives`, `ammo`, `level`, `score` +0x710–0x718, `wallStrip` +0x71a, `spriteQueue` +0x71e, `hands` +0x722, `shot` +0x726, `face` +0x72a, `scene` +0x72e, `hwnd` +0x732, `active` +0x734, `moveFlag` +0x736, `shotInFlight` +0x738 |
 | `SpriteQueue`, `SpriteQueueEntry` | 0x7d6, 0x14 | high: 100 entries {`object` far, `dist`, `angle`, `col`, `row`, `left` far, `right` far}, `root` +0x7d0, `nextFree` +0x7d4 |
@@ -190,8 +190,8 @@ NULL silently and the Player is never shown). On the disc and never named by the
 
 `GAME.md` describes it; `BUGS.md` (section JARDIM, J1–J6) lists its bugs. Phase 4 corrected the
 data picture of phase 3: the phase scenes' slot 0x12 places the objects (it is not a tick); the
-variant only picks the final enemy's picture (`espanf` for 1, `vamanf` for 0); the phase-2 door
-sets the phase-3 start (0x30, 0x70); the win is touching the final enemy of phase 3 (there is no
+variant only picks the goal's picture (`espanf` for 1, `vamanf` for 0); the phase-2 door
+sets the phase-3 start (0x30, 0x70); the win is touching the goal of phase 3 (there is no
 last door); `00a2–00aa` are the carried health, lives, ammo, level and score; `0162–017b` the
 backdrop handler's key and shot state; `1a1e` the column depth buffer; `2000–2011` the minimap's
 GDI objects; the map's `9`–`C` are doors.

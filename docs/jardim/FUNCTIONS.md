@@ -245,7 +245,7 @@ JARDIM, J1–J6). What phase 4 corrected in the earlier picture:
   0x16 the door wave, 0x17 `onLifeLost` (the base table's 0x17 is `labyrinth_scene_respawn`).
 - **The phase scenes' destructors** (`1098:0dd2`, `10a8:0f38`, `10b0:0ed6`) never run; the scenes
   are built by `phaseN_scene_create_new_scene` from the exit index of the SPACE door.
-- **The variant** only picks the final enemy's picture (`espanf` for 1, `vamanf` for 0).
+- **The variant** only picks the goal's picture (`espanf` for 1, `vamanf` for 0).
 - **`g_startX/g_startY`** are set by the exit doors to the next phase's start: (1744, 48) for phase
   2, (48, 112) for phase 3; the `g_carry*` globals (`00a2–00aa`) carry health, lives, ammo, level
   and score + 500.

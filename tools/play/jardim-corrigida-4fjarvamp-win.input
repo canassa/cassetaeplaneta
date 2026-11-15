@@ -1,6 +1,6 @@
 # The vampire's garden (4fjarvamp), then a JARDIM win in the Corrigida: JARDIM's WM_CREATE at
 # 1500, jardim-corrigida-alone-win.input's holds shifted by 1500. J7's fix: JARDIM answers only
-# NOITE's hello (variant 0: the final enemy is the vampire's `vamanf`, index 220 at 130960 where
+# NOITE's hello (variant 0: the goal is the vampire's `vamanf`, index 220 at 130960 where
 # espquete's `espanf` shows 163), the result reaches NOITE: the win at 131047, +10937, the second
 # ending (6fsai2).
 #

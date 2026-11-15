@@ -1,6 +1,6 @@
 # NOITE's garden cutscene (espquete), then a JARDIM win in the Corrigida: JARDIM's WM_CREATE at
 # 21165, jardim-corrigida-alone-win.input's holds shifted by 21165 (the same game). J7's fix:
-# NOITE's hello reaches JARDIM with variant 1, so the final enemy is `espanf` (the black
+# NOITE's hello reaches JARDIM with variant 1, so the goal is `espanf` (the black
 # swimsuit at 150625, index 163; the vampire's `vamanf` from 4fjarvamp shows 220 there). The win at
 # 150712: NOITE shows itself, adds 10937 and plays the first ending (6fsai1).
 #

@@ -4,7 +4,7 @@
 # cells), A/D, Left/Right timed in Wolf3D's 70-Hz tics, E for the doors and the exit doors, Space
 # to fire. The crossbow first; the Bussufs, Alemaos, Chatos and Bichos that chase are shot when
 # within 7 cells in a clear line, the rest walked around. Phase 2 at 39.2 s, phase 3 at 77.4 s,
-# the final enemy touched at 129547 (lives 3, 3200 points): won 10937 (J1's fix: 10^9 / the
+# the goal touched at 129547 (lives 3, 3200 points): won 10937 (J1's fix: 10^9 / the
 # milliseconds played since the controls screen went down, +7737).
 #
 #   zig-out/bin/noite --minigame jardim --headless --ms 132000 --fix all --input tools/play/jardim-corrigida-alone-win.input

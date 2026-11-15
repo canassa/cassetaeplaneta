@@ -18,7 +18,7 @@ unit	occupancy	behaviour	src/jardim/behaviour/occupancy.zig	SceneObject slots 27
 unit	panels	module	src/jardim/panels.zig	ControlPanel (ControlPanelVtbl 06-0D) and StatusBar methods, the inventory icons (portable_draw_icon): created, never shown
 unit	phase1	module	src/jardim/phase1.zig	Phase1Scene (raymap1): create (objects, MCI music, WaveMix), placeObjects, touch, hit, the sounds, onLifeLost, its handler (exit doors, the scream's end), createNewScene (Phase2Scene); BUGS.md J3, J6
 unit	phase2	module	src/jardim/phase2.zig	Phase2Scene (raymap2): as phase1; createNewScene builds Phase3Scene; BUGS.md J3, J6
-unit	phase3	module	src/jardim/phase3.zig	Phase3Scene (raymap3): as phase1 without an exit door; the final enemy (the variant's picture) and the win; BUGS.md J2, J3, J6
+unit	phase3	module	src/jardim/phase3.zig	Phase3Scene (raymap3): as phase1 without an exit door; the goal (the variant's picture) and the win; BUGS.md J2, J3, J6
 unit	position	behaviour	src/jardim/behaviour/position.zig	SceneObject slots 00-04 (slot00/01, RLE, scene name), 0D-11 getX/getY/getStep, 3E setPosition, 3F/40 scroll target, 54-57 overlaps, 5A/5B exit slots, 5C-60 defaults; the out-of-line accessors; next_object_id, message_box_printf
 unit	raycast	module	src/jardim/raycast.zig	the walls: raycast_render_view (120 columns, the two ray walks, the nearer hit, the column height and depth), the 32-bit walks 1008:0024/1010:0024 (transcribed, oracle-tested) and their 16:32 gateways, the four wall/door column drawers
 unit	render	behaviour	src/jardim/behaviour/render.zig	SceneObject slots 17-1F (dirty rects, overlap, restore background, drawDirtyTo, draw incl. the panel's and its texts, drawClip(To), erase, slot1F), the DC hooks, reset_rects

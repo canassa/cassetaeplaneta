@@ -3,7 +3,7 @@
 # stands facing it. It comes on a cell per 800 ms; until it stands next to him nothing hurts him
 # (the HUD's health still 100% at 11400, its first blow, 10, at 11830: 90%). Two more enemies
 # join it; the invulnerability after a hit (500 ms) keeps their blows from adding up. Three lives
-# so, each respawn at the start (-500, the killed enemies dead, the others home): lost at 76130,
+# so, each respawn at the start (-500, every enemy home): lost at 76130,
 # -1000 for the two respawns and -1000 for the loss.
 #
 #   zig-out/bin/noite --minigame jardim --headless --ms 77000 --fix all --input tools/play/jardim-corrigida-alone-lose.input

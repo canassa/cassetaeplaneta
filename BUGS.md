@@ -1063,7 +1063,7 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
   as the original's Space, in front of the phase handler). Space no longer opens doors (E does): Space as fire
   is the Wolf3D/modern habit and the touch pad has its own buttons.
 - `Fixes.jardim_controls_screen` (JARDIM): a controls screen (the keys, the goal: the exit door of each of the
-  three labyrinths, the final enemy of the third, pickups, health and lives) from WM_CREATE over the first
+  three labyrinths, the goal of the third, pickups, health and lives) from WM_CREATE over the first
   frame until a key or a click; meanwhile JARDIM gets no input and no timer (nothing moves, no enemy acts), the
   0x40b/0x40c/0x40a handshake, WM_PAINT and WM_DESTROY go on as ever, Esc still quits. The time it was up is
   added to `g_startTick` (J1's fixed bonus counts the time played). The drawing is the fights'
@@ -1908,7 +1908,7 @@ won flag already follows survival or completion, or the game has nothing to surv
 - **INFERNO:** `g_lives` at the 3-minute time-out (non-zero: a win): survival already. The last life lost
   reports nothing in the Original (H3) and a loss in the Corrigida.
 - **SAUNA:** 0xffff when the last dot is eaten, 0 at the third catch: completion.
-- **JARDIM:** 1 when the final enemy is reached with lives left, 0 otherwise: completion.
+- **JARDIM:** 1 when the goal is reached with lives left, 0 otherwise: completion.
 
 ### Harmless (SERIAL)
 
@@ -2479,7 +2479,7 @@ Each is consistent code with a plausible intent. The Corrigida replaces the enem
   only blocks, and Seios, Siri and Bicho take 10 health a blow instead of a life a contact
   (`EnemyTuning.contact_hurts` brings this rule back).
 
-### J7. The variant and NOITE's ack never reach JARDIM: the final enemy is always the vampire's, and from `4fjarvamp` the result is lost
+### J7. The variant and NOITE's ack never reach JARDIM: the goal is always the vampire's, and from `4fjarvamp` the result is lost
 - **Where:** `APPWNDPROC` 1020:0353 (the `FindWindow("Noite Animal")` branch at the top of every message,
   its WM_SYSTIMER retry, and the dispatch to `game_handle_message` at 1020:03b9 before its own cases);
   `labyrinth_scene_handle_message` 1028:5dba (answers 1 for 0x40a and 0x40b); NOITE's `handler_espquete`
@@ -2495,7 +2495,7 @@ Each is consistent code with a plausible intent. The Corrigida replaces the enem
   window 0, and the hello (variant 1) is never even sent. `handler_4fjarvamp` ignores a 0x40c while it
   does not know JARDIM's window; its timer then finds it, sends the hello (variant 0) and from then on
   acks every 0x40c to JARDIM, whose every ack (swallowed) posts another 0x40c.
-- **Effect:** the final enemy of phase 3 is always `vamanf` (the vampire's picture): `espanf`, meant for
+- **Effect:** the goal of phase 3 is always `vamanf` (the vampire's picture): `espanf`, meant for
   the garden cutscene's ending, is never shown. After `espquete` the 0x40c posts are no-ops for NOITE.
   After `4fjarvamp` the two windows bounce 0x40c and 0x40a for the whole game: Windows stays busy, the
   two 8-message queues fill (JARDIM adds a 0x40c for each of its own messages too) and posts start to
@@ -2610,7 +2610,7 @@ Each is consistent code with a plausible intent. The Corrigida replaces the enem
 - **Some constructor positions are in walls:** each object is also placed at its constructor
   position, inside a wall for the phase-1 medkit, beer and arrows, the phase-2 arrows and the
   phase-3 medkit and shrimp, where it is never drawn or reached; `phase3_scene_create`
-  places Chato twice and never Bicho or the final enemy (their map placements follow).
+  places Chato twice and never Bicho or the goal (their map placements follow).
   Confidence 9.
 - **The phase scenes' destructors never run:** `game_take_exit` deletes the old scene through
   `scene_scalar_dtor`, which calls the base `scene_dtor` (Scene has no virtual destructor), so the

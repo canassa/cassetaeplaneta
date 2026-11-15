@@ -246,7 +246,7 @@ JARDIM's `APPWNDPROC` differs from TIRO's and ENCAIXE's:
 The result is posted from `1028:2609` (the labyrinth backdrop's slot 23):
 - a loss (lives 0, or any `WM_DESTROY` other than the win's): `score −= 1000;
   PostMessage(noite, 0x40a, 0, score)`;
-- a win (`WM_DESTROY` with wParam 0xffff, posted when the player touches phase 3's final enemy,
+- a win (`WM_DESTROY` with wParam 0xffff, posted when the player touches phase 3's goal,
   and lives ≠ 0): `score += 1000000000 / (GetTickCount() − start)`, then
   `PostMessage(noite, 0x40a, 1, score)`;
   where the score is the word at backdrop+0x718 and `start` is the dword at `10d0:00ae`, the

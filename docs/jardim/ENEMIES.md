@@ -156,7 +156,7 @@ nf    t=7645  MOVE Seios 38,28 -> 38,27   player 38,28
 
 | Enemy (F frames) | move cells/s, R=38 | R=10 | damage hp/s per drawn copy, R=38 | R=10 |
 |---|---|---|---|---|
-| Bussuf (4), Siri (4), final enemy (4) | 9.5 | 2.5 | 9.5 | 2.5 |
+| Bussuf (4), Siri (4), goal (4) | 9.5 | 2.5 | 9.5 | 2.5 |
 | Seios (5) | 7.6 | 2.0 | 7.6 | 2.0 |
 | Bicho (3) | 12.7 | 3.3 | 12.7 | 3.3 |
 | Alemão (2), Chato (2, silent attack) | 19 | 5 | 19 | 5 |

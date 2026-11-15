@@ -70,7 +70,7 @@ protocol), `DATA.md` (classes, vtables, globals), `FUNCTIONS.md` (names, dead co
   exists only behind its own `Fixes` flag (off by default), all of them in the Corrigida
   (`Fixes.all()`). J5 (the original faults) and the latent overruns become panics naming their
   BUGS.md entry, as NOITE's L5: a smoke "orig" line.
-- **The owner's answers** (once "Owner questions"):
+- **The owner's answers:**
   - **J4:** the wall-texture fix stays in the Corrigida.
   - **J5:** the Original keeps panicking (naming J5) where the original crashes.
   - **J6:** in the Corrigida an enemy hurts once per contact, and again only after the player has
@@ -79,7 +79,7 @@ protocol), `DATA.md` (classes, vtables, globals), `FUNCTIONS.md` (names, dead co
     `jardim_enemy_blocks_walk`). "Away" is more than half a cell (16 units) from the enemy's cell, or
     the enemy gone from it (`labyrinth_input.touchObject`/`leaveContact`), in both movements.
   - **J7:** the fix stays on JARDIM's side (0x40c only after 0x40b; the hello and the ack reach
-    AppWndProc). The Corrigida's final enemy after `espquete` is `espanf`, after `4fjarvamp`
+    AppWndProc). The Corrigida's goal after `espquete` is `espanf`, after `4fjarvamp`
     `vamanf`: `jardim-espquete-win.input` checks the picture (`pixel … | …`).
   - **Timers:** the queue keeps the exact 50/55-ms periods; no Windows 3.1 quantising. The
     Corrigida's movement does not depend on them (below).
@@ -148,7 +148,7 @@ protocol), `DATA.md` (classes, vtables, globals), `FUNCTIONS.md` (names, dead co
     modern habit, and nothing else in JARDIM uses Space. W/A/S/D are read by the motion step (without
     `jardim_smooth_movement` W and S are passed on as ↑ and ↓, A and D do nothing). No mouse look.
   - `jardim_controls_screen` (`src/jardim/controls.zig`): a controls screen from WM_CREATE
-    (Portuguese: the keys, the three exit doors, the final enemy, pickups, health and lives) drawn
+    (Portuguese: the keys, the three exit doors, the goal, pickups, health and lives) drawn
     over the first frame with the fights' `core/controls_screen.zig` (the panel, caps and texts
     now shared; `fight_controls` keeps its rows). Until a key (Esc quits as ever) or a click, the
     game gets no key, mouse or timer message: nothing moves, no enemy acts; the NOITE handshake
@@ -185,18 +185,19 @@ protocol), `DATA.md` (classes, vtables, globals), `FUNCTIONS.md` (names, dead co
     (the original drew an enemy at 16 units over the whole view): it waits a cell further until
     he moves. A blow needs a clear line not cutting a wall's corner, so a diagonal neighbour round
     a corner cannot hit.
-  - **Life-taking enemies: 10 health a blow, contact free** (recommended and applied). With the
+  - **Life-taking enemies: 10 health a blow, contact free** (the owner: OK as is). With the
     tell and the cooldown, the blows are readable damage; a life per bump (J6's rule) would make
     the three strongest enemies end a life in one touch while their blows take a tenth of one, and
     walking into an enemy that stands next to you is easy in a 1-cell corridor. Walking into any
     enemy only blocks; `EnemyTuning.contact_hurts` brings back the original's touch (once per
     contact).
-  - **The final enemy** stands and animates: it is the goal, walked into for the win.
-  - **Respawn.** Killed enemies stay dead after a lost life; the living go home and forget the
-    player (`EnemyTuning.kills_stay_dead`). The original's respawn brings back every enemy (it
-    places the map again without removing anything): with moving enemies that would double every
-    enemy that had walked off its cell, so a respawn rule had to be chosen; this one is an owner
-    question (below).
+  - **The goal** (not an enemy) stands and animates and is walked into for the win; shots ignore
+    her. She is the woman in the swimsuit walking towards the player; who she is depends on the
+    route (`espanf` after `espquete`, `vamanf` after `4fjarvamp`).
+  - **Respawn: the original rule** (the owner). After a lost life every enemy, the killed ones too,
+    comes back at its cell (the original places the map again; `enemies.beforeRespawn` takes the
+    walked-off instances out of their cells first so none is doubled, `afterRespawn` rebuilds every
+    instance idle).
   - **The numbers** are all in `enemies.EnemyTuning` (with comments); F9 in a Debug build shows the
     nearest enemy and logs every tick (the fights' precedent), `zig build -Djardim-probe` is the
     planner's build (the log from the start, the objects map, no motion frames).
@@ -227,7 +228,7 @@ protocol), `DATA.md` (classes, vtables, globals), `FUNCTIONS.md` (names, dead co
   fights' 6-row grid): the arrows on the left (▲ ▼ walk, ◀ ▶ turn), on the right "◁ Lado" and
   "Lado ▷" (A, D: strafe) over "Abrir" (E) and "Tiro" (CTRL); running is left out.
 - **The won flag (the owner's SERIAL rule, survive = win, checked here):**
-  the won flag stays 1 when the final enemy is reached with lives left, 0
+  the won flag stays 1 when the goal is reached with lives left, 0
   otherwise. The win is completion. BUGS.md "The won flag of the other minigames".
 
 ## Source layout
@@ -421,7 +422,7 @@ One `Game` per running JARDIM.
 
 `core/world.zig`:
 - **`Scene`**: Scene + LabyrinthScene + the phases' fields flattened (one Portable per object
-  type, the Exit and its index, the final enemy), `phase` and `vtbl`. The base Scene fields are
+  type, the Exit and its index, the goal), `phase` and `vtbl`. The base Scene fields are
   TIRO's with far pointers (LabyrinthScene's `handlerEnabled` at +0x60 confirms the sum); `scene`
   confirms them.
 - **`Backdrop`**: the Backdrop base (NOITE's layout, one top-down 640×480 WinG bitmap,
@@ -436,7 +437,7 @@ One `Game` per running JARDIM.
 - **`Tables`**: the seven 16.16 tables as slices into the task heap (unit `tables`).
 - `DrawList`, `UpdateList` (30), `Condition` (FlagCondition).
 
-The variant (`g.variant`, 0x40b's wParam) only picks the final enemy's picture (`espanf` for 1,
+The variant (`g.variant`, 0x40b's wParam) only picks the goal's picture (`espanf` for 1,
 `vamanf` for 0). `g_startTick` is `GetTickCount()` of the first backdrop: `g.plat.ticks()` of the
 virtual clock (J1's penalty, and its division by zero when the low word of the win's tick equals
 the start tick, follow from it).
@@ -592,7 +593,7 @@ oracle's `g_angleRadians` for 20 indices including 0, 1, 719, 720, 1439, 2879, 2
 | Harmless: an odd slice taller than the view sits a row high | `jardim_wall_odd_height_row` | raycast | the slice's top one row lower, so its 300 rows land on the view's | yes |
 | J5 a sprite with its top on row 478 crashes | `jardim_sprite_last_rows` | scaled | the magnifying row loop draws the 1–2 rows left on the surface; the Original port panics "BUGS.md J5" where the original faults | yes |
 | J6 a held key into a life-taking enemy takes a life every tick | `jardim_enemy_once_per_contact` | labyrinth_input (and `wolf.zig`) | an enemy touched becomes the contact; a step into it again is blocked without `touch` until the player is more than 16 units from its cell or it has left: one life, or 5 health, per contact (the owner's rule) | yes |
-| J7 the variant (and NOITE's ack) never reaches JARDIM | `jardim_variant_hello` | app | AppWndProc posts 0x40c only after NOITE's 0x40b (the FindWindow branches post nothing) and lets 0x40b and 0x40a reach its own cases before `game_handle_message`, so `espquete`'s timer finds JARDIM, sends the hello and variant 1 arrives (the final enemy is `espanf`), and the ack stops the 0x40c | yes |
+| J7 the variant (and NOITE's ack) never reaches JARDIM | `jardim_variant_hello` | app | AppWndProc posts 0x40c only after NOITE's 0x40b (the FindWindow branches post nothing) and lets 0x40b and 0x40a reach its own cases before `game_handle_message`, so `espquete`'s timer finds JARDIM, sends the hello and variant 1 arrives (the goal is `espanf`), and the ack stops the 0x40c | yes |
 | J8 every system timer ticks the game (timer 10 doubles it) | `jardim_game_timer_only` | labyrinth_input | the backdrop's `WM_SYSTIMER` ticks only for timer 1 (55 ms); the others are answered 1 and dropped | yes |
 
 Each unit ports the buggy code and keeps the fixed path only under its flag
@@ -660,7 +661,7 @@ With `jardim_variant_hello` JARDIM posts nothing until the hello, which `espquet
 `4fjarvamp`'s timers send every 100 ms (neither kills its timer when the 0x40c follows the
 hello): JARDIM stores the variant and NOITE's window and answers 0x40c, NOITE acks, JARDIM stops.
 
-**The result.** The win (touching phase 3's final enemy) posts JARDIM's own `WM_DESTROY` with
+**The result.** The win (touching phase 3's goal) posts JARDIM's own `WM_DESTROY` with
 wParam 0xffff; a loss (lives 0, at an enemy's attack or a touch) posts it with 0. The phase
 handler stops and frees the waves, closes WaveMix and `close musica`, and the backdrop's case
 posts **0x40a** to `g_noiteWnd` (won: wParam 1, lParam score + the J1 bonus; lost: wParam 0,
@@ -770,7 +771,7 @@ What JARDIM needed that the other minigames did not (on main, outside the tracke
   controls (`--fix all` less `jardim_smooth_movement`, `jardim_wolf_keys`,
   `jardim_controls_screen`, `jardim_game_timer_only`, `jardim_wall_margin`):
   - `jardim-alone-win.input` (`--minigame jardim --ms 75000`): the three phases (phase 2 at
-    25.3 s, phase 3 at 40.4 s), the final enemy touched at 72250 (lives 2, 1500 points):
+    25.3 s, phase 3 at 40.4 s), the goal touched at 72250 (lives 2, 1500 points):
     `result won 19370 | won 15340` (J1);
   - `jardim-alone-lose.input` (`--ms 9000`): the last presses walk into a Seios, each a life
     (J6): lost at 7430, reported four times (−4000 checked); with J6's fix no result;
@@ -792,7 +793,7 @@ What JARDIM needed that the other minigames did not (on main, outside the tracke
   - `jardim-corrigida-idle.input` (`--ms 61000`): standing at phase 1's start for a minute, the
     window closed: `lost -1000` (no life lost), with and without the fair enemies;
   - `jardim-corrigida-espquete-win.input` / `-lose` and `jardim-corrigida-4fjarvamp-win.input`: the
-    same shifted to 21165 and 1500; J7's check: the final enemy is `espanf` after `espquete`
+    same shifted to 21165 and 1500; J7's check: the goal is `espanf` after `espquete`
     (`pixel 262 250 163` at 150625) and `vamanf` after `4fjarvamp` (220 at the same moment);
   - `jardim-controls.input` (`--ms 7500`): the controls screen up until Enter (its frame's pixel),
     then ← to north, W 1 s, D (strafe east), → twice, Shift+W back: the minimap marker's pixels
@@ -809,7 +810,7 @@ What JARDIM needed that the other minigames did not (on main, outside the tracke
   frames and, with the fair enemies, the tick's frames change no state): about 2 s for 130 s of
   play. `--win` crosses the three phases (a crossbow first; an enemy the weapon kills, chasing or
   near, shot when within 7 cells in a clear line; a BFS around the rest; a medkit under 55 health;
-  arrows or a crossbow when ammunition is low; doors and exit doors with E; the final enemy walked
+  arrows or a crossbow when ammunition is low; doors and exit doors with E; the goal walked
   into), `--lose` walks to the nearest Seios and stands facing it once one is within 4 cells.
   Runs of at most 4 cells, A/D to centre across a run, re-planned after each move (about 170
   probes for the win).
@@ -937,11 +938,3 @@ noite -p jardim failed <unit> "why" / release <unit>
    (`oracle=emulated` from tools/oracle, `asset` from `assets/JARDIM/`, `documented` from Ghidra).
 8. `noite test`, commit (commit skill), `noite -p jardim finish <unit>` from the main checkout.
 
-## Owner questions
-
-- **The respawn with fair enemies.** The original's respawn brings back every enemy killed (it
-  places the map again). The Corrigida's fair enemies keep the killed ones dead and send the living
-  ones home (`EnemyTuning.kills_stay_dead`): a death costs the score and the position, not the
-  fights already won. Keep it, or restore the original's rule (every enemy back at its cell)?
-
-The answered ones are under "Decisions".

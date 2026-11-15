@@ -246,7 +246,7 @@ Saves go to `save/` (`--save DIR`).
   1000). `tools/smoke.py --minigame sauna [--fix all] [--monkey SEED]` presses and holds random
   arrows and clicks the maze for 120 s. The playthroughs never enter the sauna.
 - **JARDIM**: in the 1995 controls, `--minigame jardim --ms 75000 --input
-  tools/play/jardim-alone-win.input` (the three labyrinths and the final enemy at 72250: `result won
+  tools/play/jardim-alone-win.input` (the three labyrinths and the goal at 72250: `result won
   19370 | won 15340`, BUGS.md J1), `--ms 9000 --input tools/play/jardim-alone-lose.input` (presses
   into a Seios, a life each, BUGS.md J6: lost, reported four times, -4000) and `--ms 3000 --input
   tools/play/jardim-close.input` (the window closed at 2 s: `lost -1000`); from NOITE, `--scene
@@ -259,7 +259,7 @@ Saves go to `save/` (`--save DIR`).
   screen and fair enemies: `jardim-corrigida-alone-win.input` (`--ms 132000 --fix all`: won 10937),
   `jardim-corrigida-alone-lose.input` (a Seios faced from 4 cells hurts only once next to the
   player: the HUD's health checked by a pixel), `jardim-corrigida-idle.input` (a minute standing at
-  the start costs nothing), `jardim-corrigida-espquete-win.input` (the final enemy is `espanf`,
+  the start costs nothing), `jardim-corrigida-espquete-win.input` (the goal is `espanf`,
   checked by a pixel), `jardim-corrigida-espquete-lose.input`, `jardim-corrigida-4fjarvamp-win.input`
   and `jardim-controls.input` (the controls screen, then a walk, a strafe, two turns and a run,
   checked on the minimap). The Corrigida's routes come from `tools/jardim_plan.py --win|--lose OUT`

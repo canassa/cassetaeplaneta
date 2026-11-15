@@ -213,7 +213,7 @@ Each phase scene is a LabyrinthScene subclass with the slots `hit` 0x10, `touch`
 `placeObjects` 0x12, `playEnemyAttackSound` 0x13, `playEnemyStepSound` 0x14, `playFireSound` 0x15,
 `playDoorSound` 0x16, `onLifeLost` 0x17. Every type of object is **one** Portable stored in many
 cells; it also stands at its constructor position (an extra copy, unless that cell is a wall;
-phase 3 places Chato there twice and Bicho and the final enemy not at all).
+phase 3 places Chato there twice and Bicho and the goal not at all).
 Counts are the `placeObjects` calls ("+ctor" when the constructor cell is a floor cell).
 
 **Phase 1** (`raymap1.dat`, start (912, 48) = col 28, row 1). Weapons: fists, crossbow, bra.
@@ -251,7 +251,7 @@ Counts are the `placeObjects` calls ("+ctor" when the constructor cell is a floo
 |---|---|---|---|---|
 | `enemyChato` | `Chato` 98×227 ×2 | 9 +ctor | health −5 | any weapon: +200, **not removed** (`BUGS.md` J2) |
 | `enemyBicho` | `Bicho` 234×205 ×3 | 3 | a life | any weapon: removed, +100 |
-| `finalEnemy` | `espanf` 74×173 ×4 (variant 1) or `vamanf` 82×182 ×4 (variant 0) | 1, at row 78 col 2 | **the win** | ignored |
+| `goal` | `espanf` 74×173 ×4 (variant 1) or `vamanf` 82×182 ×4 (variant 0) | 1, at row 78 col 2 | **the win** | ignored |
 
 Common rules:
 - A pickup touched is removed from the player's cell (only that cell); one refused (arrows or
@@ -302,8 +302,7 @@ distance, steps along the view axis into and past the player) stay in the Origin
   for 300 ms; a kill draws the enemy white for its next 2 game frames (about 200 ms), then it is
   gone. Animation at 8 frames a second (the walking frames; the last is the attack pose).
 - **Deaths.** A life lost: the scream, then the original's respawn (the pickups placed again, the
-  player at the start, −500), but the killed enemies stay dead and the living ones go back to
-  their own cells and forget the player.
+  player at the start, −500), and every enemy, the killed ones too, comes back at its own cell (the original's rule).
 - **Shots** (`jardim_shot_substeps`, also in the Corrigida): the shot's cell a tick is reached in four
   8-unit steps, each new cell met as the original's step meets its one: a diagonal shot no longer
   steps over a cell's corner. Which weapon kills which enemy is the original's (the tables above):
@@ -343,7 +342,7 @@ goes on meanwhile until the scream ends. At 0 lives the game posts itself `WM_DE
     scene is deleted through the base destructor (the Portables leak, harmless).
   - phase 3: `PostMessage(WM_DESTROY, 0)`, a loss; map 3 has no such door past row 5, so the
     branch is dead.
-- **The win:** touching the `finalEnemy` (phase 3 only; it cannot be shot):
+- **The win:** touching the `goal`, the woman in the swimsuit (phase 3 only; not an enemy, it cannot be shot):
   `PostMessage(WM_DESTROY, 0xffff)`.
 
 ## The result
@@ -374,8 +373,8 @@ NOITE's side (`src/handlers/espquete.zig`, `src/handlers/4fjarvamp.zig`):
 - `handler_espquete` (1028:0a88), the garden cutscene: at the video's successful end
   (`MM_MCINOTIFY`) it `_chdir`s to `<CD>jardim`, `WinExec`s `<CD>jardim\jardim.exe` and starts timer
   0x14 (100 ms); the timer finds "Noite Animal Jardim", hides the main window and posts `0x40b`
-  with **variant 1** (the final enemy is `espanf`). JARDIM's own 0x40c gets there first and the handler
-  kills the timer, so this hello is never sent; JARDIM would not read it anyway, and the final enemy is
+  with **variant 1** (the goal is `espanf`). JARDIM's own 0x40c gets there first and the handler
+  kills the timer, so this hello is never sent; JARDIM would not read it anyway, and the goal is
   `vamanf` (`BUGS.md` J7).
 - `handler_4fjarvamp` (1028:0d80), the vampire's garden: the same at the scene start (0x401), with
   **variant 0** (`vamanf`).
