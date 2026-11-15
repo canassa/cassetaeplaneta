@@ -278,10 +278,10 @@ pub const Object = struct {
     sceneName: [22]u8 = @splat(0),
     // @orig SceneObject+0x48e (set and read by the slot00/01 defaults)
     slot00Flag: i16 = 0,
-    // @orig SceneObject+0x492 (unknown)
-    unk492: u16 = 0,
-    // @orig SceneObject+0x494
-    rleMode: u16 = 0,
+    // @orig SceneObject+0x490 (enableRle sets it; isRle reads it)
+    rleFlag: i16 = 0,
+    // @orig SceneObject+0x492 (far pointer: the RLE data, past the colour table)
+    rleBits: ?[]u8 = null,
     // @orig SceneObject+0x496 (the labyrinth world position, 1/32 cell)
     worldX: i16 = 0,
     // @orig SceneObject+0x498
