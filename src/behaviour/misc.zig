@@ -1,4 +1,4 @@
-//! Port unit `misc` (behaviour). SceneObject slots 00-04 (touched mark, RLE mode, scene name) and 1F (empty debug hook).
+//! Port unit `misc` (behaviour). SceneObject slots 00-04 (touched mark, RLE mode, scene name) and 1F (object::Save, an empty background save).
 
 const std = @import("std");
 const Game = @import("../core/game.zig").Game;
@@ -63,26 +63,26 @@ pub fn slot1F(g: *Game, obj: *Object, bd: *Backdrop) void {
     }
 }
 
-// @orig 1010:1720 FUN_1010_1720
+// @orig 1010:1720 scene_object_save
 fn slot1FDefault(obj: *Object, bd: *Backdrop) void {
     debugDc(obj, 1, bd);
 }
 
-// @orig 1010:2776 FUN_1010_2776
+// @orig 1010:2776 animation_save
 // The Animation implementation (the vtordisp thunks 8b24, 85ce, 81c8,
 // 7c6a, 7ee2 are absorbed here).
 fn animationSlot1F(obj: *Object, bd: *Backdrop) void {
     debugDc(obj, 1, bd);
 }
 
-// @orig 1010:b348 FUN_1010_b348
+// @orig 1010:b348 scene_object_save_background
 fn debugDc(obj: *Object, flag: i16, bd: *Backdrop) void {
     _ = .{ flag, bd }; // the original passes bd->hdc (no DC in the port)
     debugEmpty(obj, 0);
 }
 
-// @orig 1010:b33e FUN_1010_b33e
-// Empty body (compiled-out debug code).
+// @orig 1010:b33e scene_object_save_background_dc
+// Empty body (object::SaveBackGround, already commented out in 1995).
 fn debugEmpty(obj: *Object, hdc: u16) void {
     _ = .{ obj, hdc };
 }

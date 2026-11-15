@@ -41,7 +41,7 @@ Player/Exit methods), `51f6`, `5e7c–6c18` (35, the dead Portable/Exit/Perspect
 | Address | Name | Tag | Why |
 |---|---|---|---|
 | `1008:69e0` | `FUN_1008_69e0` | `review` | dead empty `(this, backdrop)` method (`RET 4`); no table holds it, so its slot is unknown (NOITE `FUN_1010_a8c0`, also unnamed) |
-| `1008:69e4` | `FUN_1008_69e4` | `review` | as `69e0` (NOITE `FUN_1010_a8ca`) |
+| `1008:69e4` | `FUN_1008_69e4` | `review` | as `69e0` (NOITE `bg_layer_vacate`) |
 | `1008:6a5c` | `FUN_1008_6a5c` | `review` | dead empty `(this)` method (`RET 2`) (NOITE `FUN_1010_a908`) |
 | `1008:27be` | `object3d_unk11` | `review` | Object3D override of the ENCAIXE-only slot `unk11`: GetDC + ReleaseDC and nothing else; the slot's purpose is unknown |
 | `1008:bc72` | `te_piece_calc_shape_rects` | `review` | dead; name by role only (fills `Piece+0xf2–0x108`, which nothing reads) |

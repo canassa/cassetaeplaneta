@@ -273,7 +273,7 @@ pub fn slot00(g: *Game, obj: *Object) i16 {
     return object3dSlot00();
 }
 
-// @orig 1010:31e8 FUN_1010_31e8
+// @orig 1010:31e8 object3d_get_z0
 fn object3dSlot00() i16 {
     return 0;
 }

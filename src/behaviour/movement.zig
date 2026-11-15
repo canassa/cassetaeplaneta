@@ -462,7 +462,7 @@ fn moveableStopMoving(g: *Game, obj: *Object, bd: *Backdrop) void {
 // @orig 1010:b9ba mover_place_at
 /// Frees the grid cells, sets the position, restores the background,
 /// re-occupies the grid and draws the object (the original's call to the
-/// empty FUN_1010_b348 is omitted).
+/// empty scene_object_save_background is omitted).
 fn moverPlaceAt(g: *Game, obj: *Object, x: i16, y: i16, bd: *Backdrop) void {
     _ = occupancy.vacate(g, obj, bd);
     position.setPosition(g, obj, x, y);

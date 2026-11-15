@@ -45,7 +45,13 @@ The C++ lattice (SceneObject ← Object3D, Animation, Mover; Animated3D,
 Moveable, Actor, Player/DirectionalPlayer, Exit, Portable, ControlPanel,
 StatusBar; virtual bases, vbtables, vtordisp and adjustor thunks) is
 flattened into **one `Object` struct with a `kind` tag**
-(`src/core/object.zig`):
+(`src/core/object.zig`). The lattice is the 1995 class library found on the
+disc (`docs/SRC1995.md`): SceneObject is `object`, Object3D `_3D_object`,
+Animation `animated`, Mover `moveable`, Animated3D/Moveable/Actor/Player
+`_3D_animated/_3D_moveable/_3D_actor/_3D_player`, Exit `exits`, Portable
+`portable`, ControlPanel `control_panel`, StatusBar `status_bar`; the
+backdrops are `screen`/`occup_screen`/`_3D_screen`, Scene `scene`/`gen_scene`,
+Game `application`/`gen_applic`. Every minigame is built on the same library.
 
 | Kind | original class | INI key | parts live |
 |---|---|---|---|
@@ -120,7 +126,10 @@ declared: the backdrop is always a PerspectiveBackdrop.
 ### SceneObject slots (kinds: L local, A animated, M moveable, Ac actor, P player, E exit, Po portable, C control_panel, S status_bar)
 
 Generated from the 14 vtables (thunks resolved). "dead" = never called.
-Type-test slots 43–57 and 5D/5E are `Object.is/as`.
+Type-test slots 43–57 and 5D/5E are `Object.is/as`. The behaviour column is
+the port's dispatcher name; the 1995 `object::` virtual of every slot (11
+`Find_z`, 1F `Save`, 24 `Refresh`, 5B/5C `CollisionHandling`, 61–65
+`IsClass1..5`, …) is in `docs/SRC1995.md` ("SceneObject vtable").
 
 | slot | behaviour | unit | default | overrides (impl: kinds) |
 |---|---|---|---|---|
@@ -141,7 +150,7 @@ Type-test slots 43–57 and 5D/5E are `Object.is/as`.
 | 0E | getY | position | so_get_y | mover_get_y: M Ac P Po |
 | 0F | getStepX | position | so_get_step_x_default (stub) | mover_get_step_x: M Ac P Po |
 | 10 | getStepY | position | so_get_step_y_default (stub) | mover_get_step_y: M Ac P Po |
-| 11 | slot11 | dead | FUN_1010_13e6 |  |
+| 11 | slot11 | dead | scene_object_find_support_default |  |
 | 12 | setElevation | space3d | so_set_elevation_default (stub) | object3d_set_elevation: L A E C; moveable_set_elevation: M Ac P; portable_set_elevation: Po |
 | 13 | setAnchor | space3d | so_set_anchor_default (stub) | object3d_set_anchor: L A M Ac P E Po C |
 | 14 | setSize | space3d | so_set_size_default (stub) | object3d_set_size: L A M Ac P E Po C |
@@ -155,12 +164,12 @@ Type-test slots 43–57 and 5D/5E are `Object.is/as`.
 | 1C | drawClipTo | render | so_draw_clip_to |  |
 | 1D | drawClip | render | so_draw_clip |  |
 | 1E | erase | render | so_erase | animation_erase: A Ac P E C |
-| 1F | slot1F | misc | FUN_1010_1720 | FUN_1010_8b24: A; FUN_1010_85ce: Ac; FUN_1010_81c8: P; FUN_1010_7c6a: E; FUN_1010_7ee2: C |
+| 1F | slot1F | misc | scene_object_save | animation_save_thunk: A; actor_save_thunk: Ac; player_save_thunk: P; exit_save_thunk: E; control_panel_save_thunk: C |
 | 20 | redraw | visibility | so_redraw | animated3d_redraw: A Ac P E C |
 | 21 | hideAndInvalidate | visibility | so_hide_and_invalidate |  |
 | 22 | blitToDc | visibility | so_blit_to_dc | moveable_blit_to_dc: M Ac P Po |
 | 23 | invalidate | visibility | so_invalidate | moveable_invalidate: M Ac P Po |
-| 24 | slot24 | dead | FUN_1010_b10c | FUN_1010_8956: M; FUN_1010_8616: Ac; FUN_1010_8210: P; FUN_1010_793c: Po |
+| 24 | slot24 | dead | scene_object_refresh | mover_refresh_thunk: M; actor_refresh_thunk: Ac; player_refresh_thunk: P; portable_refresh_thunk: Po |
 | 25 | hide | visibility | so_hide | mover_hide: M Ac P Po |
 | 26 | show | visibility | so_show | animated3d_show: A E C; mover_show: M Po; actor_show: Ac P |
 | 27 | occupy | occupancy | so_occupy | player_occupy: P; control_panel_occupy: C; status_bar_occupy: S |
@@ -194,15 +203,15 @@ Type-test slots 43–57 and 5D/5E are `Object.is/as`.
 | 58 | redrawOverlapping | visibility | so_redraw_overlapping_default (stub) | object3d_redraw_overlapping: L A M Ac P E Po C |
 | 59 | hitboxOverlaps | position | so_hitbox_overlaps |  |
 | 5A | boundsOverlap | position | so_bounds_overlap |  |
-| 5B | slot5B | dead | FUN_1010_1cd2 |  |
-| 5C | slot5C | dead | FUN_1010_1cc6 |  |
+| 5B | slot5B | dead | scene_object_handle_collision |  |
+| 5C | slot5C | dead | scene_object_handle_collision_2d |  |
 | 5F | isEnabled | exit | so_is_enabled_default (stub) | exit_is_enabled: E |
 | 60 | getExitIndex | exit | so_get_exit_index_default (stub) | exit_get_exit_index: E |
-| 61 | slot61 | dead | FUN_1010_1d12 |  |
-| 62 | slot62 | dead | FUN_1010_1d1e |  |
-| 63 | slot63 | dead | FUN_1010_1d2a |  |
-| 64 | slot64 | dead | FUN_1010_1d36 |  |
-| 65 | slot65 | dead | FUN_1010_1d42 |  |
+| 61 | slot61 | dead | scene_object_is_class1 |  |
+| 62 | slot62 | dead | scene_object_is_class2 |  |
+| 63 | slot63 | dead | scene_object_is_class3 |  |
+| 64 | slot64 | dead | scene_object_is_class4 |  |
+| 65 | slot65 | dead | scene_object_is_class5 |  |
 
 ### Other vtables
 
@@ -323,7 +332,9 @@ message trace) can match the original's:
   ends, the minigame's 0x40c/0x40a.
 - Private messages: 0x401 scene started · 0x402 exit finished (exit index)
   · 0x403 animation finished (id) · 0x404 movement finished (id) · 0x405
-  player stepped (id) · 0x406 object created (id, `g.newObject`; sent) ·
+  player stepped (id) — the 1995 source's `WM_INITSCENE`, `WM_EXITSCENE`,
+  `WM_ENDANIM`, `WM_ENDMOVE`, `WM_PLAYERMOVE` (`WM_USER+1..5`, GAMES.HPP;
+  Ghidra enum `GameMessage` and equates) · 0x406 object created (id, `g.newObject`; sent) ·
   0x40a minigame result (won, score) · 0x40b/0x40c minigame handshake ·
   0x40d unlock input. Keep every `PostMessage`/`SendMessage` of the
   original as `g.post`/`g.send` at the same point — never call the target
@@ -351,7 +362,10 @@ pub fn handle(g: *Game, m: Msg) i16 { const s = g.sceneState(State); … }
   `units.handler_<scene>.handle` at its Screen= Number in `g.handlers`.
   Dispatch: `ini_scene_handle_message` (unit `scene`) calls
   `g.handlers[scene.sceneNumber]` for 0x406 always, otherwise when
-  `handlerEnabled`.
+  `handlerEnabled`. This is the 1995 source's
+  `VetMessageHandling[SceneNumber]` (GENSCENE.CPP, `MAX_SCENES` 200),
+  filled by `InitGame` (GENAPLIC.CPP); its first handler was QuartoZe's
+  (MSGHANDL.CPP).
 - Globals: a handler's `g_s<scene>*` globals become fields of its `State`
   (default-initialised like the original's DGROUP data); shared ones
   (`g_slotScreenSaves`) are `Game` fields.

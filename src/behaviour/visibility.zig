@@ -193,7 +193,7 @@ pub fn show(g: *Game, obj: *Object, bd: *Backdrop) void {
 
 // @orig 1010:1822 scene_object_show
 /// First frame, drawn into the backdrop bitmap, cells occupied, visible.
-/// (The call to FUN_1010_b348 passes the WinG DC to an empty helper.)
+/// (The call to scene_object_save_background passes the WinG DC to an empty helper.)
 fn sceneObjectShow(g: *Game, obj: *Object, bd: *Backdrop) void {
     obj.curFrame = 0;
     render.draw(g, obj, bd);

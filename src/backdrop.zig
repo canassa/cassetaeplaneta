@@ -229,8 +229,9 @@ pub fn vacate(g: *Game, bd: *Backdrop, obj: *Object) i16 {
     return r;
 }
 
-/// Backdrop slot 07 (does nothing, returns 0).
-// @orig 1010:0e18 FUN_1010_0e18
+/// Backdrop slot 07 (does nothing, returns 0): 1995 `screen::ScrollLayers`,
+/// which only `parallax_screen` overrode.
+// @orig 1010:0e18 backdrop_scroll_layers_default
 pub fn slot07(g: *Game, bd: *Backdrop) i16 {
     _ = .{ g, bd };
     return 0;
@@ -330,7 +331,7 @@ pub fn createWithGrid(g: *Game, bd: *Backdrop, cell_shift: i16) ?*Backdrop {
 }
 
 /// Backdrop slot 18: the object's slot 12 (`setElevation`) with (`bd`, `arg`).
-// @orig 1010:ad18 FUN_1010_ad18
+// @orig 1010:ad18 perspective_backdrop_set_object3d_elevation
 pub fn slot18(g: *Game, bd: *Backdrop, obj: *Object, arg: i16) ?*Object {
     return space3d.setElevation(g, obj, bd, arg);
 }

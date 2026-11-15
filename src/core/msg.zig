@@ -59,15 +59,15 @@ pub const mci_notify_successful: u16 = 1;
 
 /// The game's private messages (ledger: "Window messages").
 pub const noite = struct {
-    /// Sent by every scene creator once the scene is built.
+    /// WM_INITSCENE (1995 name). Sent by every scene creator once the scene is built.
     pub const scene_started: u16 = 0x401;
-    /// wParam = exit index.
+    /// WM_EXITSCENE (1995 name). wParam = exit index.
     pub const exit_finished: u16 = 0x402;
-    /// wParam = object id.
+    /// WM_ENDANIM (1995 name). wParam = object id.
     pub const animation_finished: u16 = 0x403;
-    /// wParam = object id.
+    /// WM_ENDMOVE (1995 name). wParam = object id.
     pub const movement_finished: u16 = 0x404;
-    /// wParam = object id; posted every player movement tick.
+    /// WM_PLAYERMOVE (1995 name). wParam = object id; posted every player movement tick.
     pub const player_stepped: u16 = 0x405;
     /// wParam = object id (INI Number); `Game.newObject` is the object.
     pub const object_created: u16 = 0x406;
