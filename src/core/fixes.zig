@@ -274,10 +274,11 @@ pub const Fixes = struct {
     /// I1: SPACE sets its latch on key-down, so a held SPACE fires once (no
     /// new shot on every key repeat once the last one has landed).
     inv_space_latch: bool = false,
-    /// I2: while the cannon explodes (`hitFrame` != -1) LEFT and RIGHT only
-    /// set or clear their latches: the cannon stays put for the whole
-    /// `Brocha.bmp` explosion (so it cannot fire either) and the explosion's
-    /// end resumes a held key, as it already does.
+    /// I2: while the cannon explodes (its strip 1, from the hit on; `hitFrame`
+    /// is still -1 until its first tick) LEFT and RIGHT only set or clear
+    /// their latches and SPACE does not fire: the cannon stays put for the
+    /// whole `Brocha.bmp` explosion and the explosion's end resumes a held
+    /// key, as it already does.
     inv_explosion_holds_cannon: bool = false,
     // ---- SALGIN.EXE (BUGS.md S1–S11) and XILINDRO.EXE (X1–X11), the two
     // fights (docs/salgin/DESIGN.md "Fixes"). The src/salgin/ and

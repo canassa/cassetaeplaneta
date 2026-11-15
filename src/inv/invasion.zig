@@ -136,9 +136,11 @@ pub fn handleMessage(g: *Game, scene: *Scene, m: Msg) i16 {
 }
 
 /// BUGS.md I2: with the fix, a direction key does not touch the cannon while
-/// its explosion runs (`hitFrame != -1`); only the latch changes.
+/// its explosion runs; only the latch changes. The explosion is strip 1,
+/// from `cannon_lose_life` to the strip's end: `hitFrame` is still -1 until
+/// the cannon's first tick, so it cannot tell.
 fn holdsCannon(g: *Game) bool {
-    return g.fixes.inv_explosion_holds_cannon and g.cannon.?.cannon.hitFrame != -1;
+    return g.fixes.inv_explosion_holds_cannon and g.cannon.?.curStrip == 1;
 }
 
 /// LEFT / RIGHT down: `moveToEdgeH(dir)` (arms the 60 ms timer), then one
@@ -164,13 +166,16 @@ fn releaseKey(g: *Game, scene: *Scene, other_held: bool, other_dir: i16) void {
 
 /// WM_KEYDOWN VK_SPACE: the fire gate (latch clear, the cannon not exploding,
 /// the shot not flying), then the shot goes up. BUGS.md I1: nothing sets
-/// `g_keySpaceHeld`, so key repeats refire; the fix sets it.
+/// `g_keySpaceHeld`, so key repeats refire; the fix sets it. BUGS.md I2:
+/// the gate's `hitFrame` is -1 in the explosion's first tick too; the fix
+/// also refuses while the explosion strip is on.
 fn keySpace(g: *Game, scene: *Scene) void {
     if (g.keySpaceHeld != 0) return;
     if (g.fixes.inv_space_latch) g.keySpaceHeld = 1;
     const c = g.cannon.?;
     const shot = g.shots[0].?;
     if (c.cannon.hitFrame != -1 or shot.mover.moving != 0) return;
+    if (holdsCannon(g)) return;
     const bd = bdOf(scene);
     shot.x = c.x +% 0x1b;
     shot.y = c.y -% 0x1e;
@@ -365,8 +370,8 @@ fn shotTick(g: *Game, bd: *Backdrop, shot: *Object) void {
 }
 
 /// The second hit stage: the columns whose x range holds the shot and whose
-/// lowest live invader is on the shot's row lose it. No break (the columns
-/// do not overlap in x).
+/// lowest live invader is on the shot's row lose it. No break (the live
+/// columns stay 108 px apart, so at most one holds the shot).
 fn invaderHit(g: *Game, bd: *Backdrop, shot: *Object) void {
     const ex = g.invaderExplosion.?;
     for (g.invaderColumns) |col_opt| {
@@ -375,8 +380,13 @@ fn invaderHit(g: *Game, bd: *Backdrop, shot: *Object) void {
         // (shot.y - col.y) / 44, signed IDIV truncating toward 0.
         const row = @divTrunc(0 -% (col.y -% shot.y), 0x2c);
         if (col.invader.lowestAlive != row) continue;
-        // The original would index before the cells for an empty column
-        // (row -1); nothing reaches it (the columns do not overlap in x).
+        // Row -1 matches only an emptied column (lowestAlive -1), with the
+        // shot 44 px or more above its top: the original then takes
+        // cells[-1] (the column's +0x4c..+0x51) as a kill (BUGS.md, INV
+        // Harmless). An emptied column stops stepping, so the live ones
+        // pass under it, and shots are flagged up to 36 px above its top,
+        // but never 44 in thousands of games; the port skips it, having no
+        // such memory to read.
         if (row < 0) continue;
         const cell = &col.invader.cells[@intCast(row)];
         cell.alive = 0;
