@@ -85,6 +85,11 @@
   #dpad.fight [data-key="83"] { grid-area: 1 / 6 / 4 / 7; }
   #dpad.fight [data-key="68"] { grid-area: 4 / 5 / 7 / 6; }
   #dpad.fight [data-key="70"] { grid-area: 4 / 6 / 7 / 7; }
+  /* The Corrigida's JARDIM: the same grid, A D (strafe) over E (Abrir) and
+     CTRL (Tiro). */
+  #dpad.jardim [data-key="68"] { grid-area: 1 / 6 / 4 / 7; }
+  #dpad.jardim [data-key="69"] { grid-area: 4 / 5 / 7 / 6; }
+  #dpad.jardim [data-key="17"] { grid-area: 4 / 6 / 7 / 7; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -158,6 +163,7 @@
   <button data-key="83" class="word" aria-label="Chute" hidden>Chute</button>
   <button data-key="68" class="word" aria-label="Chute alto" hidden>Chute alto</button>
   <button data-key="70" class="word" aria-label="Rasteira" hidden>Rasteira</button>
+  <button data-key="69" class="word" aria-label="Abrir porta" hidden>Abrir</button>
 </div>
 <script src="noite.js"></script>
 </body>

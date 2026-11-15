@@ -82,7 +82,11 @@ pad shows the four arrows and ◀ does the same (sauna-touch.png). Then
 minimap's square moves (jardim.png, jardim-walk.png), and a held Ctrl
 shows the fists' punch (jardim-punch.png); on a touch screen the pad shows
 the arrows, Abrir (SPACE) and Tiro (CTRL), and a held ▲ walks
-(jardim-touch.png).
+(jardim-touch.png). In the Corrigida the controls screen comes first
+(jardim-controls.png; the key that takes it down does not walk), then a
+held W walks, A strafes and Space punches (jardim-corrigida-walk.png); on a
+phone the pad shows the arrows, the strafes, Abrir (E) and Tiro, a tap
+takes the screen down and a held ▲ walks (jardim-corrigida-touch.png).
 Before the game: /explorer/ (the asset explorer) lists the unused files
 and opens one on a click, on a desktop and a phone (explorer.png,
 explorer-detail.png, explorer-phone.png); the game page later loads none of
@@ -1141,6 +1145,84 @@ def main():
             check(not terrors, "touch Jardim: no page errors")
             tctx.close()
 
+        def jardim_corrigida():
+            """Jardim alone in the Corrigida: the controls screen is up and
+            a held W does not walk under it (its press takes the screen
+            down); then Enter is not needed again: a held W walks, a held A
+            strafes (the minimap's square moves) and Space punches."""
+            page.goto(url)
+            load()
+            page.select_option("#jogo", "jardim")
+            page.check('input[name="versao"][value="corrigida"]')
+            play()
+            time.sleep(1.5)
+            shot("jardim-controls.png")
+            page.keyboard.down("w")
+            time.sleep(0.3)
+            before = page.evaluate(minimap_js)
+            time.sleep(0.6)
+            held = page.evaluate(minimap_js)
+            page.keyboard.up("w")
+            time.sleep(0.3)
+            check(held == before, "Corrigida Jardim: the key that takes the controls screen down does not walk")
+            page.keyboard.down("w")
+            time.sleep(0.6)
+            page.keyboard.up("w")
+            time.sleep(0.3)
+            walked = page.evaluate(minimap_js)
+            shot("jardim-corrigida-walk.png")
+            check(walked != before, "Corrigida Jardim: a held W walks the player on the minimap")
+            page.keyboard.down("a")
+            time.sleep(0.4)
+            page.keyboard.up("a")
+            time.sleep(0.3)
+            check(page.evaluate(minimap_js) != walked, "Corrigida Jardim: a held A strafes")
+            hands = page.evaluate(hands_js)
+            page.keyboard.down(" ")
+            time.sleep(0.3)
+            punch = page.evaluate(hands_js)
+            page.keyboard.up(" ")
+            check(punch != hands, "Corrigida Jardim: a held Space punches")
+            check(not errors, "Corrigida Jardim: no page errors")
+
+        def jardim_corrigida_touch():
+            """Jardim alone in the Corrigida on a phone: the pad shows the
+            arrows, the two strafes, Abrir (E) and Tiro (CTRL); a tap takes
+            the controls screen down and a held ▲ walks."""
+            tctx = browser.new_context(viewport={"width": 844, "height": 390}, has_touch=True, is_mobile=True)
+            tpage = tctx.new_page()
+            terrors = []
+            tpage.on("pageerror", lambda e: terrors.append(str(e)))
+            tpage.goto(url)
+            tpage.wait_for_function("window.noite.ready || window.noite.failure", timeout=600_000)
+            tpage.select_option("#jogo", "jardim")
+            tpage.check('input[name="versao"][value="corrigida"]')
+            tpage.click("#play")
+            tpage.wait_for_function("window.noite.started || window.noite.failure", timeout=60_000)
+            time.sleep(1.5)
+            shown = tpage.evaluate("""() => Array.from(document.querySelectorAll('#dpad button'))
+                .filter((b) => !b.hidden).map((b) => [Number(b.dataset.key), b.textContent])""")
+            keys = sorted(k for k, _ in shown)
+            check(keys == [17, 37, 38, 39, 40, 65, 68, 69], f"Corrigida touch Jardim: the pad shows the arrows, A, D, E and CTRL ({shown})")
+            labels = dict(shown)
+            check(labels.get(69) == "Abrir" and labels.get(17) == "Tiro" and "Lado" in labels.get(65, ""),
+                  f"Corrigida touch Jardim: E opens, CTRL fires, A and D strafe ({labels})")
+            up = tpage.locator('#dpad [data-key="38"]')
+            up.tap()
+            time.sleep(0.5)
+            before = tpage.evaluate(minimap_js)
+            box = up.bounding_box()
+            cdp = tctx.new_cdp_session(tpage)
+            cdp.send("Input.dispatchTouchEvent", {"type": "touchStart",
+                     "touchPoints": [{"x": box["x"] + box["width"] / 2, "y": box["y"] + box["height"] / 2}]})
+            time.sleep(0.6)
+            cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+            time.sleep(0.3)
+            tpage.screenshot(path=str(out / "jardim-corrigida-touch.png"))
+            check(tpage.evaluate(minimap_js) != before, "Corrigida touch Jardim: a held ▲ walks the player")
+            check(not terrors, "Corrigida touch Jardim: no page errors")
+            tctx.close()
+
         def manifest():
             return page.evaluate("""async () => {
                 const html = await (await fetch("./", { cache: "no-cache" })).text();
@@ -1328,6 +1410,8 @@ def main():
         sauna_touch()
         jardim_alone()
         jardim_touch()
+        jardim_corrigida()
+        jardim_corrigida_touch()
         browser.close()
     if not args.url:
         httpd.shutdown()

@@ -50,8 +50,9 @@
     { name: "jardim", title: "Noite Animal Jardim", ready: true },
   ];
   // The keys the page passes on (KeyboardEvent.keyCode = the virtual key):
-  // the fights' Corrigida keys A, S, D, F (65, 83, 68, 70) too.
-  const GAME_KEYS = new Set([13, 16, 17, 20, 27, 32, 33, 35, 36, 37, 38, 39, 40, 45, 65, 68, 70, 83]);
+  // the fights' Corrigida keys A, S, D, F (65, 83, 68, 70) and JARDIM's W, E
+  // (87, 69) too.
+  const GAME_KEYS = new Set([13, 16, 17, 20, 27, 32, 33, 35, 36, 37, 38, 39, 40, 45, 65, 68, 69, 70, 83, 87]);
   // The on-screen pad's keys (KeyboardEvent.keyCode) while that program's
   // window is on top (`noite_top_program`): TIRO and SERIAL aim with
   // LEFT/RIGHT and fire with SPACE, so their pad has a fire button (32)
@@ -77,6 +78,21 @@
   const PAD_FIGHT_LABELS = {
     xilindro: { 65: ["Soco", "Soco"], 83: ["Chute", "Chute"], 68: ["Chute alto", "Chute alto"], 70: ["Rasteira", "Rasteira"] },
     salgin: { 65: ["Soco", "Soco"], 83: ["Voadora", "Voadora"], 68: ["Salto", "Salto"], 70: ["Rasteira", "Rasteira"] },
+  };
+  // The Corrigida's pads by program: its keys, labels and #dpad class (with
+  // "fight", the 6-row grid: arrows left, four words right). The
+  // fights' above; JARDIM's (`jardim_wolf_keys`): the arrows on the left (▲ ▼
+  // walk, ◀ ▶ turn), on the right A and D (strafe) over E (Abrir: a door or
+  // the exit) and CTRL (Tiro). Any of them also takes a controls screen down.
+  const PAD_CORRIGIDA = {
+    xilindro: { cls: "fight", keys: PAD_FIGHT_KEYS, labels: PAD_FIGHT_LABELS.xilindro },
+    salgin: { cls: "fight", keys: PAD_FIGHT_KEYS, labels: PAD_FIGHT_LABELS.salgin },
+    jardim: {
+      cls: "jardim",
+      keys: [37, 38, 39, 40, 65, 68, 69, 17],
+      labels: { 65: ["◁ Lado", "Andar de lado para a esquerda"], 68: ["Lado ▷", "Andar de lado para a direita"],
+        69: ["Abrir", "Abrir porta"], 17: ["Tiro", "Atirar"] },
+    },
   };
   // The files of the current manifest, by hashed URL. The name must not
   // start with "noite-": loaders before the hashes deleted every
@@ -677,15 +693,15 @@
 
   let padProgram = null;
   let padLabels = false;
-  /** Shows the pad's buttons for `program` (PAD_KEYS; PAD_FIGHT_KEYS for the
-   *  Corrigida's fights); a hidden held one is released. */
+  /** Shows the pad's buttons for `program` (PAD_KEYS; PAD_CORRIGIDA for the
+   *  Corrigida's fights and JARDIM); a hidden held one is released. */
   function padFor(program) {
-    const fightLabels = prefs.version === "corrigida" ? PAD_FIGHT_LABELS[program] : null;
-    if (program === padProgram && !!fightLabels === padLabels) return;
+    const alt = prefs.version === "corrigida" ? PAD_CORRIGIDA[program] : null;
+    if (program === padProgram && !!alt === padLabels) return;
     padProgram = program;
-    padLabels = !!fightLabels;
-    const keys = fightLabels ? PAD_FIGHT_KEYS : PAD_KEYS[program] || PAD_KEYS[""];
-    const labels = fightLabels || PAD_LABELS[program] || {};
+    padLabels = !!alt;
+    const keys = alt ? alt.keys : PAD_KEYS[program] || PAD_KEYS[""];
+    const labels = alt ? alt.labels : PAD_LABELS[program] || {};
     const pad = $("dpad");
     for (const b of pad.querySelectorAll("button")) {
       const show = keys.includes(Number(b.dataset.key));
@@ -701,7 +717,8 @@
       b.setAttribute("aria-label", own ? own[1] : b.dataset.aria);
       b.classList.toggle("word", own ? true : b.dataset.wordDefault === "1");
     }
-    const fight = !!fightLabels;
+    const fight = !!alt;
+    pad.classList.toggle("jardim", !!alt && alt.cls === "jardim");
     if (pad.classList.contains("fight") !== fight) {
       pad.classList.toggle("fight", fight);
       fit();
