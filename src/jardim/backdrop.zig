@@ -5,8 +5,8 @@
 //! bitmap, no grid), built as TIRO's: one top-down pixel buffer (`pixels`,
 //! `bgWidth` x `bgHeight`, rows padded to 4) allocated from `g.gpa` and freed
 //! by `dtor`. The DC, the logical palette and the old-bitmap handle have no
-//! X
-//! caller) are absorbed by their callers.
+//! counterpart. The BackdropVtbl defaults (slots 01-16) are absorbed
+//! by their callers.
 
 const platform = @import("../platform/platform.zig");
 const Game = @import("core/game.zig").Game;
