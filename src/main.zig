@@ -18,7 +18,8 @@
 //! INFERNO.EXE or SAUNA.EXE alone
 //! (`runAlone`);
 //! `--minigame-result win|lose` is the result of the stubbed minigames, and
-//! `--minigame-stub` stubs the ported ones too (`platform/host.zig`).
+//! `--minigame-stub` stubs the ported ones too (`platform/host.zig`); with a
+//! list of names (`--minigame-stub=jardim`) only those.
 //!
 //! `--key-repeat` sets the auto-repeat of a held key (`Sim`, on the game's
 //! clock; ms): on by default (`sim.KeyRepeat`'s `interactive_default` /
@@ -102,9 +103,28 @@ const Args = struct {
     alone: ?*const platform.host.Program = null,
     /// `--minigame-stub`: NOITE's WinExec stubs the ported minigames too.
     stub_minigames: bool = false,
+    /// `--minigame-stub=NAME,…`: only these (the playthroughs leave JARDIM
+    /// out: each minigame is tested by its own scripts).
+    stub_names: ?[]const u8 = null,
     /// `--key-repeat` was given (else the backend's default).
     key_repeat_set: bool = false,
 };
+
+/// `minigames` without the names in the comma list `stub`.
+fn realExcept(buf: *[minigames.len]*const platform.host.Program, stub: []const u8) []const *const platform.host.Program {
+    var n: usize = 0;
+    for (minigames) |prog| {
+        var names = std.mem.splitScalar(u8, stub, ',');
+        const stubbed = while (names.next()) |name| {
+            if (std.ascii.eqlIgnoreCase(prog.name, name)) break true;
+        } else false;
+        if (!stubbed) {
+            buf[n] = prog;
+            n += 1;
+        }
+    }
+    return buf[0..n];
+}
 
 fn findMinigame(name: []const u8) ?*const platform.host.Program {
     for (minigames) |prog| if (std.ascii.eqlIgnoreCase(prog.name, name)) return prog;
@@ -205,6 +225,14 @@ pub fn main(init: std.process.Init) !void {
             args.key_repeat_set = true;
         } else if (std.mem.eql(u8, a, "--minigame-stub")) {
             args.stub_minigames = true;
+        } else if (std.mem.startsWith(u8, a, "--minigame-stub=")) {
+            const v = a["--minigame-stub=".len..];
+            var names = std.mem.splitScalar(u8, v, ',');
+            while (names.next()) |n| if (findMinigame(n) == null) {
+                std.log.err("--minigame-stub={s}: want ported minigames", .{v});
+                return error.BadArgument;
+            };
+            args.stub_names = v;
         } else if (std.mem.eql(u8, a, "--minigame-startup")) {
             args.opts.minigame.startup_ms = try std.fmt.parseInt(u32, it.next() orelse return error.MissingValue, 10);
         } else if (std.mem.eql(u8, a, "--minigame-reply")) {
@@ -226,8 +254,9 @@ pub fn main(init: std.process.Init) !void {
     var hn = try platform.harness.Harness.init(gpa, io, args.harness, args.opts.assets_dir);
     defer hn.deinit();
 
+    var real_buf: [minigames.len]*const platform.host.Program = undefined;
     const host_opts: platform.host.Options = .{
-        .real = if (args.stub_minigames) &.{} else &minigames,
+        .real = if (args.stub_minigames) &.{} else if (args.stub_names) |v| realExcept(&real_buf, v) else &minigames,
         .startup_ms = args.opts.minigame.startup_ms,
         .fixes = args.fixes,
     };

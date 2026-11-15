@@ -2,8 +2,8 @@
 # button only, no keys but the minigames' (TIRO's, XILINDRO's and SALGIN's),
 # title screen to the sportsman ending.
 #
-#   zig-out/bin/noite --headless --ms 600000 --one-button --input tools/play/onebutton.input [--dump DIR]
-#   zig-out/bin/noite --headless --ms 600000 --one-button --fix all,-avi_exit_ignores_timer --input tools/play/onebutton.input
+#   zig-out/bin/noite --headless --minigame-stub=jardim --ms 600000 --one-button --input tools/play/onebutton.input [--dump DIR]
+#   zig-out/bin/noite --headless --minigame-stub=jardim --ms 600000 --one-button --fix all,-avi_exit_ignores_timer --input tools/play/onebutton.input
 #
 # full.input's route, but doors are clicked from wherever the player
 # stands (the player walks over first), the keyboard walks are clicks, and
@@ -13,6 +13,8 @@
 # editing an earlier line can change them; this timing gives the good
 # cop, the hall shuffle below and the Olympics quiz. It plays the same with
 # and without the fixes (`--fix all,-avi_exit_ignores_timer`, as full.input).
+# The garden's JARDIM at the end stays the stub (`--minigame-stub=jardim`),
+# as in full.input.
 
 # Title menu: JOGAR, then NOVO JOGO; the opening video ends in the bedroom.
 22000 click 290 345

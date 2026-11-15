@@ -1,7 +1,7 @@
 # Full playthrough, title screen to the sportsman ending (see README.md).
 #
-#   zig-out/bin/noite --headless --ms 660000 --input tools/play/full.input [--dump DIR]
-#   zig-out/bin/noite --headless --ms 660000 --fix all,-avi_exit_ignores_timer --input tools/play/full.input
+#   zig-out/bin/noite --headless --minigame-stub=jardim --ms 660000 --input tools/play/full.input [--dump DIR]
+#   zig-out/bin/noite --headless --minigame-stub=jardim --ms 660000 --fix all,-avi_exit_ignores_timer --input tools/play/full.input
 #
 # The run is deterministic (headless virtual clock): the random choices
 # (roadblock cop, hall doors, TIRO's targets, ENCAIXE's pieces, bar quiz question) depend
@@ -13,6 +13,8 @@
 # minigames (scripted wins, tools/tiro_plan.py, tools/encaixe_plan.py and a
 # held Up for SALGIN); with `--minigame-stub` the run fails at their
 # `result` lines. The street's XILINDRO runs too, unplayed (B21, below).
+# The garden's JARDIM at the end stays the stub (`--minigame-stub=jardim`),
+# which wins: JARDIM is tested by its own scripts (jardim-*.input).
 
 # Title menu: JOGAR, then NOVO JOGO; the opening video ends in the bedroom.
 22000 dump title
