@@ -38,6 +38,26 @@ OUT/
 Download: **753 files, 188.5 MB** (156 MB of disc files + the 32 MB
 SoundFont), against 547 MB for the whole disc.
 
+### A private build with the MK3 fight
+
+The XILINDRO fight prototype (`fight_mk3`, `docs/fights/MK3.md`) needs a sprite pack that is private (Capcom's art,
+not in git): `NOITE_SPRITES=zig-out/sprites NOITE_SKIP_EXPLORER=1 tools/web/build-site.sh OUT` adds every file
+under `zig-out/sprites/` (the pack `tools/ryu_pack.py` writes: `ryu/pack.bin`) to OUT and its manifest. The page
+takes `?mk3=1` (turns the flag on: XILINDRO's Corrigida, `noite_start`'s `extra` bit 0), `?jogo=xilindro` (that
+minigame alone), `?versao=corrigida` and `?auto=1` (presses Jogar when the files are in), e.g.
+`index.html?mk3=1&jogo=xilindro&versao=corrigida&auto=1`. The public deploy never gets the variable, so the
+flag does nothing there (no pack: the old fight plays).
+
+### A private build with the MK3 fight
+
+The XILINDRO fight prototype (`fight_mk3`, `docs/fights/MK3.md`) needs a sprite pack that is private (Capcom's art,
+not in git): `NOITE_SPRITES=zig-out/sprites NOITE_SKIP_EXPLORER=1 tools/web/build-site.sh OUT` adds every file
+under `zig-out/sprites/` (the pack `tools/ryu_pack.py` writes: `ryu/pack.bin`) to OUT and its manifest. The page
+takes `?mk3=1` (turns the flag on: XILINDRO's Corrigida, `noite_start`'s `extra` bit 0), `?jogo=xilindro` (that
+minigame alone), `?versao=corrigida` and `?auto=1` (presses Jogar when the files are in), e.g.
+`index.html?mk3=1&jogo=xilindro&versao=corrigida&auto=1`. The public deploy never gets the variable, so the
+flag does nothing there (no pack: the old fight plays).
+
 ## Serving (nginx)
 
 Plain static files; no COOP/COEP (no SharedArrayBuffer, no threads) and no

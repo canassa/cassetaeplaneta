@@ -297,6 +297,19 @@ rolls on a personality table with the game's own `rand()`, and never reads a key
 - **Mercy**: after it lands a hit it stands one more beat before it decides again.
 - F9 (Debug builds) shows the phases `wait` and `guard` too; `tools/fight_bots.py` plays it with player bots.
 
+## MK3 fight (Corrigida prototype)
+
+`--fix all,fight_mk3` (the web page's `?mk3=1`; not in `--fix all`) replaces the fight (the opponent's AI, the
+blows, the beat) with Mortal Kombat 3's: `docs/fights/MK3.md` has every mechanic, its value and its source;
+the engine is `src/core/fight_mk3/` (shared, sprite-agnostic), its glue here `core/fight_mk3/xilindro.zig`
+and `arena.zig`'s `mk3Update`. It needs a sprite pack (`zig-out/sprites/ryu/pack.bin`, private, from
+`tools/ryu_pack.py`): `Match` loads it at WM_CREATE and the old fight plays when it is missing. What stays
+XILINDRO's: the background, the clock (90 s: the better energy wins at zero), the energy bar's two numbers
+(MK3's 166-unit health mapped to 0-91, so the score is still energy x 150), the controls screen (with MK3's
+keys), the sounds and WM_DESTROY's result to NOITE. What is new: the fighters are drawn by `Match.view` at the
+display rate (`host.Program.view`), both Ryu (the opponent palette-swapped), the energy bars drain over the
+background's yellow bar. The F9 key shows the hurt (blue) and hit (red) boxes in a Debug build.
+
 ## Smooth motion (Corrigida)
 
 With `fight_smooth_motion` (`--fix all`; `src/core/fight_smooth.zig`, TIRO's mechanism) the window
