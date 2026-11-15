@@ -3,17 +3,26 @@
 # garden cutscene (espquete, which starts JARDIM).
 #
 #   zig-out/bin/noite --headless --scene 4fsalgin --ms 72000 --input tools/play/salgin-4fsalgin-win.input
-#   zig-out/bin/noite --headless --scene 4fsalgin --ms 72000 --fix all --input tools/play/salgin-4fsalgin-win.input
+#   zig-out/bin/noite --headless --scene 4fsalgin --ms 75000 --fix all --input tools/play/salgin-4fsalgin-win.input
 #
 # The sportsman's animation ends at 8733 (the WinExec); SALGIN starts 1500
 # ms later (10233). Up is held from 11000 (salgin-alone-win.input): the KO
 # is on the beat at 61233 in both versions, the window closes at 65333.
-# The Original's player keeps 83 energy (+8300), the Corrigida's 82
-# (+8200: S5's single seed picks other attacks).
+# The Original's player keeps 83 energy (+8300), the Corrigida's 85
+# (+8500: S5's single seed picks other attacks).
+# The Corrigida (`--fix all`) shows SALGIN's controls screen first; Enter takes
+# it down 50 ms after it opened, PORRADA stands for 2 s (the frozen intro,
+# `fight_controls.start_delay_ms`) and the round then plays as the
+# Original's from its start, 2050 ms later (`delay`: every later line
+# moves too).
+# Its keys are the new layout: S is the flying kick (voadora) (the Original's Up).
+0 ?fight_keys_asdf keymap up s
+10283 ?fight_controls_screen key return
+10283 ?fight_controls_screen delay 2050
 10500 dump gym
 11000 hold up 52000
 12000 dump fight
-70000 result won 8300 | won 8200
+70000 result won 8300 | won 8500
 70000 expect espquete
 70000 state
 70000 dump espquete

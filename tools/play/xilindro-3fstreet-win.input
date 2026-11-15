@@ -5,7 +5,7 @@
 # (xilindro-serial-hall.input wins both).
 #
 #   zig-out/bin/noite --headless --scene 3fstreet --ms 93000 --input tools/play/xilindro-3fstreet-win.input
-#   zig-out/bin/noite --headless --scene 3fstreet --ms 93000 --fix all --input tools/play/xilindro-3fstreet-win.input
+#   zig-out/bin/noite --headless --scene 3fstreet --ms 96000 --fix all --input tools/play/xilindro-3fstreet-win.input
 #
 # The street video ends at 24795 (the WinExec); XILINDRO starts 1500 ms
 # later (26295) and beats at once (alone, its first beat is 200 ms in), so
@@ -23,6 +23,15 @@
 # fighter untouched, 91 x 150 = 13650 points.
 # KO at 81895, XILINDRO closes at 86445.
 20000 dump street
+# The Corrigida (`--fix all`) shows XILINDRO's controls screen first; Enter takes
+# it down 50 ms after it opened, PORRADA stands for 2 s (the frozen intro,
+# `fight_controls.start_delay_ms`) and the round then plays as the
+# Original's from its start, 2050 ms later (`delay`: every later line
+# moves too).
+# Its keys are the new layout: S is the middle kick (the Original's Up).
+0 ?fight_keys_asdf keymap up s
+26345 ?fight_controls_screen key return
+26345 ?fight_controls_screen delay 2050
 26715 hold right 20
 26755 key up
 27315 hold left 20

@@ -4,9 +4,16 @@
 # the bar (4fbar).
 #
 #   zig-out/bin/noite --headless --scene 4fsalgin --ms 110000 --input tools/play/salgin-4fsalgin-lose.input
-#   zig-out/bin/noite --headless --scene 4fsalgin --ms 110000 --fix all --input tools/play/salgin-4fsalgin-lose.input
+#   zig-out/bin/noite --headless --scene 4fsalgin --ms 113000 --fix all --input tools/play/salgin-4fsalgin-lose.input
 #
 # SALGIN starts at 10233; mane.WAV's end closes it near 105 s.
+# The Corrigida (`--fix all`) shows SALGIN's controls screen first; Enter takes
+# it down 50 ms after it opened, PORRADA stands for 2 s (the frozen intro,
+# `fight_controls.start_delay_ms`) and the round then plays as the
+# Original's from its start, 2050 ms later (`delay`: every later line
+# moves too).
+10283 ?fight_controls_screen key return
+10283 ?fight_controls_screen delay 2050
 12000 dump fight
 108000 result lost -1000
 108000 expect 4fbar

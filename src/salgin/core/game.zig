@@ -12,6 +12,7 @@ const msg = @import("../../core/msg.zig");
 const Msg = msg.Msg;
 const Queue = @import("../../core/queue.zig").Queue;
 const Fixes = @import("../../core/fixes.zig").Fixes;
+const fight_controls = @import("../../core/fight_controls.zig");
 const Rand = @import("../../core/crt.zig").Rand;
 const platform = @import("../../platform/platform.zig");
 const Platform = platform.Platform;
@@ -39,6 +40,9 @@ pub const Game = struct {
     trace: ?*std.ArrayList(u8) = null,
     /// WM_QUIT came: the message loop ends.
     quit: bool = false,
+    /// The Corrigida's controls screen (`fight_controls_screen`; not in the
+    /// original).
+    controls: fight_controls.State = .{},
 
     // ---- struct Game ----
     // @orig Game+0x2

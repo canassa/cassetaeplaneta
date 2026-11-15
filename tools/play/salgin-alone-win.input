@@ -4,15 +4,25 @@
 # 200 ms); in range (the opponent walks in to 69-100 px) every kick lands.
 #
 #   zig-out/bin/noite --minigame salgin --headless --ms 60000 --input tools/play/salgin-alone-win.input
-#   zig-out/bin/noite --minigame salgin --headless --ms 60000 --fix all --input tools/play/salgin-alone-win.input
+#   zig-out/bin/noite --minigame salgin --headless --ms 63000 --fix all --input tools/play/salgin-alone-win.input
 #
 # The opponent's energy is below 1 on the beat at 51200 in both versions;
 # the hold ends after it (the keys are locked from the KO) and before the
 # window closes, 30 end ticks later (54821). The player keeps 82 energy,
-# 8200 points, in both versions.
+# 8200 points; in the Corrigida, whose round starts 2050 ms later, S5's
+# single seed (from that clock) picks other attacks: 83, 8300 points.
 
+# The Corrigida (`--fix all`) shows SALGIN's controls screen first; Enter takes
+# it down 50 ms after it opened, PORRADA stands for 2 s (the frozen intro,
+# `fight_controls.start_delay_ms`) and the round then plays as the
+# Original's from its start, 2050 ms later (`delay`: every later line
+# moves too).
+# Its keys are the new layout: S is the flying kick (voadora) (the Original's Up).
+0 ?fight_keys_asdf keymap up s
+50 ?fight_controls_screen key return
+50 ?fight_controls_screen delay 2050
 300 hold up 52000
 1000 dump start
 20000 dump fight
 53000 dump won
-56000 result won 8200
+56000 result won 8200 | won 8300

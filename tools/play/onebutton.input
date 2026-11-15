@@ -169,7 +169,15 @@
 # stays shown below and nothing gets its result. Its keys are
 # xilindro-alone-win.input's (a KO, the fighter untouched), from XILINDRO's
 # first beat at 352563; its window closes 60545 ms after this wait.
-+815 hold right 20
+# The Corrigida shows XILINDRO's controls screen first (its window opens
+# 395 ms after this wait): Enter takes it down 50 ms later, PORRADA stands
+# for 2 s, the fight then plays as the Original's 2050 ms later, and S, the
+# new key of the middle kick (`fight_keys_asdf`), kicks instead of Up. The
+# Enter line moves the Corrigida's later lines by 445 ms.
++0 ?fight_keys_asdf keymap up s
++445 ?fight_controls_screen key return
++815 !fight_controls_screen hold right 20
++2420 ?fight_controls_screen hold right 20
 +40 key up
 +560 hold left 20
 +600 hold right 20
@@ -330,7 +338,14 @@
 # scene (tools/play/salgin-4fsalgin-win.input): the key repeat kicks as
 # soon as each move ends, a KO about 50 s later; the hold ends after it
 # and before the window closes.
-+11000 hold up 52000
+# The Corrigida shows SALGIN's controls screen first (it starts 10233 ms into
+# the scene): Enter takes it down 50 ms later, PORRADA stands for 2 s and
+# S, the new key of the flying kick (`fight_keys_asdf`), is held from the
+# Original's 11000 plus 2050 ms instead of Up. The Enter line moves the
+# Corrigida's later lines by 10283 ms.
++11000 !fight_controls_screen hold up 52000
++10283 ?fight_controls_screen key return
++2767 ?fight_controls_screen hold s 52000
 +1000 dump salgin
 +59000 result won
 +0 wait espquete 10000

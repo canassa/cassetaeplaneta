@@ -24,6 +24,7 @@ const world = @import("core/world.zig");
 const game_unit = @import("game.zig");
 const game_input = @import("game_input.zig");
 const backdrop = @import("backdrop.zig");
+const hud = @import("hud.zig");
 
 /// The current scene's backdrop (the original reads `g_game->scene->backdrop`
 /// unchecked; a null scene is treated as a null backdrop).
@@ -124,6 +125,8 @@ pub fn wndProc(g: *Game, m: Msg) i32 {
             _ = game_unit.onCreate(g);
             g.started = 1;
             g.setSystemTimer(1, 50);
+            // The Corrigida's controls screen: the round waits for a key.
+            if (g.fixes.fight_controls_screen) hud.showControls(g);
         },
         wm.destroy => {
             g.killSystemTimer(1);

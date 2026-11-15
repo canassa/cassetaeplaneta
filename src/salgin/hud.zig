@@ -19,6 +19,7 @@ const object_create = @import("object_create.zig");
 const occupancy = @import("behaviour/occupancy.zig");
 const render = @import("behaviour/render.zig");
 const visibility = @import("behaviour/visibility.zig");
+const fight_controls = @import("../core/fight_controls.zig");
 
 /// `salgin_redraw_arena`'s band: y 0x8c, 640 x 0x127.
 const band_y: i16 = 0x8c;
@@ -105,6 +106,8 @@ pub fn addMark(g: *Game, side: i16, bd: *Backdrop) void {
 /// in the band and is overwritten: BUGS.md S9). With `salgin_banner_shown`
 /// the banner is drawn after the restore, behind the fighters, for the
 /// round's first 2 s: the clock is still 90 or 89 (it loses one a second).
+/// With the Corrigida's controls screen PORRADA shows during the frozen
+/// intro (`fight_controls.start_delay_ms`) instead.
 pub fn redrawArena(g: *Game, scene: *Scene) void {
     const bd = scene.backdrop.?;
     if (bd.background) |bg| {
@@ -113,12 +116,44 @@ pub fn redrawArena(g: *Game, scene: *Scene) void {
                 std.debug.panic("salgin hud: arena band restore left its buffers ({s})", .{@errorName(e)});
         }
     }
-    if (g.fixes.salgin_banner_shown and scene.clock >= 89) {
+    // The Corrigida's frozen intro (`fight_controls_screen`) is PORRADA's
+    // time instead: the banner then goes when the round starts.
+    const intro = g.controls.phase == .intro;
+    const after_start = g.fixes.salgin_banner_shown and !g.fixes.fight_controls_screen and scene.clock >= 89;
+    if (intro or after_start) {
         if (g.banner) |b| render.draw(g, b, bd);
     }
     render.draw(g, g.opponent.?, bd);
     render.draw(g, g.fighter.?, bd);
     g.plat.wingBitBlt(0, band_y, band_w, band_h, bd.surface(), 0, band_y);
+}
+
+/// The Corrigida's controls screen (`fight_controls_screen`, not in the
+/// original): drawn into the backdrop over the arena (so a WM_PAINT shows
+/// it), then blitted. `app.wndProc` opens it right after WM_CREATE.
+pub fn showControls(g: *Game) void {
+    const bd = (g.scene orelse return).backdrop orelse return;
+    fight_controls.open(&g.controls, g.plat.ticks());
+    fight_controls.draw(g.plat, bd.surface(), .salgin, g.fixes.fight_keys_asdf);
+    const r = fight_controls.panel;
+    g.plat.wingBitBlt(r.x, r.y, r.w, r.h, bd.surface(), r.x, r.y);
+}
+
+/// The screen goes (the frozen intro begins): its rectangle back from the
+/// background, the arena (the fighters and PORRADA) drawn again, then
+/// blitted. Nothing else lies under the panel (the clock and the energy
+/// tiles are above it).
+pub fn hideControls(g: *Game, scene: *Scene) void {
+    const bd = scene.backdrop.?;
+    const r = fight_controls.panel;
+    if (bd.background) |bg| {
+        if (bd.pixels.len != 0) {
+            _ = dib.copyRect(&bd.bmiHeader, bd.pixels, r.x, r.y, bg.bits, &bg.header, r.x, r.y, r.w, r.h, g.fixes) catch |e|
+                std.debug.panic("salgin hud: controls panel restore left its buffers ({s})", .{@errorName(e)});
+        }
+    }
+    redrawArena(g, scene);
+    g.plat.wingBitBlt(r.x, r.y, r.w, r.h, bd.surface(), r.x, r.y);
 }
 
 // @orig 1068:2aad salgin_blit_clock

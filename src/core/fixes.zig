@@ -367,6 +367,19 @@ pub const Fixes = struct {
     /// X11: the walls test the position after the step and the recoil stops
     /// at x 0: the fighter stays within x 0-400.
     xilindro_fighter_stays_on_screen: bool = false,
+    /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"),
+    /// both fights: ← / → walk, ↑ jumps, ↓ blocks, A punches, S is the
+    /// middle kick (SALGIN's voadora), D the high kick (SALGIN's salto), F
+    /// the sweep. The keys are translated into the 1995 keys whose move
+    /// they do (`core/fight_controls.zig`), so the game logic is unchanged;
+    /// PgUp, Home, End and Insert still work.
+    fight_keys_asdf: bool = false,
+    /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"),
+    /// both fights: a screen listing the controls and the goal is shown
+    /// from WM_CREATE until a key or a click; the round (the clock, the
+    /// beat, the opponent) starts then, its clock stamps moved on by the
+    /// time the screen was up.
+    fight_controls_screen: bool = false,
     // ---- SAUNA.EXE (BUGS.md P1–P8). The src/sauna/ units port each bug as
     // it is and keep the fix only behind its flag. ----
     /// P1: a step's meeting test looks past the mover's own cells: it finds

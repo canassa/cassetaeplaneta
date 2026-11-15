@@ -1,0 +1,57 @@
+# XILINDRO alone in the Corrigida: the controls screen, then a few moves
+# with the new keys (`fight_keys_asdf`, `fight_controls_screen`).
+#
+#   zig-out/bin/noite --minigame xilindro --headless --ms 18000 --fix all --input tools/play/xilindro-controls.input [--dump DIR]
+#
+# The screen is up from the start and the round waits: the clock stays at
+# 90 and the opponent does not come. Enter takes it down at 1000, PORRADA
+# stands for 2 s (`porrada`: nothing moves, the S at 2200 does nothing)
+# and the round starts at 3000: the fighter steps in and strikes on
+# xilindro-alone-win.input's beats (3000 ms later), with D (high kick),
+# A (punch), F (sweep) and S (middle kick) in turn. The punch and the
+# middle kick never cost the fighter anything; the high kick and the sweep
+# trade with an attacking opponent (docs/xilindro/GAME.md "The fight"), so
+# both energy bars get tiles (`kicks`). ↑ (jump) and ↓ (block) follow.
+# Closing the window mid-round is a loss (X6).
+500 dump controls
+1000 key return
+2000 dump porrada
+2200 key s
+3500 dump started
+3620 hold right 20
+3660 key d
+4220 hold left 20
+4820 hold right 20
+4860 key a
+5420 hold left 20
+6020 hold right 20
+6060 key f
+6620 hold left 20
+7220 hold right 20
+7260 key s
+7820 hold left 20
+8420 hold right 20
+8460 key d
+9020 hold left 20
+9620 hold right 20
+9660 key a
+10220 hold left 20
+10820 hold right 20
+10860 key f
+11420 hold left 20
+12220 key s
+13420 hold right 20
+13460 key d
+14020 hold left 20
+14620 hold right 20
+14660 key a
+15170 hold left 20
+15770 hold right 20
+15810 key f
+15000 dump kicks
+15500 key up
+15700 dump jump
+16700 key down
+16900 dump block
+17500 close
+17600 result lost -1000

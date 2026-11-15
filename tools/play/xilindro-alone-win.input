@@ -1,7 +1,7 @@
 # XILINDRO alone, a win by KO.
 #
 #   zig-out/bin/noite --minigame xilindro --headless --ms 62000 --input tools/play/xilindro-alone-win.input
-#   zig-out/bin/noite --minigame xilindro --headless --ms 62000 --fix all --input tools/play/xilindro-alone-win.input
+#   zig-out/bin/noite --minigame xilindro --headless --ms 65000 --fix all --input tools/play/xilindro-alone-win.input
 #
 # The keys follow one rule (planned against the port, beat by beat): the
 # opponent walks in 32 px a beat and attacks on the beat after it comes
@@ -17,6 +17,15 @@
 #
 # The 46th kick (55660) takes the opponent's energy below 1; the KO is on
 # the next beat (55800) and the window closes 31 end ticks later (60350).
+# The Corrigida (`--fix all`) shows XILINDRO's controls screen first; Enter takes
+# it down 50 ms after it opened, PORRADA stands for 2 s (the frozen intro,
+# `fight_controls.start_delay_ms`) and the round then plays as the
+# Original's from its start, 2050 ms later (`delay`: every later line
+# moves too).
+# Its keys are the new layout: S is the middle kick (the Original's Up).
+0 ?fight_keys_asdf keymap up s
+50 ?fight_controls_screen key return
+50 ?fight_controls_screen delay 2050
 620 hold right 20
 660 key up
 1000 dump start

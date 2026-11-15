@@ -25,6 +25,7 @@ const sound = @import("sound.zig");
 const animation = @import("behaviour/animation.zig");
 const movement = @import("behaviour/movement.zig");
 const render = @import("behaviour/render.zig");
+const fight_controls = @import("../core/fight_controls.zig");
 
 const VK_PGUP: u16 = 0x21;
 const VK_END: u16 = 0x23;
@@ -329,15 +330,40 @@ fn opponentStep(g: *Game, bd: *Backdrop) void {
 }
 
 /// SceneVtbl slot 00 handleMessage (salgin_scene_handle_message): non-zero = handled.
-// @orig 1068:0d73 salgin_scene_handle_message
+/// The Corrigida's fight keys and controls screen go first
+/// (`core/fight_controls.zig`): the keys are translated, and while the
+/// screen and then the PORRADA intro are up the input and the timers are
+/// kept from the fight and the rest runs without the clock block and the
+/// beat. When the intro ends the clock stamps move on by the time since
+/// WM_CREATE and that message runs with the clock block and the beat, as
+/// the original's first message after WM_CREATE does.
 pub fn handleMessage(g: *Game, scene: *Scene, m: Msg) i16 {
+    switch (fight_controls.gate(&g.controls, g.fixes, m, g.plat.ticks())) {
+        .swallow => return 1,
+        .dismissed => {
+            hud.hideControls(g, scene);
+            return 1;
+        },
+        .started => |ms| {
+            g.lastPumpTick +%= @bitCast(ms);
+            g.lastClockTick +%= @bitCast(ms);
+            _ = run(g, scene, .{ .id = 0 }, false);
+            return handleMessage(g, scene, m);
+        },
+        .pass => |p| return run(g, scene, p.m, p.frozen),
+    }
+}
+
+// @orig 1068:0d73 salgin_scene_handle_message
+fn run(g: *Game, scene: *Scene, m: Msg, frozen: bool) i16 {
     const bar = &g.energyBar.?.energyBar;
     var beat = false;
     var handled: i16 = 1;
     const now = g.plat.ticks();
 
     // PART 1, before the switch: the clock and the pump, or the end animation.
-    if (g.roundOver == 0) {
+    // (Not while the controls screen is up: the round has not started.)
+    if (frozen) {} else if (g.roundOver == 0) {
         if (scene.clock < 1) {
             // The clock ended: the lower energy loses (a tie is a player win).
             if (bar.playerEnergy < bar.opponentEnergy) {
@@ -455,7 +481,7 @@ pub fn handleMessage(g: *Game, scene: *Scene, m: Msg) i16 {
         else => handled = 0,
     }
 
-    // PART 3: the beat.
+    // PART 3: the beat (never while frozen: `beat` is false).
     if (!beat) return handled;
     const bd = bdOf(scene);
     const f = g.fighter.?;

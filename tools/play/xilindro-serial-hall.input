@@ -5,7 +5,7 @@
 # (minigameWon[2]): NOITE goes to the hall (3fhall).
 #
 #   zig-out/bin/noite --headless --scene 3fstreet --ms 222000 --input tools/play/xilindro-serial-hall.input
-#   zig-out/bin/noite --headless --scene 3fstreet --ms 222000 --fix all --input tools/play/xilindro-serial-hall.input
+#   zig-out/bin/noite --headless --scene 3fstreet --ms 225000 --fix all --input tools/play/xilindro-serial-hall.input
 #
 # The fight is xilindro-3fstreet-win.input's (+13650). 3farmcai starts at
 # 94731; its video ends at 96441 and SERIAL starts at 97941. The shots are
@@ -16,6 +16,15 @@
 # 32768004 that NOITE adds whole (BUGS.md K1, K2); the Corrigida hits one
 # (shots 2 and 3 miss), keeps its 5 lives and reports a win of 500.
 20000 dump street
+# The Corrigida (`--fix all`) shows XILINDRO's controls screen first; Enter takes
+# it down 50 ms after it opened, PORRADA stands for 2 s (the frozen intro,
+# `fight_controls.start_delay_ms`) and the round then plays as the
+# Original's from its start, 2050 ms later (`delay`: every later line
+# moves too).
+# Its keys are the new layout: S is the middle kick (the Original's Up).
+0 ?fight_keys_asdf keymap up s
+26345 ?fight_controls_screen key return
+26345 ?fight_controls_screen delay 2050
 26715 hold right 20
 26755 key up
 27315 hold left 20

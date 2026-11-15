@@ -166,8 +166,16 @@
 # the scene's start in this run). A win, +1500, back to the hall.
 +1000 rclick 465 200
 +0 wait 3ffarao 33000
+# The Corrigida shows XILINDRO's controls screen (`fight_controls_screen`):
+# Enter takes it down 50 ms after its window opened (1395 ms into the hall,
+# 395 ms into this scene), so it plays out as the Original's, 2050 ms later
+# (after PORRADA's 2 s).
+# The line moves the Corrigida's later lines by 445 ms: the first ENCAIXE
+# key comes 445 ms sooner after it.
++445 ?fight_controls_screen key return
 # piece kind 2: rotation 1, column 8, lands at row 12
-+36655 key up
++36655 !fight_controls_screen key up
++36210 ?fight_controls_screen key up
 +250 key right
 +100 key right
 +100 key right
@@ -341,7 +349,14 @@
 # scene (tools/play/salgin-4fsalgin-win.input): the key repeat kicks as
 # soon as each move ends, a KO about 50 s later; the hold ends after it
 # and before the window closes.
-+11000 hold up 52000
+# The Corrigida shows SALGIN's controls screen first (it starts 10233 ms into
+# the scene): Enter takes it down 50 ms later, PORRADA stands for 2 s and
+# S, the new key of the flying kick (`fight_keys_asdf`), is held from the
+# Original's 11000 plus 2050 ms instead of Up. The Enter line moves the
+# Corrigida's later lines by 10283 ms.
++11000 !fight_controls_screen hold up 52000
++10283 ?fight_controls_screen key return
++2767 ?fight_controls_screen hold s 52000
 +1000 dump salgin
 +59000 result won
 +0 wait espquete 10000
