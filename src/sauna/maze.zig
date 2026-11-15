@@ -7,10 +7,11 @@
 //! the GetDC/ReleaseDC pairs have no counterpart (the DC is the platform
 //! screen). Where the original reaches an object through the virtual base,
 //! the flattened `Object` is the SceneObject view.
-//! BUGS.md P7 is reproduced as the code does it; its fix is behind
-//! `g.fixes.sauna_no_arrows_while_dying` (docs/sauna/DESIGN.md "Fixes"). P6
-//! lives in `occupancy` (the ghosts' arm here has no dying test, as in the
-//! original); P4 in `animation` (every caller passes dir 2).
+//! BUGS.md P6 and P7 are reproduced as the code does them; their fixes are
+//! behind `g.fixes.sauna_ghosts_wait_while_dying` (the ghosts' arm skips
+//! them while Pacman dies) and `g.fixes.sauna_no_arrows_while_dying`
+//! (docs/sauna/DESIGN.md "Fixes"); P4 lives in `animation` (every caller
+//! passes dir 2).
 
 const msg = @import("../core/msg.zig");
 const Msg = msg.Msg;
@@ -177,7 +178,10 @@ fn sysTimer(g: *Game, scene: *Scene, timer: u16) void {
         }
     } else if (@as(u16, @bitCast(animation.getTimerId(g, scene.ghosts[0].?))) == timer) {
         // No `pacmanDying` test: the ghosts walk on during the death (P6).
-        for (scene.ghosts) |gh| actorTick(g, gh.?, bd);
+        // The fix makes them wait until Pacman reappears.
+        if (!(g.fixes.sauna_ghosts_wait_while_dying and g.pacmanDying != 0)) {
+            for (scene.ghosts) |gh| actorTick(g, gh.?, bd);
+        }
     } else if (timer == POWER_TIMER and g.powerStrip == 4) {
         g.powerStrip = 0;
         animation.refreshPowerStrip(g, pac, bd, 2);

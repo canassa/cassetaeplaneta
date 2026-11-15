@@ -320,8 +320,7 @@ fn actorCanStep(g: *Game, obj: *Object, bd: *Backdrop, is_ghost: bool) bool {
         hit_obj == g.pacman
     else
         hit_obj != null and hit_obj != g.pacman;
-    // P6 (sauna_no_catch_while_dying): the dying Pacman is not caught again.
-    if (meets and !(g.fixes.sauna_no_catch_while_dying and g.pacmanDying != 0)) {
+    if (meets) {
         const target = if (is_ghost) obj else hit_obj.?;
         if (g.powerStrip == 4) {
             score.eatGhost(g, bd);

@@ -369,9 +369,10 @@ pub const Fixes = struct {
     /// P5: a click shows Pacman facing the way he walks (left, right, up or
     /// down, by the larger leg of the line) in SAUNA's strip order.
     sauna_click_faces_walk: bool = false,
-    /// P6: a ghost meeting Pacman while he dies costs no life (the ghosts
-    /// keep walking; only the first catch counts).
-    sauna_no_catch_while_dying: bool = false,
+    /// P6: the ghosts wait while Pacman dies (their timer arm does not step
+    /// them until he reappears), as in the arcade game, so no ghost can
+    /// catch him again during the death.
+    sauna_ghosts_wait_while_dying: bool = false,
     /// P7: the arrows do nothing while Pacman dies, so the death strip
     /// plays once and he reappears standing.
     sauna_no_arrows_while_dying: bool = false,
