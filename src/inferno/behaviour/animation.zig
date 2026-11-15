@@ -122,7 +122,7 @@ pub fn tick(g: *Game, obj: *Object, bd: *Backdrop) void {
 // @orig 1028:230f animation_tick
 /// Timer tick: next frame, redraw, invalidate; in play-once mode counts the
 /// frame down and stops at zero.
-fn animationTick(g: *Game, obj: *Object, bd: *Backdrop) void {
+pub fn animationTick(g: *Game, obj: *Object, bd: *Backdrop) void {
     _ = nextFrame(g, obj);
     visibility.redraw(g, obj, bd);
     visibility.invalidate(g, obj);

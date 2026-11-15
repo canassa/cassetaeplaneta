@@ -272,7 +272,7 @@ fn sysTimer(g: *Game, scene: *Scene, timer: u16) i16 {
             }
         }
     } else if (@as(u16, @bitCast(h.anim.timerId)) == timer) {
-        animation.tick(g, h, bd);
+        animation.animationTick(g, h, bd);
         if (h.anim.running == 0 and h.curStrip >= 8 and h.curStrip <= 11) {
             hero.animDone(g, h, bd);
             g.keyLeftHeld = 0;
@@ -283,7 +283,7 @@ fn sysTimer(g: *Game, scene: *Scene, timer: u16) i16 {
             const plat = g.platforms[i] orelse @panic("inferno.hell: no platform");
             const drink = plat.platform.item orelse @panic("inferno.hell: no drink");
             if (drink.anim.running != 0) {
-                animation.tick(g, drink, bd);
+                animation.animationTick(g, drink, bd);
                 if (drink.anim.running == 0) {
                     plat.platform.presentReady = 0;
                     ledge.dropCross(g, plat, bd);
