@@ -47,7 +47,7 @@ after `WinExec` and answers the game's hello after 100 ms
 (`--minigame-startup MS`, `--minigame-reply MS`). A held key repeats as on
 Windows (500 ms, then every 33 ms; `--key-repeat DELAY,PERIOD|off`), in
 the window, the browser and headless runs. A minigame gets every key
-(TIRO, SERIAL and INV: LEFT, RIGHT, SPACE; SALGIN and XILINDRO: the arrows, PgUp,
+(TIRO, SERIAL and INV: LEFT, RIGHT, SPACE, and in the Corrigida's INV also A and D and Esc; SALGIN and XILINDRO: the arrows, PgUp,
 Home, End, Insert, and in the Corrigida A, S, D, F; INFERNO and SAUNA: the arrows (SAUNA also the left button, and in the Corrigida W, A, S, D and Esc); JARDIM: the arrows,
 Ctrl to fire, Space for doors, Shift to run and Caps Lock held to strafe, read with `GetKeyState`, and in the Corrigida W, A, S, D, E); NOITE
 gets Enter, Esc and Space only to skip videos, and never Shift, Ctrl or Caps Lock.
@@ -86,6 +86,15 @@ ENCAIXE's Corrigida (`--fix all`) plays like classic Tetris (`docs/encaixe/GAME.
 piece (`encaixe_next_piece`), and a 500-ms lock delay: a piece resting on something can still be slid
 or turned, each move restarting the delay up to 15 times (`encaixe_lock_delay`; ↓ is the soft drop, as
 before). A rotation the walls or the stack refuse tries one or two columns aside, then one row up, and takes the first that fits (`encaixe_wall_kicks`, GAME.md "Wall kicks"). `tools/play/encaixe-corrigida.input` runs it; the older ENCAIXE scripts pin the first three flags off.
+INV's Corrigida (`--fix all`) plays Taito's arcade Space Invaders on INV's art
+(`inv_arcade_rules`, `docs/inv/ARCADE.md`, GAME.md "Arcade rules (Corrigida)"): the 4 x 5 rack marches one
+invader a frame (so it speeds up as they die) and drops at each wall, the cannon moves at a constant 180 px/s
+and has one shot at a time, three kinds of bomb fall by the arcade's column tables and reload rule (up to three
+at once, slower than the cannon, visible all the way down), four destructible bunkers are bitten by shots and
+bombs with the arcade's explosion pictures, the saucer's mystery score follows the shot count (300 with the
+8th, the 23rd, the 38th shot), three lives, scores times ten, the win and the result to NOITE as ever. The
+sprites are drawn whole at the display rate (`inv_clean_render`) and a controls screen comes first
+(`inv_controls_screen`; Esc forfeits). `tools/inv_bot.py` plays it as a player with a reaction time.
 SAUNA's Corrigida (`--fix all`) plays arcade Pac-Man's rules on SAUNA's maze and art
 (`sauna_arcade_rules`, `docs/sauna/PACMAN.md`, GAME.md "Arcade rules (Corrigida)"): the maze as a
 one-tile-wide grid, movement along tile centres with the arcade's cornering (hold or tap an arrow or
@@ -224,7 +233,15 @@ Saves go to `save/` (`--save DIR`).
   --input tools/play/inv-4fsacaet-win.input` (NOITE hides, adds the score, the Martian's thanks
   `4fmarte2`, the `ESOTEBOY` cutscene and back to `4fbar`) and `--ms 46000 --input
   tools/play/inv-4fsacaet-lose.input` (-2000, `4fmarte`, a life less, back to `4fbar`). Each the
-  same with `--fix all`. INV has no randomness, so `tools/inv_plan.py --win|--lose [--start MS]`
+  same with `--fix all,-inv_arcade_rules,-inv_clean_render,-inv_controls_screen` (the Corrigida's arcade
+  game replaces the 1995 one these scripts play). The Corrigida's game: `--minigame inv --ms 42000 --fix all
+  --input tools/play/inv-corrigida-alone-win.input` (the controls screen, a bot's game with two cannons
+  lost and the saucer: `won 3600`), `inv-corrigida-saucer.input` (the saucer's 23rd shot, `won 6600`),
+  `inv-corrigida-alone-lose.input` (no key, `lost -1500`), `inv-corrigida-controls.input`,
+  `inv-corrigida-esc.input` and, through NOITE, `inv-corrigida-4fsacaet-win.input` / `-lose.input`;
+  `tools/inv_bot.py` (`--emit FILE --seed N` writes a bot's game as such a script, exact to the
+  millisecond; without it, how four kinds of player fare). INV's original has no randomness, so
+  `tools/inv_plan.py --win|--lose [--start MS]`
   plans a game by probing the port (it closes INV at a time and reads the score it reports);
   `--start` is INV's WM_CREATE in the target run (0 alone, 26808 from `4fsacaet`): rerun it when
   that moves. `tools/smoke.py --minigame inv [--fix all] [--monkey SEED]` presses random

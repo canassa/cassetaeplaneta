@@ -218,7 +218,9 @@ map $arg_h $noite_cache {
   leaves on its right or below it, whichever keeps the game larger): held, they hold
   the arrow keys, for the walks a click's straight line can't make (past
   the cat in 1fsala). They follow the window on top (`noite_top_program`,
-  `PAD_KEYS` in noite.js): for TIRO, SERIAL and INV ◀, a fire button (Space) and ▶;
+  `PAD_KEYS` in noite.js): for TIRO, SERIAL and INV ◀, a fire button (Space) and ▶ (in the Corrigida's INV
+  the cannon moves smoothly while ◀ or ▶ is held, so the pad needs no change; the first tap on any of its
+  keys takes the controls screen down and is no move or shot);
   for SALGIN and XILINDRO their eight keys laid out as on the numeric keypad (Home ▲ PgUp /
   ◀ Insert ▶ / End ▼, the four new ones labelled Salto, Pulo, Soco,
   Defesa), and in the Corrigida version their new layout (`PAD_FIGHT_KEYS`,
@@ -448,7 +450,10 @@ tile (`salgin.png`, `salgin-kick.png`), and on a touch screen the pad shows
 the eight fight keys and a held ▲ does the same (`salgin-touch.png`);
 then "Jogo" = Invasores: SPACE sends the shot up from the cannon
 (`inv.png`, `inv-fire.png`), and the touch pad's fire button does
-(`inv-touch.png`); then "Jogo" = Xilindro: Right and Up pressed in turn
+(`inv-touch.png`); in the Corrigida the controls screen first keeps the rack still
+(`inv-controls.png`), a key takes it down, the rack marches (`inv-arcade.png`) and SPACE fires from the
+cannon at the left edge; on a phone the first tap on the fire button takes it down and the next fires
+(`inv-corrigida-touch.png`); then "Jogo" = Xilindro: Right and Up pressed in turn
 for 15 s walk in and kick until the opponent's energy bar gets a tile
 (`xilindro.png`, `xilindro-kick.png`), and on a touch screen the pad shows
 the eight fight keys and ▶ and ▲ tapped in turn do the same

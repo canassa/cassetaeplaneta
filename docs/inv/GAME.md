@@ -241,3 +241,89 @@ NOITE reaches the minigame from the bar: the right answer to the esoteric's ques
 | the shot meets a bomb | `explo5.WAV` |
 | each formation step | `marcha.wav` |
 | the formation reaches a new lowest y | `desceniv.wav` |
+
+## Arcade rules (Corrigida)
+
+Everything above is the 1995 game (the Original, and the Corrigida's bug fixes I1 and I2 on it). With
+`Fixes.inv_arcade_rules` (`--fix all`) INV plays by the rules of **Taito's 1978 Space Invaders** on INV's art
+and sounds, the owner's request after he found the Corrigida's cannon and bombs "horrible" and "impossible to
+prevent being shot": the original's invaders step 20 px every 500 ms in four columns that turn at different
+times, the cannon steps 20 px every 60 ms, and two bombs fall at fixed times from the columns near the cannon
+and cannot be seen coming. The research (the arcade's program, address by address) and every number is
+`docs/inv/ARCADE.md`; the code is `src/inv/arcade/` (design: DESIGN.md "Arcade rules (Corrigida)"). The
+original's cannon, columns, bombs, shot and saucer code does not run: the objects only carry the pictures,
+and the game draws them onto the presented picture (`inv_clean_render`).
+
+**Keys:** LEFT and RIGHT (or A and D) move the cannon, SPACE fires, Esc leaves (a loss, as closing the
+window). A controls screen comes first (`inv_controls_screen`): any key or a click takes it down and is no
+move; the game starts then (half a second of nothing moving, and the invaders do not fire for another 0.8 s).
+
+**The rack** is the original's 4 x 5 invaders (`MOVEIN.BMP`'s column cut into its five invaders, two pictures
+each), 108 px apart across and 38 up. It marches **one invader a frame**, bottom row first from the left, 6 px,
+and toggles its picture when the round wraps: a full step takes as many frames as there are invaders (a third
+of a second with 20), so the whole rack speeds up as they die, to a step a frame (360 px/s) for the last one
+(540 going right). At a wall the direction flips at once but **the drop (16 px) comes with the next step**, so
+the invaders yet to move still go the old way: the arcade's ripple. Ten drops take the bottom row from y 194 to
+the cannon's top; an invader placed on that line has **landed**: the cannon blows up and the game is lost. A
+kill stops the march for 16 frames (`NABOOM1.BMP`). Invaders eat the bunkers they walk over.
+
+**The cannon** moves 180 px/s (constant, from x 24 to 551, 2.9 s across) and starts, and returns after a
+death, at the left. **One shot at a time**, 420 px/s (the bolt crosses the field in 0.74 s), spent when it
+hits an invader (the next shot waits for the burst, 16 frames), a bunker, a bomb, the saucer (at once) or the
+top (a burst of 10 frames). A fire button still down when a shot ends does not fire again: release and press.
+
+**The bombs** (`BOMBA.BMP`, up to three on screen) are the arcade's three kinds. The **rolling** one falls from
+the lowest invader of the column over the cannon's middle: it aims. The **plunger** and **squiggly** fall from
+the columns of the arcade's table (its 11 columns mapped on our 4). They fall smoothly at 140 px/s (175 with
+three invaders or fewer), slower than the cannon and a third of the shot's speed. How many fall at once is the
+arcade's reload rule: a new bomb may leave only when each other one has taken more than N steps (a step is 3
+frames), N = 48 at the start, which never happens (one bomb at a time), 16 once 30 % of a rack's points are
+scored (two or three bombs), 11, 8 and 7 later; so a casual player meets one bomb at a time for the first
+third of the wave. A shot that meets a bomb destroys both (`explo5.wav`). **A bomb that hits the cannon** takes
+a life (-500, `brocha3.wav`): the cannon blows up (`BROCHA.BMP`, a second) with everything standing still, then
+is back at the left, the bombs and the shot gone, and the invaders do not fire for 0.8 s. **Three lives**, shown
+with the score (a number and a little cannon each in reserve); the third hit is the loss.
+
+**The four bunkers** are the arcade's shield picture (22 x 16 pixels) in 3 x 3 px blocks in a green of the
+game's palette (the disc has no bunker art), 66 x 48 px, y 312. A shot bites the bunker from below with the
+arcade's 8 x 8 burst, a bomb from above with its 6 x 8 one, an invader walking over it eats it; each burst
+clears its own blocks, so the holes are ragged as the arcade's. A shot fired from under a bunker digs into it.
+
+**The saucer** (`DISCO.BMP`) launches 12.8 s after the rack has first dropped, then every 12.8 s (half the
+arcade's 25.6 s: a wave of ours is a third of the arcade's), alternating its direction with the shot count, when
+no squiggly bomb is falling and three invaders are left; it crosses in 4.6 s at 114 px/s (a shot must go
+between the invader columns to reach it). Its score is the arcade's mystery score by **the shots fired**: 100,
+50, 50, 100, 150, 100, 100, 50, **300**, 100, 100, 100, 50, 150, 100 by the pointer that advances at every
+shot's end and wraps after 15, so **the 8th shot, the 23rd and the 38th are worth 300** (the famous rule). Times
+ten here: 500, 1000, 1500 or **3000**; shown on its burst (`EXPLOD.BMP`) 8 frames after the hit.
+
+**Score:** the arcade's 10, 10, 20, 20, 30 by row from the bottom, times ten (INV's +100): 100, 100, 200, 200,
+300, a rack 3600; the saucer; -500 a cannon lost. The score box and the result are INV's: clearing the rack is
+the win (`WM_DESTROY` 0xffff after half a second), the third cannon lost or a landing the loss (0), each with
+`g_score` for NOITE.
+
+**The picture** is rebuilt from the clean background every frame (no trails, no flicker): the sprites are
+shown between the game's frames, from where they were a frame ago, at the display's rate. The sounds are INV's:
+`tiroes2` the shot, `explos` an invader, `nave` the saucer, `explo1` its hit, `brocha3` the cannon, `explo5` a
+shot meeting a bomb, `marcha` the march (no oftener than 7 a second), `desceniv` a drop; the music is
+`doom1.mid` as ever.
+
+**How beatable** (`tools/inv_bot.py`: the bot plays the very game, `src/inv/arcade/bot.zig`, with a reaction
+time; 400 games each, wins, cannons lost of 3, seconds of a game):
+
+| Player (the bot's reaction to a new bomb, the age of the picture it aims by, its aim error, how often it looks at the bombs) | Wins | Cannons lost | A game |
+|---|---|---|---|
+| attentive: 400 ms, 100 ms, 10 px, 9 times in 10 | 98 % | 0.5 | 31 s |
+| casual: 600 ms, 150 ms, 25 px, 7 in 10 | 83 % | 1.4 | 38 s |
+| inattentive: 800 ms, 200 ms, 40 px, 5 in 10 | 42 % | 2.4 | 40 s (45 s a win) |
+| distracted: 1000 ms, 250 ms, 50 px, 35 in 100 | 20 % | 2.7 | 38 s (51 s a win) |
+
+With no key at all the cannon at the left is hit three times, the last at 47 s (`lost -1500`). A win takes
+20 kills (about 26 shots) in 30 to 45 s; the saucer comes once or twice in that and is hit in one game of five.
+The losses are the lives; a rack that lands is rare because the last two or three invaders (the fast ones)
+have ten drops (12 s or more) to be hit.
+
+**Tests and tools:** `zig build test` (the rules, the bunkers, the clock, the bot's sim: `src/inv/arcade/`);
+`tools/play/inv-corrigida-*.input` (the controls screen, Esc, a won game by the bot, the saucer's 23rd shot, a
+lost game with no key, both through NOITE's `4fsacaet`); `tools/inv_bot.py` (the table above; `--emit` writes
+a bot's game as an input script, exact to the millisecond because the bot runs the game's own clock).

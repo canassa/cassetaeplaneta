@@ -114,6 +114,9 @@ src/inv/core/             types only (not units)
 src/inv/<unit>.zig        module units
 src/inv/behaviour/        behaviour units (one group of SceneObject slots)
 src/inv/units.zig         generated index (`noite -p inv unit sync`)
+src/inv/arcade/           the Corrigida's arcade game (not units, no `@orig`): `sim.zig` (the rules, pure), `bunker.zig`,
+                          `driver.zig` (the clock and the keys), `glue.zig` (the hook, the score, the sounds, the end),
+                          `view.zig` (the picture), `controls.zig` (the screen), `bot.zig` (dev tool)
 ```
 
 ## Object model
@@ -356,6 +359,7 @@ specifics:
 |---|---|---|---|---|
 | I1 SPACE latch never set | `inv_space_latch` | invasion | the SPACE key-down branch, taken when `g_keySpaceHeld` is 0, sets it to 1 (WM_KEYUP already clears it): a held SPACE fires at most once, on the press; key repeats do nothing (TIRO's T1 fix) | yes |
 | I2 a direction key cuts the cannon's explosion short | `inv_explosion_holds_cannon` | invasion | while the explosion strip is on (`curStrip` 1, from `cannon_lose_life` to the last frame; `hitFrame` is still −1 until the cannon's first tick), LEFT/RIGHT key-down set their latch and key-up clears it, but neither moves, resumes or stops the cannon, and SPACE does not fire: the cannon stays put for the whole `Brocha.bmp` explosion (7 frames of 60 ms), and the explosion's end resumes a held key, as the original's already does | yes (owner's decision) |
+| (Corrigida addition) | `inv_arcade_rules`, `inv_clean_render`, `inv_controls_screen` | `arcade/` | the arcade game (below); I1 and I2 are about the 1995 cannon, which does not run then | yes |
 
 Each unit ports the buggy code and keeps the fixed path only under its
 flag (`g.fixes.inv_…`). I1 matters only with key repeats (on by default:
@@ -386,6 +390,55 @@ what the original does, with these notes for the units:
   `crossbow_play`/`crossbow_tick` are.
 - **`WinMain`'s uninitialised return**: not ported (the host ignores exit
   codes).
+
+## Arcade rules (Corrigida)
+
+The owner's request: after playing the Corrigida he found INV's animations "horrible" and said it was
+"impossible to prevent being shot", and asked for standard Space Invaders. `Fixes.inv_arcade_rules` makes INV
+Taito's game on INV's art (research: `docs/inv/ARCADE.md`; the rules as played: GAME.md "Arcade rules
+(Corrigida)"), with `inv_clean_render` (the picture) and `inv_controls_screen`. All three are in `all`; the
+Original (no fixes) is untouched, and I1 and I2 act on the 1995 cannon only. SAUNA's arcade Pac-Man
+(`src/sauna/arcade/`) is the model: the same layers, the same hooks.
+
+**Layers** (`src/inv/arcade/`, outside the port units; the 1995 units are called only for `sound.play`):
+- `sim.zig`: `Sim`, the whole game in screen pixels and 60-th-second frames, knowing nothing of the Game: the
+  rack (`updateRack`: a cursor over the 20 slots, one invader a frame, `moveRef` at the wrap, `checkWalls`,
+  `place` with the landing test), the cannon, the shot (`updateShot`: top, saucer, invader, bomb, bunker, in that
+  order), the three bombs (`tryFire` with the reload rule and the column tables, `bombHits`), the saucer, the
+  death (`dyingFrame`), the win's pause. Moving things are 24.8 fixed point with their previous position kept
+  for the picture. `Sim.frame(input, &events)` returns what happened (`Events`: fired, hits, score to add, won,
+  lost). Pure, copyable, with its own tests (the march, the walls, the reload tiers, three bombs at once, a
+  death and its respawn, a landing, the saucer's table, the bunkers' bites, shot meets bomb, the win).
+- `bunker.zig`: `Bunker`, a 22 x 16 grid of 3 x 3 px blocks from the arcade's `ShieldImage`, the two explosion
+  pictures (`shot_burst`, `bomb_burst`) and `touch` / `erase` / `carve` over screen rectangles.
+- `driver.zig`: `Driver`, the clock (frame `n` at `t0 + n * 1000 / 60`; a tick runs the frames due, at most 6),
+  the READY beat (30 frames), the keys (both arrows: the last pressed wins; a fire tap shorter than a frame
+  counts for the frame). Its effects (`fx.frame(sim, events)`) are the game's or the bot's.
+- `glue.zig`: `handle`, called first by `invasion.handleMessage` when the flag is on: the keys (arrows and A, D,
+  SPACE, Esc forfeits through WM_CLOSE), the mouse (swallowed), every WM_SYSTIMER (the original's timers do not
+  run; timer 0x12, 16 ms, runs the game), `scene_started` (`begin`: the pictures are taken from the objects'
+  frames, the game made, started unless the controls screen is up). `Fx.frame` plays the sounds (`sound.play`),
+  adds `ev.score` to `g.score` and sends the end (`WM_DESTROY` 0xffff, or 0) through the original's own handler,
+  which posts the 0x40a. **Nothing is ever drawn into the backdrop or the screen.** The cannon's per-row extent
+  (`cannon_art`) is measured from `CANHAO.BMP`, embedded in `sim.zig` and checked against the disc by a test in
+  `glue.zig`.
+- `view.zig`: `host.Program.view` (`root.zig`; the picture the backend presents at its frame rate and the
+  harness dumps): the clean background (`Espaco.bmp` top down, kept), then the bunkers (blocks), bombs, invaders
+  (cut from `MOVEIN.BMP`: invader `k` of picture `f` is the 88 x 34 rectangle at y `3 + 45 k + 216 f`, the art's
+  real grid, which the original's 44 and 217 do not match), the saucer and its burst and score, the shot, the
+  bursts (`BOMTIR.BMP`, key 0, black), the cannon or `BROCHA.BMP`, the score as the original draws it (a
+  character at a time) and the lives; the controls panel over it while it is up. The cannon, the shot, the
+  bombs and the saucer are shown between their frames (`Sim.lerp` from the previous frame's position, by the
+  time since the frame). With `inv_clean_render` alone it draws the 1995 objects where the game has them.
+- `controls.zig`: the gate in `app.wndProc` (from WM_CREATE: no input and no timer until a key or a click; Esc
+  passes) and the panel (`core/controls_screen.zig`).
+- `bot.zig` (`zig build inv-bot`, `tools/inv_bot.py`): a player with a reaction time, run on the very `Driver`
+  (a tick every 16 ms), for the beatability table and for input scripts (`--emit`, exact to the millisecond: a
+  key is pressed 8 ms before a tick and released a millisecond before the next press).
+
+**Decisions** (each for the owner, in `docs/inv/ARCADE.md` "What the owner may overrule"): four columns (the art),
+one wave, scores times ten, -500 kept, the saucer's period halved, the reload tiers scaled by 20/55, procedural
+bunkers, both burst when a shot meets a bomb, three lives and no extra. The numbers' sources are ARCADE.md's.
 
 ## Integration
 
@@ -499,6 +552,13 @@ both versions play the same game.
     4fsacaet`): the planner's keys from 26808, `result won 2000`, then
     `4fmarte2`, `ESOTEBOY` and `4fbar` with the score added / `result lost
     -2000`, `4fmarte`, then `4fbar` with a life less and the score lowered.
+- **The Corrigida's arcade game** (`--fix all`): the Original's scripts above pin it off
+  (`--fix all,-inv_arcade_rules,-inv_clean_render,-inv_controls_screen`); `inv-corrigida-*.input` play it:
+  `alone-win` and `saucer` (a bot's games, `tools/inv_bot.py --emit`: two cannons lost and the saucer's 100; the
+  saucer's 300 with the 23rd shot), `alone-lose` (no key: `lost -1500`), `controls` (the screen holds the game,
+  its key is no move), `esc`, `4fsacaet-win` and `4fsacaet-lose` (through NOITE, the bot's keys shifted to
+  INV's start 26808 + the screen's key at 28000). Rerun the bot when INV's start or the rules move. `zig build
+  test` has the rules' tests (`src/inv/arcade/`).
 - **Playthroughs**: `full.input` and `onebutton.input` take the
   sportsman's route at `4fbar`; INV is on the esoteric's, a detour that
   comes back to the bar (Decisions). They stay green with INV

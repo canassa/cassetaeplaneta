@@ -1194,6 +1194,25 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
     perdeu uma vida.") is said in a framed panel over the prison for 4 s (`src/note.zig`, drawn in the
     screen overlay: NOITE has no message of its own, and its MessageBox is only logged). Not shown on the
     game-over path (`6fsaida`).
+- INV's arcade game (the owner's request after he played the Corrigida: "animations are horrible, it's impossible
+  to prevent being shot ... implement standard invaders"; `docs/inv/ARCADE.md`, GAME.md "Arcade rules
+  (Corrigida)", `src/inv/arcade/`):
+  - `Fixes.inv_arcade_rules`: INV plays by Taito's Space Invaders on its own art and sounds. The rack (the
+    original's 4 x 5) marches one invader a frame, so it speeds up as invaders die, and drops 16 px a wall;
+    the cannon moves at a constant 180 px/s with one shot at a time (420 px/s); three kinds of bomb (aimed,
+    plunger, squiggly) fall smoothly from the arcade's column tables, up to three at once by the arcade's
+    reload rule; four destructible bunkers (the arcade's picture in 3-px blocks, bitten by the arcade's
+    burst pictures); the saucer's mystery score by the shot count (300 on the 8th, 23rd, 38th shot); three
+    lives (a life lost is -500, as the original's hit), the cannon blown up and everything standing for a
+    second, the rack landing is the loss, the cleared rack the win; scores times ten (an invader 100 to 300
+    by row, the saucer 500 to 3000). The result to NOITE (the won flag and `g_score`) is the original's. It
+    supersedes I1 and I2 (the original's cannon does not run). Not in the original: everything above.
+  - `Fixes.inv_clean_render`: the picture is built from the clean background and every sprite whole at its
+    position, each frame at the display rate (the original draws each object into the backdrop at its timer's
+    step and wipes a rectangle a step wider: jumps, trails and flicker). With the arcade rules it draws the
+    game's sprites and shows what moves between the game's frames; alone, the 1995 objects.
+  - `Fixes.inv_controls_screen` (with the arcade rules): a screen with the keys and the goal from WM_CREATE
+    until a key or a click (the key is no move or shot; Esc leaves, a forfeit).
 
 ---
 
@@ -2083,6 +2102,16 @@ Harmless, the last kill's speed-up) and `WM_QUIT` comes first.
   version): while the explosion strip is on, from `cannon_lose_life` to its last frame, the arrows only
   set their latches and SPACE does not fire. Kept in `all` by the owner's decision: the cannon is frozen,
   and cannot fire, for its whole explosion.
+
+### Corrigida addition: the arcade game (not a bug)
+
+INV's rules (a rack of four columns that step 20 px every 500 ms and turn at different times, a cannon that
+steps 20 px every 60 ms, two bombs that fall from the column near the cannon on fixed 2-s and 5-s timers
+and cannot be seen coming) are consistent code with a plausible intent (listed above under "left out as
+design"), but they make a jerky game in which a bomb cannot be avoided. `Fixes.inv_arcade_rules`
+(`--fix inv_arcade_rules`, in `all`) plays arcade Space Invaders' rules on INV's art and sounds
+(`docs/inv/ARCADE.md`, GAME.md "Arcade rules (Corrigida)"), with `Fixes.inv_clean_render` and
+`Fixes.inv_controls_screen`. None is a bug fix; I1 and I2 act on the 1995 cannon only.
 
 ### Harmless (INV)
 
