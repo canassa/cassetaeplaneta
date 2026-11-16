@@ -72,6 +72,13 @@ pub const jump_vy: i32 = fx(10);
 pub const gravity: i32 = fx(0.5);
 pub const jump_vx: i32 = fx(4);
 
+/// Arc height (fixed point) over which an airborne frame's placement eases in
+/// from the feet anchor, most of the rise (apex 95) (`sim.airLift`).
+pub const air_ramp: i32 = fx(80);
+/// A frame shorter than the stance hangs from the head line and sits this much
+/// higher than that (1/256; 1.3: the flip's ball in MK3's pictures, MK3.md 3).
+pub const air_tuck: i32 = 333;
+
 /// Ticks of a jump (the sprite clip is stretched over it).
 pub fn airTicks() u16 {
     var y: i32 = 1;

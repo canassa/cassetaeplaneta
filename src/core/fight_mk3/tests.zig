@@ -275,3 +275,64 @@ test "the CPU is beatable by a casual player and beats one that does nothing" {
     const decent = try winRate(.decent, 30);
     try expect(decent.wins >= casual.wins - 3);
 }
+
+test "airborne frames hang from the head line: a tuck at the apex is above a standing opponent's head" {
+    var c = try load();
+    defer c.deinit();
+    var s = Sim.init(&c, &c);
+    const stand = px(-s.hurtBox(1).?.y0);
+    press(&s, 0, .{ .up = true });
+    s.step();
+    press(&s, 0, .{});
+    var apex: i32 = 0;
+    var top_up: i32 = 0;
+    var bottom_up: i32 = 0;
+    var prev_top: i32 = 0;
+    var n: u32 = 0;
+    while (!s.f[0].grounded() and n < 100) : (n += 1) {
+        const hb = s.hurtBox(0).?;
+        // No pop: the top moves at most the arc speed (12.5) plus the easing in (a tuck all the way, the worst case).
+        const top = px(-hb.y0);
+        if (n > 0) try expect(@abs(top - prev_top) <= px(fx_max_step));
+        prev_top = top;
+        if (s.f[0].y > apex) {
+            apex = s.f[0].y;
+            top_up = top;
+            bottom_up = px(-hb.y1);
+        }
+        s.step();
+    }
+    // Head line (a stand-height frame's top) = standing height + arc; the 50-px tuck of a 110-px
+    // stance hangs 1.3 x 60 px higher than its feet anchor: top = stand + arc + 0.3 x 60.
+    const arc = px(apex);
+    const slack = @divTrunc((110 - 50) * c.scale_fp, 256);
+    try expect(@abs(top_up - (stand + arc + @divTrunc(slack * 3, 10))) <= 3);
+    // Entirely above the standing opponent's head, the ball's bottom over 1.2 x the stance.
+    try expect(bottom_up > stand);
+    try expect(@divTrunc(bottom_up * 100, stand) >= 120);
+    // On the ground the frame is feet-anchored again.
+    try expectEqual(@as(i32, 0), s.lift(0));
+}
+
+const fx_max_step: i32 = 30 * 256;
+
+test "a jumper's hurt box is above the standing opponent's, so a jump-over clears him" {
+    var c = try load();
+    defer c.deinit();
+    var s = Sim.init(&c, &c);
+    s.f[0].x = 250 * fp;
+    s.f[1].x = 400 * fp;
+    press(&s, 0, .{ .up = true, .right = true });
+    s.step();
+    press(&s, 0, .{});
+    var n: u32 = 0;
+    var cleared = false;
+    while (n < 60) : (n += 1) {
+        s.step();
+        if (s.f[0].grounded()) break;
+        const a = s.hurtBox(0).?;
+        const b = s.hurtBox(1).?;
+        if (a.x0 < b.x1 and b.x0 < a.x1 and a.y1 < b.y0) cleared = true;
+    }
+    try expect(cleared);
+}

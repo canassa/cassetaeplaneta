@@ -169,9 +169,10 @@ pub const Match = struct {
     /// Where fighter `who` is drawn now: feet x and y on the screen.
     pub fn feet(m: *const Match, who: u1) struct { x: i32, y: i32 } {
         const a = m.alpha();
+        const ly = m.sim.lerpY(who, a);
         return .{
             .x = @divTrunc(m.sim.lerpX(who, a), sim_mod.fp),
-            .y = t.ground_y - @divTrunc(m.sim.lerpY(who, a), sim_mod.fp),
+            .y = t.ground_y - @divTrunc(ly + sim_mod.airLift(&m.char, m.sim.frameOf(who), ly), sim_mod.fp),
         };
     }
 
@@ -201,7 +202,8 @@ pub const Match = struct {
         for (order) |who| {
             const fr = m.sim.frameOf(who);
             const x = @divTrunc(m.sim.lerpX(who, a), sim_mod.fp);
-            const y = t.ground_y - @divTrunc(m.sim.lerpY(who, a), sim_mod.fp);
+            const ly = m.sim.lerpY(who, a);
+            const y = t.ground_y - @divTrunc(ly + sim_mod.airLift(&m.char, fr, ly), sim_mod.fp);
             m.shown[who] = .{ .x = x, .y = y };
             render.drawFrame(&out.pixels, &m.char, &m.luts[who], fr, x, y, m.sim.f[who].face < 0);
         }
@@ -242,16 +244,16 @@ pub const Match = struct {
         for ([2]u1{ 0, 1 }) |w| {
             const f = m.shown[w];
             render.fillRect(&out.pixels, f.x - 1, f.y - 1, f.x + 2, f.y + 2, ground);
-            if (m.sim.hurtBox(w)) |b| drawRect(out, b, f.x, f.y, m.sim.f[w], hurt);
-            if (m.sim.hitBox(w)) |b| drawRect(out, b, f.x, f.y, m.sim.f[w], hit);
+            if (m.sim.hurtBox(w)) |b| drawRect(out, b, f.x, f.y, m.sim.f[w], m.sim.lift(w), hurt);
+            if (m.sim.hitBox(w)) |b| drawRect(out, b, f.x, f.y, m.sim.f[w], m.sim.lift(w), hit);
         }
     }
 
-    fn drawRect(out: *Screen, b: Sim.Rect, sx: i32, sy: i32, f: sim_mod.Fighter, col: u8) void {
+    fn drawRect(out: *Screen, b: Sim.Rect, sx: i32, sy: i32, f: sim_mod.Fighter, up: i32, col: u8) void {
         // World boxes are at the tick's position: offset to where the
         // picture shows the fighter.
         const dx = sx - @divTrunc(f.x, sim_mod.fp);
-        const dy = sy - (t.ground_y - @divTrunc(f.y, sim_mod.fp));
+        const dy = sy - (t.ground_y - @divTrunc(f.y + up, sim_mod.fp));
         render.rectOutline(&out.pixels, @divTrunc(b.x0, sim_mod.fp) + dx, t.ground_y + @divTrunc(b.y0, sim_mod.fp) + dy, @divTrunc(b.x1, sim_mod.fp) + dx, t.ground_y + @divTrunc(b.y1, sim_mod.fp) + dy, col);
     }
 };

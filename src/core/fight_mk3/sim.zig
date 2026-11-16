@@ -97,6 +97,31 @@ pub const Fighter = struct {
     }
 };
 
+/// The vertical placement of an airborne frame (`y`: the origin's height
+/// above the floor, fixed-point px; the result is how far the frame's feet
+/// anchor rises above `y`, same units; 0 on the ground).
+///
+/// MK3 positions a fighter by its origin, the TOP of the stance (the head
+/// line, `ochar_ground_offsets` below it to the floor), and the origin alone
+/// rises with the jump arc; a frame hangs from it. So the head line of a
+/// stand-height frame is at standing height + arc, a shorter frame (the
+/// tucked flip) hangs from the same line and, in MK3's own pictures, sits
+/// even higher (about 0.3 of the missing height above the line). Frames are
+/// feet-anchored in the pack: the lift is (standing height - the frame's
+/// height) times `t.air_tuck`, shortened to nothing on the floor so that
+/// take-off and landing do not pop; a frame taller than the stance keeps
+/// its top on the head line (its feet hang lower), never under the floor.
+pub fn airLift(c: *const Character, fr: *const character.Frame, y: i32) i32 {
+    const stand = c.parsed.value.stand;
+    if (stand <= 0 or y <= 0) return 0;
+    const body: f64 = if (fr.hurt) |h| @floatFromInt(-@as(i32, h[1])) else @floatFromInt(-@as(i32, fr.oy));
+    const slack: i32 = @intFromFloat(@round((stand - body) * @as(f64, @floatFromInt(c.scale_fp))));
+    const r: i32 = @min(256, @divTrunc(y * 256, t.air_ramp));
+    const k: i32 = if (slack > 0) t.air_tuck else 256;
+    const up = @divTrunc(@divTrunc(slack * k, 256) * r, 256);
+    return @max(up, -y);
+}
+
 pub const Sim = struct {
     chars: [2]*const Character,
     f: [2]Fighter,
@@ -182,8 +207,16 @@ pub const Sim = struct {
     /// ground, so negative above it).
     pub const Rect = struct { x0: i32, y0: i32, x1: i32, y1: i32 };
 
+    /// How far (fixed-point px, up) the picture and its boxes rise above the
+    /// feet anchor while airborne: MK3 hangs the figure from its origin at
+    /// the head line (MK3.md section 3, "Where the figure hangs in the air").
+    pub fn lift(s: *const Sim, who: u1) i32 {
+        return airLift(s.chars[who], s.frameOf(who), s.f[who].y);
+    }
+
     fn toWorld(s: *const Sim, who: u1, b: character.Box) Rect {
         const f = &s.f[who];
+        const up = s.lift(who);
         const sc: i32 = s.chars[who].scale_fp;
         const bx0: i32 = b[0];
         const bx1: i32 = b[2];
@@ -191,7 +224,7 @@ pub const Sim = struct {
         const by1: i32 = b[3];
         const x0 = if (f.face > 0) f.x + bx0 * sc else f.x - bx1 * sc;
         const x1 = if (f.face > 0) f.x + bx1 * sc else f.x - bx0 * sc;
-        return .{ .x0 = x0, .x1 = x1, .y0 = -f.y + by0 * sc, .y1 = -f.y + by1 * sc };
+        return .{ .x0 = x0, .x1 = x1, .y0 = -f.y - up + by0 * sc, .y1 = -f.y - up + by1 * sc };
     }
 
     pub fn hurtBox(s: *const Sim, who: u1) ?Rect {

@@ -19,11 +19,14 @@ pub fn pack(gpa: std.mem.Allocator) ![]u8 {
         \\{"w":1,"h":1,"ox":0,"oy":-1,"off":1,"hurt":[-26,-110,26,0],"hit":[20,-100,90,-60]},
         \\{"w":1,"h":1,"ox":0,"oy":-1,"off":0,"hurt":[-26,-55,26,0],"hit":null},
         \\{"w":1,"h":1,"ox":0,"oy":-1,"off":1,"hurt":[-26,-55,26,0],"hit":[20,-45,90,-20]},
-        \\{"w":1,"h":1,"ox":0,"oy":-1,"off":1,"hurt":null,"hit":null}],"clips":[
+        \\{"w":1,"h":1,"ox":0,"oy":-1,"off":1,"hurt":null,"hit":null},
+        \\{"w":1,"h":1,"ox":0,"oy":-1,"off":0,"hurt":[-26,-50,26,0],"hit":null}],"clips":[
     );
     inline for (@typeInfo(character.Anim).@"enum".field_names, 0..) |fname, i| {
         const attack = comptime isAttack(fname);
         const low = comptime std.mem.indexOf(u8, fname, "crouch") != null or std.mem.eql(u8, fname, "block_lo") or std.mem.eql(u8, fname, "hit_lo") or std.mem.startsWith(u8, fname, "c_") or std.mem.eql(u8, fname, "uppercut") or std.mem.eql(u8, fname, "sweep");
+        // The jumps are a short, tucked picture (a flip's ball).
+        const tuck = comptime std.mem.startsWith(u8, fname, "jump_");
         const down = comptime std.mem.eql(u8, fname, "fall") or std.mem.eql(u8, fname, "down");
         const s = if (down)
             \\{"name":"
@@ -44,7 +47,7 @@ pub fn pack(gpa: std.mem.Allocator) ![]u8 {
             try js.appendSlice(gpa, rest);
             try js.appendSlice(gpa, "],\"ms\":[100,100,100],\"loop\":false,\"active\":[1,1]}");
         } else {
-            const fr: []const u8 = if (down) "4" else if (low) "2" else "0";
+            const fr: []const u8 = if (down) "4" else if (low) "2" else if (tuck) "5" else "0";
             try js.appendSlice(gpa, "\",\"frames\":[");
             try js.appendSlice(gpa, fr);
             try js.appendSlice(gpa, "],\"ms\":[100],\"loop\":true}");
