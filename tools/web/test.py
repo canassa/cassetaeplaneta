@@ -816,9 +816,9 @@ def main():
             tpage.screenshot(path=str(out / "xilindro-controls.png"))
             shown = tpage.evaluate("""() => Array.from(document.querySelectorAll('#dpad button'))
                 .filter((b) => !b.hidden).map((b) => [Number(b.dataset.key), b.textContent])""")
-            check(sorted(k for k, _ in shown) == [37, 38, 39, 40, 65, 68, 70, 83],
-                  f"Corrigida touch Xilindro: the pad shows the arrows and A S D F ({shown})")
-            check(dict(shown).get(68) == "Chute alto" and dict(shown).get(65) == "Soco",
+            check(sorted(k for k, _ in shown) == [32, 37, 38, 39, 40, 65, 68, 70, 83],
+                  f"Corrigida touch Xilindro: the pad shows the MK3 layout: the arrows, A S D F and the block ({shown})")
+            check(dict(shown).get(68) == "Chute" and dict(shown).get(65) == "Soco" and dict(shown).get(32) == "Def.",
                   f"Corrigida touch Xilindro: the moves have their names ({shown})")
             clock = tpage.evaluate(clock_js)
             time.sleep(1.5)
