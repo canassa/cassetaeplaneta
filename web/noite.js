@@ -95,7 +95,7 @@
         69: ["Abrir", "Abrir porta"], 17: ["Tiro", "Atirar"], 81: ["Arma", "Trocar de arma"] },
     },
   };
-  // The MK3 fight's pad (?mk3=1): the arrows, A S D F as the four blows and
+  // The MK3 fight's pad (the Corrigida's XILINDRO, unless ?mk3=0): the arrows, A S D F as the four blows and
   // Space (the middle of the arrows) as the block. Down + a blow: the low
   // moves (crouching punch, uppercut, kick, sweep); Back + HK: the roundhouse.
   const PAD_MK3 = {
@@ -319,7 +319,7 @@
   }
 
   /** { version: "original" | "corrigida", skip: bool, oneButton: bool } */
-  let mk3 = false; // ?mk3=1: the MK3 fight (XILINDRO's Corrigida)
+  let mk3 = true; // the MK3 fight (XILINDRO's Corrigida); ?mk3=0 turns it off
   let autoPlay = false; // ?auto=1
   function readPrefs() {
     const prefs = { version: "original", skip: true, oneButton: coarsePointer(), minigame: "" };
@@ -330,11 +330,12 @@
       if (typeof p.oneButton === "boolean") prefs.oneButton = p.oneButton;
       if (MINIGAMES.some((m) => m.ready && m.name === p.minigame)) prefs.minigame = p.minigame;
     } catch {}
-    // The MK3 fight prototype (`fight_mk3`, docs/fights/MK3.md): ?mk3=1 turns
-    // it on (it needs the private sprite pack in the site's files), ?jogo=NAME
+    // The MK3 fight (`fight_mk3`, docs/fights/MK3.md) is XILINDRO's Corrigida
+    // (it needs the private sprite pack in the site's files); ?mk3=0 plays the
+    // old fair fight instead. ?jogo=NAME
     // picks the minigame alone, ?auto=1 presses Jogar when the files are in.
     const q = new URLSearchParams(location.search);
-    if (q.get("mk3") === "1") mk3 = true;
+    if (q.get("mk3") === "0") mk3 = false;
     if (q.get("auto") === "1") autoPlay = true;
     const jogoAsked = q.get("jogo");
     if (jogoAsked && MINIGAMES.some((m) => m.ready && m.name === jogoAsked)) prefs.minigame = jogoAsked;
@@ -1169,7 +1170,7 @@
       attachInput();
       if (!snap) {
         const minigame = MINIGAMES.findIndex((m) => m.name === prefs.minigame) + 1;
-        const rc = wasm.noite_start(prefs.version === "corrigida" ? 1 : 0, prefs.skip ? 1 : 0, prefs.oneButton ? 1 : 0, minigame, mk3 ? 1 : 0);
+        const rc = wasm.noite_start(prefs.version === "corrigida" ? 1 : 0, prefs.skip ? 1 : 0, prefs.oneButton ? 1 : 0, minigame, mk3 ? 0 : 1);
         if (rc === 3) throw new Error("este minijogo ainda não foi portado");
         if (rc !== 0) throw new Error(`o jogo não iniciou (${rc})`);
       }

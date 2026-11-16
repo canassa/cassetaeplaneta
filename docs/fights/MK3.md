@@ -313,8 +313,8 @@ get-up duration, arena width, KO-to-next-round time, which strikes have `SF_DUCK
 
 ## 11. The engine built from it (`src/core/fight_mk3/`, `fixes.fight_mk3`)
 
-A prototype of XILINDRO's fight with these mechanics, SF3 Ryu on both sides (`--fix all,fight_mk3`; the web page's
-`?mk3=1`). It is sprite-agnostic: a character is a pack of frames and clips (`character.zig`), the moves are
+XILINDRO's Corrigida fight with these mechanics, SF3 Ryu on both sides (in `--fix all`; `--fix all,-fight_mk3` and the web
+page's `?mk3=0` play the old fair fight, which is also what plays without the pack). It is sprite-agnostic: a character is a pack of frames and clips (`character.zig`), the moves are
 tables (`tables.zig`), the simulation (`sim.zig`) reads the hurt and hit boxes of the frame each fighter shows.
 The original Casseta sprites will be mapped onto the same engine later (a pack with the same clip names).
 
@@ -380,7 +380,7 @@ portraits; the arena band is rebuilt each frame from the background.
 | F9 | the hurt (blue) and hit (red) boxes (Debug builds) |
 
 The old XILINDRO keys (PgUp, Home, End, Insert) do nothing in this fight; the controls screen lists the new ones.
-The web pad (`?mk3=1`) has the arrows, A S D F and a block button in the middle of the arrows; the low and back
+The web pad (the Corrigida's XILINDRO, unless `?mk3=0`) has the arrows, A S D F and a block button in the middle of the arrows; the low and back
 moves are a held arrow and a tap (multi-touch); a tap that is held still repeats like a keyboard.
 
 ### 11.5 Sprites
@@ -431,11 +431,11 @@ the simulation) are in `docs/fights/MK3.md` section 11.8.
 `zig build test` (the mechanics on the synthetic pack: the jump arc, the side switch, blocks, chip, throws, knockdowns, KO,
 walls, and that the CPU beats a bot that does nothing and loses to a casual one), `tools/fight_mk3_smooth.py` on a
 headless run's frame trace (`--fight-bot masher,5,log --dump-every 16`), `tools/play_all.py` (the flag is off by default:
-144 of 144), `tools/smoke.py --minigame xilindro [--fix all,fight_mk3]`.
+144 of 144), `tools/smoke.py --minigame xilindro [--fix all]`.
 
 ### 11.8 Results
 
-`tools/fight_bots.py --seeds 60 --game xilindro --fixes easy=all mk3=all,fight_mk3` (the real Ryu pack; `easy` is the old fight with
+`tools/fight_bots.py --seeds 60 --game xilindro --fixes easy=all,-fight_mk3 mk3=all` (the real Ryu pack; `easy` is the old fight with
 the Corrigida's easy opponent; win% includes a clock win; the bots press nothing the keys could not):
 
 | fight | bot | win % | KO % | round ends (s) | bot's energy left | CPU's energy left | hits landed / taken |

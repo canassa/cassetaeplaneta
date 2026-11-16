@@ -11,9 +11,9 @@ round and the port prints the result (`xilindro: won, score N`) and the
 bot's end line (`fightbot: end ...`). The harness is deterministic by
 virtual time, so a run varies with the bot's seed and the epoch (the
 games' srand). `--fixes` is a list of NAME=ARG pairs, ARG being the
-`--fix` argument (`orig` for none; `mk3=all,fight_mk3` for the MK3 prototype,
+`--fix` argument (`orig` for none; `mk3=all` for the MK3 fight,
 which needs its private sprite pack, docs/fights/MK3.md): by default `orig`, `fair`
-(`all,-fight_easy_ai`, when that fix exists) and `easy` (`all`).
+(`all,-fight_easy_ai`, when that fix exists) and `easy` (`all,-fight_mk3`).
 
 Use a ReleaseFast build for speed:
     nix develop -c zig build -Doptimize=ReleaseFast --prefix zig-out/fast
@@ -74,7 +74,7 @@ def main():
     ap.add_argument("-j", type=int, default=os.cpu_count())
     a = ap.parse_args()
     fixes = {}
-    for f in a.fixes or ["orig=orig", "fair=all,-fight_easy_ai", "easy=all"]:
+    for f in a.fixes or ["orig=orig", "fair=all,-fight_easy_ai", "easy=all,-fight_mk3"]:
         k, _, v = f.partition("=")
         fixes[k] = v
     games, bots = a.game.split(","), a.bots.split(",")

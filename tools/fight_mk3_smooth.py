@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Smoothness of the MK3 fight's picture, from a headless run's frame trace.
 
-    zig-out/bin/noite --headless --minigame xilindro --ms 40000 --fix all,fight_mk3 \\
+    zig-out/bin/noite --headless --minigame xilindro --ms 40000 --fix all \\
         --fight-bot masher,5,log --dump zig-out/mk3-dump --dump-every 16 \\
         --epoch 800000005 2> trace.log
     python3 tools/fight_mk3_smooth.py trace.log

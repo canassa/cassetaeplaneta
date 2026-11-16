@@ -40,13 +40,13 @@ SoundFont), against 547 MB for the whole disc.
 
 ### The MK3 fight's sprite pack
 
-The XILINDRO fight prototype (`fight_mk3`, `docs/fights/MK3.md`) needs a sprite pack that is private (Capcom's art,
+The XILINDRO Corrigida fight (`fight_mk3`, in `--fix all`; `docs/fights/MK3.md`) needs a sprite pack that is private (Capcom's art,
 not in git): `NOITE_SPRITES=zig-out/sprites NOITE_SKIP_EXPLORER=1 tools/web/build-site.sh OUT` adds every file
 under `zig-out/sprites/` (the pack `tools/ryu_pack.py` writes: `ryu/pack.bin`) to OUT and its manifest. The page
-takes `?mk3=1` (turns the flag on: XILINDRO's Corrigida, `noite_start`'s `extra` bit 0), `?jogo=xilindro` (that
+takes `?mk3=0` (the opt-out: `noite_start`'s `extra` bit 0 turns `fight_mk3` off, so XILINDRO's Corrigida plays the old fair fight; the pad follows), `?jogo=xilindro` (that
 minigame alone), `?versao=corrigida` and `?auto=1` (presses Jogar when the files are in), e.g.
-`index.html?mk3=1&jogo=xilindro&versao=corrigida&auto=1`. The public deploy is built with it
-(`tools/deploy-web.sh` takes the main checkout's `zig-out/sprites` by default); a build without it has no pack, and the flag does nothing (the old fight plays).
+`index.html?jogo=xilindro&versao=corrigida&auto=1` (the MK3 fight, no other parameter). The public deploy is built with it
+(`tools/deploy-web.sh` takes the main checkout's `zig-out/sprites` by default); a build without it has no pack, and the old fair fight plays (the pad still shows the MK3 layout).
 
 ## Serving (nginx)
 

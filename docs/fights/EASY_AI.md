@@ -564,7 +564,7 @@ answered; a next step if masher-proofing is wanted) and its idle limit (two a ro
 
 Win rate % (and, in the notes, the energies) over 100 seeds. "orig" is the Original (no fix), "fair" the
 Corrigida before (`all,-fight_easy_ai`), "easy" the Corrigida now (`all`). `tools/fight_bots.py --seeds 100
---bots idle,masher,novice,decent,expert --fixes orig=orig fair=all,-fight_easy_ai easy=all`
+--bots idle,masher,novice,decent,expert --fixes orig=orig fair=all,-fight_easy_ai easy=all,-fight_mk3`
 (`zig-out/reports/fight-easy-ai/win-rates.tsv`).
 
 | Bot | Target | XILINDRO orig | fair | easy | SALGIN orig | fair | easy |

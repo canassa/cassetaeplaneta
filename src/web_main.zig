@@ -79,8 +79,8 @@ export fn __main_argc_argv(argc: c_int, argv: ?*anyopaque) c_int {
 export fn noite_start(fixes: bool, skip_videos: bool, one_button_mode: bool, minigame: u32, extra: u32) i32 {
     backend.init(gpa, skip_videos);
     var fx: @import("core/fixes.zig").Fixes = if (fixes) .all() else .{};
-    // `extra` bit 0: the MK3 fight prototype (`?mk3=1`), not in `all`.
-    if (extra & 1 != 0) fx.fight_mk3 = true;
+    // `extra` bit 0: the page's `?mk3=0` opt-out of the MK3 fight (in `all`).
+    if (extra & 1 != 0) fx.fight_mk3 = false;
     const prog: ?*const host.Program = if (minigame >= 1 and minigame <= minigames.len) minigames[minigame - 1] else null;
     hs.init(gpa, backend.platform(), &backend.sim, .{ .real = &minigames, .fixes = fx }, if (prog) |p| p.title else "Noite Animal", prog);
     if (prog) |p| {
@@ -205,10 +205,10 @@ export fn noite_options() i32 {
         @as(i32, @intFromBool(g.oneButton.filter != null)) << 2;
 }
 
-/// Bit 0: every fix on (the MK3 prototype flag, not in `all`, apart: bit 4).
+/// Bit 0: every fix on (the MK3 fight apart: bit 4, off with `?mk3=0`).
 fn optionBits(fixes: @import("core/fixes.zig").Fixes) i32 {
     var f = fixes;
-    f.fight_mk3 = false;
+    f.fight_mk3 = true;
     return @as(i32, @intFromBool(std.meta.eql(f, .all()))) | @as(i32, @intFromBool(fixes.fight_mk3)) << 4;
 }
 

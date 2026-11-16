@@ -404,8 +404,8 @@ pub const Fixes = struct {
     /// (`core/fight_smooth.zig`, a presented picture, never the screen or
     /// the backdrop); positions, hits, timers and results are the game's.
     fight_smooth_motion: bool = false,
-    /// A prototype, not in `all` (`--fix all,fight_mk3`), XILINDRO only: the
-    /// fight is Mortal Kombat 3's (`core/fight_mk3/`, docs/fights/MK3.md):
+    /// In `all` (`--fix all,-fight_mk3` plays the old fair fight), XILINDRO
+    /// only: the fight is Mortal Kombat 3's (`core/fight_mk3/`, docs/fights/MK3.md):
     /// a fixed-step simulation at MK3's rate, walk, jump, crouch, four
     /// punches and kicks, a block button, chip damage, knockdowns and a
     /// drone CPU at its easiest rung, drawn every frame with a private
@@ -594,7 +594,7 @@ pub const Fixes = struct {
 
     /// Flags left out of `all` (`--fix all`, the web build's "Corrigida"
     /// version), e.g. the hall-door reshuffle.
-    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit", "salgin_opponent_damage_table", "fight_mk3" };
+    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit", "salgin_opponent_damage_table" };
 
     /// `--fix all`: every flag but the `choices`.
     pub fn all() Fixes {
