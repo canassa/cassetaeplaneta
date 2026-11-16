@@ -209,3 +209,21 @@ test "loadDib reads a SERIAL bitmap from the disc" {
     try testing.expectEqualSlices(u8, file[off..][0..dib.bits.len], dib.bits);
     try testing.expect(loadDib(testing.allocator, plat, .{}, "nosuch.bmp") == null);
 }
+
+/// Not in the original (`Fixes.serial_lives_display`): `copyTransparent` without a
+/// key, so every pixel of the rectangle is copied (the score box's art has pixels
+/// of the key's index, which a copy onto the grass would leave out).
+pub fn copyRect(
+    dst_hdr: *const BitmapInfoHeader,
+    dst_bits: []u8,
+    x_dst: i16,
+    y_dst: i16,
+    src_bits: []const u8,
+    src_hdr: *const BitmapInfoHeader,
+    x_src: i16,
+    y_src: i16,
+    width: i16,
+    height: i16,
+) Error!bool {
+    return noite_dib.copyRect(dst_hdr, dst_bits, x_dst, y_dst, src_bits, src_hdr, x_src, y_src, width, height);
+}

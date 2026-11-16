@@ -14,6 +14,8 @@ pub const core = struct {
     pub const world = @import("core/world.zig");
 };
 pub const units = @import("units.zig");
+/// Not a port unit: the Corrigida's screens and signs (`corrigida.zig`).
+pub const corrigida = @import("corrigida.zig");
 const Game = core.game.Game;
 
 /// Every unit ported and the game checked (the last step of the port,
@@ -36,6 +38,7 @@ pub const program: host.Program = .{
     .nextDue = nextDue,
     .quit = quit,
     .exit = exit,
+    .view = view,
 };
 
 fn of(ctx: *anyopaque) *Game {
@@ -77,7 +80,13 @@ fn exit(ctx: *anyopaque) void {
     g.destroy();
 }
 
+/// Not Windows: the Corrigida's picture (`corrigida.view`).
+fn view(ctx: *anyopaque, now: u32) ?*const platform.Screen {
+    return corrigida.view(of(ctx), now);
+}
+
 test {
     _ = units;
+    _ = corrigida;
     std.testing.refAllDecls(core);
 }

@@ -18,6 +18,7 @@ const Backdrop = world.Backdrop;
 const Scene = world.Scene;
 const backdrop = @import("backdrop.zig");
 const bullet = @import("bullet.zig");
+const corrigida = @import("corrigida.zig");
 const lists = @import("lists.zig");
 const scene_unit = @import("scene.zig");
 const sound = @import("sound.zig");
@@ -201,7 +202,7 @@ fn sysTimer(g: *Game, scene: *Scene, timer: u16) i16 {
         if (t0.target.clockTicks < 1) {
             t0.target.clockTicks +%= 1;
         } else {
-            _ = g.send(.{ .id = msg.wm.destroy });
+            corrigida.finish(g);
         }
     } else {
         if (scene_unit.getHasControlPanel(g, g.scene.?)) {
@@ -377,8 +378,13 @@ pub fn create(g: *Game, scene: *Scene) ?*Scene {
     g.shotWave = sound.open(g, "tiros1.WAV");
     g.hitWave = sound.open(g, "morte2.wav");
     g.pracas01Wave = sound.open(g, "PRACAS01.WAV");
+    corrigida.openWaves(g);
     const bd = bdOf(scene);
     target.drawScore(g, bd);
     target.blitScoreBox(g, bd);
+    if (g.fixes.serial_lives_display) {
+        target.drawLives(g, bd);
+        target.blitLivesBox(g, bd);
+    }
     return scene;
 }

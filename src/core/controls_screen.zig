@@ -78,7 +78,7 @@ pub fn fill(s: Surface, x: i32, y: i32, w: i32, h: i32, index: u8) void {
     }
 }
 
-fn frame(s: Surface, x: i32, y: i32, w: i32, h: i32, t: i32, index: u8) void {
+pub fn frame(s: Surface, x: i32, y: i32, w: i32, h: i32, t: i32, index: u8) void {
     fill(s, x, y, w, t, index);
     fill(s, x, y + h - t, w, t, index);
     fill(s, x, y, t, h, index);
@@ -87,7 +87,7 @@ fn frame(s: Surface, x: i32, y: i32, w: i32, h: i32, t: i32, index: u8) void {
 
 /// Darkens the rectangle: every pixel to the palette's nearest colour at a
 /// fifth of its brightness.
-fn dim(s: Surface, x: i32, y: i32, w: i32, h: i32) void {
+pub fn dim(s: Surface, x: i32, y: i32, w: i32, h: i32) void {
     var lut: [256]u8 = undefined;
     for (&lut, s.colors) |*l, q| {
         const c = @as(u32, q.red / 5) | @as(u32, q.green / 5) << 8 | @as(u32, q.blue / 5) << 16;
@@ -102,15 +102,15 @@ fn dim(s: Surface, x: i32, y: i32, w: i32, h: i32) void {
     }
 }
 
-fn textWidth(plat: Platform, t: []const u8) i32 {
+pub fn textWidth(plat: Platform, t: []const u8) i32 {
     return @intCast(plat.textExtent(t) & 0xffff);
 }
 
-fn text(plat: Platform, s: Surface, x: i32, y: i32, color: u32, t: []const u8) void {
+pub fn text(plat: Platform, s: Surface, x: i32, y: i32, color: u32, t: []const u8) void {
     _ = plat.textOut(s, .{ .color = color, .bk_mode = .transparent }, @intCast(x), @intCast(y), t);
 }
 
-fn centred(plat: Platform, s: Surface, r: Rect, y: i32, color: u32, t: []const u8) void {
+pub fn centred(plat: Platform, s: Surface, r: Rect, y: i32, color: u32, t: []const u8) void {
     text(plat, s, r.x + @divTrunc(r.w - textWidth(plat, t), 2), y, color, t);
 }
 
@@ -156,7 +156,7 @@ fn capLabel(c: Cap) []const u8 {
 }
 
 /// A key cap at (x, y); its width.
-fn cap(plat: Platform, s: Surface, x: i32, y: i32, c: Cap, fh: i32) i32 {
+pub fn cap(plat: Platform, s: Surface, x: i32, y: i32, c: Cap, fh: i32) i32 {
     const label = capLabel(c);
     const w: i32 = if (label.len == 0) 26 else @max(26, textWidth(plat, label) + 12);
     fill(s, x, y, w, cap_h, nearest(s.colors, cap_fill));
@@ -196,4 +196,31 @@ pub fn draw(plat: Platform, s: Surface, spec: Spec) void {
         y += fh + 2;
     }
     centred(plat, s, r, r.y + r.h - 18 - fh, yellow, spec.start);
+}
+
+/// A short message in a framed panel (SERIAL's end screen, NOITE's note
+/// over a scene): a title, a few lines, a hint.
+pub const Message = struct {
+    panel: Rect,
+    title: []const u8,
+    lines: []const []const u8,
+    footer: []const u8 = "",
+    /// The panel darkens the picture under it; else it is filled dark (a
+    /// picture of its own, drawn over another).
+    dimmed: bool = true,
+};
+
+pub fn drawMessage(plat: Platform, s: Surface, m: Message) void {
+    const r = m.panel;
+    const fh: i32 = @intCast(plat.textExtent("A") >> 16);
+    if (m.dimmed) dim(s, r.x, r.y, r.w, r.h) else fill(s, r.x, r.y, r.w, r.h, nearest(s.colors, 0x00181818));
+    frame(s, r.x + 4, r.y + 4, r.w - 8, r.h - 8, 2, nearest(s.colors, yellow));
+    var y: i32 = r.y + 18;
+    centred(plat, s, r, y, yellow, m.title);
+    y += fh + 12;
+    for (m.lines) |line| {
+        centred(plat, s, r, y, white, line);
+        y += fh + 4;
+    }
+    if (m.footer.len != 0) centred(plat, s, r, r.y + r.h - 16 - fh, grey, m.footer);
 }

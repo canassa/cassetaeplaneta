@@ -183,6 +183,8 @@ pub const Game = struct {
     /// BUGS.md K6's fix (`Fixes.serial_close_forfeits`): WM_CLOSE came, so the
     /// WM_DESTROY that follows reports a loss.
     closing: bool = false,
+    /// Not in the original: the Corrigida's screens and signs (`corrigida.zig`).
+    corr: Corr = .{},
 
     pub fn create(gpa: std.mem.Allocator, plat: Platform) !*Game {
         const g = try gpa.create(Game);
@@ -193,6 +195,8 @@ pub const Game = struct {
     /// The task ends: its local heap goes with it (what SERIAL never frees,
     /// e.g. the strips `scene_object_dtor` leaves, is not a leak here).
     pub fn destroy(g: *Game) void {
+        if (g.corr.screen) |scr| g.gpa.destroy(scr);
+        g.gpa.free(g.corr.scratch);
         g.heap.deinit();
         g.gpa.destroy(g);
     }
@@ -266,6 +270,26 @@ pub const Game = struct {
         }) catch return;
         t.appendSlice(g.gpa, line) catch {};
     }
+};
+
+/// The Corrigida's state (`corrigida.zig`; no counterpart in the original).
+pub const Corr = struct {
+    /// The intro screen is up (`Fixes.serial_intro_screen`).
+    intro: bool = false,
+    /// The key (or null: a click) that took the intro down, until it is let go.
+    held_key: ?u16 = null,
+    /// The end screen is up (`Fixes.serial_end_screen`); the result goes when it
+    /// does.
+    end_up: bool = false,
+    /// The end screen has been taken down and WM_DESTROY sent.
+    ended: bool = false,
+    /// `plat.ticks()` when a killer's shot last landed (`Fixes.serial_shot_flash`).
+    shot_at: ?u32 = null,
+    /// `CARREGA.WAV`, the cue of a killer's warning.
+    warn_wave: ?platform.Wave = null,
+    /// The presented picture and the buffer the intro's figures are drawn in.
+    screen: ?*platform.Screen = null,
+    scratch: []u8 = &.{},
 };
 
 /// A `Game` over a headless platform, for unit tests (as NOITE's).

@@ -1,7 +1,7 @@
 # SERIAL alone, SPACE held for 3 s with Windows' key repeat (BUGS.md K4).
 #
 #   zig-out/bin/noite --minigame serial --headless --ms 125000 --key-repeat 500,33 --input tools/play/serial-held-space.input
-#   zig-out/bin/noite --minigame serial --headless --ms 125000 --key-repeat 500,33 --fix all --input tools/play/serial-held-space.input
+#   zig-out/bin/noite --minigame serial --headless --ms 125000 --key-repeat 500,33 --fix all,-serial_intro_screen,-serial_end_screen --input tools/play/serial-held-space.input
 #
 # (500,33 is the default of every run; the flag makes the script independent
 # of it.) Aimed right, SPACE is held from 7500 to 10500 ms

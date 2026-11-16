@@ -50,8 +50,28 @@ pub fn createTargets(g: *Game, bd: *Backdrop) Error!void {
     targetAt(g, 0).target.clockTicks = 0;
     i = 0;
     while (i < 3) : (i += 1) targetAt(g, 0).target.laneBusy[@intCast(i)] = 0;
-    const lane2_id = if (g.fixes.serial_lane2_own_timer) g.timerIds[6] else g.timerIds[7];
-    _ = startTimer(g, targetAt(g, 13), lane2_id, g.timerPeriods[4], 13);
+    _ = startTimer(g, targetAt(g, 13), lane2Timer(g), g.timerPeriods[4], 13);
+}
+
+/// The id of lane 2's spawn timer (BUGS.md K5: 9 with `serial_lane2_own_timer`).
+fn lane2Timer(g: *Game) i16 {
+    return if (g.fixes.serial_lane2_own_timer) g.timerIds[6] else g.timerIds[7];
+}
+
+/// Not in the original (`Fixes.serial_intro_screen`): the game's three timers
+/// (the spawns every 5 s, lane 2's, the 60-s clock) stop while the intro screen
+/// is up ...
+pub fn disarmTimers(g: *Game) void {
+    g.killSystemTimer(@bitCast(g.timerIds[4]));
+    g.killSystemTimer(@bitCast(g.timerIds[5]));
+    g.killSystemTimer(@bitCast(lane2Timer(g)));
+}
+
+/// ... and start, as `createTargets` starts them, when it goes.
+pub fn armTimers(g: *Game) void {
+    _ = startTimer(g, targetAt(g, 0), g.timerIds[4], g.timerPeriods[4], 0);
+    _ = startTimer(g, targetAt(g, 0), g.timerIds[5], @bitCast(@as(u16, 0xea60)), 99);
+    _ = startTimer(g, targetAt(g, 13), lane2Timer(g), g.timerPeriods[4], 13);
 }
 
 /// `operator_new(0x4c8)` + `target_ctor` for figure `i`. A failed
@@ -213,6 +233,36 @@ pub fn drawScore(g: *Game, bd: *Backdrop) void {
         _ = g.plat.textOut(bd.surface(), style, x, 0x198, text[i..][0..1]);
         x +%= 0x20;
     }
+}
+
+/// Not in the original (`Fixes.serial_lives_display`): the lives' box, at the
+/// bottom left as the score's is at the bottom right, where nothing is drawn but the
+/// gun (x 200 and on) and the left-aim bullet (above y 350). Near the score's, the
+/// gun's and the right-aim bullet's rectangles restore the background over it. The
+/// score's art is 200 x 36, a little more than the 192 x 32 that is restored.
+const lives_x: i16 = 0;
+const lives_y: i16 = 400;
+
+/// The score box's picture (restored from the background, as `drawScore` does)
+/// copied to the left, then "Vidas:" and the lives drawn in its colour and font,
+/// the digit where the score's last one is.
+pub fn drawLives(g: *Game, bd: *Backdrop) void {
+    if (bd.background) |bg| {
+        if (bd.pixels.len != 0) {
+            _ = dib.copyRect(&bd.bmiHeader, bd.pixels, lives_x, lives_y, bg.bits, &bg.header, 0x1a0, 400, 200, 36) catch |e|
+                std.debug.panic("serial target: lives box copy left its buffers ({s})", .{@errorName(e)});
+        }
+    }
+    const style: platform.TextStyle = .{ .color = 0xedeeee, .bk_mode = .transparent };
+    _ = g.plat.textOut(bd.surface(), style, lives_x + 16, lives_y + 8, "Vidas:");
+    var buf: [8]u8 = undefined;
+    const digits = std.fmt.bufPrint(&buf, "{d}", .{@max(g.lives, 0)}) catch "?";
+    _ = g.plat.textOut(bd.surface(), style, lives_x + 0xac, lives_y + 8, digits);
+}
+
+/// WinGBitBlt of the lives' box to the window.
+pub fn blitLivesBox(g: *Game, bd: *Backdrop) void {
+    g.plat.wingBitBlt(lives_x, lives_y, 0xc0, 0x20, bd.surface(), lives_x, lives_y);
 }
 
 /// `sprintf(text, "-%04d", -score)` or `" %04d"`; for -32768 the negation

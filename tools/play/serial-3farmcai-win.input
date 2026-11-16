@@ -4,7 +4,7 @@
 # here; with it the win goes to the hall).
 #
 #   zig-out/bin/noite --headless --scene 3farmcai --ms 126000 --input tools/play/serial-3farmcai-win.input
-#   zig-out/bin/noite --headless --scene 3farmcai --ms 126000 --fix all --input tools/play/serial-3farmcai-win.input
+#   zig-out/bin/noite --headless --scene 3farmcai --ms 126000 --fix all,-serial_intro_screen,-serial_end_screen --input tools/play/serial-3farmcai-win.input
 #
 # The escape video ends at 1710 (MM_MCINOTIFY: the WinExec); SERIAL starts
 # 1500 ms later (its WM_CREATE at 3210 seeds the figures). The shots are

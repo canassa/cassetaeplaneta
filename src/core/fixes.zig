@@ -307,6 +307,30 @@ pub const Fixes = struct {
     /// run out: wParam 0 and the lost game's points (`g_score`; packed as
     /// K2 unless `serial_score_in_low_word`), instead of a game survived.
     serial_close_forfeits: bool = false,
+    /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"):
+    /// a screen explaining the game (who to shoot, who shoots back, the
+    /// keys) is shown over the frozen game from WM_CREATE until a key or a
+    /// click; the spawns and the clock start then.
+    serial_intro_screen: bool = false,
+    /// Not a bug but a Corrigida addition: a killer telegraphs its shot for
+    /// three walk steps (600 ms) before it (a blinking red frame and a "!"
+    /// on it, `CARREGA.WAV`); a hit in the warning stops the figure, so the
+    /// shot never comes.
+    serial_killer_warning: bool = false,
+    /// Not a bug but a Corrigida addition: the screen's edge flashes red
+    /// when a killer's shot takes a life.
+    serial_shot_flash: bool = false,
+    /// Not a bug but a Corrigida addition: "Vidas: N" in a box under the
+    /// score's, drawn into the backdrop as the score is.
+    serial_lives_display: bool = false,
+    /// Not a bug but a Corrigida addition: the game ends on a screen ("Fim
+    /// de jogo!" or "Você sobreviveu!", the score and the lives left) for
+    /// 3 s or until a key, and then reports as ever.
+    serial_end_screen: bool = false,
+    /// Not a bug but a Corrigida addition, NOITE's side (`handlers/3farmcai`):
+    /// a lost SERIAL game says so in the prison ("O serial killer foi
+    /// pego!", "Você perdeu uma vida.") for 4 s, over the scene.
+    serial_loss_message: bool = false,
     // ---- INV.EXE (BUGS.md I1–I2). The src/inv/ units port each bug as it
     // is and keep the fix only behind its flag. ----
     /// I1: SPACE sets its latch on key-down, so a held SPACE fires once (no

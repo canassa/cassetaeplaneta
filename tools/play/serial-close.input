@@ -3,7 +3,7 @@
 # of serial-alone-win.input (a killer, +200); 4 lives are left.
 #
 #   zig-out/bin/noite --minigame serial --headless --ms 21000 --input tools/play/serial-close.input
-#   zig-out/bin/noite --minigame serial --headless --ms 21000 --fix all --input tools/play/serial-close.input
+#   zig-out/bin/noite --minigame serial --headless --ms 21000 --fix all,-serial_intro_screen,-serial_end_screen --input tools/play/serial-close.input
 #
 # - Original: WM_DESTROY reports as at the clock's end, a win of
 #   MAKELONG(4, 500) (BUGS.md K1, K2, K6);
