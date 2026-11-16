@@ -120,6 +120,28 @@ pub fn build(b: *std.Build) void {
         plan_step.dependOn(&run_plan.step);
     }
 
+    // `zig build inv-bot -- --games N --reaction MS`: plays the Corrigida's arcade INV as a player with a
+    // reaction time (src/inv/arcade/bot.zig, driven by `tools/inv_bot.py`).
+    const bot_step = b.step("inv-bot", "A player for the arcade INV (tools/inv_bot.py)");
+    {
+        const bot_mod = b.createModule(.{
+            .root_source_file = b.path("src/inv/arcade/bot.zig"),
+            .target = target,
+            .optimize = .ReleaseFast,
+        });
+        const bot = b.addExecutable(.{
+            .name = "inv-bot",
+            .root_module = bot_mod,
+            .use_llvm = false,
+            .use_lld = false,
+        });
+        const run_bot = b.addRunArtifact(bot);
+        run_bot.addPassthruArgs();
+        bot_step.dependOn(&run_bot.step);
+        // Also left in zig-out/bin (`tools/inv_bot.py` runs several at once).
+        bot_step.dependOn(&b.addInstallArtifact(bot, .{}).step);
+    }
+
     // `noite initdata` generates a program that prints the defaults of the
     // `// @orig g_*` fields and runs it here against the port's module.
     const dump_step = b.step("initdata", "Print the defaults of the @orig g_* fields (noite initdata)");
