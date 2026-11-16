@@ -14,8 +14,8 @@
 # zig-out/explorer/cache); the game's manifest does not list it.
 # OUT is replaced. Serve it as is (see docs/WEB.md for the headers).
 #
-# Two opt-in variables, for a private build with the MK3 fight prototype
-# (docs/fights/MK3.md; never the public deploy):
+# Two opt-in variables, for a build with the MK3 fight prototype
+# (docs/fights/MK3.md; the public deploy passes NOITE_SPRITES):
 #   NOITE_SPRITES=DIR       adds the files under DIR (zig-out/sprites: the
 #                           Ryu pack, not in git) as sprites/<path>, keyed
 #                           `<path>` (ryu/pack.bin) in the manifest;
