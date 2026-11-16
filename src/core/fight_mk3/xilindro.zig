@@ -1,5 +1,5 @@
-//! XILINDRO's side of the MK3 fight (`fixes.fight_mk3`): loading the sprite
-//! pack, the key codes, the energies the old code reads (the clock's
+//! XILINDRO's side of the MK3 fight (`fixes.fight_mk3`): building the
+//! characters from the game's strips, the key codes, the energies the old code reads (the clock's
 //! tie-break, the score NOITE gets), the sounds and the presented picture.
 //! Generic over XILINDRO's `Game` (`anytype`, as `fight_smooth.zig`); the
 //! handler's own part is `arena.zig`'s `mk3Update`.
@@ -11,52 +11,9 @@ const match = @import("match.zig");
 pub const Match = match.Match;
 const bot_mod = @import("bot.zig");
 const t = @import("tables.zig");
-const render = @import("render.zig");
 const strips = @import("strips.zig");
 const Character = @import("character.zig").Character;
 const sim_mod = @import("sim.zig");
-
-/// The Ryu pack's name in the game's files (`zig-out/sprites/ryu/pack.bin`
-/// natively; `ryu/pack.bin` in a web build that ships it), for the
-/// `fight_mk3_ryu` option.
-pub const pack_name = "ryu\\pack.bin";
-
-/// Reads the pack through the platform; null when there is none.
-fn readPack(gpa: std.mem.Allocator, plat: platform.Platform) ?[]u8 {
-    const f = plat.open(pack_name, .read) orelse return null;
-    defer plat.close(f);
-    const size = plat.seek(f, 0, .end);
-    if (size <= 8) return null;
-    _ = plat.seek(f, 0, .set);
-    const buf = gpa.alloc(u8, @intCast(size)) catch return null;
-    if (plat.read(f, buf) != buf.len) {
-        gpa.free(buf);
-        return null;
-    }
-    return buf;
-}
-
-/// SF3 Ryu on both sides (the private pack, the opponent palette-swapped),
-/// sized to MK3's standing height.
-fn loadRyu(g: anytype, chars: *[2]Character) bool {
-    const bytes = readPack(g.gpa, g.plat) orelse return false;
-    const copy = g.gpa.dupe(u8, bytes) catch {
-        g.gpa.free(bytes);
-        return false;
-    };
-    chars[0] = Character.load(g.gpa, bytes) catch {
-        g.gpa.free(bytes);
-        g.gpa.free(copy);
-        return false;
-    };
-    chars[1] = Character.load(g.gpa, copy) catch {
-        chars[0].deinit();
-        g.gpa.free(copy);
-        return false;
-    };
-    for (chars) |*c| c.setStandPx(t.stand_arcade * t.S);
-    return true;
-}
 
 /// A fighter object's 11 strips as the converter's `Art`.
 fn artOf(obj: anytype) ?strips.Art {
@@ -80,7 +37,7 @@ fn artOf(obj: anytype) ?strips.Art {
     return art;
 }
 
-/// XILINDRO's own art (the default): the fighter's and the inmate's strips
+/// XILINDRO's own art: the fighter's and the inmate's strips
 /// the game has loaded, converted (`strips.zig`).
 fn loadOriginal(g: anytype, chars: *[2]Character) bool {
     const f = g.fighter orelse return false;
@@ -99,24 +56,17 @@ fn loadOriginal(g: anytype, chars: *[2]Character) bool {
     return true;
 }
 
-/// WM_CREATE: the match, when the flag is on: the game's own strips, or
-/// (`fight_mk3_ryu`) the private Ryu pack when it is there. The old fight
-/// plays when the art cannot be made.
+/// WM_CREATE: the match, when the flag is on: the game's own strips,
+/// converted. The old fight plays when the art cannot be made.
 pub fn start(g: anytype) void {
     if (!g.fixes.fight_mk3 or g.mk3 != null) return;
     var chars: [2]Character = undefined;
-    var swap: [2]render.Swap = .{ .none, .none };
-    var have = false;
-    if (g.fixes.fight_mk3_ryu) {
-        have = loadRyu(g, &chars);
-        if (have) swap = .{ .none, .blue_gold } else std.log.warn("fight_mk3: no Ryu pack ({s}): XILINDRO's own art plays (tools/ryu_pack.py)", .{pack_name});
-    }
-    if (!have and !loadOriginal(g, &chars)) {
+    if (!loadOriginal(g, &chars)) {
         std.log.warn("fight_mk3: no usable art: the old fight plays", .{});
         return;
     }
     const seed: u32 = if (fight_bot.config) |c| @truncate(c.seed) else g.plat.ticks() | 1;
-    const m = Match.create(g.gpa, chars, swap, seed) catch |e| {
+    const m = Match.create(g.gpa, chars, seed) catch |e| {
         std.log.warn("fight_mk3: no match ({t}): the old fight plays", .{e});
         for (&chars) |*c| c.deinit();
         return;

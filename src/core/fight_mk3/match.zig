@@ -51,9 +51,8 @@ pub var trace: bool = false;
 pub const Match = struct {
     gpa: std.mem.Allocator,
     /// The two fighters' art (the player's, the opponent's), each with its
-    /// own pictures; `swap` recolours one when both are the same pack.
+    /// own pictures.
     chars: [2]Character,
-    swap: [2]render.Swap = .{ .none, .none },
     sim: Sim,
     cpu: cpu_mod.Cpu,
     bot: ?bot_mod.Bot = null,
@@ -76,12 +75,11 @@ pub const Match = struct {
 
     /// Takes the two characters (their memory passes to the match; when
     /// `create` fails the caller still owns them).
-    pub fn create(gpa: std.mem.Allocator, chars: [2]Character, swap: [2]render.Swap, seed: u32) !*Match {
+    pub fn create(gpa: std.mem.Allocator, chars: [2]Character, seed: u32) !*Match {
         const m = try gpa.create(Match);
         m.* = .{
             .gpa = gpa,
             .chars = chars,
-            .swap = swap,
             .sim = undefined,
             .cpu = cpu_mod.Cpu.init(seed),
         };
@@ -183,7 +181,7 @@ pub const Match = struct {
         if (m.pal_valid and std.mem.eql(u8, std.mem.asBytes(&m.pal), std.mem.asBytes(pal))) return;
         m.pal = pal.*;
         m.pal_valid = true;
-        for ([2]u1{ 0, 1 }) |w| render.buildLut(&m.chars[w], pal, m.swap[w], &m.luts[w]);
+        for ([2]u1{ 0, 1 }) |w| render.buildLut(&m.chars[w], pal, &m.luts[w]);
     }
 
     /// The picture for the window: `screen` (the clock and the portraits as

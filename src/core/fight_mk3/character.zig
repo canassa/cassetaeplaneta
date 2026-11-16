@@ -1,6 +1,6 @@
-//! A fighter's art and boxes: loaded from a pack (`tools/ryu_pack.py` writes
-//! one; the SF3 Ryu pack is private, not in git) or built from XILINDRO's
-//! own strips (`strips.zig`; docs/fights/MK3.md "Sprites").
+//! A fighter's art and boxes: built from XILINDRO's own strips
+//! (`strips.zig`; docs/fights/MK3.md "Sprites") or loaded from a pack file
+//! (`MK3P`, below; the tests' synthetic art, `testing.zig`).
 //! The engine knows no sprite: a character is a table of moves (`Anim`) to
 //! clips (frames, ms per frame, loop, the active frames of an attack), and
 //! each frame carries its picture (8-bit palette indices, facing right,
@@ -90,7 +90,7 @@ pub const Json = struct {
     stand: f64 = 0,
     /// Screen px: how close two grounded fighters stand and how far a throw
     /// reaches (0: the engine's, `tables.min_sep` / `throw_range`, which
-    /// are Ryu's wide pictures'): a character's own art sets them.
+    /// are for wide pictures): a character's own art sets them.
     min_sep: i32 = 0,
     throw_range: i32 = 0,
     palette: []const [3]u8,

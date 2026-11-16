@@ -311,8 +311,7 @@ has loaded (the fighter's `sb*` for the player, the inmate's `sa*` for the oppon
 key colour 11 transparent as the Original's blits, the shadow split off and drawn on the floor; the inmate's, which face left, are mirrored) at
 WM_CREATE into two MK3 characters, each with its own pictures: which strip plays which move is the table in `docs/fights/MK3.md` 11.5
 (`soco` the punches, `chme` the middle kick, `chal` the high kick and roundhouse, `rast` the sweep, `anda` the walk, `pula` the jump, `defa` the rest
-pose, `defe` the block, `cai` the fall and the lying figure, `sego` the hit, `flut` / `come` the win). The private SF3 Ryu pack (`tools/ryu_pack.py`)
-is an option, `--fix fight_mk3_ryu` / the web's `?ryu=1`. What stays
+pose, `defe` the block, `cai` the fall and the lying figure, `sego` the hit, `flut` / `come` the win). What stays
 XILINDRO's: the background, the clock (90 s: the better energy wins at zero), the energy bar's two numbers
 (MK3's 166-unit health mapped to 0-91, so the score is still energy x 150), the controls screen (with MK3's
 keys), the sounds and WM_DESTROY's result to NOITE. What is new: the fighters are drawn by `Match.view` at the

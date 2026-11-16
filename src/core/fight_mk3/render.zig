@@ -1,8 +1,8 @@
 //! Drawing a fight into an 8-bit, top-down 640x480 picture (the presented
 //! `platform.Screen`): the character's palette is mapped to the nearest
 //! entries of the screen's palette (the game's own: the minigame's 256
-//! colours are fixed), a second fighter gets a palette swap, frames are
-//! drawn at the character's integer scale, mirrored when facing left.
+//! colours are fixed), frames are drawn at the character's scale,
+//! mirrored when facing left.
 
 const std = @import("std");
 const platform = @import("../../platform/platform.zig");
@@ -13,35 +13,6 @@ pub const w = platform.screen_width;
 pub const h = platform.screen_height;
 
 pub const Lut = [256]u8;
-
-/// A palette swap (MK's second colour of the same fighter).
-pub const Swap = enum {
-    none,
-    /// Greys and whites (the gi) to blue, reds (gloves, headband) to gold.
-    blue_gold,
-};
-
-fn swapped(c: [3]u8, swap: Swap) [3]u8 {
-    if (swap == .none) return c;
-    const r: i32 = c[0];
-    const g: i32 = c[1];
-    const b: i32 = c[2];
-    const hi = @max(r, @max(g, b));
-    const lo = @min(r, @min(g, b));
-    if (r > 140 and g < 100 and b < 100) {
-        // red -> gold
-        return .{ @intCast(r), @intCast(@min(255, @divTrunc(r * 3, 4))), 0 };
-    }
-    if (hi - lo < 48 and hi > 60) {
-        // the gi: tinted blue, keeping its shading
-        return .{
-            @intCast(@divTrunc(hi * 40, 100)),
-            @intCast(@divTrunc(hi * 58, 100)),
-            @intCast(@min(255, @divTrunc(hi * 105, 100))),
-        };
-    }
-    return c;
-}
 
 pub fn nearest(pal: *const [256]platform.Rgb, r: i32, g: i32, b: i32) u8 {
     var best: u8 = 0;
@@ -62,12 +33,11 @@ pub fn nearest(pal: *const [256]platform.Rgb, r: i32, g: i32, b: i32) u8 {
 
 /// The character's palette indices to the screen palette's (index 0, the
 /// transparent one, stays 0 and is never drawn).
-pub fn buildLut(c: *const Character, pal: *const [256]platform.Rgb, swap: Swap, out: *Lut) void {
+pub fn buildLut(c: *const Character, pal: *const [256]platform.Rgb, out: *Lut) void {
     out.* = @splat(0);
     for (c.palette(), 0..) |rgb, i| {
         if (i == 0 or i >= 256) continue;
-        const s = swapped(rgb, swap);
-        out[i] = nearest(pal, s[0], s[1], s[2]);
+        out[i] = nearest(pal, rgb[0], rgb[1], rgb[2]);
     }
 }
 

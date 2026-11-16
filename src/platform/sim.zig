@@ -38,10 +38,6 @@ pub const Options = struct {
     assets_dir: []const u8 = "assets",
     /// Where saves (JOGO*.INI) are written; read before `assets_dir`.
     save_dir: []const u8 = "save",
-    /// Private art that is not on the disc and not in git (the fight
-    /// engine's sprite packs, `tools/ryu_pack.py`): looked for after
-    /// `assets_dir`, so `ryu/pack.bin` is `zig-out/sprites/ryu/pack.bin`.
-    sprites_dir: []const u8 = "zig-out/sprites",
     minigame: MinigameResult = .{},
     wavemix_failure: WaveMixFailure = .none,
     /// Decode AVI frames onto the screen (the SDL backend); headless only
@@ -414,7 +410,7 @@ pub const Sim = struct {
         const rel = normalise(&nb, dos);
         var rb: [512]u8 = undefined;
         var pb: [1024]u8 = undefined;
-        for ([_][]const u8{ s.opts.save_dir, s.opts.assets_dir, s.opts.sprites_dir }) |root| {
+        for ([_][]const u8{ s.opts.save_dir, s.opts.assets_dir }) |root| {
             const real = s.resolveIn(root, rel, &rb) orelse continue;
             const full = std.fmt.bufPrint(&pb, "{s}/{s}", .{ root, real }) catch continue;
             return std.Io.Dir.cwd().readFileAlloc(s.io, full, s.gpa, .limited(64 << 20)) catch continue;

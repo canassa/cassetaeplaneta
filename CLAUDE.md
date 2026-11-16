@@ -39,9 +39,7 @@ Reverse-engineering the 1995 ATR Multimedia point-and-click adventure
   (`docs/sauna/DESIGN.md`); `src/jardim/` — JARDIM.EXE's (`docs/jardim/DESIGN.md`).
 - `src/core/fight_mk3.zig`, `src/core/fight_mk3/` — the Mortal Kombat 3 fight engine
   (`fixes.fight_mk3`, XILINDRO's Corrigida fight; `docs/fights/MK3.md`): sprite-agnostic characters, built
-  from XILINDRO's own `sb*`/`sa*` strips (`strips.zig`, the default) or loaded from a private pack
-  (`tools/ryu_pack.py` writes `zig-out/sprites/ryu/pack.bin` from the SF3 Ryu rip: never in git, the
-  `fight_mk3_ryu` option; the web deploy ships it).
+  from XILINDRO's own `sb*`/`sa*` strips (`strips.zig`).
 - `tools/cli/` — the `noite` port tracker (uv workspace member);
   `db/port.sqlite` — its database (local, not in git; `noite import` builds it).
 

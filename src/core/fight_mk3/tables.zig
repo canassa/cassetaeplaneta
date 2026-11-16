@@ -73,7 +73,7 @@ pub const air_hit_vx: i32 = fx(3.5);
 pub const air_hit_vy: i32 = fy(6);
 pub const air_hit_ticks: u16 = 26;
 /// Two fighters on the ground keep this far apart (64 arcade px, wider for
-/// Ryu's sprite).
+/// wide sprites; a character may set its own).
 pub const min_sep: i32 = ref(140);
 
 // ---- movement (fixed point px per tick) -----------------------------------------

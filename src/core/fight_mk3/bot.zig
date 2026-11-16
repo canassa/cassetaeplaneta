@@ -99,7 +99,7 @@ pub const Bot = struct {
             return inp;
         }
         // Strikes from where its own blows reach (a short-armed character
-        // closes in more than Ryu).
+        // closes in more than a long-armed one).
         const can_hit = sim.chars[0].reachPx() + sim.chars[1].halfPx() - t.ref(6);
         const reach: i32 = @min(can_hit, switch (b.profile) {
             // The masher walks right up: its LP is a throw at close range.
