@@ -248,6 +248,11 @@ pub const Fixes = struct {
     /// needs `encaixe_tall_board` to be shown; the kinds are drawn one piece
     /// ahead, from the same `rand()` sequence).
     encaixe_next_piece: bool = false,
+    /// Not a bug but a Corrigida addition (docs/encaixe/GAME.md "Wall
+    /// kicks"): a rotation the tall well refuses tries a short list of
+    /// offsets (a column or two aside, one row up) and takes the first that
+    /// fits. Only with `encaixe_tall_board`.
+    encaixe_wall_kicks: bool = false,
     // ---- TIRO.EXE (BUGS.md T1–T8). The src/tiro/ units port each bug as
     // it is and keep the fix only behind its flag. ----
     /// T1: SPACE sets its latch on key-down, so a held SPACE fires once (no

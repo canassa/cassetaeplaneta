@@ -211,7 +211,13 @@ fn keyDown(g: *Game, scene: *Scene, key: u16) i16 {
             if (animation.isRunning(g, p)) return 1;
             g.pieceKeyUp = 1;
             p.mover.direction = 4;
+            const column = p.piece.column;
+            const row = p.piece.row;
             if (piece.tryStep(g, p, bd, p.curStrip, p.curFrame) == 0) return 1;
+            // A kicked rotation: the sprite follows the new cell.
+            if (g.fixes.encaixe_tall_board and (p.piece.column != column or p.piece.row != row)) {
+                movement.placeAt(g, p, tall.pixelX(p.piece.column), tall.pixelY(p.piece.row), bd);
+            }
             animation.play(g, p, bd);
             lockMoved(g, p);
             return 1;

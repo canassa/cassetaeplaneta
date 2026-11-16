@@ -85,7 +85,7 @@ ENCAIXE's Corrigida (`--fix all`) plays like classic Tetris (`docs/encaixe/GAME.
 10 x 20 well of 22-px cells with the piece art scaled down (`encaixe_tall_board`), a box with the next
 piece (`encaixe_next_piece`), and a 500-ms lock delay: a piece resting on something can still be slid
 or turned, each move restarting the delay up to 15 times (`encaixe_lock_delay`; ↓ is the soft drop, as
-before). `tools/play/encaixe-corrigida.input` runs it; the older ENCAIXE scripts pin those three flags off.
+before). A rotation the walls or the stack refuse tries one or two columns aside, then one row up, and takes the first that fits (`encaixe_wall_kicks`, GAME.md "Wall kicks"). `tools/play/encaixe-corrigida.input` runs it; the older ENCAIXE scripts pin the first three flags off.
 SAUNA's Corrigida (`--fix all`) plays arcade Pac-Man's rules on SAUNA's maze and art
 (`sauna_arcade_rules`, `docs/sauna/PACMAN.md`, GAME.md "Arcade rules (Corrigida)"): the maze as a
 one-tile-wide grid, movement along tile centres with the arcade's cornering (hold or tap an arrow or

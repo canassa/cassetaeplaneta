@@ -1038,6 +1038,9 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
   (`row < 3`) are unchanged (GAME.md "Tall board", `src/encaixe/tall.zig`).
 - `Fixes.encaixe_next_piece` (ENCAIXE): a "PRÓXIMA" box right of the tall well shows the next piece; the kinds
   come one draw ahead from the same `rand()` sequence (shown with `encaixe_tall_board` only).
+- `Fixes.encaixe_wall_kicks` (ENCAIXE): with the tall well, a rotation that would hit a wall, the floor or a stack
+  tries (-1,0), (+1,0), (-2,0), (+2,0) (the two-column ones for the long pieces only), (0,-1), (-1,-1), (+1,-1)
+  and takes the first that fits; none fits: refused. A kicked rotation restarts the lock delay (GAME.md "Wall kicks").
 - `Fixes.tiro_smooth_motion`: TIRO's walking targets (20 px per 100-ms step) and flying arrow (10 px per 55-ms
   step) are shown between their steps at the display rate, in the presented picture only (`src/tiro/smooth.zig`,
   `host.Program.view`); positions, the occupancy grid, hits, timers and scores are the original's.

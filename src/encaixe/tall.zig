@@ -8,7 +8,8 @@
 //! `te_piece_spawn_shape` / `te_piece_rotate` cells in the sprite's 4 x 4
 //! frame; the sprites (128 x 128 per rotation) are scaled to 88 x 88 once, at
 //! load. A move or rotation is refused when a cell would leave the well or
-//! enter a locked one (no wall kicks, as in the original).
+//! enter a locked one (no wall kicks, as in the original; with
+//! `Fixes.encaixe_wall_kicks` a blocked rotation tries `kicks`).
 
 const std = @import("std");
 const object = @import("core/object.zig");
@@ -77,6 +78,33 @@ pub fn fits(s: *const State, kind: i16, rot: u8, col: i16, row: i16) bool {
     return true;
 }
 
+/// An offset a blocked rotation is tried at (`Fixes.encaixe_wall_kicks`).
+pub const Kick = struct { dx: i16, dy: i16 };
+
+/// The kicks, in order: a column left, a column right, two left, two right
+/// (the two-column ones for the long pieces only, kinds 0 and 4), then one
+/// row up, up and left, up and right. The first that fits is taken.
+pub const kicks = [_]Kick{
+    .{ .dx = -1, .dy = 0 }, .{ .dx = 1, .dy = 0 },
+    .{ .dx = -2, .dy = 0 }, .{ .dx = 2, .dy = 0 },
+    .{ .dx = 0, .dy = -1 }, .{ .dx = -1, .dy = -1 },
+    .{ .dx = 1, .dy = -1 },
+};
+
+fn isLong(kind: i16) bool {
+    const k = kindOf(kind);
+    return k == 0 or k == 4;
+}
+
+/// The first of `kicks` at which `kind` in rotation `rot` fits from (col, row).
+pub fn findKick(s: *const State, kind: i16, rot: u8, col: i16, row: i16) ?Kick {
+    for (kicks) |k| {
+        if ((k.dx == 2 or k.dx == -2) and !isLong(kind)) continue;
+        if (fits(s, kind, rot, col + k.dx, row + k.dy)) return k;
+    }
+    return null;
+}
+
 /// The piece cannot step down.
 pub fn resting(s: *const State, obj: *const Object) bool {
     return !fits(s, obj.curStrip, s.rot, obj.piece.column, obj.piece.row + 1);
@@ -84,7 +112,7 @@ pub fn resting(s: *const State, obj: *const Object) bool {
 
 /// One step in `dir` (1 left, 2 right, 4 rotate, 8 down), te_piece_try_step's
 /// contract: 1 moved, 0 refused; a down step sets `canFall` to its result.
-pub fn step(s: *State, obj: *Object, dir: i16) i16 {
+pub fn step(s: *State, obj: *Object, dir: i16, wall_kicks: bool) i16 {
     const p = &obj.piece;
     p.unk4E = 0;
     switch (dir) {
@@ -98,7 +126,12 @@ pub fn step(s: *State, obj: *Object, dir: i16) i16 {
         },
         4 => {
             const next = (s.rot + 1) & 3;
-            if (!fits(s, obj.curStrip, next, p.column, p.row)) return 0;
+            if (!fits(s, obj.curStrip, next, p.column, p.row)) {
+                if (!wall_kicks) return 0;
+                const k = findKick(s, obj.curStrip, next, p.column, p.row) orelse return 0;
+                p.column += k.dx;
+                p.row += k.dy;
+            }
             s.rot = next;
         },
         8 => {
@@ -141,6 +174,10 @@ pub fn removeRow(s: *State, row: i16) void {
 /// The piece's top-left on the screen.
 pub fn pixelX(col: i16) i16 {
     return origin_x + col * cell;
+}
+
+pub fn pixelY(row: i16) i16 {
+    return origin_y + row * cell;
 }
 
 // ---- pictures ----
@@ -294,6 +331,73 @@ test "fits: the walls, the floor and locked cells refuse" {
     s.board[10][1] = true;
     try std.testing.expect(!fits(&s, 5, 0, 0, 9));
     try std.testing.expect(fits(&s, 5, 0, 2, 9));
+}
+
+fn kickObj(kind: i16, col: i16, row: i16) Object {
+    var o: Object = .{ .kind = .piece };
+    o.curStrip = kind;
+    o.piece.column = col;
+    o.piece.row = row;
+    return o;
+}
+
+test "kick: the right wall (the vertical I turns, two columns left)" {
+    var s: State = .{};
+    var o = kickObj(4, 8, 5);
+    try std.testing.expectEqual(@as(i16, 0), step(&s, &o, 4, false));
+    try std.testing.expectEqual(@as(i16, 1), step(&s, &o, 4, true));
+    try std.testing.expectEqual(@as(i16, 6), o.piece.column);
+    try std.testing.expectEqual(@as(i16, 5), o.piece.row);
+    try std.testing.expectEqual(@as(u8, 1), s.rot);
+    // A 3-wide piece needs one column only (never the two-column kicks).
+    s.rot = 1;
+    var j = kickObj(1, 8, 5);
+    try std.testing.expectEqual(@as(i16, 1), step(&s, &j, 4, true));
+    try std.testing.expectEqual(@as(i16, 7), j.piece.column);
+}
+
+test "kick: next to the left wall and a stack (a column right)" {
+    var s: State = .{};
+    // Kind 1, rotation 2 at column 0 hits the stack's cell (row 6, column 0);
+    // a column left is outside the well, a column right is free.
+    s.board[6][0] = true;
+    const k = findKick(&s, 1, 2, 0, 5).?;
+    try std.testing.expectEqual(@as(i16, 1), k.dx);
+    try std.testing.expectEqual(@as(i16, 0), k.dy);
+    // The long I never gets the two-column kick of a shorter piece's list
+    // before the one-column ones.
+    try std.testing.expectEqual(@as(i16, -1), findKick(&s, 4, 1, 7, 5).?.dx);
+}
+
+test "kick: next to a stack on the right (a column left)" {
+    var s: State = .{};
+    // Kind 1, rotation 1 -> 2 at column 4: rotation 2 needs (row 6, column 6).
+    s.board[6][6] = true;
+    var o = kickObj(1, 4, 5);
+    s.rot = 1;
+    try std.testing.expectEqual(@as(i16, 1), step(&s, &o, 4, true));
+    try std.testing.expectEqual(@as(i16, 3), o.piece.column);
+    try std.testing.expectEqual(@as(i16, 5), o.piece.row);
+}
+
+test "kick: on the floor the piece goes one row up" {
+    var s: State = .{};
+    var o = kickObj(1, 4, rows - 2);
+    try std.testing.expectEqual(@as(i16, 0), step(&s, &o, 4, false));
+    try std.testing.expectEqual(@as(i16, 1), step(&s, &o, 4, true));
+    try std.testing.expectEqual(@as(i16, 4), o.piece.column);
+    try std.testing.expectEqual(@as(i16, rows - 3), o.piece.row);
+    try std.testing.expectEqual(@as(u8, 1), s.rot);
+}
+
+test "kick: nothing fits, the rotation is refused" {
+    var s: State = .{};
+    s.board[rows - 3] = @splat(true);
+    var o = kickObj(1, 4, rows - 2);
+    try std.testing.expectEqual(@as(i16, 0), step(&s, &o, 4, true));
+    try std.testing.expectEqual(@as(i16, 4), o.piece.column);
+    try std.testing.expectEqual(@as(i16, rows - 2), o.piece.row);
+    try std.testing.expectEqual(@as(u8, 0), s.rot);
 }
 
 test "removeRow moves the rows above down" {

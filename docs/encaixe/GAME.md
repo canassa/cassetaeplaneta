@@ -191,7 +191,7 @@ NOITE's `handler_3ffarao` (1020:81f0; `src/handlers/3ffarao.zig`):
 
 ## Corrigida (`--fix all`)
 
-Three additions that are not bug fixes (BUGS.md "Corrigida additions"). Each is a `Fixes` flag, in
+Four additions that are not bug fixes (BUGS.md "Corrigida additions"). Each is a `Fixes` flag, in
 `Fixes.all()`, off in the Original, which stays the code above byte for byte.
 
 ### Lock delay (`encaixe_lock_delay`)
@@ -251,6 +251,22 @@ design to keep (the old well is a plain black rectangle), and 10 leaves room for
   stack reaches the top rows after about 16 s with no input (the original: 6.4 s).
 - Steps (`mover.stepX/Y`), the hit box, the spawn x/y and the "never step up" correction use the
   cell size.
+
+### Wall kicks (`encaixe_wall_kicks`)
+
+The original, and the tall well without the flag, refuse a rotation whose cells would leave the well or
+enter a locked cell. With the flag, a refused rotation tries these offsets (column, row) from the
+piece's frame position and takes the **first that fits** (`tall.findKick`, `tall.kicks`):
+
+1. (-1, 0), 2. (+1, 0), 3. (-2, 0), 4. (+2, 0) (3 and 4 only for the long pieces, kinds 0 and 4),
+5. (0, -1) one row up, 6. (-1, -1), 7. (+1, -1).
+
+Nothing fits: the rotation is refused as before. A kicked rotation is a rotation for the lock delay
+(it restarts the 500 ms, within the 15 restarts). The piece's cells and its sprite move to the kicked
+position at once (x = 40 + 22 column, y = 4 + 22 row); the sprite turns a tick later as always. It needs
+`encaixe_tall_board`: the original 11 x 14 board writes the piece into the board cell by cell and is
+not touched (the flag does nothing there). Every shape's masks use frame column 0, so the left wall
+alone never blocks a rotation; the left kicks serve stacks beside the piece.
 
 ### Next piece (`encaixe_next_piece`)
 

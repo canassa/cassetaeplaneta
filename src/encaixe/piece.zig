@@ -35,7 +35,7 @@ const tall = @import("tall.zig");
 // @orig 1008:f186 te_piece_try_move
 pub fn tryStep(g: *Game, obj: *Object, bd: *Backdrop, kind: i16, rotation: i16) i16 {
     _ = bd;
-    if (g.fixes.encaixe_tall_board) return tall.step(&g.tall, obj, obj.mover.direction);
+    if (g.fixes.encaixe_tall_board) return tall.step(&g.tall, obj, obj.mover.direction, g.fixes.encaixe_wall_kicks);
     obj.piece.unk4E = 0;
     switch (obj.mover.direction) {
         1 => {
