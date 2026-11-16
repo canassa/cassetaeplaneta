@@ -42,6 +42,9 @@ pub const Game = struct {
     /// Not in the original: the item being dragged out of the control panel
     /// and the pointer, for `Fixes.drag_shows_item`.
     drag: Drag = .{},
+    /// Not in the original: the message over the scene (`note.zig`), for
+    /// `Fixes.serial_loss_message`.
+    note: @import("../note.zig").Note = .{},
     /// Not in the original: the inventory the open control panel's icons
     /// show on the screen (`game_input.inventoryKey`), for
     /// `Fixes.panel_follows_inventory`; null = not known yet.

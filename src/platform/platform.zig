@@ -247,6 +247,8 @@ pub const Screen = struct {
 /// client area. Rows are `width` bytes, top-down.
 pub const Overlay = struct {
     pub const max_side = 64;
+    /// Room for a framed message (`note.zig`) as for an icon.
+    pub const max_pixels = 320 * 80;
     shown: bool = false,
     /// Screen position of the top-left pixel.
     x: i16 = 0,
@@ -255,7 +257,7 @@ pub const Overlay = struct {
     height: u16 = 0,
     /// The index not drawn.
     transparent: u8 = 0,
-    pixels: [max_side * max_side]u8 = @splat(0),
+    pixels: [max_pixels]u8 = @splat(0),
 };
 
 /// The identity palette lookup: `Screen.overlayRow` on indexed pixels.

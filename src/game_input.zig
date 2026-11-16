@@ -22,6 +22,7 @@ const world = @import("core/world.zig");
 const Backdrop = world.Backdrop;
 const Scene = world.Scene;
 const cstr = @import("core/cstr.zig");
+const note = @import("note.zig");
 const ini = @import("ini.zig");
 const msg_mod = @import("core/msg.zig");
 const Msg = msg_mod.Msg;
@@ -584,6 +585,7 @@ fn fallToRest(g: *Game, sel: *Object, offered: bool) void {
     movement.fallTo(g, sel, rest -% half +% bd.originY, bd);
 }
 
+/// `Fixes.serial_loss_message`: a note over the scene (`note.zig`) goes first.
 /// `Fixes.drag_shows_item` and the one-button mode (not in the original):
 /// puts the dragged (or tap-selected) item's panel icon, centred on the
 /// pointer, in the screen overlay the platform draws over the frame it
@@ -592,6 +594,7 @@ fn fallToRest(g: *Game, sel: *Object, offered: bool) void {
 pub fn showDrag(g: *Game) void {
     const ov = &g.plat.screen().overlay;
     ov.shown = false;
+    if (note.update(g)) return;
     if (!g.showsDrag()) return;
     const item = g.drag.item orelse return;
     if (g.itemSelected == 0 or g.selectedItem != item) {

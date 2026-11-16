@@ -18,6 +18,7 @@ const avi = @import("../avi.zig");
 const game_scenes = @import("../game_scenes.zig");
 const sound = @import("../sound.zig");
 const update_list = @import("../update_list.zig");
+const note = @import("../note.zig");
 const tick = @import("../behaviour/tick.zig");
 const Object = @import("../core/object.zig").Object;
 
@@ -106,6 +107,8 @@ fn result(g: *Game, s: *State, m: Msg) i16 {
             _ = game_scenes.switchScene(g, "6fsaida", 0, 0, 0, 0, 0, 1, 0);
             return 0;
         }
+        // Not in the original: the prison says what happened.
+        if (g.fixes.serial_loss_message) note.show(g, "O serial killer foi pego!", "Voc\xea perdeu uma vida.", 4000);
         return toPrison(g, s);
     }
     if (g.minigameWon[3] == 0) return toPrison(g, s);
