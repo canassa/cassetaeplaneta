@@ -158,7 +158,7 @@ Saves go to `save/` (`--save DIR`).
   `--ms 50000 --input tools/play/encaixe-3ffarao-lose.input` (a life less, 3fcasame); each
   the same with `--fix all`. The win moves come from `tools/encaixe_plan.py` (the pieces follow
   from the start time: rerun it when that moves). `tools/smoke.py --minigame encaixe
-  [--monkey SEED]` presses random arrows for 60 s.
+  [--monkey SEED]` presses random arrows for 60 s (with `--fix all` the taller well lasts longer: `--ms 200000`).
 - **TIRO**: `--minigame tiro --ms 60000 --input tools/play/tiro-alone-win.input` (14 girls,
   `result won 2100`) and `tools/play/tiro-alone-lose.input` (-750); from NOITE, `--scene 3fhall
   --ms 42000 --input tools/play/tiro-3fhall-win.input` (NOITE hides, +2100, the prison) and
