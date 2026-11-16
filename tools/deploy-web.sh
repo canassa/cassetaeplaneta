@@ -24,7 +24,7 @@ fi
 # The release id names the server's releases/<id> directory; the page
 # reports it (Relatório, snapshots), so it is stamped in before the upload.
 release=$(date -u +%Y%m%dT%H%M%SZ)
-# The MK3 fight's sprite pack (docs/fights/MK3.md; not in git): the main
+# The MK3 fight's optional Ryu pack (?ryu=1; docs/fights/MK3.md; not in git): the main
 # checkout's zig-out/sprites, also when deploying from a worktree.
 main=$(cd "$(git rev-parse --git-common-dir)/.." && pwd)
 if [ -z "${NOITE_SPRITES:-}" ] && [ -d "$main/zig-out/sprites" ]; then

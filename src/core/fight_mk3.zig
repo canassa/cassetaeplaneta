@@ -12,6 +12,7 @@ pub const sim = @import("fight_mk3/sim.zig");
 pub const cpu = @import("fight_mk3/cpu.zig");
 pub const bot = @import("fight_mk3/bot.zig");
 pub const render = @import("fight_mk3/render.zig");
+pub const strips = @import("fight_mk3/strips.zig");
 pub const match = @import("fight_mk3/match.zig");
 pub const testing = @import("fight_mk3/testing.zig");
 pub const Match = match.Match;
@@ -22,5 +23,6 @@ test {
     _ = cpu;
     _ = bot;
     _ = match;
+    _ = strips;
     _ = @import("fight_mk3/tests.zig");
 }

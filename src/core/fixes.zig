@@ -412,6 +412,11 @@ pub const Fixes = struct {
     /// sprite pack (zig-out/sprites/ryu/, tools/ryu_pack.py). Without the
     /// pack the old fight plays.
     fight_mk3: bool = false,
+    /// A choice, not in `all`, with `fight_mk3`: the fighters are SF3 Ryu
+    /// (the private pack `zig-out/sprites/ryu/pack.bin`, the opponent
+    /// palette-swapped) instead of XILINDRO's own art; the web page's
+    /// `?ryu=1`.
+    fight_mk3_ryu: bool = false,
     // ---- SAUNA.EXE (BUGS.md P1–P8). The src/sauna/ units port each bug as
     // it is and keep the fix only behind its flag. ----
     /// P1: a step's meeting test looks past the mover's own cells: it finds
@@ -594,7 +599,7 @@ pub const Fixes = struct {
 
     /// Flags left out of `all` (`--fix all`, the web build's "Corrigida"
     /// version), e.g. the hall-door reshuffle.
-    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit", "salgin_opponent_damage_table" };
+    pub const choices = [_][]const u8{ "quit_on_ini_error", "hall_shuffle_each_visit", "salgin_opponent_damage_table", "fight_mk3_ryu" };
 
     /// `--fix all`: every flag but the `choices`.
     pub fn all() Fixes {

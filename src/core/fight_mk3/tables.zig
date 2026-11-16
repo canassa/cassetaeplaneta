@@ -54,7 +54,12 @@ pub const ground_y: i32 = 424;
 pub const band_y: i32 = 0x8c;
 pub const band_h: i32 = 0x127;
 
-pub const start_x = [2]i32{ 320 - ref(105), 320 + ref(105) };
+/// Where the fighters start: each one's origin (the animation point, the
+/// body's centre line, our feet anchor) `set_x_woff` (`MKGUYS.C:608`) puts
+/// `SCX(0x60)` = 96 arcade px in from its screen edge, the first from the
+/// left, the second from the right (MK3.md section 7): 120 px at `S`.
+pub const start_in: i32 = @intFromFloat(@round(96 * S));
+pub const start_x = [2]i32{ start_in, 640 - start_in };
 /// The walls: 58 arcade px from the left and 48 from the right of the
 /// 512-arcade-px screen (`LEFT_PADDING` / `RIGHT_PADDING`, MK3.md section 7;
 /// MK3 scrolls a wider world).

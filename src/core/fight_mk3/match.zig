@@ -50,7 +50,10 @@ pub var trace: bool = false;
 
 pub const Match = struct {
     gpa: std.mem.Allocator,
-    char: Character,
+    /// The two fighters' art (the player's, the opponent's), each with its
+    /// own pictures; `swap` recolours one when both are the same pack.
+    chars: [2]Character,
+    swap: [2]render.Swap = .{ .none, .none },
     sim: Sim,
     cpu: cpu_mod.Cpu,
     bot: ?bot_mod.Bot = null,
@@ -71,24 +74,24 @@ pub const Match = struct {
     /// What the last `view` drew (tests, the smoothness check).
     shown: [2]struct { x: i32 = 0, y: i32 = 0 } = .{ .{}, .{} },
 
-    /// Takes the pack's bytes (`Character.load`).
-    pub fn create(gpa: std.mem.Allocator, pack: []u8, seed: u32) !*Match {
+    /// Takes the two characters (their memory passes to the match; when
+    /// `create` fails the caller still owns them).
+    pub fn create(gpa: std.mem.Allocator, chars: [2]Character, swap: [2]render.Swap, seed: u32) !*Match {
         const m = try gpa.create(Match);
-        errdefer gpa.destroy(m);
         m.* = .{
             .gpa = gpa,
-            .char = try Character.load(gpa, pack),
+            .chars = chars,
+            .swap = swap,
             .sim = undefined,
             .cpu = cpu_mod.Cpu.init(seed),
         };
-        m.char.setStandPx(t.stand_arcade * t.S);
-        m.sim = Sim.init(&m.char, &m.char);
+        m.sim = Sim.init(&m.chars[0], &m.chars[1]);
         return m;
     }
 
     pub fn destroy(m: *Match) void {
         if (m.out) |o| m.gpa.destroy(o);
-        m.char.deinit();
+        for (&m.chars) |*c| c.deinit();
         const gpa = m.gpa;
         gpa.destroy(m);
     }
@@ -172,7 +175,7 @@ pub const Match = struct {
         const ly = m.sim.lerpY(who, a);
         return .{
             .x = @divTrunc(m.sim.lerpX(who, a), sim_mod.fp),
-            .y = t.ground_y - @divTrunc(ly + sim_mod.airLift(&m.char, m.sim.frameOf(who), ly), sim_mod.fp),
+            .y = t.ground_y - @divTrunc(ly + sim_mod.airLift(&m.chars[who], m.sim.frameOf(who), ly), sim_mod.fp),
         };
     }
 
@@ -180,8 +183,7 @@ pub const Match = struct {
         if (m.pal_valid and std.mem.eql(u8, std.mem.asBytes(&m.pal), std.mem.asBytes(pal))) return;
         m.pal = pal.*;
         m.pal_valid = true;
-        render.buildLut(&m.char, pal, .none, &m.luts[0]);
-        render.buildLut(&m.char, pal, .blue_gold, &m.luts[1]);
+        for ([2]u1{ 0, 1 }) |w| render.buildLut(&m.chars[w], pal, m.swap[w], &m.luts[w]);
     }
 
     /// The picture for the window: `screen` (the clock and the portraits as
@@ -199,13 +201,22 @@ pub const Match = struct {
         // The one that struck last is drawn in front.
         const order: [2]u1 = if (m.sim.f[0].state == .attack or m.sim.f[0].state == .air_attack) .{ 1, 0 } else .{ 0, 1 };
         const a = m.alpha();
+        // The floor shadows first (on the floor whatever the body's height).
+        for ([2]u1{ 0, 1 }) |who| {
+            const c = &m.chars[who];
+            const fr = m.sim.frameOf(who);
+            if (fr.shadow) |sid| {
+                const x = @divTrunc(m.sim.lerpX(who, a), sim_mod.fp);
+                render.drawFrame(&out.pixels, c, &m.luts[who], c.frame(sid), x, t.ground_y, m.sim.f[who].face < 0);
+            }
+        }
         for (order) |who| {
             const fr = m.sim.frameOf(who);
             const x = @divTrunc(m.sim.lerpX(who, a), sim_mod.fp);
             const ly = m.sim.lerpY(who, a);
-            const y = t.ground_y - @divTrunc(ly + sim_mod.airLift(&m.char, fr, ly), sim_mod.fp);
+            const y = t.ground_y - @divTrunc(ly + sim_mod.airLift(&m.chars[who], fr, ly), sim_mod.fp);
             m.shown[who] = .{ .x = x, .y = y };
-            render.drawFrame(&out.pixels, &m.char, &m.luts[who], fr, x, y, m.sim.f[who].face < 0);
+            render.drawFrame(&out.pixels, &m.chars[who], &m.luts[who], fr, x, y, m.sim.f[who].face < 0);
         }
         if (trace or m.debug) {
             std.debug.print("[{d}] mk3-frame {d} {d} {d} {d} {t}:{d} {t}:{d}\n", .{

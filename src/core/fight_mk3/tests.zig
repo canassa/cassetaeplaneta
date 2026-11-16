@@ -57,6 +57,16 @@ test "a straight jump: MK3's arc (39 ticks, 95 arcade px high), no air control" 
     try expect(s.f[0].grounded());
 }
 
+test "the fighters open MK3's 96 arcade px in from each edge" {
+    var c = try load();
+    defer c.deinit();
+    const s = Sim.init(&c, &c);
+    // `set_x_woff` (MKGUYS.C:608): SCX(0x60) from the left edge and from the right one, at S.
+    try expectEqual(@as(i32, 120), px(s.f[0].x));
+    try expectEqual(@as(i32, 640 - 120), px(s.f[1].x));
+    try expect(s.f[0].face > 0 and s.f[1].face < 0);
+}
+
 test "a forward jump crosses over, then the fighters face each other again" {
     var c = try load();
     defer c.deinit();

@@ -320,6 +320,7 @@
 
   /** { version: "original" | "corrigida", skip: bool, oneButton: bool } */
   let mk3 = true; // the MK3 fight (XILINDRO's Corrigida); ?mk3=0 turns it off
+  let ryu = false; // ?ryu=1: SF3 Ryu in the MK3 fight (needs the private pack) instead of XILINDRO's own art
   let autoPlay = false; // ?auto=1
   function readPrefs() {
     const prefs = { version: "original", skip: true, oneButton: coarsePointer(), minigame: "" };
@@ -331,11 +332,12 @@
       if (MINIGAMES.some((m) => m.ready && m.name === p.minigame)) prefs.minigame = p.minigame;
     } catch {}
     // The MK3 fight (`fight_mk3`, docs/fights/MK3.md) is XILINDRO's Corrigida
-    // (it needs the private sprite pack in the site's files); ?mk3=0 plays the
-    // old fair fight instead. ?jogo=NAME
+    // (XILINDRO's own art; ?ryu=1 asks for the private Ryu pack when the site has it);
+    // ?mk3=0 plays the old fair fight instead. ?jogo=NAME
     // picks the minigame alone, ?auto=1 presses Jogar when the files are in.
     const q = new URLSearchParams(location.search);
     if (q.get("mk3") === "0") mk3 = false;
+    if (q.get("ryu") === "1") ryu = true;
     if (q.get("auto") === "1") autoPlay = true;
     const jogoAsked = q.get("jogo");
     if (jogoAsked && MINIGAMES.some((m) => m.ready && m.name === jogoAsked)) prefs.minigame = jogoAsked;
@@ -1170,7 +1172,7 @@
       attachInput();
       if (!snap) {
         const minigame = MINIGAMES.findIndex((m) => m.name === prefs.minigame) + 1;
-        const rc = wasm.noite_start(prefs.version === "corrigida" ? 1 : 0, prefs.skip ? 1 : 0, prefs.oneButton ? 1 : 0, minigame, mk3 ? 0 : 1);
+        const rc = wasm.noite_start(prefs.version === "corrigida" ? 1 : 0, prefs.skip ? 1 : 0, prefs.oneButton ? 1 : 0, minigame, (mk3 ? 0 : 1) | (ryu ? 2 : 0));
         if (rc === 3) throw new Error("este minijogo ainda não foi portado");
         if (rc !== 0) throw new Error(`o jogo não iniciou (${rc})`);
       }

@@ -81,6 +81,8 @@ export fn noite_start(fixes: bool, skip_videos: bool, one_button_mode: bool, min
     var fx: @import("core/fixes.zig").Fixes = if (fixes) .all() else .{};
     // `extra` bit 0: the page's `?mk3=0` opt-out of the MK3 fight (in `all`).
     if (extra & 1 != 0) fx.fight_mk3 = false;
+    // Bit 1: `?ryu=1`, SF3 Ryu instead of XILINDRO's own art (when the site has the pack).
+    if (extra & 2 != 0) fx.fight_mk3_ryu = true;
     const prog: ?*const host.Program = if (minigame >= 1 and minigame <= minigames.len) minigames[minigame - 1] else null;
     hs.init(gpa, backend.platform(), &backend.sim, .{ .real = &minigames, .fixes = fx }, if (prog) |p| p.title else "Noite Animal", prog);
     if (prog) |p| {
@@ -209,6 +211,7 @@ export fn noite_options() i32 {
 fn optionBits(fixes: @import("core/fixes.zig").Fixes) i32 {
     var f = fixes;
     f.fight_mk3 = true;
+    f.fight_mk3_ryu = false;
     return @as(i32, @intFromBool(std.meta.eql(f, .all()))) | @as(i32, @intFromBool(fixes.fight_mk3)) << 4;
 }
 

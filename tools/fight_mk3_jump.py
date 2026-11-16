@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Heights of a jump in the MK3 fight's picture, from a headless run's frame trace.
 
-    zig-out/bin/noite --headless --minigame xilindro --ms 6200 --fix all \\
+    zig-out/bin/noite --headless --minigame xilindro --ms 6200 --fix all,fight_mk3_ryu \\
         --input tools/play/xilindro-mk3-jump.input 2> trace.log
     python3 tools/fight_mk3_jump.py trace.log [zig-out/sprites/ryu/pack.bin]
 

@@ -355,12 +355,24 @@ pub const Sim = struct {
         }
     }
 
+    /// How close two grounded fighters stand (screen px) and how far
+    /// `who`'s throw reaches: the character's own, else the engine's.
+    pub fn minSep(s: *const Sim, who: u1) i32 {
+        const v = s.chars[who].parsed.value.min_sep;
+        return if (v > 0) v else t.min_sep;
+    }
+
+    pub fn throwRange(s: *const Sim, who: u1) i32 {
+        const v = s.chars[who].parsed.value.throw_range;
+        return if (v > 0) v else t.throw_range;
+    }
+
     /// Close enough, and the other on the ground, for LP to be a throw.
     fn closeEnough(s: *const Sim, who: u1) bool {
         const f = &s.f[who];
         const o = &s.f[1 - who];
         const gap = @abs(o.x - f.x);
-        return o.grounded() and gap <= @as(u32, @intCast(t.throw_range * fp));
+        return o.grounded() and gap <= @as(u32, @intCast(s.throwRange(who) * fp));
     }
 
     /// The throw connects at its `startup` tick: the other still in reach,
@@ -660,7 +672,7 @@ pub const Sim = struct {
         const b = &s.f[1];
         if (a.grounded() and b.grounded()) {
             const gap = @abs(b.x - a.x);
-            const need: i32 = t.min_sep * fp;
+            const need: i32 = @max(s.minSep(0), s.minSep(1)) * fp;
             if (gap < need) {
                 // Eased apart (a landing inside the other is not a jump cut).
                 const over = @min(need - @as(i32, @intCast(gap)), t.separate_per_tick * fp);

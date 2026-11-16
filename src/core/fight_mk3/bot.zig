@@ -98,12 +98,16 @@ pub const Bot = struct {
             // Standing around, drifting toward a comfortable distance.
             return inp;
         }
-        const reach: i32 = switch (b.profile) {
-            .masher => t.ref(150),
+        // Strikes from where its own blows reach (a short-armed character
+        // closes in more than Ryu).
+        const can_hit = sim.chars[0].reachPx() + sim.chars[1].halfPx() - t.ref(6);
+        const reach: i32 = @min(can_hit, switch (b.profile) {
+            // The masher walks right up: its LP is a throw at close range.
+            .masher => @min(t.ref(150), sim.throwRange(0) - 4),
             .casual => t.ref(165),
             .decent => t.ref(170),
             .idle => 0,
-        };
+        });
         if (d > reach) {
             walk(&inp, fwd(sim));
             return inp;

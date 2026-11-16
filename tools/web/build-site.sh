@@ -14,11 +14,12 @@
 # zig-out/explorer/cache); the game's manifest does not list it.
 # OUT is replaced. Serve it as is (see docs/WEB.md for the headers).
 #
-# Two opt-in variables, for a build with the MK3 fight prototype
-# (docs/fights/MK3.md; the public deploy passes NOITE_SPRITES):
+# Two opt-in variables (docs/fights/MK3.md; the public deploy passes NOITE_SPRITES,
+# the MK3 fight itself needs neither: it draws XILINDRO's own strips):
 #   NOITE_SPRITES=DIR       adds the files under DIR (zig-out/sprites: the
-#                           Ryu pack, not in git) as sprites/<path>, keyed
-#                           `<path>` (ryu/pack.bin) in the manifest;
+#                           Ryu pack, not in git, for the page's ?ryu=1) as
+#                           sprites/<path>, keyed `<path>` (ryu/pack.bin) in
+#                           the manifest;
 #   NOITE_SKIP_EXPLORER=1   leaves out the asset explorer (slow to build).
 set -euo pipefail
 root=$(cd "$(dirname "$0")/../.." && pwd)
