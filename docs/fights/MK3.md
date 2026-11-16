@@ -264,6 +264,12 @@ defender because the defender box shrinks.
 - **Separation**: `REPELL_DISTANCE = 64` arcade px (80 px at S = 1.25) centre-to-centre (`MKREPELL.H:19`, process `repell`, `MKREPELL.C:114`). Closer than 61 and `f_norepell == 0`: pushed apart at 3.0 px/tick each. Walking into each other: both move at **half speed** (the walker pushes the other). Fighters walking toward each other face-to-face stop (both zeroed). **No collision while vertically apart**: repel is skipped when `feet(A) - 48 < head(B)` (or vice versa), i.e. a jumper whose feet are above the defender's head + 48 px passes over (`GRACE_PIXELS = 0x30`). During throws repel is off for 48 ticks.
 - **Maximum separation**: `SCREEN_DISTANCE = 0x130 = 304` px (486 px at 640) (`stuff_a6a7`, `MKREPELL.C:39-83`). Beyond it outward velocity is zeroed and positions are pulled together by half the error per tick, so the player walking away from a stationary opponent drags him. Skipped if either has `M_NOEDGE`.
 - **Arena / walls**: fighters clamp to `[left_edge + 0x3a, right_edge + SCRRGT - 0x30]` = 58 px from the world's left limit and 48 px from the right (`gravity_n_bounds`, `MKOBJ.C:568`, `LEFT_PADDING/RIGHT_PADDING`, `MKOBJ.H:26-27`); outward velocity is zeroed on contact. `left_edge/right_edge` are scroll limits from each stage module (data **not in source**); the world is scrolling, wider than one screen **[A]**: use arena = 1.5 screens (600 arcade / 960 px at 640).
+- **Start** (`set_x_woff`, `MKGUYS.C:608`): each fighter's origin x is `SCX(0x60)` = **96 arcade px** in from its screen edge: player 1 at
+  `worldtlx + 96`, player 2 at `worldtlx + SCRRGT - 96` (Motaro 48 farther in) **[V]**, so 207 of the 400 arcade px apart. The origin is
+  the animation point (`oxpos`; every frame is drawn at `oxpos + frame->anixoff`, a horizontal flip mirrors about it,
+  `MKANI.C:321-350`, `ganiof` `MKANI.C:1375`): the body's centre line, which is what the port calls the feet anchor, not the left edge.
+  The port opens at **120 px and 520 px** of its 640 (`tables.start_in` = 96 x `S`: our 640 px show 512 arcade px, so the fighters are
+  400 px = 320 arcade px apart, wider than MK3's 207; the edge distance is what `set_x_woff` gives, the 400 x 254 screen not being ours).
 - **Camera** (`scroller`, `MKBKGD.C:1953`): if fighters are <= 100 px apart, keep their midpoint within +/-75 px of screen centre; otherwise keep both at least `SCROLL_GRACE_SIZE = 40` px inside the screen edges; scroll speed chosen from a table to match the faster fighter. Vertical scroll follows the highest jumper.
 
 ## 8. Round flow
@@ -351,22 +357,24 @@ get-up duration, arena width, KO-to-next-round time, which strikes have `SF_DUCK
 
 ## 11. The engine built from it (`src/core/fight_mk3/`, `fixes.fight_mk3`)
 
-XILINDRO's Corrigida fight with these mechanics, SF3 Ryu on both sides (in `--fix all`; `--fix all,-fight_mk3` and the web
-page's `?mk3=0` play the old fair fight, which is also what plays without the pack). It is sprite-agnostic: a character is a pack of frames and clips (`character.zig`), the moves are
+XILINDRO's Corrigida fight with these mechanics (in `--fix all`; `--fix all,-fight_mk3` and the web
+page's `?mk3=0` play the old fair fight), drawn with XILINDRO's own art: the fighter (the player) and the inmate (the opponent), each its
+own pictures (section 11.5); `--fix fight_mk3_ryu` / the web page's `?ryu=1` play SF3 Ryu on both sides instead (the private pack). It is
+sprite-agnostic: a character is a table of frames and clips (`character.zig`), the moves are
 tables (`tables.zig`), the simulation (`sim.zig`) reads the hurt and hit boxes of the frame each fighter shows.
-The original Casseta sprites will be mapped onto the same engine later (a pack with the same clip names).
 
 ### 11.1 Files
 
 | File | What |
 |---|---|
-| `character.zig` | the pack's format and loader; `Anim` is the list of moves a character must have |
+| `character.zig` | a character: its frames, clips and boxes, from a pack's file or built in memory; `Anim` is the list of moves a character must have |
+| `strips.zig` | XILINDRO's own art as two characters: the strips' converter and the move-to-strip tables (11.5) |
 | `tables.zig` | every number (below), one place to tune |
 | `sim.zig` | the fixed-step simulation: control, physics, hits, blocks, throws, knockdowns, facing, walls |
 | `cpu.zig` | the drone at diff 0; `bot.zig` the test players (`idle`, `masher`, `casual`, `decent`) |
 | `match.zig` | a round: the 55-Hz clock, the controllers, `view` (the picture between ticks) |
 | `render.zig` | 8-bit drawing (nearest game-palette colours, a palette swap, fractional nearest-neighbour scale, mirrored) |
-| `xilindro.zig` | XILINDRO's side: loads the pack, energies, the picture; the handler's part is `arena.zig` `mk3Update` |
+| `xilindro.zig` | XILINDRO's side: builds the characters from the game's loaded strips (or loads the Ryu pack), energies, the picture; the handler's part is `arena.zig` `mk3Update` |
 | `tests.zig`, `testing.zig` | the mechanics' tests, on a synthetic pack (no private art) |
 
 ### 11.2 Time and pictures
@@ -397,9 +405,10 @@ portraits; the arena band is rebuilt each frame from the background.
 | Hit stun, push | punch 10-12 ticks, LK 11, HK 16 (94 px), crouching 10-11; tuned shorter than the attacker's recovery: no combos | approximated (no combo tables in the source) |
 | Knockdown | sweep (in place), uppercut (44 ticks, 102 px), roundhouse (31 ticks, 117 px), throw (63 px), any hit on a fighter in the air; 26 ticks on the floor, 12 getting up, the first 6 safe | structure verified, flights shortened (the source's 298 px uppercut flight is half a screen here) |
 | Hit in the air | thrown back 4.4 px/tick with a hop of 7.5 px/tick | verified |
-| Throw | LP, other on the ground, in reach (MK3 64 arcade = 80 px, here 121 for Ryu's reach), not holding away, not in stun, 24, unblockable | verified |
+| Throw | LP, other on the ground, in reach (MK3 64 arcade = 80 px; here the character's `throw_range`: 92 px for XILINDRO's art, 121 for Ryu's reach), not holding away, not in stun, 24, unblockable | verified |
 | Facing | grounded fighters face each other every tick; a jumper keeps his facing, so crossing flips it on landing | verified in structure; the source flips instantly at attacks/hits too |
-| Overlap | fighters on the ground keep 109 px apart (MK3 80; Ryu is wider), eased 5 px/tick; a jumper passes through | verified rule, wider value |
+| Overlap | fighters on the ground keep the wider character's `min_sep` apart (MK3 80 px; 88 for XILINDRO's art, 109 for Ryu), eased 5 px/tick; a jumper passes through | verified rule, art-sized value |
+| Start | the fighters' origins 96 arcade px (120 px) in from the left and right edges: 400 px apart (MK3: 207 arcade = 259 px) | `set_x_woff` verified (section 7), the edges ours |
 | Walls | x 72 to 580 (58 and 48 arcade px from the edges of a 512-arcade-px screen); a blow into the corner pushes the attacker back instead | the corner rule verified, the walls ours (a fixed screen: MK3 scrolls) |
 | Round | one round: KO, or at 0 on the 90 s clock the better health wins (a tie is XILINDRO's: the player) | XILINDRO's rules over MK3's health |
 | Close moves | elbow and knee (close HP, HK, LK) | not implemented |
@@ -423,31 +432,88 @@ moves are a held arrow and a tap (multi-touch); a tap that is held still repeats
 
 ### 11.5 Sprites
 
-`tools/ryu_pack.py` (run in the `explorer` dev shell: Pillow) turns Zweifuss' per-move GIFs of the SF3 3rd Strike Ryu
-(the rip behind `zig-out/sprite-viewer`'s `sf3-ryu`; copyright Capcom, private use only) into
-`zig-out/sprites/ryu/pack.bin`: 29 clips, 317 frames, 46 colours (2.4 MB). **The pack is not in git; the public
-web deploy carries it** (`NOITE_SPRITES`, `docs/WEB.md`); the game loads it as `ryu\pack.bin` (a third file root after `save` and `assets`, `Sim.Options.sprites_dir`;
-the private web build adds it to its manifest, `docs/WEB.md`). Missing: the feature is off and the old fight plays.
+**The default: XILINDRO's own art** (`strips.zig`; the fight uses the disc's `sb*.bmp` for the player and `sa*.bmp` for the inmate, no
+palette swap, no pack, nothing private, nothing to ship). The converter runs at WM_CREATE on the strips the game has already loaded
+(`fighter.frames[i].dib`, `fight_mk3/xilindro.zig`; the files are on the disc and in the web build's manifest), and makes
+two characters in memory (153 and 148 frames, about 0.5 and 0.7 MB). The strips: 11 stacked-frame 8-bit DIBs each, colour 11 transparent
+(`g_unk00A8`, the key every XILINDRO blit skips), a floor shadow baked in (colour 44 in the fighter's strips, 39 in the inmate's), one
+palette shared with the background. The inmate's art faces left, so its frames are mirrored while loading (every character's
+pictures face right). The fighter's strips are 231 x 266 (3 frames each), the inmate's 252 x 295 (3, 2, 3, 2, 2, 3, 2, 2, 3, 3, 3 frames); the
+strips are in the game's order `soco chme rast chal anda pula defa defe cai sego` and `flut` (the fighter's victory: a meditating figure) or
+`come` (the inmate's: fists up, guard, an arm raised). The art is XILINDRO's own and is shown as it was: `defa` is the rest pose in the
+Original (strip 6: a wide squat), `defe` the block (strip 7: arms crossed or up), `rast` the sweep, `chal` the high kick (a flip with the body
+off the ground and its shadow below), `pula` the jump (a squat hop, the shadow far below).
+
+Which strip plays which move (`fighter_clips` and `inmate_clips` in `strips.zig`; frame numbers from 0; `reg` frames keep the art's own
+registration, `air` their own feet, `low` their own centre and feet, below):
+
+| MK3 move | Fighter (player) | Inmate (opponent) |
+|---|---|---|
+| stance | `defa` 0, 1 (loop) | `defa` 0 (the art has no second rest frame) |
+| crouch (↓) | `pula` 2, the deepest squat (`low`; the hurt box is cut at 0.6 of the stance) | `pula` 0, crouching with a hand down (`low`, same cut) |
+| walk forward / back | `anda` 0, 1, 2, 1 / reversed (loop) | `anda` 0, 1 / 1, 0 (loop) |
+| jump up / forward / back | `pula` 0, 1, 2 over the 39-tick flight (`low`) | the same strip, 3 frames |
+| LP / HP, close LP (throw) | `soco` 0, 1, 2: the blow is frame 1 | `soco` 0, 1, 2 |
+| crouching LP, uppercut | `soco` (no art for either: the punch, the hurt box cut) | `soco` |
+| LK, crouching LK | `chme` 0, 1, 2 | `chme` 0, 1, 0 (2 frames) |
+| HK, roundhouse | `chal` 0, 1, 2 (`reg`: the flip as authored, the body over its shadow) | `chal` 0, 1, 0 |
+| sweep | `rast` 0, 1, 2: the blow is frame 1 (a lunge) | `chme` 0 (wind-up), `rast` 0, 1, 2: the blow is `rast` 0 |
+| jumping LP, HP | `soco` 0, 1, 2 (`air`) | `soco` (`air`) |
+| jumping LK, HK | `chal` 0, 1, 2 (`air`) | `chal` 0, 1, 0 (`air`) |
+| block, crouching block | `defe` 1 (the arms up) | `defe` 1 (arms crossed) |
+| hit (standing, crouching) | `sego` 0, 1, 2, weighted 60:140:60 over the stun | `sego` 0, 1, 2 |
+| fall / lying | `cai` 1 / `cai` 2 (`low`, no hurt box) | `cai` 1 / `cai` 2 |
+| get up | `cai` 2, 1, 0 over the 12 ticks (the new optional `getup` clip; a character without it uses its crouch) | the same |
+| win | `flut` 0, 1, 2 (loop) | `come` 0, 1, 2 (holds the raised arm) |
+| taunt | none | none |
+
+A strip with fewer frames than the move needs keeps its last: the attacks name their frames explicitly (`Ref` lists, repeated frames are the
+holds), and the engine stretches them over MK3's timings (`sim.attackFrame`: the frames before the active one over the startup ticks, the
+active one over the active ticks, the rest over the recovery; stuns, jumps and falls stretch their clip over their length; no
+interpolation).
+
+**How the anchors, shadows and boxes come out of the pictures** (`strips.zig` header):
+- The 11 strips of a character share one registration (the art's: the same standing pose is frame 0 of several strips at the same pixels). The
+  rest pose (`defa` 0) gives the anchor: x the centre of its legs (the lowest 30% of the figure), the floor line its bottom edge. A `reg` frame
+  (everything on the ground: stance, walks, blows, blocks, hits, the win) is drawn with that anchor whatever its own shape, so the feet move
+  as the artists drew them and nothing jitters (the check below). An `air` frame keeps that x but anchors its own feet (the lowest body pixel;
+  the jumping blows), a `low` frame its own centroid x and feet (the jump, the crouch, the fall, lying, getting up): the engine lifts them on the
+  jump's arc.
+- The shadow (the strip's colour 44 / 39) is split from the body into a frame of its own (`Frame.shadow`) and drawn on the floor first,
+  every frame, whatever the body's height: a jumper's shadow stays on the floor, as the engine's jump goes up and the art's baked one does not.
+- The hurt box is the body (never the shadow) within 34 px of the anchor (`strips.trunk`: the trunk and legs, not an outstretched limb); none for a
+  fighter on the floor (`fall`, `down`). A crouching move's is capped at 0.6 of the stance's height: the art has no crouch, and the engine's crouch
+  has to duck under the high blows. The hit box (the blow's frame, the clips' `active` range) is the body beyond 30 px in front of the anchor and
+  beyond half the frame's farthest reach (the limb, not the leaning body); the inmate's is cut at 105 px from its anchor (its punch and sweep
+  reach 140 in the art, the fighter's 72 to 86; 105 is 1.25 times the fighter's longest, the Original's 1.3: its opponent hits from 130 px, the fighter
+  from 100). The fighters' `min_sep` (88) and `throw_range` (92) are theirs: a punch reaches a body at the closest they stand.
+- **Size: native.** The art is drawn 1:1 (`scale` 1; `setStandPx` is not called), as the Original draws it. Measured: the inmate stands 186 px
+  (3% over MK3's 180: `stand_arcade` x `S`), the fighter's upright poses are 159 px (-12%) and its rest squat 127 (-30%). Scaling
+  both to 180 would make the inmate 232 (`defa`'s raised arm 212 -> 273) and the fighter 1.13 to 1.4 times bigger than in the Original; native
+  keeps the Original's proportions (the inmate the larger of the two). The jump's apex is the engine's (180 px), the fighter's flip then
+  reaches y 116, the inmate's y 41, just under the clock's bar.
+- Colours: the strips' palette is the game's, so the nearest-colour map is the identity (`render.buildLut`, swap `none` for both).
+
+**Ryu, the option** (`--fix fight_mk3_ryu`, the web page's `?ryu=1`; not in `--fix all`): `tools/ryu_pack.py` (run in the `explorer` dev shell: Pillow)
+turns Zweifuss' per-move GIFs of the SF3 3rd Strike Ryu (the rip behind `zig-out/sprite-viewer`'s `sf3-ryu`; copyright Capcom, private use only)
+into `zig-out/sprites/ryu/pack.bin`: 29 clips, 317 frames, 46 colours (2.4 MB). **The pack is not in git; the public web deploy still carries
+it** (`NOITE_SPRITES`, `docs/WEB.md`); the game loads it as `ryu\pack.bin` (a third file root after `save` and `assets`,
+`Sim.Options.sprites_dir`). Without the pack the option falls back to XILINDRO's own art. It was the default until the owner asked for the
+original sprites back. The opponent is the same pack with a palette swap (`render.Swap`: the gi's greys to blue, the reds to gold); colours
+are mapped to the nearest of the game's 256, so the whites come out grey-ish.
 
 Move to clip (Ryu GIF): stance, crouch (`crouch`), walk (`walkf`, `walkb`), jumps (`jump`, `jumpf`, `jumpb`, stretched over
 the 39-tick flight; in the air they hang from MK3's head line, section 3), LP `wp`, HP `hp`, LK `wk`, HK `mk`, roundhouse `hk`, crouching `crouch-wp`, uppercut `crouch-hp`,
 `crouch-wk`, sweep `crouch-hk`, jumping `jump-lp/hp/lk/hk`, throw `throw-forward`, block `block-high` (standing) and
 `block-low` (crouching), hits `stand-hit` / `crouch-hit` (the first frames), fall and down `slam`, win `win1`.
-Clips are drawn at the engine's scale (`Character.scale_fp`, 1/256 px per source pixel, nearest-neighbour: the pack's `stand` is the stance's 104 source px, sized to MK3's 144 arcade px x `S` = 180 px, so about 1.73 px per source pixel; the first version drew a flat 2: 208 px) and the animations are fitted to the engine's ticks, not the other
-way round: an attack's frames before its active frames are spread over the move's startup ticks, the active ones over
-its active ticks, the rest over its recovery (`sim.attackFrame`); stuns and falls stretch their clip over their length.
-
-How the anchors and boxes are derived (the rip has none; `tools/ryu_pack.py` header): the x anchor of a still clip is the
+Ryu is sized by the pack's `stand` (the stance's 104 source px) to MK3's 144 arcade px x `S` = 180 px (`Character.setStandPx`, about 1.73 px per source
+pixel, nearest-neighbour). How its anchors and boxes are derived (the rip has none; `tools/ryu_pack.py` header): the x anchor of a still clip is the
 feet's x of its first frame (the GIF frames of a move share one registration), of a travelling clip (walks, jumps,
 reactions, the throw) each frame's silhouette centroid smoothed over three frames; the y anchor is the picture's bottom
 (ground), for the air clips each frame's silhouette bottom. The hurt box is the silhouette within 26 source px of the
-anchor (the trunk and legs: an outstretched limb is not hittable); the hit box, on the active frames only (those whose
-reach past the trunk is at least 80% of the clip's longest, at least 12 px; the uppercut and jump punch hand-set), is the
-silhouette beyond 20 px in front of the anchor (the uppercut: the top half within 14 px behind to 40 ahead). Fighters on the
-floor have no hurt box. `--preview FILE` draws every clip with its anchor and boxes; `--report` prints the feet's jitter.
-
-The opponent is the same pack with a palette swap (`render.Swap`: the gi's greys to blue, the reds to gold). Colours are
-mapped to the nearest of the game's 256 (the minigame's palette is fixed), so the whites come out grey-ish.
+anchor; the hit box, on the active frames only (those whose reach past the trunk is at least 80% of the clip's longest, at least 12 px; the
+uppercut and jump punch hand-set), is the silhouette beyond 20 px in front of the anchor (the uppercut: the top half within 14 px behind to
+40 ahead). `--preview FILE` draws every clip with its anchor and boxes; `--report` prints the feet's jitter.
 
 ### 11.6 The CPU
 
@@ -466,15 +532,17 @@ the simulation) are in `docs/fights/MK3.md` section 11.8.
 
 ### 11.7 Checks
 
-`zig build test` (the mechanics on the synthetic pack: the jump arc, the side switch, blocks, chip, throws, knockdowns, KO,
-walls, and that the CPU beats a bot that does nothing and loses to a casual one), `tools/fight_mk3_smooth.py` on a
+`zig build test` (the mechanics on the synthetic pack: the jump arc, the opening positions, the side switch, blocks, chip, throws, knockdowns, KO,
+walls, and that the CPU beats a bot that does nothing and loses to a casual one; `strips.zig`'s own tests convert the disc's strips: every move
+present, hurt and hit boxes where the art has a body and a blow, the blows reach a body at the closest the fighters stand), `tools/fight_mk3_smooth.py` on a
 headless run's frame trace (`--fight-bot masher,5,log --dump-every 16`), `tools/play_all.py` (the flag is off by default:
 144 of 144), `tools/smoke.py --minigame xilindro [--fix all]`.
 
 ### 11.8 Results
 
-`tools/fight_bots.py --seeds 60 --game xilindro --fixes easy=all,-fight_mk3 mk3=all` (the real Ryu pack; `easy` is the old fight with
-the Corrigida's easy opponent; win% includes a clock win; the bots press nothing the keys could not):
+`tools/fight_bots.py --seeds 60 --game xilindro --fixes easy=all,-fight_mk3 mk3=all mk3ryu=all,fight_mk3_ryu` (`easy` is the old fight with
+the Corrigida's easy opponent; `mk3` XILINDRO's own art, the default; `mk3ryu` SF3 Ryu with the real pack; win% includes a clock win; the bots press nothing
+the keys could not; `reports/fight-mk3/win-rates-original-sprites.txt`):
 
 | fight | bot | win % | KO % | round ends (s) | bot's energy left | CPU's energy left | hits landed / taken |
 |---|---|---|---|---|---|---|---|
@@ -482,31 +550,44 @@ the Corrigida's easy opponent; win% includes a clock win; the bots press nothing
 | old (easy) | masher | 47 | 3 | 96.6 | 29.3 | 34.4 | 19.3 / 17.2 |
 | old (easy) | novice | 67 | 0 | 96.8 | 32.5 | 21.8 | 23.2 / 16.6 |
 | old (easy) | decent | 100 | 3 | 96.7 | 80.1 | 17.2 | 24.8 / 3.2 |
-| MK3 | idle | 0 | 100 | 38.4 | 0.0 | 91.0 | 0.0 / 15.2 |
-| MK3 | masher | 98 | 100 | 20.2 | 59.2 | 0.1 | 9.4 / 6.4 |
-| MK3 | novice | 92 | 100 | 36.6 | 36.5 | 1.0 | 14.2 / 10.2 |
-| MK3 | decent | 100 | 100 | 32.9 | 48.0 | 0.0 | 14.4 / 8.2 |
+| MK3, XILINDRO's art | idle | 0 | 100 | 43.2 | 0.0 | 91.0 | 0.0 / 14.4 |
+| MK3, XILINDRO's art | masher | 98 | 100 | 21.8 | 49.8 | 0.2 | 9.3 / 8.6 |
+| MK3, XILINDRO's art | novice | 95 | 100 | 36.2 | 35.6 | 0.4 | 12.9 / 11.2 |
+| MK3, XILINDRO's art | decent | 98 | 100 | 34.9 | 47.6 | 0.3 | 13.6 / 8.8 |
+| MK3, Ryu | idle | 0 | 100 | 38.5 | 0.0 | 91.0 | 0.0 / 15.4 |
+| MK3, Ryu | masher | 98 | 100 | 20.8 | 58.6 | 0.1 | 9.6 / 6.4 |
+| MK3, Ryu | novice | 95 | 100 | 37.9 | 31.4 | 2.2 | 14.0 / 11.4 |
+| MK3, Ryu | decent | 98 | 100 | 34.9 | 41.6 | 0.1 | 14.6 / 8.8 |
 
-A player who does nothing is knocked out in 38 s (the CPU does fight); a novice who walks in, pokes and sometimes blocks
-wins 92 rounds in 100, a masher (random blows, never blocks: it throws at close range, the LP) 98 of them, with 59 of 91
+A player who does nothing is knocked out in 43 s (the CPU does fight); a novice who walks in, pokes and sometimes blocks
+wins 95 rounds in 100, a masher (random blows, never blocks: it throws at close range, the LP) 98 of them, with 50 of 91
 energy left. That is easier than the old fight's easy opponent (47% / 67%): the owner found that one too hard; the
 dials are in `cpu.zig` (`react_pct`, `anti_spam_pct`, `pause_*`, `max_hangouts`) and `tables.zig` (the damage). The
-synthetic-art test (`zig build test`) gives the same order (idle 0, masher about 95%, casual about 95% of 30).
+synthetic-art test (`zig build test`) gives the same order (idle 0, masher about 95%, casual about 95% of 30). The larger opening gap (400 px, section 7) and XILINDRO's art needed no retune of the CPU or the damage. What the art did change is in the
+bots, not the game: they close in to where their own blows reach (`bot.zig`: a fighter whose punch reaches 72 px cannot strike from Ryu's 117),
+and the masher walks up to its throw range, as it did with Ryu; and the inmate's hit boxes are cut at 105 px (11.5). Without those the bots stood
+out of reach and lost more (masher 22%, novice 62%, decent 93%).
 
 Smoothness (`tools/fight_mk3_smooth.py` on `--fight-bot masher,5,log --dump-every 16`, 36 s of fighting, 5100 frames): the
 picture is rebuilt at least every 16 ms (a presentation every loop turn in SDL and every animation frame on the web; the
 headless dump run shows 80 a second); the feet of a fighter move at most **14 px between two frames** (a knock-back at
 about 19 px a tick is the fastest motion), the 99th percentile 6 px: no frame where the feet jump. A hit on a jumper
 used to drop him to the floor in one frame (found by that script's trace): he now falls with the physics.
-The sprite registration is the rip's own, per clip (`--report` of the converter): the still clips' feet stay within 2.4 source
-px of their anchor (stance 0.9, crouch 0.1, blocks, punches 2.4); the moving ones (walks, kicks) move their feet by design.
+With XILINDRO's art (the same script, `--fight-bot masher,5,log`, 27.8 s of fighting, 3972 frames): the feet move at most 7 px between two frames
+(fall, 99th percentile 5 px), no frame where a fighter's feet jump. The art's registration is the artists' own (a `reg` frame anchors at the rest pose's
+feet, 11.5), so the feet move as drawn in a kick or a lunge and nowhere else. For Ryu: the still clips' feet stay within 2.4 source px of their anchor
+(stance 0.9, crouch 0.1, blocks, punches 2.4; `--report` of `tools/ryu_pack.py`); the moving ones (walks, kicks) move their feet by design.
 
 ### 11.9 Gaps and choices for the owner
 
-- Close elbow and knee, run, juggles and combos are not implemented; the pack has the clips for none of the specials.
+- Close elbow and knee, run, juggles and combos are not implemented; there are no specials.
+- XILINDRO's art has no crouch, crouching punch, kick or uppercut, jumping blows of their own, throw, get-up or turn: they reuse the nearest strip (11.5), so
+  a crouch looks like the jump's squat and the uppercut like the punch; the crouch's hurt box is cut by the engine, not drawn. The HK and the roundhouse are the
+  art's flip (the body off the ground over its shadow); the fighter's rest pose is a squat 127 px tall, shorter than MK3's 144 arcade (180 px).
+- The inmate's reach is cut to 105 px (the art's is 140), the fighters stand 88 px apart at the closest, and open 400 px apart; each a choice in `strips.zig` / `tables.zig`.
 - The frame data and damage numbers are approximations (the source lacks the tables); they are in `tables.zig`.
 - Down + HK is the sweep (as asked); MK3's own input (back + LK) works too.
 - The CPU is gentler than diff 0 (6.), tuned so a button-masher or a novice wins about nine rounds in ten (the table above); harder
   is a constant in `cpu.zig`.
 - The PORRADA banner is not drawn in this fight; there is no round counter (one round, as XILINDRO).
-- The art is Capcom's: the pack stays out of git; the public site serves it (the owner's call).
+- The default art is XILINDRO's own (the disc's, in git). Ryu is Capcom's: the pack stays out of git, and the public site serves it for `?ryu=1` (the owner's call).

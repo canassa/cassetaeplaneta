@@ -67,7 +67,8 @@ XILINDRO's Corrigida fight (`--fix all`, which includes `fight_mk3`; `--fix all,
 (`src/core/fight_mk3/`, `docs/fights/MK3.md`): ← / → walk, ↑ jumps (with ← / →: a jump back or forward), ↓
 crouches, A / S the low and high punch, D / F the low and high kick, Space blocks (↓ + Space: crouching block);
 ↓ + S the uppercut, ↓ + F the sweep, back + F the roundhouse, A close up a throw. It needs the private
-sprite pack (`nix develop .#explorer -c python3 tools/ryu_pack.py`: `zig-out/sprites/ryu/pack.bin`, never in git); without it (a build with no `NOITE_SPRITES`) the old fair fight plays.
+XILINDRO's own art (the fighter's `sb*` and the inmate's `sa*` strips from the disc, converted at start-up: nothing to build, nothing private); `--fix fight_mk3_ryu` (the web's `?ryu=1`) plays SF3 Ryu on both sides
+instead, from a private pack (`nix develop .#explorer -c python3 tools/ryu_pack.py`: `zig-out/sprites/ryu/pack.bin`, never in git; without it the option plays XILINDRO's art).
 JARDIM's Corrigida (`--fix all`) moves like Wolfenstein 3D: W / S or ↑ / ↓ walk, A / D strafe,
 ← / → turn, Shift runs, Ctrl or Space fire, E opens a door or takes an exit, Esc quits; the
 movement is continuous at Wolf3D's speeds (5.6 cells a second walking, 11.2 running, 122.5° a
@@ -259,13 +260,13 @@ Saves go to `save/` (`--save DIR`).
   D, F, ↑ and ↓ in the round.
   `tools/smoke.py --minigame xilindro [--fix all] [--monkey SEED]` presses and holds random fight
   keys for 110 s (with `--fix all`: Enter first, and A, S, D, F too).
-- **MK3 fight** (XILINDRO's Corrigida fight, `--fix all`, `docs/fights/MK3.md`): build the private pack first
-  (`nix develop .#explorer -c python3 tools/ryu_pack.py [--preview FILE] [--report]`, from the SF3 Ryu rip: `zig-out/sprites/ryu/pack.bin`,
-  never in git); `--minigame xilindro --ms 14000 --fix all --dump DIR --dump-every 33 --input FILE` plays and dumps it
+- **MK3 fight** (XILINDRO's Corrigida fight, `--fix all`, `docs/fights/MK3.md`; it plays with XILINDRO's own art; for Ryu build the private pack
+  first, `nix develop .#explorer -c python3 tools/ryu_pack.py [--preview FILE] [--report]`, from the SF3 Ryu rip: `zig-out/sprites/ryu/pack.bin`,
+  never in git, and add `--fix fight_mk3_ryu`); `--minigame xilindro --ms 14000 --fix all --dump DIR --dump-every 33 --input FILE` plays and dumps it
   (Enter takes the controls screen down; the round starts 2 s later; F9 draws the boxes); `--fight-bot masher|novice|decent|idle,SEED[,log]`
   lets the MK3 bot play (`log`: a line per presented frame, which `tools/fight_mk3_smooth.py TRACE` checks for jumps of the feet and
-  the frame rate); `tools/fight_bots.py --fixes mk3=all` gives the win rates. A private web build:
-  `NOITE_SPRITES=zig-out/sprites NOITE_SKIP_EXPLORER=1 tools/web/build-site.sh OUT`, open `OUT/index.html?jogo=xilindro&versao=corrigida&auto=1`
+  the frame rate); `tools/fight_bots.py --fixes mk3=all` gives the win rates (`mk3ryu=all,fight_mk3_ryu` for Ryu). A web build:
+  `NOITE_SKIP_EXPLORER=1 tools/web/build-site.sh OUT` (add `NOITE_SPRITES=zig-out/sprites` for the Ryu option), open `OUT/index.html?jogo=xilindro&versao=corrigida&auto=1`
   (`docs/WEB.md`).
 - **INFERNO**: `--minigame inferno --ms 180900 --input tools/play/inferno-alone-win.input` (32
   stomps, the 3 minutes survived, `result won 500`), `--ms 30000 --input

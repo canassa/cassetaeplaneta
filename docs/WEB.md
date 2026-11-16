@@ -38,15 +38,16 @@ OUT/
 Download: **753 files, 188.5 MB** (156 MB of disc files + the 32 MB
 SoundFont), against 547 MB for the whole disc.
 
-### The MK3 fight's sprite pack
+### The MK3 fight and its optional Ryu pack
 
-The XILINDRO Corrigida fight (`fight_mk3`, in `--fix all`; `docs/fights/MK3.md`) needs a sprite pack that is private (Capcom's art,
-not in git): `NOITE_SPRITES=zig-out/sprites NOITE_SKIP_EXPLORER=1 tools/web/build-site.sh OUT` adds every file
-under `zig-out/sprites/` (the pack `tools/ryu_pack.py` writes: `ryu/pack.bin`) to OUT and its manifest. The page
+The XILINDRO Corrigida fight (`fight_mk3`, in `--fix all`; `docs/fights/MK3.md`) draws XILINDRO's own strips (`sb*.bmp`, `sa*.bmp`: disc files the
+manifest already lists), so the web build needs nothing more. Its option `?ryu=1` (`noite_start`'s `extra` bit 1 sets `fight_mk3_ryu`) plays SF3 Ryu instead, from
+a sprite pack that is private (Capcom's art, not in git): `NOITE_SPRITES=zig-out/sprites NOITE_SKIP_EXPLORER=1 tools/web/build-site.sh OUT` adds every file
+under `zig-out/sprites/` (the pack `tools/ryu_pack.py` writes: `ryu/pack.bin`) to OUT and its manifest; without the pack `?ryu=1` plays XILINDRO's art. The page
 takes `?mk3=0` (the opt-out: `noite_start`'s `extra` bit 0 turns `fight_mk3` off, so XILINDRO's Corrigida plays the old fair fight; the pad follows), `?jogo=xilindro` (that
 minigame alone), `?versao=corrigida` and `?auto=1` (presses Jogar when the files are in), e.g.
-`index.html?jogo=xilindro&versao=corrigida&auto=1` (the MK3 fight, no other parameter). The public deploy is built with it
-(`tools/deploy-web.sh` takes the main checkout's `zig-out/sprites` by default); a build without it has no pack, and the old fair fight plays (the pad still shows the MK3 layout).
+`index.html?jogo=xilindro&versao=corrigida&auto=1` (the MK3 fight with XILINDRO's art, no other parameter). The public deploy is built with the pack
+(`tools/deploy-web.sh` takes the main checkout's `zig-out/sprites` by default), so `?ryu=1` works there.
 
 ## Serving (nginx)
 
