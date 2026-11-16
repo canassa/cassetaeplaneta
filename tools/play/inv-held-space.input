@@ -1,7 +1,9 @@
 # INV alone, SPACE held for 4 s with Windows' key repeat (BUGS.md I1).
 #
 #   zig-out/bin/noite --minigame inv --headless --ms 25000 --key-repeat 500,33 --input tools/play/inv-held-space.input
-#   zig-out/bin/noite --minigame inv --headless --ms 25000 --key-repeat 500,33 --fix all --input tools/play/inv-held-space.input
+#   zig-out/bin/noite --minigame inv --headless --ms 25000 --key-repeat 500,33 --fix all,-inv_arcade_rules,-inv_clean_render,-inv_controls_screen --input tools/play/inv-held-space.input
+# (The --fix all run pins the Corrigida's arcade INV off, `inv_arcade_rules`, `inv_clean_render` and
+# `inv_controls_screen`: it replaces the 1995 game this script plays; see inv-corrigida-*.input.)
 #
 # (500,33 is the default of every run; the flag makes the script independent
 # of it.) One step left, then SPACE held under the third column:

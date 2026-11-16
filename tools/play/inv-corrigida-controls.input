@@ -1,0 +1,11 @@
+# INV alone, the Corrigida's controls screen: up from the start (a dump at 500), the game gets nothing until
+# a key: D at 1000 takes the screen down and is no move (the cannon stays at the left edge, not a step
+# right), and the window closed at 4000 reports no score: `lost 0` (a game that had run under the screen
+# would have its clock running; one that took the D for a move would show the cannon moved).
+#
+#   zig-out/bin/noite --minigame inv --headless --ms 5000 --fix all --input tools/play/inv-corrigida-controls.input
+500 dump controls
+1000 key d
+2500 dump play
+4000 close
+4500 result lost 0

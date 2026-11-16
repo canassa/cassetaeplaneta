@@ -3,7 +3,9 @@
 # (4fmarte), then a life less and back to the bar (4fbar).
 #
 #   zig-out/bin/noite --headless --scene 4fsacaet --ms 46000 --input tools/play/inv-4fsacaet-lose.input
-#   zig-out/bin/noite --headless --scene 4fsacaet --ms 46000 --fix all --input tools/play/inv-4fsacaet-lose.input
+#   zig-out/bin/noite --headless --scene 4fsacaet --ms 46000 --fix all,-inv_arcade_rules,-inv_clean_render,-inv_controls_screen --input tools/play/inv-4fsacaet-lose.input
+# (The --fix all run pins the Corrigida's arcade INV off, `inv_arcade_rules`, `inv_clean_render` and
+# `inv_controls_screen`: it replaces the 1995 game this script plays; see inv-corrigida-*.input.)
 #
 # As inv-4fsacaet-win: INV starts at 26808. No key (inv-alone-lose.input):
 # the fourth bomb hit ends it at 39083 in both versions.

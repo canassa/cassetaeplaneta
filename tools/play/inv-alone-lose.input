@@ -3,6 +3,8 @@
 # (`tools/inv_plan.py --lose`).
 #
 #   zig-out/bin/noite --minigame inv --headless --ms 15000 --input tools/play/inv-alone-lose.input
-#   zig-out/bin/noite --minigame inv --headless --ms 15000 --fix all --input tools/play/inv-alone-lose.input
+#   zig-out/bin/noite --minigame inv --headless --ms 15000 --fix all,-inv_arcade_rules,-inv_clean_render,-inv_controls_screen --input tools/play/inv-alone-lose.input
+# (The --fix all run pins the Corrigida's arcade INV off, `inv_arcade_rules`, `inv_clean_render` and
+# `inv_controls_screen`: it replaces the 1995 game this script plays; see inv-corrigida-*.input.)
 3000 dump hit
 13000 result lost -2000

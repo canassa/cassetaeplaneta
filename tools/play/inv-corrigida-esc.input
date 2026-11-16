@@ -1,0 +1,7 @@
+# INV alone, the Corrigida's Esc: it leaves the game and forfeits, as closing the window does (a loss,
+# the score at that moment: nothing yet).
+#
+#   zig-out/bin/noite --minigame inv --headless --ms 5000 --fix all --input tools/play/inv-corrigida-esc.input
+1000 key return
+2500 key escape
+3000 result lost 0

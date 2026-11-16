@@ -1,7 +1,9 @@
 # INV alone, LEFT and SPACE during the cannon's explosion (BUGS.md I2).
 #
 #   zig-out/bin/noite --minigame inv --headless --ms 15000 --input tools/play/inv-explosion-move.input
-#   zig-out/bin/noite --minigame inv --headless --ms 15000 --fix all --input tools/play/inv-explosion-move.input
+#   zig-out/bin/noite --minigame inv --headless --ms 15000 --fix all,-inv_arcade_rules,-inv_clean_render,-inv_controls_screen --input tools/play/inv-explosion-move.input
+# (The --fix all run pins the Corrigida's arcade INV off, `inv_arcade_rules`, `inv_clean_render` and
+# `inv_controls_screen`: it replaces the 1995 game this script plays; see inv-corrigida-*.input.)
 #
 # With no key the first bomb hits the cannon between 2370 and 2390 ms
 # (inv-alone-lose.input); LEFT is held from 2400, in the explosion's

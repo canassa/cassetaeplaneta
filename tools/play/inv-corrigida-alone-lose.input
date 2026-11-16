@@ -1,0 +1,11 @@
+# INV alone, the Corrigida's arcade game, a loss: the controls screen comes down at 1000 and the cannon
+# stands still at the left edge. The aimed bomb falls over the column the cannon is under (the first, whose
+# invaders are mostly further right) and the others from their tables: three cannons are lost, -500 each,
+# the third at 47008 ms after the start (`lost -1500`). The other loss is a rack that lands.
+#
+#   zig-out/bin/noite --minigame inv --headless --ms 50000 --fix all --input tools/play/inv-corrigida-alone-lose.input
+500 dump controls
+1000 key return
+20000 dump play
+47000 dump lost
+49000 result lost -1500

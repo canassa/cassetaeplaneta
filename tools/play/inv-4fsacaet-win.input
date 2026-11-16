@@ -4,7 +4,9 @@
 # and back to the bar (4fbar), with no life taken.
 #
 #   zig-out/bin/noite --headless --scene 4fsacaet --ms 76000 --input tools/play/inv-4fsacaet-win.input
-#   zig-out/bin/noite --headless --scene 4fsacaet --ms 76000 --fix all --input tools/play/inv-4fsacaet-win.input
+#   zig-out/bin/noite --headless --scene 4fsacaet --ms 76000 --fix all,-inv_arcade_rules,-inv_clean_render,-inv_controls_screen --input tools/play/inv-4fsacaet-win.input
+# (The --fix all run pins the Corrigida's arcade INV off, `inv_arcade_rules`, `inv_clean_render` and
+# `inv_controls_screen`: it replaces the 1995 game this script plays; see inv-corrigida-*.input.)
 #
 # The saucer's wave ends at 25308 (the WinExec); INV starts 1500 ms later
 # (26808). The keys are `tools/inv_plan.py --win --start 26808`

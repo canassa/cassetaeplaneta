@@ -62,7 +62,11 @@ salgin-kick.png); on a touch screen the pad shows the eight fight keys
 and a held ▲ does the same (salgin-touch.png).
 Then "Jogo" = Invasores: INV starts alone and SPACE fires: the shot
 leaves the cannon (inv.png, inv-fire.png); on a touch screen the pad
-shows ◀, a fire button and ▶, and the fire button fires (inv-touch.png).
+shows ◀, a fire button and ▶, and the fire button fires (inv-touch.png). In the
+Corrigida (the arcade rules) the controls screen comes first and keeps the game still (inv-controls.png),
+a key takes it down (and is no shot), and then SPACE fires from the cannon at the left edge
+(inv-arcade.png); on a phone a tap on the fire button takes it down, the next one fires
+(inv-corrigida-touch.png).
 Then "Jogo" = Xilindro: XILINDRO starts alone and Right and Up pressed in
 turn walk in and kick the opponent until its energy bar gets a tile
 (xilindro.png, xilindro-kick.png); on a touch screen the pad shows the
@@ -918,6 +922,71 @@ def main():
             check(not terrors, "touch INV: no page errors")
             tctx.close()
 
+        # The Corrigida's INV (the arcade rules): the cannon starts at the left edge (x 24, its shot's lane
+        # x 50-62); the strip over it (y 150-340) is clear of the rack (x 114 on), the bunkers (x 95 on) and
+        # the first bombs (they fall from the columns at x 158 on, and the aimed one is over the first
+        # column), so only the shot changes it. The rack and its bunkers (x 95-545, y 40-360) stand under the
+        # controls screen and march after it.
+        def inv_corrigida():
+            """Jogo: Invasores alone in the Corrigida. The controls screen is up and the game stands under it
+            (inv-controls.png); a key takes it down and is no shot; the rack then marches
+            (inv-arcade.png) and SPACE fires: the shot climbs over the cannon at the left edge."""
+            page.goto(url)
+            load()
+            page.select_option("#jogo", "inv")
+            page.check('input[name="versao"][value="corrigida"]')
+            play()
+            time.sleep(1.5)
+            shot("inv-controls.png")
+            lane_js = region_js(46, 150, 22, 190)
+            rack_js = region_js(95, 40, 450, 320)
+            rack0 = page.evaluate(rack_js)
+            time.sleep(1.5)
+            check(page.evaluate(rack_js) == rack0, "Corrigida Invasores: the game stands under the controls screen")
+            page.keyboard.press("Space")
+            time.sleep(0.1)
+            held = page.evaluate(lane_js)
+            time.sleep(0.15)
+            check(page.evaluate(lane_js) == held, "Corrigida Invasores: the key that took the screen down fired nothing")
+            time.sleep(0.75)
+            before = page.evaluate(lane_js)
+            time.sleep(1.5)
+            shot("inv-arcade.png")
+            check(page.evaluate(rack_js) != rack0, "Corrigida Invasores: after the screen the rack marches")
+            check(page.evaluate(lane_js) == before, "Corrigida Invasores: the lane over the cannon stays clear until it fires")
+            page.keyboard.press("Space")
+            time.sleep(0.12)
+            check(page.evaluate(lane_js) != before, "Corrigida Invasores: SPACE fires (the shot climbs)")
+            check(not errors, "Corrigida Invasores: no page errors")
+
+        def inv_corrigida_touch():
+            """Invasores alone in the Corrigida on a phone: the pad shows LEFT, fire and RIGHT; a tap on the fire
+            button takes the controls screen down, the next one fires."""
+            tctx = browser.new_context(viewport={"width": 844, "height": 390}, has_touch=True, is_mobile=True)
+            tpage = tctx.new_page()
+            terrors = []
+            tpage.on("pageerror", lambda e: terrors.append(str(e)))
+            tpage.goto(url)
+            tpage.wait_for_function("window.noite.ready || window.noite.failure", timeout=600_000)
+            tpage.select_option("#jogo", "inv")
+            tpage.check('input[name="versao"][value="corrigida"]')
+            tpage.click("#play")
+            tpage.wait_for_function("window.noite.started || window.noite.failure", timeout=60_000)
+            time.sleep(1.5)
+            shown = tpage.evaluate("""() => Array.from(document.querySelectorAll('#dpad button'))
+                .filter((b) => !b.hidden).map((b) => Number(b.dataset.key))""")
+            check(sorted(shown) == [32, 37, 39], f"Corrigida touch Invasores: the pad shows LEFT, fire and RIGHT ({shown})")
+            lane_js = region_js(46, 150, 22, 190)
+            tpage.locator('#dpad [data-key="32"]').tap()
+            time.sleep(2.0)
+            before = tpage.evaluate(lane_js)
+            tpage.locator('#dpad [data-key="32"]').tap()
+            time.sleep(0.12)
+            tpage.screenshot(path=str(out / "inv-corrigida-touch.png"))
+            check(tpage.evaluate(lane_js) != before, "Corrigida touch Invasores: the first tap takes the screen down, the next fires")
+            check(not terrors, "Corrigida touch Invasores: no page errors")
+            tctx.close()
+
         # XILINDRO's opponent stops 99-130 px away, out of the fighter's
         # 100-px reach, so a held Up never lands: Right (one 32-px step a
         # press) and Up pressed in turn, every 100-200 ms for 15 s, land
@@ -1492,6 +1561,8 @@ def main():
         salgin_touch()
         inv_alone()
         inv_touch()
+        inv_corrigida()
+        inv_corrigida_touch()
         xilindro_alone()
         xilindro_touch()
         xilindro_corrigida_touch()
