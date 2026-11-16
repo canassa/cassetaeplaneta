@@ -28,6 +28,7 @@ const movement = @import("behaviour/movement.zig");
 const occupancy = @import("behaviour/occupancy.zig");
 const position = @import("behaviour/position.zig");
 const visibility = @import("behaviour/visibility.zig");
+const arcade = @import("arcade/glue.zig");
 
 const VK_SPACE: u16 = 0x20;
 const VK_LEFT: u16 = 0x25;
@@ -51,6 +52,9 @@ fn timerIs(g: *Game, obj: *Object, timer: u16) bool {
 /// SceneVtbl slot 00 handleMessage (inv_scene_handle_message): non-zero = handled.
 // @orig 1068:1c9c inv_scene_handle_message
 pub fn handleMessage(g: *Game, scene: *Scene, m: Msg) i16 {
+    // Not in the original: the arcade game (`arcade/glue.zig`) answers the keys, the mouse, the timers and
+    // the scene start itself.
+    if (g.fixes.inv_arcade_rules) if (arcade.handle(g, scene, m)) |answer| return answer;
     switch (m.id) {
         // The end: the waves and the music go, then the result goes to NOITE
         // (wParam is WM_DESTROY's own: 0xffff from the win, 0 from every loss;

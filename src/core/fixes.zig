@@ -355,6 +355,22 @@ pub const Fixes = struct {
     /// whole `Brocha.bmp` explosion and the explosion's end resumes a held
     /// key, as it already does.
     inv_explosion_holds_cannon: bool = false,
+    /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"): the original's 22-px jumps,
+    /// 55-ms ticks and trails are drawn clean: the presented picture is built from the background and
+    /// every sprite at its position each frame (`inv/arcade/view.zig`), at the display rate. With
+    /// `inv_arcade_rules` it brings the arcade game's sprites; alone it draws the 1995 game's objects.
+    inv_clean_render: bool = false,
+    /// Not a bug but a Corrigida addition: INV plays by the arcade Space Invaders' rules
+    /// (`inv/arcade/`, docs/inv/ARCADE.md) on INV's art: a rack that marches an invader a frame
+    /// (so it speeds up as invaders die) and drops at each wall, one cannon shot at a time at a
+    /// constant speed, the aimed, plunger and squiggly bombs by the arcade's tables and reload
+    /// rate, four destructible bunkers, the saucer's timer and mystery score, three lives. It
+    /// supersedes I1 and I2 (the original's cannon and bombs do not run); the score's rows, the win
+    /// and the result to NOITE stay INV's. Presents its own picture (`inv_clean_render`'s view).
+    inv_arcade_rules: bool = false,
+    /// Not a bug but a Corrigida addition: a screen with the controls and the goal before the arcade
+    /// game starts. Needs `inv_arcade_rules`.
+    inv_controls_screen: bool = false,
     // ---- SALGIN.EXE (BUGS.md S1–S11) and XILINDRO.EXE (X1–X11), the two
     // fights (docs/salgin/DESIGN.md "Fixes"). The src/salgin/ and
     // src/xilindro/ units port each bug as it is and keep the fix only

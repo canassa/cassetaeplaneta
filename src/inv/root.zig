@@ -16,6 +16,17 @@ pub const core = struct {
 pub const units = @import("units.zig");
 const Game = core.game.Game;
 
+/// The Corrigida's arcade game (`Fixes.inv_arcade_rules`, docs/inv/ARCADE.md); not port units.
+pub const arcade = struct {
+    pub const bunker = @import("arcade/bunker.zig");
+    pub const sim = @import("arcade/sim.zig");
+    pub const driver = @import("arcade/driver.zig");
+    pub const glue = @import("arcade/glue.zig");
+    pub const view = @import("arcade/view.zig");
+    pub const controls = @import("arcade/controls.zig");
+};
+const view_unit = @import("arcade/view.zig");
+
 /// Every unit ported and the game checked (the last step of the port,
 /// docs/inv/DESIGN.md "Finishing"): only then does NOITE's WinExec run
 /// it instead of the stub, and `--minigame inv` play it.
@@ -36,6 +47,7 @@ pub const program: host.Program = .{
     .nextDue = nextDue,
     .quit = quit,
     .exit = exit,
+    .view = view,
 };
 
 fn of(ctx: *anyopaque) *Game {
@@ -77,7 +89,17 @@ fn exit(ctx: *anyopaque) void {
     g.destroy();
 }
 
+/// Not Windows: the Corrigida's picture (`arcade/view.zig`).
+fn view(ctx: *anyopaque, now: u32) ?*const platform.Screen {
+    return view_unit.view(of(ctx), now);
+}
+
 test {
     _ = units;
+    _ = @import("arcade/bunker.zig");
+    _ = @import("arcade/sim.zig");
+    _ = @import("arcade/driver.zig");
+    _ = @import("arcade/glue.zig");
+    _ = @import("arcade/controls.zig");
     std.testing.refAllDecls(core);
 }

@@ -218,6 +218,8 @@ pub const Game = struct {
     marchWave: ?platform.Wave = null,
     // @orig g_descendWave (desceniv.wav)
     descendWave: ?platform.Wave = null,
+    // No counterpart: the Corrigida's arcade game and controls screen (`arcade/`).
+    arcade: @import("../arcade/glue.zig").State = .{},
     // No counterpart: g_setSystemTimer / g_killSystemTimer (`setSystemTimer`),
     // g_instance, g_moduleHandle, g_modulePath(Buf) (the EXE's directory is
     // the host's `Program.dir`), g_game / g_invGame (this Game). INV has no
@@ -232,6 +234,7 @@ pub const Game = struct {
     /// The task ends: its local heap goes with it (what INV never frees,
     /// e.g. the strips `scene_object_dtor` leaves, is not a leak here).
     pub fn destroy(g: *Game) void {
+        g.arcade.deinit(g.gpa);
         g.heap.deinit();
         g.gpa.destroy(g);
     }
