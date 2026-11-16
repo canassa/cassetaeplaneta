@@ -18,6 +18,8 @@ const platform = @import("../platform/platform.zig");
 const dib = @import("dib.zig");
 const lists = @import("lists.zig");
 const piece = @import("piece.zig");
+const tall = @import("tall.zig");
+const piece_vertical = @import("piece_vertical.zig");
 const scene_unit = @import("scene.zig");
 const sound = @import("sound.zig");
 const animation = @import("behaviour/animation.zig");
@@ -46,6 +48,85 @@ fn resumeFall(g: *Game, p: *Object, bd: *Backdrop) void {
 /// current strip (kind) and frame (rotation).
 fn stepMove(g: *Game, p: *Object, bd: *Backdrop) void {
     piece.moveTick(g, p, bd, p.curStrip, p.curFrame);
+}
+
+/// Lock delay (`Fixes.encaixe_lock_delay`, docs/encaixe/GAME.md): how long a
+/// resting piece may still move, and how many moves or rotations restart it.
+const lock_ms: u32 = 500;
+const lock_max_resets: u8 = 15;
+
+/// The rotation whose cells the board holds now: a rotation reaches `curFrame`
+/// one tick later, when the sprite animation advances.
+fn boardRotation(g: *Game, p: *Object) i16 {
+    return if (animation.isRunning(g, p)) @rem(p.curFrame + 1, 4) else p.curFrame;
+}
+
+fn resting(g: *Game, p: *Object) bool {
+    if (g.fixes.encaixe_tall_board) return tall.resting(&g.tall, p);
+    return piece_vertical.restsOn(p, p.curStrip, boardRotation(g, p));
+}
+
+/// The delay has not run out: `now` is before the deadline (wrapping ticks).
+fn lockPending(g: *Game) bool {
+    return @as(i32, @bitCast(g.lockDeadline -% g.plat.ticks())) > 0;
+}
+
+/// Arms the piece's timer for the delay left, so the tick that lands the
+/// piece comes when the delay is over and not up to one gravity period later.
+fn lockArmTimer(g: *Game, p: *Object) void {
+    const left: i32 = @bitCast(g.lockDeadline -% g.plat.ticks());
+    g.setSystemTimer(@bitCast(p.anim.timerId), @intCast(std.math.clamp(left, 1, lock_ms)));
+}
+
+/// After a gravity tick that left the piece falling (or after the rotation
+/// animation): a piece that came to rest starts the delay, one that does not
+/// rest anymore ends it.
+fn lockSettle(g: *Game, p: *Object) void {
+    if (!g.fixes.encaixe_lock_delay) return;
+    if (!resting(g, p)) {
+        g.lockActive = false;
+        return;
+    }
+    if (!g.lockActive) {
+        g.lockActive = true;
+        g.lockDeadline = g.plat.ticks() +% lock_ms;
+    }
+    lockArmTimer(g, p);
+}
+
+/// After a successful sideways step or rotation: while the delay runs, the
+/// move restarts it (at most `lock_max_resets` times a piece); if the piece
+/// can fall again the delay ends (the resets are not given back).
+fn lockMoved(g: *Game, p: *Object) void {
+    if (!g.fixes.encaixe_lock_delay or !g.lockActive) return;
+    if (!resting(g, p)) {
+        g.lockActive = false;
+        return;
+    }
+    if (g.lockResets < lock_max_resets) {
+        g.lockResets += 1;
+        g.lockDeadline = g.plat.ticks() +% lock_ms;
+    }
+}
+
+/// A gravity tick found the down step blocked: true when the piece waits
+/// (the delay starts here if no earlier tick or move started it).
+fn lockDefers(g: *Game) bool {
+    if (!g.fixes.encaixe_lock_delay or g.lockResets >= lock_max_resets) return false;
+    if (!g.lockActive) {
+        g.lockActive = true;
+        g.lockDeadline = g.plat.ticks() +% lock_ms;
+        return true;
+    }
+    return lockPending(g);
+}
+
+/// `stepMove` for a sideways key or tick: a step that moved the piece is a
+/// move for the lock delay.
+fn stepMoveLocked(g: *Game, p: *Object, bd: *Backdrop) void {
+    const column = p.piece.column;
+    stepMove(g, p, bd);
+    if (p.piece.column != column) lockMoved(g, p);
 }
 
 /// SceneVtbl slot 00 handleMessage (te_scene_handle_message): non-zero = handled.
@@ -121,9 +202,9 @@ fn keyDown(g: *Game, scene: *Scene, key: u16) i16 {
             g.pieceKeyLeft = 1;
             movement.moverStopMoving(g, p, bd);
             p.mover.direction = 1;
-            if (p.piece.column >= 0) p.mover.targetX +%= 0x20;
+            if (p.piece.column >= 0) p.mover.targetX +%= piece.cellPx(g);
             movement.moveToEdgeH(g, p, bd, 1);
-            stepMove(g, p, bd);
+            stepMoveLocked(g, p, bd);
             return 1;
         },
         VK_UP => {
@@ -132,6 +213,7 @@ fn keyDown(g: *Game, scene: *Scene, key: u16) i16 {
             p.mover.direction = 4;
             if (piece.tryStep(g, p, bd, p.curStrip, p.curFrame) == 0) return 1;
             animation.play(g, p, bd);
+            lockMoved(g, p);
             return 1;
         },
         VK_RIGHT => {
@@ -139,10 +221,10 @@ fn keyDown(g: *Game, scene: *Scene, key: u16) i16 {
             piece.calcRightCol(g, p, p.curStrip, p.curFrame);
             movement.moverStopMoving(g, p, bd);
             p.mover.direction = 2;
-            if (p.piece.rightCol > 10) return 1;
-            p.mover.targetX -%= 0x20;
+            if (!g.fixes.encaixe_tall_board and p.piece.rightCol > 10) return 1;
+            p.mover.targetX -%= piece.cellPx(g);
             movement.moveToEdgeH(g, p, bd, 2);
-            stepMove(g, p, bd);
+            stepMoveLocked(g, p, bd);
             return 1;
         },
         VK_DOWN => {
@@ -165,9 +247,21 @@ fn gravity(g: *Game, scene: *Scene, timer: u16) i16 {
     const id: u16 = @bitCast(animation.getTimerId(g, p));
     if (id != timer) return 1;
     if (!animation.isRunning(g, p)) {
-        stepMove(g, p, bd);
-        if (p.mover.moving != 0) return 1;
+        stepMoveLocked(g, p, bd);
+        if (p.mover.moving != 0) {
+            // Fell one row (a sideways step was a move above).
+            if (p.mover.direction == 8) lockSettle(g, p);
+            return 1;
+        }
         if (p.piece.canFall == 0) {
+            if (lockDefers(g)) {
+                // Still resting: the piece may move. `canFall` is only the
+                // blocked step's result; a blocked sideways step needs 1.
+                p.piece.canFall = 1;
+                resumeFall(g, p, bd);
+                lockArmTimer(g, p);
+                return 1;
+            }
             render.unk18(g, p, bd);
             piece.onLanded(g, p, bd, p.curStrip, p.curFrame);
             return 1;
@@ -178,6 +272,7 @@ fn gravity(g: *Game, scene: *Scene, timer: u16) i16 {
         animation.stop(g, p);
     }
     resumeFall(g, p, bd);
+    lockSettle(g, p);
     return 1;
 }
 
@@ -188,6 +283,9 @@ pub fn createScreen(g: *Game, scene: *Scene) ?*Backdrop {
     const bd = g.gpa.create(Backdrop) catch return null;
     bd.* = .{};
     bd.background = dib.loadDib(g.gpa, g.plat, g.fixes, "tetrfun.bmp");
+    if (g.fixes.encaixe_tall_board) {
+        if (bd.background) |bg| tall.paintBackground(&g.tall, bg);
+    }
     if (bd.background == null) {
         // The caption and format are swapped in the original: the box shows
         // the file name. It then reads the missing header (taken as 0).
@@ -216,9 +314,111 @@ pub fn create(g: *Game, scene: *Scene) ?*Scene {
     const bd = bdOf(scene);
     piece.drawScore(g, bd);
     piece.blitScoreBox(g, bd);
+    piece.drawNext(g, bd);
     return scene;
 }
 
 test "tetris unit compiles" {
     std.testing.refAllDecls(@This());
+}
+
+const TestGame = @import("core/game.zig").TestGame;
+
+/// An O piece (2 x 2) at `column`, top row `row`, with the cell below its
+/// left column full when `ledge` (so it rests there, else it falls).
+fn lockPiece(obj: *Object, column: i16, row: i16, ledge: bool) void {
+    obj.piece.board = @splat(@splat('0'));
+    obj.curStrip = 5;
+    obj.curFrame = 0;
+    obj.piece.column = column;
+    obj.piece.row = row;
+    if (ledge) obj.piece.cell(column, row + 2).* = '1';
+}
+
+test "lock delay: a resting piece waits 500 ms, then is landed" {
+    var t = try TestGame.init(std.testing.allocator);
+    defer t.deinit();
+    const g = t.game;
+    g.fixes.encaixe_lock_delay = true;
+    var obj: Object = .{ .kind = .piece };
+    lockPiece(&obj, 4, 10, true);
+    t.headless.now = 1000;
+    // It touched down: the delay starts and the timer is armed for 500 ms.
+    lockSettle(g, &obj);
+    try std.testing.expect(g.lockActive);
+    try std.testing.expectEqual(@as(u32, 1500), g.lockDeadline);
+    // The gravity ticks before the end wait, the one at 500 ms lands it.
+    t.headless.now = 1200;
+    try std.testing.expect(lockDefers(g));
+    t.headless.now = 1499;
+    try std.testing.expect(lockDefers(g));
+    t.headless.now = 1500;
+    try std.testing.expect(!lockDefers(g));
+    // Without the fix the first blocked tick lands.
+    g.fixes.encaixe_lock_delay = false;
+    try std.testing.expect(!lockDefers(g));
+}
+
+test "lock delay: a move or rotation while resting restarts the 500 ms" {
+    var t = try TestGame.init(std.testing.allocator);
+    defer t.deinit();
+    const g = t.game;
+    g.fixes.encaixe_lock_delay = true;
+    var obj: Object = .{ .kind = .piece };
+    lockPiece(&obj, 4, 12, false);
+    t.headless.now = 0;
+    lockSettle(g, &obj);
+    t.headless.now = 400;
+    lockMoved(g, &obj);
+    try std.testing.expectEqual(@as(u32, 900), g.lockDeadline);
+    try std.testing.expectEqual(@as(u8, 1), g.lockResets);
+    t.headless.now = 899;
+    try std.testing.expect(lockDefers(g));
+    t.headless.now = 900;
+    try std.testing.expect(!lockDefers(g));
+}
+
+test "lock delay: 15 resets a piece, then the next blocked step lands it" {
+    var t = try TestGame.init(std.testing.allocator);
+    defer t.deinit();
+    const g = t.game;
+    g.fixes.encaixe_lock_delay = true;
+    var obj: Object = .{ .kind = .piece };
+    lockPiece(&obj, 4, 12, false);
+    t.headless.now = 0;
+    lockSettle(g, &obj);
+    for (0..20) |_| {
+        t.headless.now += 100;
+        lockMoved(g, &obj);
+    }
+    try std.testing.expectEqual(@as(u8, 15), g.lockResets);
+    // The 16th..20th moves restarted nothing: the deadline is the 15th's.
+    try std.testing.expectEqual(@as(u32, 1500 + 500), g.lockDeadline);
+    t.headless.now = 1600;
+    try std.testing.expect(!lockDefers(g));
+    // A new piece starts again from 0 (te_piece_on_landed).
+}
+
+test "lock delay: moved off a ledge the piece falls and the delay stops" {
+    var t = try TestGame.init(std.testing.allocator);
+    defer t.deinit();
+    const g = t.game;
+    g.fixes.encaixe_lock_delay = true;
+    var obj: Object = .{ .kind = .piece };
+    lockPiece(&obj, 4, 10, true);
+    t.headless.now = 0;
+    lockSettle(g, &obj);
+    lockMoved(g, &obj);
+    try std.testing.expectEqual(@as(u8, 1), g.lockResets);
+    // One column right: nothing under it.
+    obj.piece.column = 6;
+    lockMoved(g, &obj);
+    try std.testing.expect(!g.lockActive);
+    // The resets are kept; touching down again starts a fresh 500 ms.
+    try std.testing.expectEqual(@as(u8, 1), g.lockResets);
+    obj.piece.column = 4;
+    obj.piece.row = 10;
+    t.headless.now = 700;
+    try std.testing.expect(lockDefers(g));
+    try std.testing.expectEqual(@as(u32, 1200), g.lockDeadline);
 }

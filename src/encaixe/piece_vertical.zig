@@ -23,6 +23,13 @@ pub fn moveDown(obj: *Object, kind: i16, rotation: i16) i16 {
     return moveDownPart(&obj.piece, kind, rotation);
 }
 
+/// True when the piece's down step would be blocked (the board is left
+/// untouched: `moveDownPart` runs on a copy).
+pub fn restsOn(obj: *const Object, kind: i16, rotation: i16) bool {
+    var copy = obj.piece;
+    return moveDownPart(&copy, kind, rotation) == 0;
+}
+
 /// One clockwise rotation (`rotation` is the current one, the caller stores
 /// the new one): the shape's cells for (rotation + 1) % 4 at the same top-left.
 /// Returns 1 or 0 (blocked; board untouched).

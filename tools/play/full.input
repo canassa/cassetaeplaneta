@@ -1,7 +1,7 @@
 # Full playthrough, title screen to the sportsman ending (see README.md).
 #
 #   zig-out/bin/noite --headless --minigame-stub=jardim --ms 660000 --input tools/play/full.input [--dump DIR]
-#   zig-out/bin/noite --headless --minigame-stub=jardim --ms 660000 --fix all,-avi_exit_ignores_timer --input tools/play/full.input
+#   zig-out/bin/noite --headless --minigame-stub=jardim --ms 660000 --fix all,-avi_exit_ignores_timer,-encaixe_lock_delay,-encaixe_tall_board,-encaixe_next_piece --input tools/play/full.input
 #
 # The run is deterministic (headless virtual clock): the random choices
 # (roadblock cop, hall doors, TIRO's targets, ENCAIXE's pieces, bar quiz question) depend

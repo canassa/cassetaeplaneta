@@ -80,6 +80,11 @@ bazooka, each with its own ammunition; 1 fists, 2 crossbow, 3 bra or bazooka, Q 
 on the web and an "Arma" button on the touch pad; a pickup of a weapon you have only adds ammunition);
 the 3-D view is a proper raycaster (`jardim_raycaster`: a ray per pixel column, exact wall heights, a floor fixed to the ground, filtered far textures, sprites clipped column by column). F9 in a Debug build shows the nearest enemy's state.
 Its enemies' numbers are in `src/jardim/enemies.zig` (`EnemyTuning`).
+ENCAIXE's Corrigida (`--fix all`) plays like classic Tetris (`docs/encaixe/GAME.md` "Corrigida"): a
+10 x 20 well of 22-px cells with the piece art scaled down (`encaixe_tall_board`), a box with the next
+piece (`encaixe_next_piece`), and a 500-ms lock delay: a piece resting on something can still be slid
+or turned, each move restarting the delay up to 15 times (`encaixe_lock_delay`; ↓ is the soft drop, as
+before). `tools/play/encaixe-corrigida.input` runs it; the older ENCAIXE scripts pin those three flags off.
 SAUNA's Corrigida (`--fix all`) plays arcade Pac-Man's rules on SAUNA's maze and art
 (`sauna_arcade_rules`, `docs/sauna/PACMAN.md`, GAME.md "Arcade rules (Corrigida)"): the maze as a
 one-tile-wide grid, movement along tile centres with the arcade's cornering (hold or tap an arrow or
@@ -137,13 +142,13 @@ Saves go to `save/` (`--save DIR`).
   plays from the title screen to the sportsman ending, checking every scene
   (the hall's TIRO, the pharaoh's ENCAIXE and the gym's SALGIN with scripted wins; the
   street's XILINDRO runs unplayed over the hall, B21; the garden's JARDIM stays the stub's win).
-  With the fixes: add `--fix all,-avi_exit_ignores_timer`
+  With the fixes: add `--fix all,-avi_exit_ignores_timer,-encaixe_lock_delay,-encaixe_tall_board,-encaixe_next_piece` (the pharaoh's scripted ENCAIXE win is for the Original's board)
   (the script follows this run's hall doors and the 3fstreet shortcut of BUGS.md B21;
   both versions play the same timeline, TIRO's 16 presses included).
   One-button: `--minigame-stub=jardim --one-button --ms 600000 --input tools/play/onebutton.input` (the
   whole game with left clicks only and the minigames' keys, XILINDRO fought and won
   over the disco, doors clicked from afar, items dropped and offered by tap-tap and
-  by dragging; the same with `--fix all,-avi_exit_ignores_timer`) and
+  by dragging; the same with `--fix all,-avi_exit_ignores_timer,-encaixe_lock_delay,-encaixe_tall_board,-encaixe_next_piece`) and
   `--one-button --scene 1fquarbo --ms 30000 --input tools/play/onebutton-corridor.input`;
   `tools/smoke.py --one-button` runs the smoke test in that mode.
 - **ENCAIXE**: `--minigame encaixe --ms 90000 --input tools/play/encaixe-win.input`

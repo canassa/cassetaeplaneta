@@ -340,6 +340,10 @@ and PostMessage fails.
 | E8 strip cells | `encaixe_strip_cells_by_count` | object_create |
 | E11 leftover rotations at the top | `encaixe_spawn_syncs_previous_position` | piece |
 
+The Corrigida additions (not bugs; GAME.md "Corrigida") are `encaixe_lock_delay` (tetris), and
+`encaixe_tall_board` / `encaixe_next_piece` (`tall.zig`, a helper file with the new well's rules and
+pictures, called from `piece`, `tetris` and `game`; no original function).
+
 All in `Fixes.all()`. E4's uninitialised stack word is taken as 0 (no
 cells). E3 cannot happen (`rand() % 6`). E10 (row 0 never rewritten,
 `piece`) has no flag: its one effect comes from E2's phantom cells. E9

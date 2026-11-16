@@ -1,0 +1,18 @@
+# ENCAIXE alone with every fix: a piece slides under an overhang after it has
+# touched down (the lock delay, docs/encaixe/GAME.md). The T-shaped first piece
+# (kind 0) lands in columns 3-5 with its arms up; the O goes to the right; the
+# third piece (an L, turned twice and moved to column 1) rests on the floor at
+# 12700 ms, and the right key at 12800 ms slides it under the T's left arm.
+# Dump with `--dump DIR --dump-every 50` to see it (frames 12000-13600).
+#
+#   zig-out/bin/noite --minigame encaixe --headless --ms 14000 --fix all --input tools/play/encaixe-corrigida-slide.input
+4100 key right
+4250 key right
+4400 key right
+4550 key right
+4700 key right
+8700 key up
+9000 key up
+9300 key left
+9450 key left
+12800 key right

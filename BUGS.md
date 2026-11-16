@@ -1029,6 +1029,15 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
   on the presented frame, `Screen.overlay`); the original shows nothing (no `SetCursor` anywhere).
 - `Fixes.smooth_item_fall`: a falling item is drawn in 2-row frames between its 10-row steps (system timer
   0xfa11, `movement.smoothFallTick`); the steps, path, end and timing are the original's.
+- `Fixes.encaixe_lock_delay` (ENCAIXE): a piece resting on something is landed 500 ms after it touches down
+  (the original: at the next 200-ms gravity tick); a successful move or rotation restarts the 500 ms, 15 times
+  a piece (Tetris Guideline "move reset"); a piece that can fall again falls normally. Soft drop is unchanged,
+  there is no hard drop (docs/encaixe/GAME.md "Lock delay").
+- `Fixes.encaixe_tall_board` (ENCAIXE): a 10 x 20 well of 22-px cells (the original: 11 x 14 of 32), the piece
+  sprites scaled down at load, the well framed on the background; the win (10 lines) and the loss test
+  (`row < 3`) are unchanged (GAME.md "Tall board", `src/encaixe/tall.zig`).
+- `Fixes.encaixe_next_piece` (ENCAIXE): a "PRÓXIMA" box right of the tall well shows the next piece; the kinds
+  come one draw ahead from the same `rand()` sequence (shown with `encaixe_tall_board` only).
 - `Fixes.tiro_smooth_motion`: TIRO's walking targets (20 px per 100-ms step) and flying arrow (10 px per 55-ms
   step) are shown between their steps at the display rate, in the presented picture only (`src/tiro/smooth.zig`,
   `host.Program.view`); positions, the occupancy grid, hits, timers and scores are the original's.

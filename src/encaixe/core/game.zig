@@ -103,6 +103,16 @@ pub const Game = struct {
     pieceKeyLeft: u16 = 0,
     pieceKeyUp: u16 = 0,
     pieceKeyDown: u16 = 0,
+    /// `Fixes.encaixe_lock_delay` (no counterpart): the piece rests on
+    /// something and locks at `lockDeadline` (ticks), after `lockResets`
+    /// moves or rotations restarted the delay.
+    lockActive: bool = false,
+    /// `Fixes.encaixe_tall_board`: the 10 x 20 well and its pictures.
+    tall: @import("../tall.zig").State = .{},
+    /// `Fixes.encaixe_next_piece`: the kind after the falling one.
+    nextKind: i16 = 0,
+    lockDeadline: u32 = 0,
+    lockResets: u8 = 0,
     // @orig g_waveMixOpenResult
     waveMixOpenResult: u32 = 0,
     // @orig g_waveMixSession
@@ -143,6 +153,10 @@ pub const Game = struct {
     }
 
     pub fn destroy(g: *Game) void {
+        for (g.tall.mini) |m| if (m) |d| {
+            g.gpa.free(d.bits);
+            g.gpa.destroy(d);
+        };
         g.gpa.destroy(g);
     }
 

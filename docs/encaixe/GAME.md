@@ -188,3 +188,75 @@ NOITE's `handler_3ffarao` (1020:81f0; `src/handlers/3ffarao.zig`):
   `wave_mix_activate` (a failure shows "Erro Wave Mix"). `close musica` at the end.
 - Sound: WaveMix, one wave (`tetris2.wav`) played once per cleared line (no notify window, so
   on the least recently used channel).
+
+## Corrigida (`--fix all`)
+
+Three additions that are not bug fixes (BUGS.md "Corrigida additions"). Each is a `Fixes` flag, in
+`Fixes.all()`, off in the Original, which stays the code above byte for byte.
+
+### Lock delay (`encaixe_lock_delay`)
+
+The original lands a piece on the gravity tick whose down step is blocked, so a piece that touched
+down has at most one period (200 ms) left and only sideways keys held keep it alive. With the flag a
+piece resting on something (its down step would be blocked) waits **500 ms** before it is landed
+(`te_piece_on_landed`), Tetris Guideline style (`src/encaixe/tetris.zig`, `lockSettle`, `lockMoved`,
+`lockDefers`):
+
+- The delay starts when the piece comes to rest: the gravity tick that moved it down probes the next
+  step on a copy of the board (`piece_vertical.restsOn`) and, if blocked, arms the piece's timer
+  (id 12) for the 500 ms left. That tick then lands it. A tick that finds the step blocked with no
+  delay running (a piece spawned on a stack) starts it.
+- A successful left or right step, or a rotation, while the delay runs **restarts the 500 ms** (move
+  reset). At most **15 restarts** a piece; after that the next blocked down step lands it at once.
+  A refused move or rotation restarts nothing.
+- A move after which the piece can fall again (it left a ledge) ends the delay; gravity continues
+  normally. The 15-restart count is not given back, and the piece starts the delay again when it
+  next rests. A new piece starts at 0.
+- The delay is measured on the game's clock (`plat.ticks()`, virtual in the harness); the timer is
+  re-armed for what is left, so the landing comes when the delay ends, not up to a period later.
+- A blocked down step sets `canFall` to 0; while the piece waits it is put back to 1, since a
+  blocked sideways step ends in "resume the fall" and would otherwise land the piece.
+- The Down key (soft drop, unchanged, there is no hard drop) re-arms the timer at 55 ms and only
+  tests the step: it does not lock early. With the E5 fix or without, the deadline is the same.
+- The loss test (`row < 3`) runs when the piece is landed, so a piece resting in the top rows has its
+  500 ms to slide away before the game is lost. The speed-ups change the fall period (150 ms) only;
+  the delay is 500 ms at any speed. The rotation (E2) and left/right checks are the same.
+
+### Tall board (`encaixe_tall_board`)
+
+A well of **10 columns × 20 rows** (classic Tetris) of **22-pixel** cells instead of 11 × 14 of 32
+(`src/encaixe/tall.zig`). 20 × 22 = 440 px fits the picture's well area (y 0–447, the bricks of the
+floor start at 448); 23 px would reach 460 and cover them. 10 columns: the art has no 11-column
+design to keep (the old well is a plain black rectangle), and 10 leaves room for the next-piece box.
+
+- **Pictures:** `tetrfun.bmp` is painted once at load (before the backdrop copies it): the old
+  black well stays black, the new well is framed (dark, light, dark grey from the art's palette) at
+  (40, 4) – (260, 444), and the next-piece box (below) at (272, 16). The score box and the pharaoh
+  are untouched. The piece strips (128 × 128 per rotation) are scaled to 88 × 88 at load with an
+  area filter (each pixel averages the source pixels it covers; transparent where over half are the
+  transparent colour; otherwise the palette colour nearest to the average). Nearest-neighbour was
+  rougher on the shaded art, so the filter stays.
+- **Board:** `Game.tall` holds the locked cells only; the falling piece is a mask over it (the
+  original writes it into the board while it falls). The masks are the original's shapes for each
+  kind and rotation in the 4 × 4 frame (`te_piece_spawn_shape`, `te_piece_rotate` read back on an
+  empty board), so the sprite frames still match. A step is refused when a cell would leave the well
+  or enter a locked one; no wall kicks, as in the original. The per-shape code of
+  `piece_sideways`/`piece_vertical` is not used; its quirks (E1, E2, E3, E10: no row stays unwritten)
+  have nothing to fix here, the flags do nothing with this one.
+- **Rules:** a piece spawns with its frame at column 3 (x 106), row 0. It is locked into the well
+  when landed, then the full rows among the four it covers are cleared bottom up as before
+  (`+100` each, `tetris2.wav`, the pixels of the rows above shifted down by 22 on both bitmaps, the
+  top row emptied), the speed-ups at 5 lines (150 ms) are unchanged, and the loss test is the same
+  `row < 3`. The win is still 10 lines / 1000 points (a 10-wide well is no harder per line); the
+  stack reaches the top rows after about 16 s with no input (the original: 6.4 s).
+- Steps (`mover.stepX/Y`), the hit box, the spawn x/y and the "never step up" correction use the
+  cell size.
+
+### Next piece (`encaixe_next_piece`)
+
+A "PRÓXIMA" box at (272, 16), 96 × 100 px, right of the tall well, in the same frame style, shows
+the next kind (its rotation 0, scaled to 18-px cells, centred on its cells). The game draws the
+next kind one piece ahead: `te_game_create_player` draws the first two numbers, each landing
+spawns the queued kind and draws the next. The original draws `rand() % 6` at each landing (and
+once at the start), so the sequence of kinds is the same, only drawn earlier. The box exists in the
+tall layout only: with `encaixe_next_piece` alone the queue runs but nothing is shown.

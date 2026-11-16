@@ -17,6 +17,7 @@ const lists = @import("lists.zig");
 const scene_unit = @import("scene.zig");
 const tetris = @import("tetris.zig");
 const piece = @import("piece.zig");
+const tall = @import("tall.zig");
 const object_create = @import("object_create.zig");
 const position = @import("behaviour/position.zig");
 const occupancy = @import("behaviour/occupancy.zig");
@@ -97,6 +98,24 @@ pub fn dtor(g: *Game) void {
     lists.deleteAll(g, &g.globalObjects);
 }
 
+/// `Fixes.encaixe_tall_board`: the piece strips (and the next-piece box's)
+/// scaled from 128 pixels a frame to the tall well's cell size.
+fn scaleSprites(g: *Game, obj: *Object) void {
+    for (obj.frames, 0..) |*f, k| {
+        const src = f.dib orelse continue;
+        if (g.fixes.encaixe_next_piece) g.tall.mini[k] = tall_scale(g, src, tall.mini_cell * 4);
+        if (tall_scale(g, src, tall.cell * 4)) |d| {
+            f.dib = d;
+            g.gpa.free(src.bits);
+            g.gpa.destroy(src);
+        }
+    }
+}
+
+fn tall_scale(g: *Game, src: *const object.Dib, size: i16) ?*object.Dib {
+    return tall.scaleStrip(g.gpa, src, 4, size, g.unk0012);
+}
+
 /// GameVtbl slot 01 createPlayer. A Piece (kind `piece`) from the six strip
 /// tables (peca*.bmp, 128 x 128, 4 frames), at x 160, timer 12 / 200 ms,
 /// steps 32; it becomes `g_piece` and the player. Seeds `rand` with the
@@ -110,11 +129,18 @@ pub fn createPlayer(g: *Game) ?*Object {
         return null;
     };
     obj.* = .{ .kind = .piece };
+    const tall_board = g.fixes.encaixe_tall_board;
+    const px: i16 = if (tall_board) tall.cell * 4 else 0x80;
+    const cell: i16 = if (tall_board) tall.cell else 0x20;
+    if (tall_board) {
+        g.pieceStripWidths = @splat(px);
+        g.pieceStripHeights = @splat(px);
+    }
     object_create.player2dCtor(
         g,
         obj,
-        0xa0,
-        0,
+        if (tall_board) tall.pixelX(tall.spawn_col) else 0xa0,
+        if (tall_board) tall.origin_y else 0,
         6,
         &g.pieceStripFiles,
         &g.pieceStripFrames,
@@ -122,20 +148,23 @@ pub fn createPlayer(g: *Game) ?*Object {
         &g.pieceStripHeights,
         0,
         0,
-        0x80,
-        0x80,
+        px,
+        px,
         0xc,
         200,
-        0x20,
-        0x20,
+        cell,
+        cell,
         1,
         0,
         true,
     ) catch |e| @panic(@errorName(e));
     g.piece = obj;
     g.player = obj;
+    if (tall_board) scaleSprites(g, obj);
     g.rand.srand(@truncate(@as(u32, @bitCast(g.plat.unixTime()))));
     obj.curStrip = @rem(g.rand.rand(), 6);
+    // The next piece's number is drawn at once (the same sequence, one ahead).
+    if (g.fixes.encaixe_next_piece) g.nextKind = @rem(g.rand.rand(), 6);
     obj.mover.direction = 8;
     obj.piece.linesCleared = 0;
     return obj;

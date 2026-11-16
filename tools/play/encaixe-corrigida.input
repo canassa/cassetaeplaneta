@@ -1,0 +1,10 @@
+# ENCAIXE alone with every fix (the tall 10 x 20 well, the next-piece box, the
+# lock delay): no input, the pieces stack in columns 3-5 and the stack reaches
+# the top rows at 19700 ms (-500). A key at 100 ms turns the first piece; the
+# dumps show the well, the box and the piece resting before it locks.
+#
+#   zig-out/bin/noite --minigame encaixe --headless --ms 25000 --fix all --input tools/play/encaixe-corrigida.input
+100 key up
+3000 dump
+12000 dump
+19800 result lost -500

@@ -29,11 +29,13 @@ const movement = @import("behaviour/movement.zig");
 const visibility = @import("behaviour/visibility.zig");
 const piece_sideways = @import("piece_sideways.zig");
 const piece_vertical = @import("piece_vertical.zig");
+const tall = @import("tall.zig");
 
 /// PieceVtbl slot 01 tryStep (te_piece_try_move): the worker for `Mover.direction`; 0 = blocked.
 // @orig 1008:f186 te_piece_try_move
 pub fn tryStep(g: *Game, obj: *Object, bd: *Backdrop, kind: i16, rotation: i16) i16 {
     _ = bd;
+    if (g.fixes.encaixe_tall_board) return tall.step(&g.tall, obj, obj.mover.direction);
     obj.piece.unk4E = 0;
     switch (obj.mover.direction) {
         1 => {
@@ -60,7 +62,7 @@ pub fn moveTick(g: *Game, obj: *Object, bd: *Backdrop, kind: i16, rotation: i16)
         obj.mover.moving = 0;
     } else {
         // Never step up.
-        if (obj.y > obj.nextY) obj.nextY = obj.y +% 0x20;
+        if (obj.y > obj.nextY) obj.nextY = obj.y +% cellPx(g);
         movement.placeAt(g, obj, obj.nextX, obj.nextY, bd);
         visibility.redrawOverlapping(g, obj, bd, 1);
         visibility.blitToDc(g, obj, bd);
@@ -76,6 +78,15 @@ fn setCell(p: *object.PiecePart, col: i16, row: i16) void {
 /// `column` = 4 (through g_piece), `moving` = 1, `canFall` = 1.
 // @orig 1008:b898 te_piece_spawn_shape
 pub fn spawnShape(g: *Game, obj: *Object, kind: i16) void {
+    if (g.fixes.encaixe_tall_board) {
+        // The piece is a mask over the well: nothing is written to it.
+        obj.piece.column = tall.spawn_col;
+        obj.piece.row = 0;
+        obj.mover.moving = 1;
+        obj.piece.canFall = 1;
+        g.tall.rot = 0;
+        return;
+    }
     g.piece.?.piece.column = 4;
     const p = &obj.piece;
     p.row = 0;
@@ -138,6 +149,7 @@ pub fn newGame(g: *Game, kind: i16) void {
     obj.piece.unk48 = 1;
     obj.piece.unk4E = 0;
     obj.piece.board = @splat(@splat('0'));
+    g.tall.board = @splat(@splat(false));
     g.piece.?.piece.column = 4;
     g.piece.?.piece.row = 0;
     spawnShape(g, g.piece.?, kind);
@@ -147,6 +159,7 @@ pub fn newGame(g: *Game, kind: i16) void {
 /// `kind`/`rotation` are the SceneObject's curStrip/curFrame.
 // @orig 1008:ba20 te_piece_on_landed
 pub fn onLanded(g: *Game, obj: *Object, bd: *Backdrop, kind: i16, rotation: i16) void {
+    if (g.fixes.encaixe_tall_board) tall.stamp(&g.tall, g.piece.?);
     // Game over: the piece's top is in the top three rows (a loss, wParam 0).
     if (g.piece.?.piece.row < 3) {
         _ = g.send(Msg.make(msg.wm.destroy, 0, 0, 0));
@@ -156,7 +169,9 @@ pub fn onLanded(g: *Game, obj: *Object, bd: *Backdrop, kind: i16, rotation: i16)
     const linesBefore = g.piece.?.piece.linesCleared;
     // E6: the win (wParam 0xffff) is sent from the row's scoring; the
     // original carries on here too.
-    if (clearFullLines(g, g.piece.?, bd, kind, rotation)) return;
+    if (g.fixes.encaixe_tall_board) {
+        if (clearFullLinesTall(g, g.piece.?, bd)) return;
+    } else if (clearFullLines(g, g.piece.?, bd, kind, rotation)) return;
     const lines = g.piece.?.piece.linesCleared;
     // E7: the original tests only the count after the whole landing.
     const speedUp = if (g.fixes.encaixe_speed_up_on_crossing)
@@ -180,20 +195,30 @@ pub fn onLanded(g: *Game, obj: *Object, bd: *Backdrop, kind: i16, rotation: i16)
         g.setSystemTimer(@bitCast(id), @bitCast(period));
     }
     // The next piece.
+    g.lockActive = false;
+    g.lockResets = 0;
     const p = g.piece.?;
-    p.curStrip = @rem(g.rand.rand(), 6);
+    if (g.fixes.encaixe_next_piece) {
+        p.curStrip = g.nextKind;
+        g.nextKind = @rem(g.rand.rand(), 6);
+    } else {
+        p.curStrip = @rem(g.rand.rand(), 6);
+    }
     p.curFrame = 0;
     spawnShape(g, g.piece.?, p.curStrip);
-    p.x = 0xa0;
-    p.nextX = 0xa0;
-    p.mover.targetX = 0xa0;
-    p.y = 0;
-    p.mover.targetY = 0;
-    p.nextY = 0;
+    const spawnX: i16 = if (g.fixes.encaixe_tall_board) tall.pixelX(tall.spawn_col) else 0xa0;
+    const spawnY: i16 = if (g.fixes.encaixe_tall_board) tall.origin_y else 0;
+    p.x = spawnX;
+    p.nextX = spawnX;
+    p.mover.targetX = spawnX;
+    p.y = spawnY;
+    p.mover.targetY = spawnY;
+    p.nextY = spawnY;
     p.mover.direction = 8;
     movement.moveToEdgeV(g, p, bd, 8);
-    g.piece.?.y = 0;
-    g.piece.?.mover.targetY = 0;
+    g.piece.?.y = spawnY;
+    g.piece.?.mover.targetY = spawnY;
+    if (g.fixes.encaixe_next_piece) drawNext(g, bd);
     // E11: the original leaves the previous position where the last piece
     // landed, and the erase of the rotations before the first fall step
     // starts there (te_piece_restore_background).
@@ -305,14 +330,19 @@ pub fn clearFullLines(g: *Game, obj: *Object, bd: *Backdrop, kind: i16, rotation
 /// BitBlt(dc, 0x20, destY, 0x160, 0x20, dc, 0x20, srcY, SRCCOPY) on one of
 /// the backdrop's bitmaps, clipped to it.
 fn shiftStrip(s: platform.Surface, src_y: i16, dest_y: i16) void {
+    shiftBand(s, 0x20, 0x160, 0x20, src_y, dest_y);
+}
+
+/// Copies the band of `h` rows at `src_y`, `w` pixels from `x`, to `dest_y`.
+fn shiftBand(s: platform.Surface, x: i16, w: i16, h: i16, src_y: i16, dest_y: i16) void {
     const stride = s.stride();
     const bw: i32 = s.width;
     const bh: i32 = s.height;
-    const x0: i32 = 0x20;
-    const x1: i32 = @min(0x20 + 0x160, bw);
+    const x0: i32 = x;
+    const x1: i32 = @min(@as(i32, x) + w, bw);
     if (x1 <= x0) return;
     var row: i32 = 0;
-    while (row < 0x20) : (row += 1) {
+    while (row < h) : (row += 1) {
         const sy = @as(i32, src_y) + row;
         const dy = @as(i32, dest_y) + row;
         if (sy < 0 or sy >= bh or dy < 0 or dy >= bh) continue;
@@ -324,6 +354,106 @@ fn shiftStrip(s: platform.Surface, src_y: i16, dest_y: i16) void {
         if (a + n > s.pixels.len or b + n > s.pixels.len) continue;
         std.mem.copyForwards(u8, s.pixels[a..][0..n], s.pixels[b..][0..n]);
     }
+}
+
+/// Fills the band of `h` rows at `y`, `w` pixels from `x`, with `v`.
+fn fillBand(s: platform.Surface, x: i16, w: i16, y: i16, h: i16, v: u8) void {
+    const stride = s.stride();
+    const bh: i32 = s.height;
+    var row: i32 = 0;
+    while (row < h) : (row += 1) {
+        const yy = @as(i32, y) + row;
+        if (yy < 0 or yy >= bh) continue;
+        const r: usize = @intCast(if (s.bottom_up) bh - 1 - yy else yy);
+        const a = r * stride + @as(usize, @intCast(x));
+        const n: usize = @intCast(w);
+        if (a + n > s.pixels.len) continue;
+        @memset(s.pixels[a..][0..n], v);
+    }
+}
+
+/// The step in pixels: one cell.
+pub fn cellPx(g: *const Game) i16 {
+    return if (g.fixes.encaixe_tall_board) tall.cell else 0x20;
+}
+
+/// `te_piece_clear_full_lines` for the tall well: the full rows among the
+/// four the piece covers, bottom up (true when E6's fix stops after the win).
+pub fn clearFullLinesTall(g: *Game, obj: *Object, bd: *Backdrop) bool {
+    var cleared: i16 = 0;
+    var i: i16 = 3;
+    while (i >= 0) : (i -= 1) {
+        const row = obj.piece.row + i;
+        if (row >= tall.rows) continue;
+        // The rows below that went already moved this one down.
+        const now = row + cleared;
+        if (now >= tall.rows or !tall.rowFull(&g.tall, now)) continue;
+        g.piece.?.piece.linesCleared +%= 1;
+        if (clearRowTall(g, bd, now)) return true;
+        cleared += 1;
+    }
+    return false;
+}
+
+/// `te_piece_clear_row` for the tall well: scores the row, then moves every
+/// row above one down, on the board and in both bitmaps (no row keeps its
+/// cells: the top one is emptied).
+fn clearRowTall(g: *Game, bd: *Backdrop, row: i16) bool {
+    if (scoreClearedRow(g, bd) and g.fixes.encaixe_result_stops_landing) return true;
+    tall.removeRow(&g.tall, row);
+    const w = tall.cols * tall.cell;
+    var r = row;
+    while (r > 0) : (r -= 1) {
+        const dest = tall.origin_y + r * tall.cell;
+        shiftBand(bd.surface(), tall.origin_x, w, tall.cell, dest - tall.cell, dest);
+        shiftBand(bd.surface2(), tall.origin_x, w, tall.cell, dest - tall.cell, dest);
+    }
+    fillBand(bd.surface(), tall.origin_x, w, tall.origin_y, tall.cell, g.tall.fill);
+    fillBand(bd.surface2(), tall.origin_x, w, tall.origin_y, tall.cell, g.tall.fill);
+    g.plat.wingBitBlt(0, 0, bd.viewWidth, bd.viewHeight, bd.surface(), bd.originX, bd.originY);
+    return false;
+}
+
+/// Draws the next kind in its box (both bitmaps) and shows it; only with the
+/// tall well, whose art has the box.
+pub fn drawNext(g: *Game, bd: *Backdrop) void {
+    if (!g.fixes.encaixe_tall_board) return;
+    const bg = bd.background orelse return;
+    const x = tall.box_x;
+    const y = tall.box_y;
+    const w = tall.box_w;
+    const h = tall.box_h;
+    _ = dib.copyTransparent(&bd.bmiHeader, bd.pixels, x, y, bg.bits, &bg.header, x, y, w, h, g.unk0012) catch {};
+    _ = dib.copyTransparent(&bd.bmiHeader, bd.pixels2, x, y, bg.bits, &bg.header, x, y, w, h, g.unk0012) catch {};
+    const style: platform.TextStyle = .{ .color = 0xedeeee, .bk_mode = .transparent };
+    _ = g.plat.textOut(bd.surface(), style, x + 14, y + 6, "PR\xd3XIMA");
+    _ = g.plat.textOut(bd.surface2(), style, x + 14, y + 6, "PR\xd3XIMA");
+    if (g.tall.mini[@intCast(g.nextKind)]) |d| {
+        const orient: i16 = @truncate(g.piece.?.dibFormatOk);
+        // Centre the shape's cells (rotation 0) in the 72 x 72 area.
+        const m = tall.masks[@intCast(g.nextKind)][0];
+        var minc: i16 = 4;
+        var maxc: i16 = 0;
+        var minr: i16 = 4;
+        var maxr: i16 = 0;
+        for (0..4) |r| {
+            for (0..4) |c| {
+                if (m & (@as(u16, 1) << @intCast(r * 4 + c)) == 0) continue;
+                minc = @min(minc, @as(i16, @intCast(c)));
+                maxc = @max(maxc, @as(i16, @intCast(c)));
+                minr = @min(minr, @as(i16, @intCast(r)));
+                maxr = @max(maxr, @as(i16, @intCast(r)));
+            }
+        }
+        const cw = (maxc - minc + 1) * tall.mini_cell;
+        const ch = (maxr - minr + 1) * tall.mini_cell;
+        const px = x + @divTrunc(w - cw, 2) - minc * tall.mini_cell;
+        const py = y + 24 + @divTrunc(h - 24 - ch, 2) - minr * tall.mini_cell;
+        const size = tall.mini_cell * 4;
+        _ = dib.copyTransparent(&bd.bmiHeader, bd.pixels, px, py, d.bits, &d.header, 0, 0, size, size *% orient, g.unk0012) catch {};
+        _ = dib.copyTransparent(&bd.bmiHeader, bd.pixels2, px, py, d.bits, &d.header, 0, 0, size, size *% orient, g.unk0012) catch {};
+    }
+    g.plat.wingBitBlt(x, y, w, h, bd.surface2(), x, y);
 }
 
 /// Scores the row (`te_score_cleared_row`), then moves every row from `row`

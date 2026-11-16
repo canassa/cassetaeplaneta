@@ -233,6 +233,21 @@ pub const Fixes = struct {
     /// point, so rotations before its first fall step erase its whole frame
     /// (no leftover rotations drawn at the top; drawing only).
     encaixe_spawn_syncs_previous_position: bool = false,
+    /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions",
+    /// docs/encaixe/GAME.md "Lock delay"): a piece resting on something is
+    /// locked 500 ms after it touches down, not at the next gravity tick; a
+    /// successful move or rotation restarts the 500 ms (15 times a piece).
+    encaixe_lock_delay: bool = false,
+    /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions",
+    /// docs/encaixe/GAME.md "Tall board"): a 10 x 20 well of 22-pixel cells
+    /// like classic Tetris (the original: 11 x 14 of 32), the piece sprites
+    /// scaled down at load, the well drawn in the art's greys.
+    encaixe_tall_board: bool = false,
+    /// Not a bug but a Corrigida addition (docs/encaixe/GAME.md "Next
+    /// piece"): the next piece is drawn in a box right of the tall well (it
+    /// needs `encaixe_tall_board` to be shown; the kinds are drawn one piece
+    /// ahead, from the same `rand()` sequence).
+    encaixe_next_piece: bool = false,
     // ---- TIRO.EXE (BUGS.md T1–T8). The src/tiro/ units port each bug as
     // it is and keep the fix only behind its flag. ----
     /// T1: SPACE sets its latch on key-down, so a held SPACE fires once (no

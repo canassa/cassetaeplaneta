@@ -3,7 +3,7 @@
 # less, then 3fcasame.
 #
 #   zig-out/bin/noite --headless --scene 3ffarao --ms 50000 --input tools/play/encaixe-3ffarao-lose.input
-#   zig-out/bin/noite --headless --scene 3ffarao --ms 50000 --fix all --input tools/play/encaixe-3ffarao-lose.input
+#   zig-out/bin/noite --headless --scene 3ffarao --ms 50000 --fix all,-encaixe_lock_delay,-encaixe_tall_board,-encaixe_next_piece --input tools/play/encaixe-3ffarao-lose.input
 36000 expect 3ffarao
 37000 dump encaixe
 41900 result lost -500
