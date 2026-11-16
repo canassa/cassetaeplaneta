@@ -329,9 +329,12 @@ DC's default font) draws on it and `tiro_blit_score_box` blits the box.
 | T7 a close with points scored is a win | `tiro_close_forfeits` | gallery | the scene handler notes `WM_CLOSE` (port state `closing`); the `WM_DESTROY` that follows posts `(0, g_score)`: a loss that keeps the points | yes (owner's decision) |
 | T8 a falling target drawn under the walking ones | `tiro_hit_target_depth` | visibility | `target_redraw_overlapping` draws all four targets in `drawOrder`: the upper row, then the lower one, in each the walking targets and then the falling one (drawing only) | yes |
 | — (Corrigida addition) | `tiro_smooth_motion` | `smooth.zig` (not a unit) | the presented picture shows the walking targets and the flying arrow between their steps (below) | yes (owner's request) |
+| — (Corrigida addition) | `tiro_arrows_on_counter` | `smooth.zig` (not a unit) | the presented picture shows the arrows left as two rows of eight on the counter (below) | yes (owner's request) |
 
 Each unit ports the buggy code and keeps the fixed path only under its
 flag (`g.fixes.tiro_…`).
+
+**Arrows on the counter** (`tiro_arrows_on_counter`, `smooth.zig`). The authors' loop creating `g_arrows` runs `i < 1`: one arrow lies on the yellow counter at (0, 380) and the first shot leaves its picture there all game. The Corrigida's presented picture rebuilds the counter rectangle (x 0..195, y 372..419) from the background, which wipes that leftover, and draws one `Tirofr` arrow (the arrow's strip 1) per arrow still to fire: the crossbow's `lives` (16 at the start; T2 takes one at each shot that fires, so the one in flight is not counted; with T4 the last flies at 0 and the row is empty), in two rows of eight, 20 px apart, rows 20 px apart, each over the one before, ending at x 195 left of the crossbow (x 200). No number or text. The game's state and the screen are untouched; `pixel` checks read the screen, so the row is checked by `--dump` only.
 
 **Smooth motion** (`tiro_smooth_motion`, `src/tiro/smooth.zig`). TIRO
 draws each step straight into the backdrop and blits it: a target jumps

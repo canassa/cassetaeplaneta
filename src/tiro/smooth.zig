@@ -19,6 +19,9 @@
 //! the crossbow, the targets (walking ones over falling ones as the
 //! original does, or `visibility.drawOrder` with T8's fix), the arrow.
 //! Elsewhere the picture is the screen as the game left it.
+//!
+//! Also here, `Fixes.tiro_arrows_on_counter`: the counter at the bottom
+//! left shows the arrows still to fire (see `drawCounter`).
 
 const std = @import("std");
 const platform = @import("../platform/platform.zig");
@@ -81,16 +84,24 @@ fn arrowShown(a: *Object) bool {
 /// The picture to present at `now` (`host.Program.view`), or null for the
 /// screen itself: the flag is off, or nothing is between two steps.
 pub fn view(g: *Game, now: u32) ?*const Screen {
-    if (!g.fixes.tiro_smooth_motion) return null;
+    if (!g.fixes.tiro_smooth_motion and !g.fixes.tiro_arrows_on_counter) return null;
     const scene = g.scene orelse return null;
     const bd = scene.backdrop orelse return null;
     const bg = bd.background orelse return null;
     if (bd.pixels.len == 0) return null;
 
     var movers: [5]?*Object = .{ g.targets[0], g.targets[1], g.targets[2], g.targets[3], g.arrows[0] };
-    var rects: [5]Rc = undefined;
+    var rects: [6]Rc = undefined;
     var n: usize = 0;
+    // The counter: rebuilt whenever shown, which also wipes the arrow the
+    // game leaves lying at its creation point.
+    if (g.fixes.tiro_arrows_on_counter and g.crossbow != null and g.arrows[0] != null) {
+        const a = g.arrows[0].?;
+        rects[n] = .{ .x0 = 0, .y0 = counter_y, .x1 = counter_step * (counter_cols - 1) + position.width(a), .y1 = counter_y + counter_row_dy + position.height(a) };
+        n += 1;
+    }
     for (&movers) |*m| {
+        if (!g.fixes.tiro_smooth_motion) break;
         const o = m.* orelse continue;
         if (o.kind == .arrow and !arrowShown(o)) continue;
         const p = shownAt(g, o, now) orelse continue;
@@ -140,14 +151,15 @@ pub fn view(g: *Game, now: u32) ?*const Screen {
             if (s + len > bg.bits.len or d + len > st.scratch.len) continue;
             @memcpy(st.scratch[d..][0..len], bg.bits[s..][0..len]);
         }
+        if (g.fixes.tiro_arrows_on_counter) drawCounter(g, bd);
         // Every object over it, back to front, where it is shown.
         if (g.crossbow) |cb| drawAt(g, bd, cb, cb.x, cb.y);
         for (targetOrder(g)) |t| {
-            const p = shownAt(g, t, now) orelse Pos{ .x = t.x, .y = t.y };
+            const p = (if (g.fixes.tiro_smooth_motion) shownAt(g, t, now) else null) orelse Pos{ .x = t.x, .y = t.y };
             drawAt(g, bd, t, p.x, p.y);
         }
         if (g.arrows[0]) |a| if (arrowShown(a)) {
-            const p = shownAt(g, a, now) orelse Pos{ .x = a.x, .y = a.y };
+            const p = (if (g.fixes.tiro_smooth_motion) shownAt(g, a, now) else null) orelse Pos{ .x = a.x, .y = a.y };
             drawAt(g, bd, a, p.x, p.y);
         };
         // The rectangle onto the picture.
@@ -166,6 +178,40 @@ pub fn view(g: *Game, now: u32) ?*const Screen {
         }
     }
     return out;
+}
+
+/// The counter's row: arrow `i` of the `lives` left lies at x `i *
+/// counter_step`, y 380 (where the game leaves its one arrow), the picture
+/// of the arrow's strip 1 (`Tirofr`), each over the one before.
+const counter_y = 372;
+const counter_step = 20;
+const counter_cols = 8;
+const counter_row_dy = 20;
+const counter_max = 16;
+
+/// The arrows still to fire: `lives` (T2 takes one off at each shot, so the
+/// one in flight is not counted; T4 lets the last fly at `lives` 0).
+fn arrowsLeft(lives: i16) i16 {
+    return std.math.clamp(lives, 0, counter_max);
+}
+
+/// Where arrow `i` of the row lies: two rows of eight, the first arrow at
+/// the left of the upper row.
+fn counterSlot(i: i16) Pos {
+    return .{ .x = @rem(i, counter_cols) * counter_step, .y = counter_y + @divTrunc(i, counter_cols) * counter_row_dy };
+}
+
+fn drawCounter(g: *Game, bd: *Backdrop) void {
+    const a = g.arrows[0] orelse return;
+    const left = arrowsLeft(g.crossbow.?.player2d.lives);
+    const f = &a.frames[1];
+    const src = f.dib orelse return;
+    const orient: i16 = @truncate(a.dibFormatOk);
+    var i: i16 = 0;
+    while (i < left) : (i += 1) {
+        const at = counterSlot(i);
+        _ = dib.copyTransparent(&bd.bmiHeader, g.smooth.scratch, at.x, at.y, src.bits, &src.header, 0, 0, f.width, orient *% f.height, g.unk00A8) catch {};
+    }
 }
 
 /// The targets back to front as the game draws them: with T8's fix in
@@ -217,6 +263,16 @@ const Layout = struct {
         return row * l.stride + @as(usize, @intCast(x));
     }
 };
+
+test "the counter holds the arrows left in two rows of eight" {
+    try std.testing.expectEqual(@as(i16, 16), arrowsLeft(16));
+    try std.testing.expectEqual(@as(i16, 0), arrowsLeft(-1));
+    try std.testing.expectEqual(Pos{ .x = 0, .y = 372 }, counterSlot(0));
+    try std.testing.expectEqual(Pos{ .x = 140, .y = 372 }, counterSlot(7));
+    try std.testing.expectEqual(Pos{ .x = 0, .y = 392 }, counterSlot(8));
+    // Right of it ends at 140 + 55, left of the crossbow (x 200).
+    try std.testing.expect(counterSlot(7).x + 55 < 200);
+}
 
 test "a step is shown in proportion to the time to the next tick" {
     try std.testing.expectEqual(@as(i16, 30), between(20, 40, 50, 100));

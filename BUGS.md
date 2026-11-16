@@ -1044,6 +1044,9 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
 - `Fixes.tiro_smooth_motion`: TIRO's walking targets (20 px per 100-ms step) and flying arrow (10 px per 55-ms
   step) are shown between their steps at the display rate, in the presented picture only (`src/tiro/smooth.zig`,
   `host.Program.view`); positions, the occupancy grid, hits, timers and scores are the original's.
+- `Fixes.tiro_arrows_on_counter`: TIRO's one arrow lying on the counter at the bottom left (the authors' `g_arrows` loop runs once)
+  is replaced, in the presented picture only, by one arrow per arrow still to fire (`lives`: 16 at the start, one off
+  per shot, none at the end), in two rows of eight, no number or text (`src/tiro/smooth.zig`).
 - `Fixes.sala_street_exit_covers_door`: the living room's exit to the street (`1fsala` `Exit=114`, to `2FPONTOC`)
   takes a right click over the whole door frame drawn in `1FSALA.BMP` (x 0-40, y 73-390). The original's hit box
   is x 0-40, y 280-390 (the INI line's y 278 and 40x110 bound). The exit's range check is unchanged.

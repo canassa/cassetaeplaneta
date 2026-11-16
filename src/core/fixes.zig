@@ -287,6 +287,12 @@ pub const Fixes = struct {
     /// the screen or the backdrop); positions, timers, hits and scores are
     /// the original's.
     tiro_smooth_motion: bool = false,
+    /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"):
+    /// the authors' loop over `g_arrows` creates one arrow lying on the
+    /// counter at the bottom left and never shows how many are left; the
+    /// presented picture shows a row of arrows there, one per arrow still
+    /// to fire (`lives`), each shot taking one off (`tiro/smooth.zig`).
+    tiro_arrows_on_counter: bool = false,
     // ---- SERIAL.EXE (BUGS.md K1–K6). The src/serial/ units port each bug
     // as it is and keep the fix only behind its flag. ----
     /// K1: the 0x40a result's wParam says whether the player survived

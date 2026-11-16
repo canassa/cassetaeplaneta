@@ -96,7 +96,7 @@ is `besta` (loaded) or `bestse` (unloaded, from the shot until the arrow stops).
 
 There is one arrow object (`g_arrows[0]`, an Arrow; the creator's loop runs `i < 1`): step 10 px,
 timer id 0x10, 55 ms. It is shown at its creation, at (0, 0x17c), and the first shot moves it
-without erasing it there, so that picture stays at the bottom left all game. SPACE (`WM_KEYDOWN` `VK_SPACE`, while `g_keySpaceHeld` is 0, which is
+without erasing it there, so that picture stays at the bottom left all game. (The Corrigida, `tiro_arrows_on_counter`, replaces it in the presented picture by a row of the arrows left, one off per shot; DESIGN.md "Arrows on the counter".) SPACE (`WM_KEYDOWN` `VK_SPACE`, while `g_keySpaceHeld` is 0, which is
 always) first decrements `lives`, then, if the arrow is not moving, fires:
 
 | Aim | Picture | Start (relative to the crossbow) | Destination |
