@@ -117,8 +117,10 @@ class Obj:
 
 
 class Sim:
-    def __init__(self, start, fixes=False, k5=None):
-        self.now = start
+    def __init__(self, start, fixes=False, k5=None, arm=None):
+        # `arm`: when the game's timers start (the Corrigida's intro screen
+        # stops them until a key); the seed is still `start`'s.
+        self.now = start if arm is None else arm
         self.fixes = fixes  # Fixes.all(): K1-K4
         self.k5 = fixes if k5 is None else k5  # serial_lane2_own_timer, in `all`
         self.rand = Rand(EPOCH + start // 1000)

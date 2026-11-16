@@ -187,7 +187,13 @@ Saves go to `save/` (`--save DIR`).
   `tools/serial_plan.py --start MS --win|--lose` (it simulates the game; the figures follow from
   SERIAL's start time: rerun it when that moves; `--check FILE` simulates a script, `--trace FILE`
   prints every tick). `tools/smoke.py --minigame serial [--fix all] [--monkey SEED]` presses random
-  aim keys and SPACE for 130 s.
+  aim keys and SPACE for 130 s. Those scripts' `--fix all` runs turn the Corrigida's intro and end screens
+  off (`--fix all,-serial_intro_screen,-serial_end_screen`: they move the timers and the result);
+  `--minigame serial --ms 126000 --epoch 800000002 --fix all --input tools/play/serial-corrigida-win.input`
+  (and `-lose`, `--scene 3farmcai --ms 90000 --fix all --input tools/play/serial-corrigida-3farmcai-lose.input`)
+  play the Corrigida with the screens, the keys from `tools/serial_bot.py` (a reaction-time bot; `--seed N
+  --arm MS --emit FILE` writes a game's keys, without them it prints the lives lost, killers cancelled… over
+  many games).
 - **SALGIN**: `--minigame salgin --ms 60000 --input tools/play/salgin-alone-win.input` (Up held
   from the start: the key repeat kicks as each move ends, a KO at 51 s, `result won 8200`) and
   `--ms 100000 --input tools/play/salgin-alone-lose.input` (no key: the clock ends the round with
