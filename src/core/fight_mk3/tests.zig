@@ -50,10 +50,8 @@ test "a straight jump: MK3's arc (39 ticks, 95 arcade px high), no air control" 
         top = @max(top, s.f[0].y);
     }
     try expect(ticks >= 38 and ticks <= 42);
-    // 95 arcade px, in screen px; and the same share of a standing fighter's height as MK3's (95 / 144).
-    try expect(@abs(px(top) - @as(i32, @intFromFloat(@round(95 * t.S)))) <= 2);
-    const stand = px(-s.hurtBox(0).?.y0);
-    try expect(@abs(@divTrunc(stand * 1000, px(top)) - @as(i32, @intFromFloat(@round(144.0 / 95.0 * 1000)))) <= 30);
+    // 95 arcade px at the vertical scale: the same share of the screen's height as MK3's (95 / 254).
+    try expect(@abs(px(top) - @as(i32, @intFromFloat(@round(95 * t.SY)))) <= 3);
     // Holding left in the air does nothing: it lands where it left.
     try expectEqual(@as(i32, t.start_x[0]), px(s.f[0].x));
     try expect(s.f[0].grounded());
@@ -291,7 +289,7 @@ test "airborne frames hang from the head line: a tuck at the apex is above a sta
     var n: u32 = 0;
     while (!s.f[0].grounded() and n < 100) : (n += 1) {
         const hb = s.hurtBox(0).?;
-        // No pop: the top moves at most the arc speed (12.5) plus the easing in (a tuck all the way, the worst case).
+        // No pop: the top moves at most the arc speed (18.9) plus the easing in (a tuck all the way, the worst case).
         const top = px(-hb.y0);
         if (n > 0) try expect(@abs(top - prev_top) <= px(fx_max_step));
         prev_top = top;
@@ -314,7 +312,7 @@ test "airborne frames hang from the head line: a tuck at the apex is above a sta
     try expectEqual(@as(i32, 0), s.lift(0));
 }
 
-const fx_max_step: i32 = 30 * 256;
+const fx_max_step: i32 = 40 * 256;
 
 test "a jumper's hurt box is above the standing opponent's, so a jump-over clears him" {
     var c = try load();

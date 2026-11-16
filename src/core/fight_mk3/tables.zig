@@ -27,6 +27,16 @@ pub fn fx(comptime arcade: comptime_float) i32 {
     return @intFromFloat(@round(arcade * S * 256));
 }
 
+/// Screen pixels per arcade pixel for the vertical arcs (jumps, air hits): MK3's
+/// 254-line playfield on the 480-line screen, so a jump rises the same share of
+/// the screen as in MK3 (the fighters stay at `S`, smaller than MK3's share).
+pub const SY: comptime_float = 480.0 / 254.0;
+
+/// A vertical arcade distance or speed at `SY`, fixed point.
+pub fn fy(comptime arcade: comptime_float) i32 {
+    return @intFromFloat(@round(arcade * SY * 256));
+}
+
 /// A pixel count tuned in the first version, at 1.6 px per arcade px
 /// (pushes, the CPU's distance bands, the sprite-width margins): the same
 /// proportion at `S`.
@@ -55,7 +65,7 @@ pub const arena_max: i32 = @intFromFloat(@round(640 - 48 * S));
 pub const separate_per_tick: i32 = ref(6);
 /// A fighter struck in the air: vx 3.5, vy -6 (up), 23 ticks in the air.
 pub const air_hit_vx: i32 = fx(3.5);
-pub const air_hit_vy: i32 = fx(6);
+pub const air_hit_vy: i32 = fy(6);
 pub const air_hit_ticks: u16 = 26;
 /// Two fighters on the ground keep this far apart (64 arcade px, wider for
 /// Ryu's sprite).
@@ -67,14 +77,14 @@ pub const min_sep: i32 = ref(140);
 pub const walk_fwd: i32 = fx(3.25);
 pub const walk_back: i32 = fx(2.25);
 
-/// Jump: vy0 -10, gravity 0.5, vx +-4 arcade px/tick; no air control.
-pub const jump_vy: i32 = fx(10);
-pub const gravity: i32 = fx(0.5);
+/// Jump: vy0 -10, gravity 0.5 (at `SY`), vx +-4 arcade px/tick; no air control.
+pub const jump_vy: i32 = fy(10);
+pub const gravity: i32 = fy(0.5);
 pub const jump_vx: i32 = fx(4);
 
 /// Arc height (fixed point) over which an airborne frame's placement eases in
 /// from the feet anchor, most of the rise (apex 95) (`sim.airLift`).
-pub const air_ramp: i32 = fx(80);
+pub const air_ramp: i32 = fy(80);
 /// A frame shorter than the stance hangs from the head line and sits this much
 /// higher than that (1/256; 1.3: the flip's ball in MK3's pictures, MK3.md 3).
 pub const air_tuck: i32 = 333;

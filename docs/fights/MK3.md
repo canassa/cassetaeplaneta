@@ -48,7 +48,7 @@ all per-second values by 55/60. All "ticks" below are source ticks; seconds use 
 | Standing, as the code tells it | taller than 128 | `get_my_height() > SCY(0x80)` picks `ANIM_HITLO` over `ANIM_DUCKHIT`, `MKREACT.C:1428-1508` **[V]** |
 | Crouching height | at most 96 (`<= 0x60`: "not standing"), "short" below 103 | `MKJOY.C:333`, `am_i_short` `MKUTIL.C:906` **[V]**; so crouch / stand is about 0.67 |
 | Ground line | not in the source: `ground_y` is read from each stage module's header (`MKBKGD.C:270`), which is missing. About 88% of the playfield down (feet near y 224 of 254) **[A]**, from the arcade's pictures | |
-| Jump apex over standing height | 95 / 144 = 0.66 (of the object origin, the head line of the stance); the tucked flip then reaches about 1.8 x standing | computed from the two **[V]**; the flip from the owner's MK3 screenshot, section 3 "Where the figure hangs in the air" |
+| Jump apex over standing height | 95 / 144 = 0.66 in MK3 (of the object origin, the head line of the stance; the port's arc is at `SY`: 1.0); the tucked flip then reaches about 1.8 x standing | computed from the two **[V]**; the flip from the owner's MK3 screenshot, section 3 "Where the figure hangs in the air" |
 
 The arcade's pixels are not square: the 400 x 254 frame was shown on a 4:3 monitor (about 1.18 taller than wide;
 Fabien Sanglard's Midway T-Unit notes, [fabiensanglard.net/nbajamte](https://fabiensanglard.net/nbajamte/);
@@ -60,7 +60,10 @@ x and y alike.
 - Reference width **400 arcade px** (verified: `SCRRGT` 319 = 400*0.8-1; `SCREEN_DISTANCE` etc. are < 400). The engine uses
   one scale **`S = 1.25` screen px per arcade px** (`tables.S`), **uniformly in X and Y** (the PSX's .80/.85 is not
   used). So a 640-px screen shows 512 arcade px of width, a fighter stands 144 x 1.25 = **180 px**, a crouching one
-  about 120, the jump apex is 95 x 1.25 = **119 px** and the head line (the origin) at the top of a jump is 299 px over the floor.
+  about 120. **Vertical arcs** (the jump, gravity, the air-hit pop) use a second scale, **`SY = 480/254 = 1.89`**
+  (`tables.SY`, `tables.fy`): MK3's 254-line playfield on our 480 lines, so a jump rises the same share of the screen
+  as MK3's (the owner found the jump at `S` too low): the apex is 95 x 1.89 = **180 px**, one standing height, and the head
+  line at the top of a jump is 360 px over the floor. Airtime (39 ticks) does not change with the scale.
   The 1.25 is a choice, not MK3's: MK3's own proportions fix only the ratios. At `S = 1.6` (the first version; 400 arcade
   px to a 640 screen) a fighter would be 230 px of 480 and a jump's head would touch the HUD bar; the owner found the
   characters too big. 1.25 also makes every per-tick number an exact multiple of 1/256 px (gravity 160, jump
@@ -89,11 +92,11 @@ reads the stick). Run does not extend jumps (`f_superjumps` is a cheat flag, `MK
 
 | Quantity | Arcade | 640 px | Source |
 |---|---|---|---|
-| Initial Y velocity | -10 px/tick (`UP_VEL = -0xa0000`) | -12.5 px/tick (S = 1.25) | `MOVES.H:22-23`, `do_jump_up` `MKSTAT.C:2591`, `do_flip` `flight_call(...,-SCY(0xa0000),SCY(0x8000),3,..)` `MKJOY.C:1450` **[V]** |
+| Initial Y velocity | -10 px/tick (`UP_VEL = -0xa0000`) | -18.9 px/tick (SY = 1.89) | `MOVES.H:22-23`, `do_jump_up` `MKSTAT.C:2591`, `do_flip` `flight_call(...,-SCY(0xa0000),SCY(0x8000),3,..)` `MKJOY.C:1450` **[V]** |
 | Gravity | 0.5 px/tick^2 (`0x8000`) | 0.625 px/tick^2 | same **[V]** |
 | Horizontal velocity | straight 0; forward or back angle jump **+/-4.0 px/tick** (`0x40000`), identical forward and back | 5 px/tick = 275 px/s | `MKJOY.C:641-650` **[V]** |
 | Airtime | **39 ticks** (landing when `y >= ground`, exact zero at tick 39) = 0.71 s at 55 Hz, 0.65 s at 60 Hz (computed from the integration order above) | | `flight_call` `MKUTIL.C:2682-2720` **[V]** |
-| Peak height | **95 px** (ticks 19-20) | 119 px | computed **[V]** |
+| Peak height | **95 px** (ticks 19-20) | 180 px (SY) | computed **[V]** |
 | Jump distance (angle jump) | 39 x 4 = **156 px** | 195 px | computed **[V]** |
 | Landing | `jump_up_land_jsrp`: `ACT_LAND`, two 3-tick frames (6 ticks); **buttons are re-enabled immediately** (`allow_moves`), so a new attack can start during landing; opponent cannot be thrown while you are in `ACT_LAND` | | `MKSTAT.C:2621-2650`, `toss_check` `MKJOY.C:2159` **[V]** |
 | Air block | none: `is_he_blocking` returns false if the defender is airborne | | `MKUTIL.C:565` **[V]** |
@@ -132,7 +135,7 @@ not pop), a frame taller than the stance hangs from the head line (feet lower, n
 hurt and hit boxes (`Sim.lift`, `toWorld`) and the picture (`match.view`), so a jump-over, an air hit and the side switch work on
 what is drawn. The 0.3 is fitted to the one screenshot, not read from the source (the frames' offsets are not in it).
 
-Measured on SF3 Ryu at the apex (`tools/fight_mk3_jump.py` on `--headless --minigame xilindro --fix all` with the jump at 2900 ms, the
+With the jump at `S` (these ratios; the port now raises the arc by `SY / S`, section 1, so the figure goes higher still): measured on SF3 Ryu at the apex (`tools/fight_mk3_jump.py` on `--headless --minigame xilindro --fix all` with the jump at 2900 ms, the
 opponent standing beside; 180 px is one standing height; the floor is y 424): the angle jump's tuck is **246 px to 327 px over
 the floor, 1.37 x to 1.82 x standing** (MK3: 1.4 and 1.8); before, with the feet anchored, 119 to 200 px (0.66 x to 1.11 x: the
 ball barely cleared the head). The straight jump's tuck frame, 85 source px: 161 to 308 px (0.89 x to 1.71 x).
@@ -383,7 +386,7 @@ portraits; the arena band is rebuilt each frame from the background.
 | Scale | arcade px x `S` = 1.25 (uniform in x and y), fighter 144 arcade px = 180 px, `tables.S` / `tables.stand_arcade`; every pixel constant below is at this scale (`tables.fx`, `tables.ref`) | heights verified (`ochar_ground_offsets`), the scale chosen (1.6 gave 230 px: too big) |
 | Walk | forward 4.06 px/tick (223 px/s), back 2.8 (155 px/s) | verified (3.25 / 2.25 arcade) |
 | Run | not implemented | gap |
-| Jump | vy 12.5 px/tick, gravity 0.625, gravity then move each tick: 39 ticks, 119 px high (95 arcade); forward / back vx 5 px/tick = 195 px (156 arcade); no air control | verified (`jump_tables`); tested; the figure hangs from the head line (section 3) |
+| Jump | vy 18.9 px/tick, gravity 0.945 (`SY`), gravity then move each tick: 39 ticks, 180 px high (95 arcade); forward / back vx 5 px/tick = 195 px (156 arcade); no air control | verified (`jump_tables`); tested; the figure hangs from the head line (section 3) |
 | Crouch | holding down; no stand-up delay | approximated (source has ~6 ticks each way) |
 | Moves | LP, HP, LK, HK; crouching LP, uppercut (down + HP), crouching LK, sweep (down + HK, and back + LK as MK3's); roundhouse (back + HK); jumping LP, HP, LK, HK; close throw (LP within 155 px) | inputs verified; the owner's mapping for the sweep |
 | Frame data | startup / active / recovery per move in `tables.zig` (HP 7/5/14, LK 5/5/10, sweep 8/3/18, ...) | approximated: the source's animation scripts are not in the repo; the structure (hit-check windows) is the source's |
