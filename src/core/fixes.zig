@@ -181,6 +181,12 @@ pub const Fixes = struct {
     /// filled when the bitmap is loaded, from the hand-reviewed list
     /// `src/data/key_specks.tsv` (`src/key_specks.zig`).
     sprite_key_specks: bool = false,
+    /// B54: a dropped item keeps, while it falls, the 3D place it will rest at
+    /// (its depth, so it is drawn behind a player standing in front of its
+    /// rest place), not the depth 0 every step of the fall resets it to,
+    /// which draws it over everything. Needs `drop_falls_onto_support` (its
+    /// fall supplies the rest place).
+    fall_keeps_depth: bool = false,
     /// Not a bug but a Corrigida addition (BUGS.md, "Corrigida additions"):
     /// the living room's exit to the street (`Exit=114`) is clickable over
     /// the whole door frame in the background (y 73-390), not only below

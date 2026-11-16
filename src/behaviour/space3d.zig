@@ -254,6 +254,8 @@ fn moveableMoveToAndDrop(g: *Game, obj: *Object, x: i16, y: i16, bd: *Backdrop) 
 // @orig 1010:54d0 portable_move_to_and_drop
 fn portableMoveToAndDrop(g: *Game, obj: *Object, x: i16, y: i16) void {
     position.setPosition(g, obj, x, y); // mover_set_position; the backdrop is unused
+    // B54: the fall (B30) set the item's rest place; each step keeps it.
+    if (g.fixes.fall_keeps_depth and obj.portable.restElev != null) return;
     obj.o3d.worldElev = 0;
     obj.o3d.worldDepth = 0;
     obj.o3d.worldX = 0;

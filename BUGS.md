@@ -923,6 +923,25 @@ Addresses are Ghidra `seg:off`; names are the current Ghidra names.
   in the older `ped1/GAMEDEFS.HPP:55`, 20 in `DEMO.C:60`.
 - **Confidence:** 9 (disc data, port repro); the fill/keep calls are judgement.
 
+### B54. A falling item is drawn over the player, whatever the rows
+- **Where:** `portable_move_to_and_drop` 1010:54d0 (Object3D slot 40, called by `moveable_place_at` 1010:5684 on
+  every step of the fall), `object3d_redraw_overlapping` 1010:5e10 and `object3d_is_in_front_of` 1010:5c5c.
+- **What the code does:** each step of a dropped item's fall puts the item's 3D place on the floor of the world's
+  front edge: it sets `worldElev`, `worldDepth` and `worldX` to 0 (the drop's `setElevation` only comes back
+  after the fall, on the item's own timer). Depth 0 is the nearest there is, so `is_in_front_of` says the item is
+  in front of everything, and the redraw after each step draws the item's clip over whatever its rectangle
+  overlaps, the player included.
+- **Effect:** the wallet dropped (or falling) above Zeh's feet is drawn over his body while it falls: the part of
+  his shirt and arm inside the wallet's rectangle is cut by it, then restored when the item has passed or
+  landed behind him (the bus stop: wallet dropped at x 300 with the player at x 330-425, feet at row 390).
+- **Port:** reproduced (`space3d.portableMoveToAndDrop`); `Fixes.fall_keeps_depth` keeps, during B30's fall,
+  the 3D place the fall computed for the rest place (`game_input.fallToRest`), so the item is sorted as it will lie.
+  `tools/play/b54-fall-behind-player.input` checks a pixel of the player's shirt.
+- **1995 source:** the drop code assumes it ("it is not necessary to treat collision here because the portable
+  object will always be in front of any object", `APPLICAT.CPP:426-427`, see B31); the 1995 portable has no 3D
+  place of its own to zero.
+- **Confidence:** 9 (decompile, port repro).
+
 ---
 
 ## Harmless: wrong paths rescued by the wave fallback

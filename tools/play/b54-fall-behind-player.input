@@ -1,0 +1,20 @@
+# BUGS.md B54: a falling item is drawn over the player. Every step of the fall
+# puts the item's 3D place at depth 0 (portable_move_to_and_drop), the nearest
+# there is, so the wallet dropped above Zeh's feet is redrawn in front of him
+# (his arm and shirt cut by its rectangle). With `fall_keeps_depth` it keeps
+# the depth of its rest place, behind him. The smooth fall is off in both runs
+# so the frames line up.
+#
+#   zig-out/bin/noite --headless --ms 7000 --scene 2fpontoc --take 71 --fix all,-smooth_item_fall --input tools/play/b54-fall-behind-player.input
+#   zig-out/bin/noite --headless --ms 7000 --scene 2fpontoc --take 71 --fix all,-smooth_item_fall,-fall_keeps_depth --input tools/play/b54-fall-behind-player.input
+#
+# At 5.2 s the pixel (340,270) is the player's shirt (104) with the fix and the
+# wallet's art (17) without it.
+500 move 320 240
+1000 offer 0 300 120
++2500 click 200 300
++600 click 400 300
++600 click 200 300
+5200 ?fall_keeps_depth pixel 340 270 104
+5200 !fall_keeps_depth pixel 340 270 17
+5300 quit
