@@ -1,9 +1,9 @@
 # NOITE's prison escape (3farmcai) starts the real SERIAL, which loses: the
 # killers take the five lives (at 35810 ms in the Original, 25810 with the
-# fixes).
+# fixes; pinned without `serial_killer_after_middle`, whose killers fire later).
 #
 #   zig-out/bin/noite --headless --scene 3farmcai --ms 39000 --input tools/play/serial-3farmcai-lose.input
-#   zig-out/bin/noite --headless --scene 3farmcai --ms 39000 --fix all,-serial_intro_screen,-serial_end_screen --input tools/play/serial-3farmcai-lose.input
+#   zig-out/bin/noite --headless --scene 3farmcai --ms 39000 --fix all,-serial_intro_screen,-serial_end_screen,-serial_killer_after_middle --input tools/play/serial-3farmcai-lose.input
 #
 # As serial-3farmcai-win: SERIAL starts at 3210. The shots are
 # `tools/serial_plan.py --start 3210 --lose`: kinds 0 and 1 only, in

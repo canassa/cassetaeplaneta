@@ -285,6 +285,9 @@ pub const Corr = struct {
     ended: bool = false,
     /// `plat.ticks()` when a killer's shot last landed (`Fixes.serial_shot_flash`).
     shot_at: ?u32 = null,
+    /// Where the last shot's muzzle burst is (the killer's gun), screen px.
+    shot_x: i32 = 0,
+    shot_y: i32 = 0,
     /// `CARREGA.WAV`, the cue of a killer's warning.
     warn_wave: ?platform.Wave = null,
     /// The presented picture and the buffer the intro's figures are drawn in.

@@ -1,29 +1,10 @@
-# The Corrigida's SERIAL played by tools/serial_bot.py (seed 6, a bad game): the killers take the five
-# lives at 56400 ms, the end screen ("Fim de jogo!") comes up, a key takes it down and the result is a
-# loss of the game's points.
+# The Corrigida's SERIAL played by nobody but the intro's key (seed 6): the killers take the five
+# lives at 80400 ms (two in the same step at 40400 and at 60400), the end screen ("Fim de jogo!") comes
+# up, a key takes it down and the result is a loss of 0 points.
 #
-#   zig-out/bin/noite --minigame serial --headless --ms 59000 --epoch 800000006 --fix all --input tools/play/serial-corrigida-lose.input [--dump DIR]
+#   zig-out/bin/noite --minigame serial --headless --ms 83000 --epoch 800000006 --fix all --input tools/play/serial-corrigida-lose.input [--dump DIR]
 #
-# As serial-corrigida-win, seed 6: 13 shots, 12 good figures and 1 killer hit, 1400 points.
 2000 key space
-7400 key right
-7550 key space
-12420 key space
-17420 key space
-18750 key right
-21200 key space
-22400 key left
-22550 key space
-27420 key space
-32420 key space
-37420 key space
-38800 key right
-40750 key space
-42400 key left
-42550 key space
-47420 key space
-48570 key space
-52420 key space
-56800 dump end
-57200 key space
-57500 result lost 1400
+80800 dump end
+81200 key space
+81500 result lost 0

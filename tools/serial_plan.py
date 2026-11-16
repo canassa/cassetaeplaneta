@@ -71,6 +71,9 @@ GUN_X, GUN_Y = 200, 0x17C
 WALK, WALK2, SPAWN, CLOCK, LANE2, GUN, BULLET, APP = 3, 6, 7, 8, 10, 10, 0xC, 1
 LANE2_OWN = 9  # K5's id for lane 2 (g_timerIds[6])
 STEP = 20
+# serial_killer_after_middle: the x at which a killer fires (the babá, 2, walks right; Noel, 9, left): the
+# step after the straight aim's hit window (a bullet lands at x <= 340 on the babá, x >= 176 on Noel).
+MIDDLE_FIRE_X = {2: 360, 9: 156}
 LIVES = 5
 EPOCH = 800_000_000
 VK_SPACE, VK_LEFT, VK_RIGHT = "space", "left", "right"
@@ -117,11 +120,13 @@ class Obj:
 
 
 class Sim:
-    def __init__(self, start, fixes=False, k5=None, arm=None):
+    def __init__(self, start, fixes=False, k5=None, arm=None, middle=None):
         # `arm`: when the game's timers start (the Corrigida's intro screen
         # stops them until a key); the seed is still `start`'s.
         self.now = start if arm is None else arm
         self.fixes = fixes  # Fixes.all(): K1-K4
+        # serial_killer_after_middle (in `all`): one shot per crossing, after the middle aim path.
+        self.middle = fixes if middle is None else middle
         self.k5 = fixes if k5 is None else k5  # serial_lane2_own_timer, in `all`
         self.rand = Rand(EPOCH + start // 1000)
         self.timers = []  # [id, period, due], USER's table order
@@ -374,7 +379,17 @@ class Sim:
         # target_can_step: always free (it only sets `linked`).
         t.frame = 0 if t.frames - t.frame == 1 else t.frame + 1
         self.place_at(t, t.nx, t.ny)
-        if KINDS[t.index] == 2 and t.frames - t.frame == 2:
+        if KINDS[t.index] != 2:
+            pass
+        elif self.middle:
+            if t.x != MIDDLE_FIRE_X[t.index]:  # serial_killer_after_middle
+                return
+            self.lives = i16(self.lives - 1)
+            self.shot_at.append((self.now, t.index))
+            self.log(f"SHOT F{t.index} lives={self.lives}")
+            if self.lives == 0:
+                self.destroy()
+        elif t.frames - t.frame == 2:
             self.lives = i16(self.lives - 1)
             self.shot_at.append((self.now, t.index))
             self.log(f"SHOT F{t.index} lives={self.lives}")
@@ -814,7 +829,8 @@ def main():
     a = ap.parse_args()
     if a.check or a.trace:
         fix = (a.fix or "").split(",")
-        s = Sim(a.start, "all" in fix, "all" in fix and "-serial_lane2_own_timer" not in fix)
+        s = Sim(a.start, "all" in fix, "all" in fix and "-serial_lane2_own_timer" not in fix,
+                middle="all" in fix and "-serial_killer_after_middle" not in fix)
         if a.trace:
             s.trace = []
         rep = None if a.key_repeat == "off" else tuple(int(v) for v in a.key_repeat.split(","))

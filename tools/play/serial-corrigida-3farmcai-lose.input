@@ -1,17 +1,17 @@
 # NOITE's prison escape (3farmcai) starts the real SERIAL, in the Corrigida, and nobody plays it: the intro
-# screen waits for a key, the killers take the five lives at 82000 ms, a key takes the end screen down, the
+# screen waits for a key, the killers take the five lives at 123400 ms, a key takes the end screen down, the
 # result is a loss, and NOITE takes a life and says so in the prison.
 #
-#   zig-out/bin/noite --headless --scene 3farmcai --ms 90000 --fix all --input tools/play/serial-corrigida-3farmcai-lose.input [--dump DIR]
+#   zig-out/bin/noite --headless --scene 3farmcai --ms 132000 --fix all --input tools/play/serial-corrigida-3farmcai-lose.input [--dump DIR]
 #
 # SERIAL starts at 3210 ms (the epoch's seed 3, as serial-3farmcai-win); its timers wait for the key at
-# 5000 ms, so `tools/serial_bot.py --seed 3 --arm 5000 --passive` is the game: the killers' shots at 12000,
-# 14400, 42600, 72600 and 82000.
+# 5000 ms, so `tools/serial_bot.py --seed 3 --arm 5000 --passive` is the game: the killers' shots at 13400,
+# 43400, 73400, 83400 and 123400.
 4000 dump intro
 5000 key space
-83000 dump end
-83300 key space
-83600 result lost 0
-83600 expect 3fprisao
-84000 state
-84000 dump note
+124400 dump end
+124700 key space
+125000 result lost 0
+125000 expect 3fprisao
+125400 state
+125400 dump note

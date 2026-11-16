@@ -407,12 +407,12 @@ fn targetMoveTick(g: *Game, obj: *Object, bd: *Backdrop) void {
         const left = position.frameCount(obj) -% obj.curFrame;
         // Not in the original: the Corrigida's warning, shot flash, lives and end
         // screen (`corrigida.zig`); once the game is over, no more shots.
-        if (left == 2 and !corrigida.over(g)) {
+        if (corrigida.shoots(g, obj, left) and !corrigida.over(g)) {
             _ = sound.play(g, 0, g.shotWave);
             g.lives -%= 1;
-            corrigida.shotLanded(g, bd);
+            corrigida.shotLanded(g, obj, bd);
             if (g.lives == 0) corrigida.finish(g);
-        } else corrigida.stepped(g, left);
+        } else corrigida.stepped(g, obj, left);
     }
     visibility.redrawOverlapping(g, obj, bd, 1);
     visibility.invalidate(g, obj); // the original calls scene_object_invalidate (1028:001b) directly; mover_invalidate does the same

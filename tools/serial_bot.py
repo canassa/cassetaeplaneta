@@ -37,6 +37,7 @@ import serial_plan as sp  # noqa: E402
 
 TAP = 130  # ms per LEFT/RIGHT tap
 KILLERS = (2, 9)
+WARN_X = {2: 140, 9: 416}  # where the warning starts with serial_killer_after_middle
 # Steps before a killer's shot at which its own sprite gives it away (frame 8 of
 # 3sbabt: the baby; frame 8 of 3snoem: Noel prone with the rifle).
 TELL = {2: 4, 9: 8}
@@ -47,10 +48,15 @@ def left(f):
     return f.frames - f.frame
 
 
-def told(f, warn_steps):
-    """Is killer `f` giving itself away (its tell, or the warning)?"""
+def told(f, warn_steps, middle=False):
+    """Is killer `f` giving itself away (its tell, or the warning)? With
+    `middle` (serial_killer_after_middle) only the warning does: from the x it
+    enters the middle path to the x it fires at."""
     if not f.moving:
         return False
+    if middle:
+        wx, fx = WARN_X[f.index], sp.MIDDLE_FIRE_X[f.index]
+        return warn_steps > 0 and (wx <= f.x < fx if wx < fx else fx < f.x <= wx)
     steps = max(TELL[f.index], 2 + warn_steps if warn_steps else 0)
     return 2 < left(f) <= steps
 
@@ -70,13 +76,13 @@ def probe(sim, keys, fire_at, wanted):
     return [(t, i) for t, i in c.hits[n:]]
 
 
-def play(seed, reaction, warn_steps, passive=False, horizon=125_000, arm=None, emit=None):
+def play(seed, reaction, warn_steps, passive=False, horizon=125_000, arm=None, emit=None, middle=True, straight=True):
     """One game from `seed` (`srand` gets 800000000 + seed); returns the stats.
     `arm`: when the game starts (the intro screen is taken down), default 0;
     `emit`: a file to write the bot's keys to as an input script."""
     arm = arm or 0
     start = arm
-    sim = sp.Sim(seed * 1000, True, arm=arm)
+    sim = sp.Sim(seed * 1000, True, arm=arm, middle=middle)
     pressed = []
     seen = {}  # figure -> time first seen walking
     told_at = {}  # killer -> time its tell started (this walk)
@@ -117,7 +123,7 @@ def play(seed, reaction, warn_steps, passive=False, horizon=125_000, arm=None, e
             if not f.moving:
                 seen.pop(f.index, None)
                 told_at.pop(f.index, None)
-            elif f.index in KILLERS and told(f, warn_steps) and f.index not in told_at:
+            elif f.index in KILLERS and told(f, warn_steps, sim.middle) and f.index not in told_at:
                 told_at[f.index] = t
         if passive or keys or sim.bullet.moving or t < last_plan + 200:
             continue
@@ -131,11 +137,15 @@ def play(seed, reaction, warn_steps, passive=False, horizon=125_000, arm=None, e
             f = sim.figs[i]
             if f.moving and i in seen and t >= seen[i] + reaction:
                 wants.append(i)
+        if any(i in KILLERS for i in wants):
+            # A harmless figure in the way (a lane is tested from the top, the
+            # first one in the bullet's x gets it) is shot (-100) to clear the middle.
+            wants += [f.index for f in sim.figs if f.moving and sp.KINDS[f.index] == 0 and f.index not in wants]
         if not wants:
             continue
         best = None
         for want in wants:
-            for aim in (sim.aim, 1, 0, 2):
+            for aim in ((1,) if straight and (want in KILLERS or sp.KINDS[want] == 0) else (sim.aim, 1, 0, 2)):
                 k = sp.aim_keys(sim.aim, aim)
                 at = t
                 pre = []
@@ -193,12 +203,14 @@ def main():
     ap.add_argument("--passive", action="store_true", help="no keys at all (the baseline)")
     ap.add_argument("--emit", metavar="FILE", help="play one game (--seed, the first --warn-steps) and write its keys as an input script")
     ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--no-middle", action="store_true", help="without serial_killer_after_middle (the fixed-frame shots)")
+    ap.add_argument("--any-aim", action="store_true", help="a killer may be shot from any aim (default: the straight one)")
     ap.add_argument("--arm", type=int, default=0, help="ms the game starts at (the intro screen taken down)")
     ap.add_argument("-j", type=int, default=os.cpu_count() or 1)
     a = ap.parse_args()
     if a.emit:
         w = int(a.warn_steps.split(",")[0])
-        r = play(a.seed, a.reaction, w, a.passive, arm=a.arm, emit=a.emit)
+        r = play(a.seed, a.reaction, w, a.passive, arm=a.arm, emit=a.emit, middle=not a.no_middle, straight=not a.any_aim)
         print(r)
         return
     seeds = range(1, a.seeds + 1)
@@ -206,7 +218,7 @@ def main():
     print(f"{'warn':>6} {'lives lost':>10} {'games lost':>10} {'killers':>7} {'cancelled':>9} {'shots landed':>12} {'good hits':>9} {'bad hits':>8} {'score':>7}")
     for w in [int(x) for x in a.warn_steps.split(",")]:
         with ProcessPoolExecutor(a.j) as ex:
-            rs = list(ex.map(job, [(s, a.reaction, w, a.passive, 125_000, a.arm) for s in seeds]))
+            rs = list(ex.map(job, [(s, a.reaction, w, a.passive, 125_000, a.arm, None, not a.no_middle, not a.any_aim) for s in seeds]))
         n = len(rs)
 
         def avg(k):

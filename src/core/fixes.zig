@@ -322,8 +322,16 @@ pub const Fixes = struct {
     /// on it, `CARREGA.WAV`); a hit in the warning stops the figure, so the
     /// shot never comes.
     serial_killer_warning: bool = false,
-    /// Not a bug but a Corrigida addition: the screen's edge flashes red
-    /// when a killer's shot takes a life.
+    /// Not a bug but a Corrigida addition: a killer fires once per crossing,
+    /// and only after it has walked past the middle aim's path (the babá at
+    /// x 360, Papai Noel at x 156), so a life is lost only when the middle
+    /// shot is missed; the original's fixed frames no longer shoot. The
+    /// warning (`serial_killer_warning`) then starts as the figure enters
+    /// the path (babá x 140, Noel x 416).
+    serial_killer_after_middle: bool = false,
+    /// Not a bug but a Corrigida addition: when a killer's shot takes a life
+    /// a muzzle burst shows at its gun, the screen shakes, its edge flashes
+    /// red in two pulses (600 ms) and the lives' box blinks red.
     serial_shot_flash: bool = false,
     /// Not a bug but a Corrigida addition: "Vidas: N" in a box under the
     /// score's, drawn into the backdrop as the score is.

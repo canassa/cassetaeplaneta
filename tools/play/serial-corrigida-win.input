@@ -1,13 +1,14 @@
-# The Corrigida's SERIAL played by tools/serial_bot.py (a 400-ms reaction, the 600-ms warning): the intro
-# screen, the lives' box and the end screen of a game survived, 4 of the 6 killers shot before they fired.
+# The Corrigida's SERIAL played by tools/serial_bot.py (a 400-ms reaction, the warning at the middle path): the intro
+# screen, the lives' box and the end screen of a game survived, all 4 killers shot before they fired.
 #
 #   zig-out/bin/noite --minigame serial --headless --ms 126000 --epoch 800000002 --fix all --input tools/play/serial-corrigida-win.input [--dump DIR]
 #
 # SERIAL's srand is time(NULL), the epoch (seed 2). A key at 2000 ms takes the intro screen down and
 # the game's timers start then (`tools/serial_bot.py --seed 2 --arm 2000 --warn-steps 3 --emit FILE`
-# wrote the keys; tools/serial_plan.py's Sim, with `arm`, is the game): 36 shots, 30 good figures and
-# 6 killers hit (4 before they fired), 3 killers' shots landed: 2 lives left, 4200 points. The clock
-# ends the game at 122000; the end screen is up for 3 s and the result goes at 125000: a win of 500.
+# wrote the keys; tools/serial_plan.py's Sim, with `arm`, is the game): 41 shots, 36 good figures, 1
+# harmless one and 4 killers hit, all before they fired (the middle shot, `serial_killer_after_middle`):
+# 5 lives left, 4300 points. The clock ends the game at 122000; the end screen is up for 3 s and the
+# result goes at 125000: a win of 500.
 1000 dump intro
 2000 key space
 7400 key right
@@ -19,9 +20,9 @@
 22420 key space
 27420 key space
 32420 key space
-33820 key space
+33220 key space
 37420 key space
-38820 key space
+38220 key space
 42420 key space
 43270 key space
 44120 key space
@@ -32,23 +33,26 @@
 62420 key space
 63570 key space
 67420 key space
-68800 key right
-70750 key space
-72400 key left
-72550 key space
-73470 key space
+68620 key space
+69370 key space
+72420 key space
+73070 key space
+73870 key space
 77420 key space
+78220 key space
 82420 key space
+83570 key space
 87420 key space
-88820 key space
-89570 key space
+88270 key space
+89120 key space
 92420 key space
 97420 key space
 102420 key space
-103820 key space
+103470 key space
 107420 key space
 112420 key space
 117420 key space
+118470 key space
 119000 dump play
 122500 dump end
 125500 result won 500

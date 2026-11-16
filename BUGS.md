@@ -1160,8 +1160,8 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
   picked up while a shot flies is no longer lost (J3, whose fix it supersedes). The kill tables are the
   original's. Keys 1, 2, 3 and Q; the controls screen lists them.
 - SERIAL's screens and signs (`src/serial/corrigida.zig`, docs/serial/GAME.md "The Corrigida"); the aims, the bullet,
-  the figures, the scores and the two ends are the original's. The killers shoot at fixed times and the three aims
-  cover little of the screen, so most of them still cannot be stopped (docs/serial/GAME.md, "How beatable").
+  the figures, the scores and the two ends are the original's. With `serial_killer_after_middle` the middle shot
+  is the answer to every killer (docs/serial/GAME.md, "How beatable").
   - `Fixes.serial_intro_screen`: a screen from WM_CREATE over the first frame until a key or a click: the
     title, "Você é o serial killer. 5 vidas, 2 minutos.", a picture and the rule for the good figures (+100), the
     others (-100) and the killers (they shoot, and +200 for hitting them first), the keys. The spawns and the
@@ -1169,12 +1169,20 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
     0x40b/0x40c/0x40a handshake, WM_PAINT and WM_DESTROY go on. The key that took it down is ignored until
     it is let go. The drawing is the fights' (`core/controls_screen.zig`).
   - `Fixes.serial_killer_warning`: a killer (the babá 3sbabt, Papai Noel 3snoem; they look like their harmless
-    twins until the sprite's shooting frames) is announced for 3 walk steps (600 ms) before the step that fires:
-    `CARREGA.WAV` (the gun being cocked; on the disc, unused) plays and the figure blinks a red and yellow
-    frame with a "!" sign over it. A hit stops the figure, so the shot is cancelled; the sign is read off the
-    figure's frame (no state of its own), and drawn in the presented picture only.
-  - `Fixes.serial_shot_flash`: when a killer's shot lands the screen's edge flashes red, 18 px wide for 150 ms,
-    8 px until 400 ms (the presented picture).
+    twins until the sprite's shooting frames) is announced before its shot: `CARREGA.WAV` (the gun being cocked;
+    on the disc, unused) plays and the figure blinks a red and yellow frame with a "!" sign over it, until it
+    fires. A hit stops the figure, so the shot is cancelled; the sign is read off the figure (no state of its
+    own), and drawn in the presented picture only. Without `serial_killer_after_middle` it starts 3 walk steps
+    (600 ms) before the original's fixed frame.
+  - `Fixes.serial_killer_after_middle`: a killer fires once per crossing (the babá twice, in the original), and
+    only after it has walked past the middle aim's hit window: the babá (walking right) at x 360, Noel (walking
+    left) at x 156, instead of the strip's fixed frame. The warning starts where a bullet fired then lands at the
+    window's first step (the bullet takes 825 ms, 4 walk steps): the babá at x 140, Noel at x 416, so 2.2 s and
+    2.6 s before the shot. A life is lost only when the middle shot is missed.
+  - `Fixes.serial_shot_flash`: when a killer's shot lands, a yellow and white burst shows at the killer's gun
+    for 260 ms, the picture shakes sideways (8 px, easing off, 260 ms), the screen's edge flashes red in two
+    pulses (22 px wide at 0-150 and 250-400 ms, 8 px between and until 600 ms) and the lives' box blinks red
+    with the lives left (110 ms on, 110 ms off); all in the presented picture.
   - `Fixes.serial_lives_display`: "Vidas:" and the lives in a box at the bottom left (0, 400), the score's
     art (200×36, copied from the background at 416, 400) and drawn as the score is into the backdrop and blitted
     (`target.drawLives`; same font and colour). Updated on every shot that lands.

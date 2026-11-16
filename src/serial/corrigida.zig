@@ -14,7 +14,11 @@
 //!   the warning starts, and until the shot a blinking frame and a "!" show on it.
 //!   A hit stops the figure, so the shot never comes; the sign is read off the
 //!   figure's own frame, there is no state of its own.
-//! - `Fixes.serial_shot_flash`: the screen's edge flashes red when a shot lands.
+//! - `Fixes.serial_killer_after_middle`: a killer fires once per crossing, at the
+//!   x where it has left the middle aim's hit window (`passes`), instead of at the
+//!   strip's fixed frame; the warning then starts at the x where it enters it.
+//! - `Fixes.serial_shot_flash`: when a shot lands: a muzzle burst at the killer's gun,
+//!   the picture shakes, the screen's edge flashes red twice and the lives' box blinks.
 //! - `Fixes.serial_end_screen`: the lives running out or the clock ending (`finish`,
 //!   in place of the original's WM_DESTROY) put a screen up for 3 s or until a key;
 //!   WM_DESTROY, and with it the 0x40a result, goes then.
@@ -48,12 +52,41 @@ pub const warn_steps: i16 = 3;
 const shot_left: i16 = 2;
 const warn_left: i16 = shot_left + warn_steps;
 
-/// The red flash after a shot: wide for `flash_wide_ms`, then thin, gone at `flash_ms`.
-const flash_ms: u32 = 400;
-const flash_wide_ms: u32 = 150;
+/// After a shot (`flash_ms` in all): the edge's two red pulses (wide for 150 ms, thin
+/// for 100, wide again for 150, thin to the end), the muzzle burst, the shake and the
+/// lives' box blinking (110 ms on, 110 ms off).
+const flash_ms: u32 = 600;
+const burst_ms: u32 = 260;
+const shake_ms: u32 = 260;
 
 /// The two killers' indices in `g.targets` (kind 2).
 const killers = [_]usize{ 2, 9 };
+
+/// Where a killer enters and leaves the straight aim's hit window, as the x of its
+/// walk steps (`Fixes.serial_killer_after_middle`; the figures walk 20 px a 200 ms
+/// step, so the lattice is exact). Measured with `tools/serial_plan.py`'s simulation:
+/// the bullet (825 ms from the shot to the lane) hits the babá (3sbabt, walking right)
+/// where it lands with its x in 220..340 and Noel (3snoem, walking left) in 336..176.
+/// The warning is the step at which a bullet fired then lands at the window's first
+/// step (4 steps on); the shot is the first step past the window's last, 11 steps
+/// (babá, 2.2 s) and 13 steps (Noel, 2.6 s) after the warning.
+const Pass = struct { warn_x: i16, fire_x: i16 };
+const baba_pass: Pass = .{ .warn_x = 140, .fire_x = 360 };
+const noel_pass: Pass = .{ .warn_x = 416, .fire_x = 156 };
+
+fn passes(g: *const Game, t: *const Object) ?Pass {
+    if (g.targets[killers[0]]) |k| if (k == t) return baba_pass;
+    if (g.targets[killers[1]]) |k| if (k == t) return noel_pass;
+    return null;
+}
+
+/// Does the walk step that has just brought killer `t` to its frame `left` from the
+/// strip's end fire the shot?
+pub fn shoots(g: *const Game, t: *const Object, left: i16) bool {
+    if (!g.fixes.serial_killer_after_middle) return left == shot_left;
+    const p = passes(g, t) orelse return false;
+    return t.x == p.fire_x;
+}
 
 // ---- opening, the gate, the end ----
 
@@ -146,13 +179,22 @@ pub fn over(g: *const Game) bool {
 
 /// A killer's walk step has brought its frame to `left` from the strip's end
 /// (`movement.targetMoveTick`): the warning starts.
-pub fn stepped(g: *Game, left: i16) void {
-    if (g.fixes.serial_killer_warning and left == warn_left) _ = sound.play(g, 0, g.corr.warn_wave);
+pub fn stepped(g: *Game, t: *const Object, left: i16) void {
+    if (!g.fixes.serial_killer_warning) return;
+    const starts = if (g.fixes.serial_killer_after_middle)
+        if (passes(g, t)) |p| t.x == p.warn_x else false
+    else
+        left == warn_left;
+    if (starts) _ = sound.play(g, 0, g.corr.warn_wave);
 }
 
 /// The shot of a killer took a life (after `g.lives` went down).
-pub fn shotLanded(g: *Game, bd: *Backdrop) void {
-    if (g.fixes.serial_shot_flash) g.corr.shot_at = g.plat.ticks();
+pub fn shotLanded(g: *Game, t: *Object, bd: *Backdrop) void {
+    if (g.fixes.serial_shot_flash) {
+        g.corr.shot_at = g.plat.ticks();
+        g.corr.shot_x = t.x + @divTrunc(position.width(t), 2);
+        g.corr.shot_y = t.y + @divTrunc(position.height(t), 3);
+    }
     if (g.fixes.serial_lives_display) {
         target.drawLives(g, bd);
         target.blitLivesBox(g, bd);
@@ -166,14 +208,18 @@ pub fn openWaves(g: *Game) void {
 
 /// Is `t` (a killer) in its warning: walking, its frame from the one the warning
 /// starts at to the one before the shot's.
-fn warning(t: *Object) bool {
+fn warning(g: *const Game, t: *Object) bool {
     if (t.mover.moving == 0) return false;
+    if (g.fixes.serial_killer_after_middle) {
+        const p = passes(g, t) orelse return false;
+        return if (p.warn_x < p.fire_x) t.x >= p.warn_x and t.x < p.fire_x else t.x <= p.warn_x and t.x > p.fire_x;
+    }
     const left = position.frameCount(t) -% t.curFrame;
     return left <= warn_left and left > shot_left;
 }
 
 fn anyWarning(g: *Game) bool {
-    for (killers) |i| if (g.targets[i]) |t| if (warning(t)) return true;
+    for (killers) |i| if (g.targets[i]) |t| if (warning(g, t)) return true;
     return false;
 }
 
@@ -207,10 +253,11 @@ pub fn view(g: *Game, now: u32) ?*const Screen {
         .colors = &bd.bmiColors,
     };
 
-    if (warn) for (killers) |i| if (g.targets[i]) |t| if (warning(t)) drawWarning(g, s, t, now);
-    if (flash) drawFlash(s, now -% c.shot_at.?);
+    if (warn) for (killers) |i| if (g.targets[i]) |t| if (warning(g, t)) drawWarning(g, s, t, now);
+    if (flash) drawFlash(g, s, now -% c.shot_at.?);
     if (c.intro) drawIntro(g, out, s, bd);
     if (c.end_up) drawEnd(g, s);
+    if (flash and now -% c.shot_at.? < shake_ms) shake(out, now -% c.shot_at.?);
     return out;
 }
 
@@ -236,10 +283,54 @@ fn drawWarning(g: *Game, s: platform.Surface, t: *Object, now: u32) void {
     _ = g;
 }
 
-/// The edge of the screen in red, wide at first, then thin.
-fn drawFlash(s: platform.Surface, since: u32) void {
-    const t: i32 = if (since < flash_wide_ms) 18 else 8;
-    screen.frame(s, 0, 0, platform.screen_width, platform.screen_height, t, red(s));
+/// A shot's feedback `since` ms after it: the edge of the screen in red in two
+/// pulses, the muzzle burst at the gun, the lives' box blinking red.
+fn drawFlash(g: *Game, s: platform.Surface, since: u32) void {
+    const wide = since < 150 or (since >= 250 and since < 400);
+    screen.frame(s, 0, 0, platform.screen_width, platform.screen_height, if (wide) 22 else 8, red(s));
+    if (since < burst_ms) drawBurst(s, g.corr.shot_x, g.corr.shot_y, since);
+    if ((since / 110) % 2 == 0) {
+        screen.fill(s, 0, 400, 192, 32, red(s));
+        var buf: [16]u8 = undefined;
+        const t = std.fmt.bufPrint(&buf, "Vidas: {d}", .{@max(g.lives, 0)}) catch "";
+        screen.text(g.plat, s, 16, 408, 0x00ffffff, t);
+    }
+}
+
+/// A star of yellow rays round a white core, at (`cx`, `cy`), shrinking.
+fn drawBurst(s: platform.Surface, cx: i32, cy: i32, since: u32) void {
+    const yellow = screen.nearest(s.colors, 0x0000ffff);
+    const white = screen.nearest(s.colors, 0x00ffffff);
+    const r: i32 = 36 - @as(i32, @intCast(since / 12));
+    screen.fill(s, cx - r, cy - 4, 2 * r, 8, yellow);
+    screen.fill(s, cx - 4, cy - r, 8, 2 * r, yellow);
+    var i: i32 = -r;
+    while (i <= r) : (i += 6) {
+        screen.fill(s, cx + i - 3, cy + i - 3, 7, 7, yellow);
+        screen.fill(s, cx + i - 3, cy - i - 3, 7, 7, yellow);
+    }
+    screen.fill(s, cx - 12, cy - 12, 24, 24, white);
+}
+
+/// The picture shifted sideways a few px, back and forth, easing off (the
+/// vacated columns repeat the edge).
+fn shake(out: *Screen, since: u32) void {
+    const amp: i32 = 8 - @as(i32, @intCast(since / 40));
+    const dx: i32 = if ((since / 40) % 2 == 0) amp else -amp;
+    if (dx == 0) return;
+    const w = platform.screen_width;
+    const a: usize = @intCast(@abs(dx));
+    var y: usize = 0;
+    while (y < platform.screen_height) : (y += 1) {
+        const row = out.pixels[y * w ..][0..w];
+        if (dx > 0) {
+            std.mem.copyBackwards(u8, row[a..], row[0 .. w - a]);
+            @memset(row[0..a], row[a]);
+        } else {
+            std.mem.copyForwards(u8, row[0 .. w - a], row[a..]);
+            @memset(row[w - a ..], row[w - a - 1]);
+        }
+    }
 }
 
 // ---- the intro screen ----
@@ -399,4 +490,49 @@ test "the intro keeps the game until a key, which is then let go; the end screen
     try std.testing.expect(gate(g, .{ .id = wm.systimer, .wparam = 3 }) == null);
     try std.testing.expect(gate(g, .{ .id = wm.keydown, .wparam = 0x25 }) == null);
     try std.testing.expect(g.corr.ended);
+}
+
+test "with the middle rule a killer fires once, at the x past the middle path, wherever its strip is" {
+    const TestGame = @import("core/game.zig").TestGame;
+    const t = try TestGame.init(std.testing.allocator);
+    defer t.deinit();
+    const g = t.game;
+    var baba: Object = .{ .kind = .target };
+    var noel: Object = .{ .kind = .target };
+    g.targets[2] = &baba;
+    g.targets[9] = &noel;
+    // The original: the strip's frame two from the end, at any x.
+    try std.testing.expect(shoots(g, &baba, 2) and !shoots(g, &baba, 3));
+    g.fixes.serial_killer_after_middle = true;
+    try std.testing.expect(!shoots(g, &baba, 2));
+    // The babá walks right from 20: one shot in the crossing, at 360 (any frame).
+    var shots: u32 = 0;
+    var x: i16 = 20;
+    while (x < 640) : (x += 20) {
+        baba.x = x;
+        if (shoots(g, &baba, 5)) shots += 1;
+    }
+    try std.testing.expectEqual(@as(u32, 1), shots);
+    // Noel walks left from 516: one shot, at 156; the warning is x 416 to 156.
+    shots = 0;
+    x = 516;
+    while (x > -80) : (x -= 20) {
+        noel.x = x;
+        if (shoots(g, &noel, 2)) shots += 1;
+    }
+    try std.testing.expectEqual(@as(u32, 1), shots);
+    // The warning: from where the bullet fired then lands in the window (4 steps on:
+    // 825 ms) until the shot; the babá's window is x 220..340 at the landing.
+    baba.mover.moving = 1;
+    noel.mover.moving = 1;
+    baba.x = 140;
+    try std.testing.expect(warning(g, &baba) and baba.x + 4 * 20 >= 220);
+    baba.x = 360;
+    try std.testing.expect(!warning(g, &baba));
+    noel.x = 416;
+    try std.testing.expect(warning(g, &noel) and noel.x - 4 * 20 <= 336);
+    noel.x = 156;
+    try std.testing.expect(!warning(g, &noel));
+    noel.x = 436;
+    try std.testing.expect(!warning(g, &noel));
 }

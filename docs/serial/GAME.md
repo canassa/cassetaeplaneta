@@ -225,13 +225,22 @@ scores, the clock and the lives are the original's, the pictures are over the sc
   The spawn, lane-2 and clock timers are stopped from WM_CREATE until a key or a click takes it down
   (`target.disarmTimers`, `armTimers`: the same calls `serial_create_targets` makes), so the game's first
   spawn comes 5 s after that. Any key (the key is ignored till it is released) or click.
-- **The killers' warning** (`serial_killer_warning`). A killer's shot is the walk step that brings its
-  frame to 2 from the strip's end. 3 steps (600 ms) before, `CARREGA.WAV` plays and, until the shot, the
-  figure's box blinks red and yellow (110 ms) with a yellow "!" sign over it. The shot happens in the walk
-  tick of a figure that is still moving: a hit stops it (`target_hit`), so a hit in the warning cancels the
-  shot. The babá (3sbabt, 12 frames: 7, 8, 9 then the shot at 10) and Noel (3snoem, 16: 11, 12, 13, shot at 14)
-  show their own tells in the strip (the baby rises at frame 8; Noel lies down with the rifle at 8).
-- **Shot flash** (`serial_shot_flash`): the screen's edge red for 400 ms after a life is lost.
+- **The killers' warning** (`serial_killer_warning`). `CARREGA.WAV` plays and, until the shot, the figure's box
+  blinks red and yellow (110 ms) with a yellow "!" sign over it. The shot happens in the walk tick of a figure that
+  is still moving: a hit stops it (`target_hit`), so a hit in the warning cancels the shot. The babá (3sbabt, 12
+  frames) and Noel (3snoem, 16) show their own tells in the strip (the baby rises at frame 8; Noel lies down with the
+  rifle at 8). With `serial_killer_after_middle` (below) the warning is where the killer enters the middle path;
+  without it, 3 steps (600 ms) before the original's shot (the step that brings the frame to 2 from the strip's end).
+- **Shots after the middle** (`serial_killer_after_middle`). Each killer fires once per crossing, at a fixed x, after
+  it has left the straight aim's hit window. Measured with `tools/serial_plan.py` (a straight bullet takes 825 ms,
+  15 bullet ticks, to the lane): a bullet that lands with the babá at x 220..340 (walking right, 20 px a 200 ms step)
+  or Noel at x 336..176 (walking left) hits. The warning starts at the babá's x 140 / Noel's x 416 (a bullet fired
+  then lands 4 steps on, at the window's first step) and the shot is at x 360 / x 156, 11 steps (2.2 s) and 13 steps
+  (2.6 s) later. A bullet fired in the first 1.4 s (babá) or 1.8 s (Noel) of the warning lands before the shot and
+  hits; the original's fixed frames shoot nothing.
+- **Shot feedback** (`serial_shot_flash`): when a killer's shot lands, a yellow and white burst at its gun (260 ms),
+  a sideways shake of the picture (8 px easing off, 260 ms), the screen's edge red in two pulses (600 ms in all) and
+  the lives' box blinking red with the lives left.
 - **Lives** (`serial_lives_display`): "Vidas: N" at the bottom left, drawn like the score.
 - **End screen** (`serial_end_screen`): `corrigida.finish` stands where the original sends WM_DESTROY (the
   fifth shot, the second clock tick): a panel "Fim de jogo!" (lives 0) or "Você sobreviveu!", "Pontos: N",
@@ -242,28 +251,19 @@ scores, the clock and the lives are the original's, the pictures are over the sc
   in the prison after a lost game (`src/note.zig`, `Screen.overlay`).
 
 **How beatable.** `tools/serial_bot.py` plays the simulation (`tools/serial_plan.py`, the Corrigida's rules) as
-a player with a reaction time: it sees a figure `--reaction` ms after it appears, shoots the good ones, tells a
-killer by its tell or the warning and plans the aim and the shot (the walks are straight: it leads them). 24 games
-each (`--seeds 24`), per game:
+a player with a reaction time: it sees a figure `--reaction` ms after it appears, shoots the good ones, shoots a
+killer from the straight aim `--reaction` ms after its warning starts and, when a harmless figure stands in the
+bullet's way (the first match in x wins, lane 1 before lane 0), shoots that one first (-100). 24 games each
+(`--seeds 24`), per game:
 
-| Player | Warning | Lives lost (of 5) | Games lost | Killers that walk in | Hit before they fired | Good figures hit |
-|---|---|---|---|---|---|---|
-| no keys at all | | 3.9 | 12 | | 0 | 0 |
-| bot, 400 ms | none (the sprites' tells) | 3.4 | 6 | 4.7 | 1.8 | 30.7 |
-| bot, 400 ms | 600 ms (the Corrigida's) | 3.5 | 7 | 4.4 | 1.5 | 29.9 |
-| bot, 400 ms | 1 s | 3.4 | 7 | 4.5 | 1.5 | 30.3 |
-| bot, 400 ms | 1.4 s | 3.1 | 6 | 4.6 | 1.8 | 30.7 |
-| bot, no reaction time | 600 ms | 3.3 | 7 | 4.8 | 1.8 | 30.3 |
-| bot, no reaction time | 1.4 s | 2.6 | 3 | 5.0 | 2.4 | 31.7 |
-| bot, no reaction time | 2.4 s | 2.3 | 2 | 5.1 | 2.8 | 31.7 |
+| Player | Lives lost (of 5) | Games lost | Killers that walk in | Hit before they fired | Killers stopped |
+|---|---|---|---|---|---|
+| bot, 400 ms | 0.46 | 0 of 24 | 5.17 | 4.42 | 91 % |
+| bot, no reaction time | 0.08 | 0 of 24 | 5.29 | 4.88 | 98 % |
 
-The killers are still mostly unavoidable with the three fixed aims: a bot that sees every warning at once and
-has 2.4 s to act cancels only 56 % of the killers, and one with a human's 400 ms cancels about a third, whatever
-the warning's length (the differences are noise at 24 games). The limit is the geometry, not the warning: the three
-paths cover three narrow columns of each lane, the bullet takes 0.5–0.7 s to reach a lane, and a killer fires
-wherever it happens to stand. Options: free aim (the owner decided against it); a killer's shot only fires when it
-stands on an aim's path (the warning starts when it enters one); a killer's shot costs a life only once per
-crossing (the babá shoots twice); more than 5 lives; a faster bullet.
+(Before `serial_killer_after_middle` the killers fired at the strip's fixed frames wherever they stood and a 400 ms
+bot stopped about a third of them: 3.5 lives lost, 7 of 24 games lost.) What still costs a life: a harmless figure
+in the middle path that cannot be cleared in time, or the bullet still in flight from the last shot (one at a time).
 
 ## Music and sound
 
