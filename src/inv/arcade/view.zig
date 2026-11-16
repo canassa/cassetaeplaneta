@@ -191,10 +191,13 @@ fn drawArcade(g: *Game, out: *Screen, bd: *const @import("../core/world.zig").Ba
 
     // The invaders.
     if (art.invaders) |d| {
+        // The rack is drawn between its last two places, as one block.
+        const rdx = sim.Sim.lerp(s.prev.rack_fx, s.rack_fx, fr) - s.rack_x;
+        const rdy = sim.Sim.lerp(s.prev.rack_y * sim.fix, s.rack_y * sim.fix, fr) - s.rack_y;
         for (s.inv, 0..) |iv, i| {
             if (!iv.alive) continue;
             const k: i32 = @intCast(sim.rows - 1 - sim.Sim.rowOf(i));
-            blit(out, d, 0, 3 + 45 * k + 216 * @as(i32, iv.frame), sim.inv_w, sim.inv_h, iv.x, iv.y, key_blue);
+            blit(out, d, 0, 3 + 45 * k + 216 * @as(i32, iv.frame), sim.inv_w, sim.inv_h, iv.x + rdx, iv.y + rdy, key_blue);
         }
     }
     if (art.boom) |d| if (s.burst_t > 0) {

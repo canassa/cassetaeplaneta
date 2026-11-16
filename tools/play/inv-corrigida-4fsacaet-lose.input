@@ -1,15 +1,15 @@
 # NOITE's flying saucer (4fsacaet) starts the real INV in the Corrigida's arcade version and it is lost: a key
 # takes the controls screen down at 28000 and none follows (inv-corrigida-alone-lose.input): three bombs hit
-# the cannon, -1500 at 75008. NOITE gets 0x40a lost with -1500 (a negative score lowers NOITE's), the
+# the cannon, -1500 at 54096. NOITE gets 0x40a lost with -1500 (a negative score lowers NOITE's), the
 # Martian's scene (4fmarte), then a life less and back to the bar (4fbar).
 #
-#   zig-out/bin/noite --headless --scene 4fsacaet --ms 95000 --fix all --input tools/play/inv-corrigida-4fsacaet-lose.input
+#   zig-out/bin/noite --headless --scene 4fsacaet --ms 80000 --fix all --input tools/play/inv-corrigida-4fsacaet-lose.input
 27000 dump controls
 28000 key return
-60000 dump inv
-75500 result lost -1500
-75500 expect 4fmarte
-75500 state
+40000 dump inv
+54500 result lost -1500
+54500 expect 4fmarte
+54500 state
 +0 wait 4fbar 10000
 +0 state
 +0 dump bar

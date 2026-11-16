@@ -259,11 +259,12 @@ window). A controls screen comes first (`inv_controls_screen`): any key or a cli
 move; the game starts then (half a second of nothing moving, and the invaders do not fire for another 0.8 s).
 
 **The rack** is the original's 4 x 5 invaders (`MOVEIN.BMP`'s column cut into its five invaders, two pictures
-each), 108 px apart across and 38 up. It marches **one invader a frame**, bottom row first from the left, 6 px,
-and toggles its picture when the round wraps: a full step takes as many frames as there are invaders (a third
-of a second with 20), so the whole rack speeds up as they die, to a step a frame (360 px/s) for the last one
-(540 going right). At a wall the direction flips at once but **the drop (16 px) comes with the next step**, so
-the invaders yet to move still go the old way: the arcade's ripple. Ten drops take the bottom row from y 194 to
+each), 108 px apart across and 38 up. It marches **as one block**, a little every frame: 6 px per as many frames as
+there are invaders (a third of a second with 20), so the whole rack speeds up as they die, to 6 px a frame
+(360 px/s) for the last one (540 going right). All invaders share one picture, which toggles each time the
+rack has moved 6 px but no oftener than every 8 frames. At a wall the direction flips, the rack stands still
+sideways and **drops 16 px, 2 px a frame**, then goes back. (The arcade moves one invader a frame, a ripple;
+with this art's big two-pose sprites it flickers.) Ten drops take the bottom row from y 194 to
 the cannon's top; an invader placed on that line has **landed**: the cannon blows up and the game is lost. A
 kill stops the march for 16 frames (`NABOOM1.BMP`). Invaders eat the bunkers they walk over.
 
@@ -313,12 +314,12 @@ time; 400 games each, wins, cannons lost of 3, seconds of a game):
 
 | Player (the bot's reaction to a new bomb, the age of the picture it aims by, its aim error, how often it looks at the bombs) | Wins | Cannons lost | A game |
 |---|---|---|---|
-| attentive: 400 ms, 100 ms, 10 px, 9 times in 10 | 98 % | 0.5 | 31 s |
-| casual: 600 ms, 150 ms, 25 px, 7 in 10 | 83 % | 1.4 | 38 s |
-| inattentive: 800 ms, 200 ms, 40 px, 5 in 10 | 42 % | 2.4 | 40 s (45 s a win) |
-| distracted: 1000 ms, 250 ms, 50 px, 35 in 100 | 20 % | 2.7 | 38 s (51 s a win) |
+| attentive: 400 ms, 100 ms, 10 px, 9 times in 10 | 100 % | 0.4 | 32 s |
+| casual: 600 ms, 150 ms, 25 px, 7 in 10 | 82 % | 1.4 | 38 s |
+| inattentive: 800 ms, 200 ms, 40 px, 5 in 10 | 41 % | 2.3 | 40 s (46 s a win) |
+| distracted: 1000 ms, 250 ms, 50 px, 35 in 100 | 16 % | 2.8 | 37 s (50 s a win) |
 
-With no key at all the cannon at the left is hit three times, the last at 47 s (`lost -1500`). A win takes
+With no key at all the cannon at the left is hit three times, the last at 27 s (`lost -1500`). A win takes
 20 kills (about 26 shots) in 30 to 45 s; the saucer comes once or twice in that and is hit in one game of five.
 The losses are the lives; a rack that lands is rare because the last two or three invaders (the fast ones)
 have ten drops (12 s or more) to be hit.

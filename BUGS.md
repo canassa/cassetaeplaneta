@@ -1198,7 +1198,7 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
   to prevent being shot ... implement standard invaders"; `docs/inv/ARCADE.md`, GAME.md "Arcade rules
   (Corrigida)", `src/inv/arcade/`):
   - `Fixes.inv_arcade_rules`: INV plays by Taito's Space Invaders on its own art and sounds. The rack (the
-    original's 4 x 5) marches one invader a frame, so it speeds up as invaders die, and drops 16 px a wall;
+    original's 4 x 5) marches as one smooth block, so it speeds up as invaders die, and drops 16 px a wall;
     the cannon moves at a constant 180 px/s with one shot at a time (420 px/s); three kinds of bomb (aimed,
     plunger, squiggly) fall smoothly from the arcade's column tables, up to three at once by the arcade's
     reload rule; four destructible bunkers (the arcade's picture in 3-px blocks, bitten by the arcade's

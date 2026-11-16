@@ -402,8 +402,8 @@ Original (no fixes) is untouched, and I1 and I2 act on the 1995 cannon only. SAU
 
 **Layers** (`src/inv/arcade/`, outside the port units; the 1995 units are called only for `sound.play`):
 - `sim.zig`: `Sim`, the whole game in screen pixels and 60-th-second frames, knowing nothing of the Game: the
-  rack (`updateRack`: a cursor over the 20 slots, one invader a frame, `moveRef` at the wrap, `checkWalls`,
-  `place` with the landing test), the cannon, the shot (`updateShot`: top, saucer, invader, bomb, bunker, in that
+  rack (`updateRack`: the whole rack moves a little each frame, a drop of 2 px a frame at a turn,
+  `placeAllLive` with the landing test and `checkWalls`), the cannon, the shot (`updateShot`: top, saucer, invader, bomb, bunker, in that
   order), the three bombs (`tryFire` with the reload rule and the column tables, `bombHits`), the saucer, the
   death (`dyingFrame`), the win's pause. Moving things are 24.8 fixed point with their previous position kept
   for the picture. `Sim.frame(input, &events)` returns what happened (`Events`: fired, hits, score to add, won,

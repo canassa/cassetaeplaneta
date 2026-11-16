@@ -5,8 +5,8 @@
 //! `frame` is a 60th of a second of the arcade. `driver.zig` runs it by the clock, `glue.zig` ties it
 //! to INV's score, sounds and result, `view.zig` draws it, `bot.zig` plays it.
 //!
-//! What is the arcade's: the rack's march (one invader per frame, so the whole rack speeds up as
-//! invaders die; two pictures; a drop at each wall; the last invader very fast), the player's one
+//! What is the arcade's: the rack's march (its speed, which rises as invaders die, but moved as one
+//! block, not one invader per frame; two pictures; a drop at each wall; the last invader very fast), the player's one
 //! shot at a time, the three kinds of bomb (the aimed "rolling" one and the "plunger" and
 //! "squiggly" ones, which fall from the columns of the arcade's tables) with the reload rule that
 //! sets how many are on screen, the saucer's timer and its mystery score, the shot count that
@@ -50,6 +50,9 @@ pub const wall_r = screen_w - 6;
 pub const drop_px = 16;
 pub const march_dx = 6;
 pub const march_dx_last = 9;
+/// The drop of a turn is taken this many pixels a frame; the wings flap at most every so many frames.
+pub const drop_step = 2;
+pub const flap_min_frames = 8;
 /// The invasion line: the cannon's top. An invader placed with its bottom on it has landed.
 pub const land_y = 380;
 
@@ -232,6 +235,9 @@ const Prev = struct {
     shot_y: i32 = 0,
     bomb_y: [3]i32 = @splat(0),
     saucer_x: i32 = 0,
+    /// The rack's x (24.8) and y (pixels).
+    rack_fx: i32 = rack_x0 * fix,
+    rack_y: i32 = rack_y0,
 };
 
 pub const Sim = struct {
@@ -255,13 +261,18 @@ pub const Sim = struct {
     inv: [n_inv]Invader = @splat(.{}),
     alive: u8 = n_inv,
     rack_x: i32 = rack_x0,
+    /// The rack's x in 24.8 (`rack_x` is its pixel).
+    rack_fx: i32 = rack_x0 * fix,
+    /// Pixels of a turn's drop still to come, and the march since the wings last flapped (24.8).
+    drop_left: i32 = 0,
+    march_acc: i32 = 0,
+    last_flap: u32 = 0,
     rack_y: i32 = rack_y0,
     rack_dx: i32 = march_dx,
     /// 1 right, -1 left.
     dir: i32 = 1,
     pending_drop: i32 = 0,
     rack_frame: u1 = 0,
-    cursor: usize = 0,
     /// The killed invader's burst: where and how many frames are left (the march waits meanwhile).
     burst_x: i32 = 0,
     burst_y: i32 = 0,
@@ -320,6 +331,8 @@ pub const Sim = struct {
         s.prev.shot_y = s.shot.y;
         for (s.bombs, 0..) |b, i| s.prev.bomb_y[i] = b.y;
         s.prev.saucer_x = s.saucer.x;
+        s.prev.rack_fx = s.rack_fx;
+        s.prev.rack_y = s.rack_y;
     }
 
     /// One 60th of a second.
@@ -711,6 +724,9 @@ pub const Sim = struct {
 
     // ---- the rack ----
 
+    /// The rack moves as one block, a little every frame: `rack_dx` px per `alive` frames, which is
+    /// the arcade's speed (one invader moved a frame, the whole rack a step every `alive` frames) and
+    /// its speed-up as they die, without the ripple (see docs/inv/ARCADE.md).
     fn updateRack(s: *Sim, ev: *Events) void {
         if (s.alive == 0) {
             if (s.burst_t > 0) s.burst_t -= 1;
@@ -721,43 +737,48 @@ pub const Sim = struct {
             s.burst_t -= 1;
             return;
         }
-        var guard: usize = 0;
-        while (guard < 2 * n_inv) : (guard += 1) {
-            s.cursor += 1;
-            if (s.cursor >= n_inv) {
-                s.cursor = 0;
-                s.moveRef(ev);
-            }
-            if (s.inv[s.cursor].alive) break;
-        } else return;
-        s.place(s.cursor, ev);
-    }
-
-    /// The reference invader (the bottom left) steps; the others follow as the march reaches them.
-    fn moveRef(s: *Sim, ev: *Events) void {
-        if (s.pending_drop != 0) {
-            s.rack_y += s.pending_drop;
+        if (s.drop_left > 0) {
+            // A turn: the rack comes down a few pixels a frame, standing still sideways.
+            const d = @min(s.drop_left, drop_step);
+            s.rack_y += d;
+            s.drop_left -= d;
+        } else if (s.pending_drop != 0) {
+            s.drop_left = s.pending_drop;
             s.pending_drop = 0;
             s.drops += 1;
             ev.descend = true;
+        } else {
+            const step = @divTrunc(s.rack_dx * fix, @as(i32, s.alive));
+            s.rack_fx += step;
+            s.rack_x = s.rack_fx >> 8;
+            // The wings flap each time the rack has moved a step, but not too often.
+            s.march_acc += @intCast(@abs(step));
+            if (s.march_acc >= march_dx * fix and s.t -% s.last_flap >= flap_min_frames) {
+                s.march_acc = 0;
+                s.last_flap = s.t;
+                s.rack_frame ^= 1;
+                ev.march = true;
+            }
         }
-        s.rack_x += s.rack_dx;
-        s.rack_frame ^= 1;
-        ev.march = true;
+        s.placeAllLive(ev);
     }
 
-    fn place(s: *Sim, i: usize, ev: *Events) void {
-        const iv = &s.inv[i];
-        const col: i32 = @intCast(i % cols);
-        const row: i32 = @intCast(i / cols);
-        iv.x = s.rack_x + col * pitch_x;
-        iv.y = s.rack_y - row * pitch_y;
-        iv.frame = s.rack_frame;
-        // An invader eats the bunker under it.
-        for (&s.bunkers) |*bk| bk.erase(iv.x + inv_vis_l, iv.y, iv.x + inv_vis_r, iv.y + inv_h - 1);
-        if (iv.y + inv_h >= land_y) {
-            s.startDeath(ev, false);
-            return;
+    /// Every live invader at its place in the rack, wings as the rack's: they eat the bunkers under
+    /// them, reach the invasion line, and turn the rack at the walls.
+    fn placeAllLive(s: *Sim, ev: *Events) void {
+        for (0..n_inv) |i| {
+            const iv = &s.inv[i];
+            if (!iv.alive) continue;
+            const col: i32 = @intCast(i % cols);
+            const row: i32 = @intCast(i / cols);
+            iv.x = s.rack_x + col * pitch_x;
+            iv.y = s.rack_y - row * pitch_y;
+            iv.frame = s.rack_frame;
+            for (&s.bunkers) |*bk| bk.erase(iv.x + inv_vis_l, iv.y, iv.x + inv_vis_r, iv.y + inv_h - 1);
+            if (iv.y + inv_h >= land_y) {
+                s.startDeath(ev, false);
+                return;
+            }
         }
         s.checkWalls();
     }
@@ -823,37 +844,70 @@ fn aimUnder(s: *Sim, i: usize) void {
     s.cx = (s.inv[i].x + off[i % cols] - 32) * fix;
 }
 
-test "the rack marches one invader a frame: a full step takes as many frames as there are invaders" {
+test "the rack moves as one block: a step of march_dx px takes as many frames as there are invaders" {
     var s = Sim.init();
     s.fire_delay = 255;
-    var steps: u32 = 0;
-    var frames: u32 = 0;
-    while (steps < 3) {
+    const x0 = s.rack_fx;
+    _ = run(&s, 20, .{});
+    // 20 invaders: 6 px in 20 frames, every invader by the same amount.
+    try testing.expect(@abs(s.rack_fx - x0 - march_dx * fix) <= 20);
+    for (s.inv, 0..) |iv, i| try testing.expectEqual(s.rack_x + @as(i32, @intCast(i % cols)) * pitch_x, iv.x);
+    // Kill ten: twice as fast.
+    for (s.inv[10..]) |*iv| iv.alive = false;
+    s.alive = 10;
+    const x1 = s.rack_fx;
+    _ = run(&s, 10, .{});
+    try testing.expect(@abs(s.rack_fx - x1 - march_dx * fix) <= 10);
+}
+
+test "the wings flap together, once a step and never faster than every 8 frames" {
+    var s = Sim.init();
+    s.fire_delay = 255;
+    var last: ?u32 = null;
+    var flaps: u32 = 0;
+    for (0..400) |_| {
         var ev: Events = .{};
         s.frame(.{}, &ev);
-        frames += 1;
-        if (ev.march) steps += 1;
+        for (s.inv) |iv| try testing.expectEqual(s.rack_frame, iv.frame);
+        if (ev.march) {
+            if (last) |l| try testing.expect(s.t - l >= flap_min_frames);
+            last = s.t;
+            flaps += 1;
+        }
     }
-    // The first march comes when the cursor wraps (20 frames in), then every 20.
-    try testing.expectEqual(@as(u32, 60), frames);
-    // Kill one: the cycle is 19 frames.
-    s.inv[5].alive = false;
-    s.alive = 19;
+    // 20 invaders: a step every 20 frames, so ~20 flaps in 400 frames (the rack turns and drops too).
+    try testing.expect(flaps >= 15 and flaps <= 20);
+    // One left: a step a frame, but the flaps keep to the limit.
+    for (&s.inv, 0..) |*iv, i| iv.alive = i == 0;
+    s.alive = 1;
+    flaps = 0;
+    for (0..80) |_| {
+        var ev: Events = .{};
+        s.frame(.{}, &ev);
+        if (ev.march) flaps += 1;
+    }
+    try testing.expect(flaps <= 10);
+}
+
+test "a turn drops the rack a few pixels a frame, standing still sideways" {
+    var s = Sim.init();
+    s.fire_delay = 255;
+    while (s.pending_drop == 0) {
+        var ev: Events = .{};
+        s.frame(.{}, &ev);
+    }
+    const x = s.rack_fx;
+    const y = s.rack_y;
     var ev: Events = .{};
-    var n: u32 = 0;
-    while (!ev.march) {
+    s.frame(.{}, &ev);
+    try testing.expect(ev.descend and s.rack_y == y);
+    var frames: i32 = 0;
+    while (s.rack_y < y + drop_px) : (frames += 1) {
         ev = .{};
         s.frame(.{}, &ev);
-        n += 1;
+        try testing.expect(s.rack_y - y <= drop_px and s.rack_fx == x);
     }
-    var m: u32 = 0;
-    ev = .{};
-    while (!ev.march) {
-        ev = .{};
-        s.frame(.{}, &ev);
-        m += 1;
-    }
-    try testing.expectEqual(@as(u32, 19), m);
+    try testing.expectEqual(@divExact(drop_px, drop_step), frames);
 }
 
 test "the rack turns at a wall, drops once and goes back" {
@@ -868,6 +922,10 @@ test "the rack turns at a wall, drops once and goes back" {
         if (s.dir < 0) turned_at_right = true;
         if (ev.descend) seen_drop = true;
     }
+    for (0..drop_px) |_| {
+        var ev: Events = .{};
+        s.frame(.{}, &ev);
+    }
     try testing.expect(turned_at_right and seen_drop);
     try testing.expectEqual(@as(i32, rack_y0 + drop_px), s.rack_y);
     try testing.expect(s.rack_dx < 0);
@@ -880,7 +938,7 @@ test "the last invader is fast" {
     s.alive = 1;
     const x0 = s.rack_x;
     _ = run(&s, 10, .{});
-    // One invader: a march every frame, 6 px each, until a wall.
+    // One invader: the whole step (9 px) every frame, until a wall.
     try testing.expect(@abs(s.rack_x - x0) >= 54);
 }
 
