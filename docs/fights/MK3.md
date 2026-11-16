@@ -40,26 +40,42 @@ Recommended canonical tick: **55 Hz** (arcade). If the engine is fixed at 60 Hz,
 per-tick numbers unchanged and accept the same +9% speed as the PSX port, or multiply
 all per-second values by 55/60. All "ticks" below are source ticks; seconds use /55.
 
-### Conversion to a 640-wide screen
+### Fighter sizes (arcade px, playfield 400 x 254)
 
-- Reference width **400 arcade px = one screen width** (verified: `SCRRGT` 319 = 400*0.8-1;
-  `SCREEN_DISTANCE` etc. are < 400). Scale `S = 640/400 = 1.6`, applied **uniformly to X and Y**
-  (the PSX used non-uniform .80/.85; the arcade 400x254 playfield becomes 640x406,
-  leaving 74 px of a 480-high canvas for HUD). Using Y x1.89 to fill 480 would distort sprites.
-- `px640 = arcade_px * 1.6`
-- `px/tick(640) = arcade_px/tick * 1.6`
-- `px/s(640) = arcade_px/tick * 1.6 * 55 = arcade_px/tick * 88`
-- `px/s^2(640) = arcade_px/tick^2 * 1.6 * 55^2 = * 4840`
-- Gravity 0.5 arcade px/tick^2 = 0.8 px/tick^2 (640) = 2420 px/s^2.
+| Item | Value | Source |
+|---|---|---|
+| Standing height | **144** (Kano; the roster 136-158: Sonya 143, Sub-Zero 142, Kang 139, Kitana/Jade/Mileena 139, Shang Tsung 136, Jax and She-Goro 158, Motaro 170, Kahn 173) | `ochar_ground_offsets[]`, `MKGUYS.C:114`: `ground_ochar` puts the object at `ground_y - offset` (`MKGUYS.C:694`), so the offset is the stance's extent from the object's origin to the floor. **[V*]**: the offset is the height if the origin is the top of the stance image, as it is for these multipart sprites; the wrapper `SCY()` is dropped, the `-2/-3` are the PSX's own pixels |
+| Standing, as the code tells it | taller than 128 | `get_my_height() > SCY(0x80)` picks `ANIM_HITLO` over `ANIM_DUCKHIT`, `MKREACT.C:1428-1508` **[V]** |
+| Crouching height | at most 96 (`<= 0x60`: "not standing"), "short" below 103 | `MKJOY.C:333`, `am_i_short` `MKUTIL.C:906` **[V]**; so crouch / stand is about 0.67 |
+| Ground line | not in the source: `ground_y` is read from each stage module's header (`MKBKGD.C:270`), which is missing. About 88% of the playfield down (feet near y 224 of 254) **[A]**, from the arcade's pictures | |
+| Jump apex over standing height | 95 / 144 = 0.66 | computed from the two **[V]** |
+
+The arcade's pixels are not square: the 400 x 254 frame was shown on a 4:3 monitor (about 1.18 taller than wide;
+Fabien Sanglard's Midway T-Unit notes, [fabiensanglard.net/nbajamte](https://fabiensanglard.net/nbajamte/);
+MAME's 400x254 raster, [mametesters.org/view.php?id=6700](https://mametesters.org/view.php?id=6700)). We ignore that and scale
+x and y alike.
+
+### Conversion to the 640 x 480 screen
+
+- Reference width **400 arcade px** (verified: `SCRRGT` 319 = 400*0.8-1; `SCREEN_DISTANCE` etc. are < 400). The engine uses
+  one scale **`S = 1.25` screen px per arcade px** (`tables.S`), **uniformly in X and Y** (the PSX's .80/.85 is not
+  used). So a 640-px screen shows 512 arcade px of width, a fighter stands 144 x 1.25 = **180 px**, a crouching one
+  about 120, the jump apex is 95 x 1.25 = **119 px** and the head at the top of a jump is 299 px over the floor.
+  The 1.25 is a choice, not MK3's: MK3's own proportions fix only the ratios. At `S = 1.6` (the first version; 400 arcade
+  px to a 640 screen) a fighter would be 230 px of 480 and a jump's head would touch the HUD bar; the owner found the
+  characters too big. 1.25 also makes every per-tick number an exact multiple of 1/256 px (gravity 160, jump
+  velocity 3200, jump vx 1280).
+- `px = arcade_px * S`; `px/tick = arcade_px/tick * S`; `px/s = arcade_px/tick * S * 55`; `px/s^2 = arcade_px/tick^2 * S * 55^2`.
+- Gravity 0.5 arcade px/tick^2 = 0.625 px/tick^2 (1891 px/s^2 at 55 ticks/s).
 
 ## 2. Ground movement
 
 | Mechanic | Arcade units | 640 px | Source / tag |
 |---|---|---|---|
-| Walk forward (per character) | 3.0 / 3.125 / 3.25 / 3.5 px/tick, e.g. Kano 3.5, Sonya/Jax/Swat/Tusk/SG 3.0, Kang/ST 3.125, most others 3.25, Noob/SK 5.0, Motaro/old Smoke 4.0 | 4.8 / 5.0 / 5.2 / 5.6 px/tick = 264-308 px/s (Kano 308) | `get_walk_info_f`, `MKGUYS.C:850-890` (`short <<4` makes `0x3800` = 3.5) **[V]** |
-| Walk backward | 2.25 px/tick for nearly everyone (old Smoke 2.5, Noob 3.0) | 3.6 px/tick = 198 px/s | `get_walk_info_b`, `MKGUYS.C:910-950` **[V]** |
+| Walk forward (per character) | 3.0 / 3.125 / 3.25 / 3.5 px/tick, e.g. Kano 3.5, Sonya/Jax/Swat/Tusk/SG 3.0, Kang/ST 3.125, most others 3.25, Noob/SK 5.0, Motaro/old Smoke 4.0 | 3.75 / 3.9 / 4.06 / 4.4 px/tick (S = 1.25) = 206-241 px/s | `get_walk_info_f`, `MKGUYS.C:850-890` (`short <<4` makes `0x3800` = 3.5) **[V]** |
+| Walk backward | 2.25 px/tick for nearly everyone (old Smoke 2.5, Noob 3.0) | 2.8 px/tick = 155 px/s | `get_walk_info_b`, `MKGUYS.C:910-950` **[V]** |
 | Walk anim speed | 5 ticks/frame (SK 3) | | same **[V]** |
-| Run (forward only, run button) | 8.0 px/tick (`0x80000`), no air boost | 12.8 px/tick = 704 px/s | `run_setup`, `MKJOY.C:2394-2430`; run needs the run button held, `turbo > 0`, and direction **toward** the opponent (`MKJOY.C:392-410`) **[V]** |
+| Run (forward only, run button) | 8.0 px/tick (`0x80000`), no air boost | 10 px/tick = 550 px/s | `run_setup`, `MKJOY.C:2394-2430`; run needs the run button held, `turbo > 0`, and direction **toward** the opponent (`MKJOY.C:392-410`) **[V]** |
 | Run fuel ("turbo bar") | `FULL_TURBO = 0x30 = 48` ticks of running; -1 per run tick; recharge +1/tick after `TURBO_RAISE_DELAY = 40` ticks idle; a jab/air-punch hit zeroes the attacker's bar | 48 ticks = 0.87 s ~ 384 arcade px = 614 px | `MKSCORE.H:28`, `MKJOY.H:127`, `reduce_turbo_bar` `MKJOY.C:2470`, `MKINIT.C:535-545` **[V]** |
 | Crouch | Down: `do_duck` = `act_mframew(ACT_DUCK,2)`, 2 ticks per frame, **buttons disabled** during it; then `bt_duck` buttons (uppercut/duck punch/duck blocks/duck kicks). Stand up: `backwards_ani(2,ANIM_DUCK)` 2 ticks/frame, buttons disabled. | frames unknown: **~3 frames -> ~6 ticks each way [A]** | `MKJOY.C:1361-1385`, `bt_duck` `MKJOY.C:66` **[V*]** |
 | Movement during attacks | Ground attacks call `stop_me()` first (xvel = 0). Walking/blocking are mutually exclusive: block calls `stop_me`. | | `MKJOY.C:690`, `do_block_hi` `MKSTAT.C:2046` **[V]** |
@@ -73,12 +89,12 @@ reads the stick). Run does not extend jumps (`f_superjumps` is a cheat flag, `MK
 
 | Quantity | Arcade | 640 px | Source |
 |---|---|---|---|
-| Initial Y velocity | -10 px/tick (`UP_VEL = -0xa0000`) | -16 px/tick = 880 px/s | `MOVES.H:22-23`, `do_jump_up` `MKSTAT.C:2591`, `do_flip` `flight_call(...,-SCY(0xa0000),SCY(0x8000),3,..)` `MKJOY.C:1450` **[V]** |
-| Gravity | 0.5 px/tick^2 (`0x8000`) | 0.8 px/tick^2 = 2420 px/s^2 | same **[V]** |
-| Horizontal velocity | straight 0; forward or back angle jump **+/-4.0 px/tick** (`0x40000`), identical forward and back | 6.4 px/tick = 352 px/s | `MKJOY.C:641-650` **[V]** |
+| Initial Y velocity | -10 px/tick (`UP_VEL = -0xa0000`) | -12.5 px/tick (S = 1.25) | `MOVES.H:22-23`, `do_jump_up` `MKSTAT.C:2591`, `do_flip` `flight_call(...,-SCY(0xa0000),SCY(0x8000),3,..)` `MKJOY.C:1450` **[V]** |
+| Gravity | 0.5 px/tick^2 (`0x8000`) | 0.625 px/tick^2 | same **[V]** |
+| Horizontal velocity | straight 0; forward or back angle jump **+/-4.0 px/tick** (`0x40000`), identical forward and back | 5 px/tick = 275 px/s | `MKJOY.C:641-650` **[V]** |
 | Airtime | **39 ticks** (landing when `y >= ground`, exact zero at tick 39) = 0.71 s at 55 Hz, 0.65 s at 60 Hz (computed from the integration order above) | | `flight_call` `MKUTIL.C:2682-2720` **[V]** |
-| Peak height | **95 px** (ticks 19-20) | 152 px | computed **[V]** |
-| Jump distance (angle jump) | 39 x 4 = **156 px** | 250 px | computed **[V]** |
+| Peak height | **95 px** (ticks 19-20) | 119 px | computed **[V]** |
+| Jump distance (angle jump) | 39 x 4 = **156 px** | 195 px | computed **[V]** |
 | Landing | `jump_up_land_jsrp`: `ACT_LAND`, two 3-tick frames (6 ticks); **buttons are re-enabled immediately** (`allow_moves`), so a new attack can start during landing; opponent cannot be thrown while you are in `ACT_LAND` | | `MKSTAT.C:2621-2650`, `toss_check` `MKJOY.C:2159` **[V]** |
 | Air block | none: `is_he_blocking` returns false if the defender is airborne | | `MKUTIL.C:565` **[V]** |
 
@@ -207,7 +223,7 @@ defender because the defender box shrinks.
 ## 7. Facing, separation and arena
 
 - **Facing**: opponent is "right" when `other.x > me.x` (strict 16.16 compare, `is_he_right`, `MKUTIL.C`). Facing is **not** re-evaluated mid-air or mid-attack. It is corrected (a) instantly (`face_opponent`) at jump start, at the start of each attack, on getting hit, (b) every tick in ground idle/walk/duck/block states by `turn_around` (~2 frames x 2 ticks, buttons disabled, `MKJOY.C:310, 2069`). Jumping over an opponent therefore keeps your sprite flipped until you land; once the x order changes, the next ground tick plays the turn-around.
-- **Separation**: `REPELL_DISTANCE = 64` arcade px (102 px) centre-to-centre (`MKREPELL.H:19`, process `repell`, `MKREPELL.C:114`). Closer than 61 and `f_norepell == 0`: pushed apart at 3.0 px/tick each. Walking into each other: both move at **half speed** (the walker pushes the other). Fighters walking toward each other face-to-face stop (both zeroed). **No collision while vertically apart**: repel is skipped when `feet(A) - 48 < head(B)` (or vice versa), i.e. a jumper whose feet are above the defender's head + 48 px passes over (`GRACE_PIXELS = 0x30`). During throws repel is off for 48 ticks.
+- **Separation**: `REPELL_DISTANCE = 64` arcade px (80 px at S = 1.25) centre-to-centre (`MKREPELL.H:19`, process `repell`, `MKREPELL.C:114`). Closer than 61 and `f_norepell == 0`: pushed apart at 3.0 px/tick each. Walking into each other: both move at **half speed** (the walker pushes the other). Fighters walking toward each other face-to-face stop (both zeroed). **No collision while vertically apart**: repel is skipped when `feet(A) - 48 < head(B)` (or vice versa), i.e. a jumper whose feet are above the defender's head + 48 px passes over (`GRACE_PIXELS = 0x30`). During throws repel is off for 48 ticks.
 - **Maximum separation**: `SCREEN_DISTANCE = 0x130 = 304` px (486 px at 640) (`stuff_a6a7`, `MKREPELL.C:39-83`). Beyond it outward velocity is zeroed and positions are pulled together by half the error per tick, so the player walking away from a stationary opponent drags him. Skipped if either has `M_NOEDGE`.
 - **Arena / walls**: fighters clamp to `[left_edge + 0x3a, right_edge + SCRRGT - 0x30]` = 58 px from the world's left limit and 48 px from the right (`gravity_n_bounds`, `MKOBJ.C:568`, `LEFT_PADDING/RIGHT_PADDING`, `MKOBJ.H:26-27`); outward velocity is zeroed on contact. `left_edge/right_edge` are scroll limits from each stage module (data **not in source**); the world is scrolling, wider than one screen **[A]**: use arena = 1.5 screens (600 arcade / 960 px at 640).
 - **Camera** (`scroller`, `MKBKGD.C:1953`): if fighters are <= 100 px apart, keep their midpoint within +/-75 px of screen centre; otherwise keep both at least `SCROLL_GRACE_SIZE = 40` px inside the screen edges; scroll speed chosen from a table to match the faster fighter. Vertical scroll follows the highest jumper.
@@ -280,7 +296,7 @@ Reaction gate (`react_jump_table`, `MKDRONE.C:7670`): `count` = how many of the 
 - Hang-out windows (up to two per round, 2 s each) are free approach time.
 - Real threats: its throw (25% of very-close decisions, unblockable, 14.5%), the sweep, the 100% roundhouse counter, and the whiff-sweep.
 
-### 9.6 Recommended Zig diff-0 CPU (derived from the above; `S = 1.6` px scale)
+### 9.6 Recommended Zig diff-0 CPU (derived from the above; the distances below are at the first version's 1.6 px per arcade px, `tables.ref` scales them to `S`)
 - Decision on every action end (no timer). Distances in 640 px: very-close < 110, close < 192, far < 384, stalk stop 102, throw range 102, elbow/knee 118.
 - Probabilities as in 9.3/9.4. To make it clearly beatable keep: no specials, no run, no combos, 15% reaction gate, the 100% roundhouse counter only if the roundhouse will connect, and cut the free whiff-punish to a 25% chance and the throw weight to 12-15%. (Gentler tuning above the source's own diff 0 is a design choice, flag it before shipping.)
 
@@ -311,7 +327,7 @@ The original Casseta sprites will be mapped onto the same engine later (a pack w
 | `sim.zig` | the fixed-step simulation: control, physics, hits, blocks, throws, knockdowns, facing, walls |
 | `cpu.zig` | the drone at diff 0; `bot.zig` the test players (`idle`, `masher`, `casual`, `decent`) |
 | `match.zig` | a round: the 55-Hz clock, the controllers, `view` (the picture between ticks) |
-| `render.zig` | 8-bit drawing (nearest game-palette colours, a palette swap, integer scale 2, mirrored) |
+| `render.zig` | 8-bit drawing (nearest game-palette colours, a palette swap, fractional nearest-neighbour scale, mirrored) |
 | `xilindro.zig` | XILINDRO's side: loads the pack, energies, the picture; the handler's part is `arena.zig` `mk3Update` |
 | `tests.zig`, `testing.zig` | the mechanics' tests, on a synthetic pack (no private art) |
 
@@ -329,24 +345,24 @@ portraits; the arena band is rebuilt each frame from the background.
 | Mechanic | Value in the engine | Status |
 |---|---|---|
 | Tick rate | 55 / s | verified (`ONE_SECOND`) |
-| Scale | arcade px x 1.6 (400 px to a screen width -> 640) | verified (SCX/SCY), uniform scale approximated |
-| Walk | forward 5.2 px/tick (286 px/s), back 3.6 (198 px/s) | verified (3.25 / 2.25 arcade) |
+| Scale | arcade px x `S` = 1.25 (uniform in x and y), fighter 144 arcade px = 180 px, `tables.S` / `tables.stand_arcade`; every pixel constant below is at this scale (`tables.fx`, `tables.ref`) | heights verified (`ochar_ground_offsets`), the scale chosen (1.6 gave 230 px: too big) |
+| Walk | forward 4.06 px/tick (223 px/s), back 2.8 (155 px/s) | verified (3.25 / 2.25 arcade) |
 | Run | not implemented | gap |
-| Jump | vy 16 px/tick, gravity 0.8, gravity then move each tick: 39 ticks, 152 px high; forward / back vx 6.4 px/tick = 250 px; no air control | verified (`jump_tables`); tested |
+| Jump | vy 12.5 px/tick, gravity 0.625, gravity then move each tick: 39 ticks, 119 px high (95 arcade); forward / back vx 5 px/tick = 195 px (156 arcade); no air control | verified (`jump_tables`); tested |
 | Crouch | holding down; no stand-up delay | approximated (source has ~6 ticks each way) |
 | Moves | LP, HP, LK, HK; crouching LP, uppercut (down + HP), crouching LK, sweep (down + HK, and back + LK as MK3's); roundhouse (back + HK); jumping LP, HP, LK, HK; close throw (LP within 155 px) | inputs verified; the owner's mapping for the sweep |
 | Frame data | startup / active / recovery per move in `tables.zig` (HP 7/5/14, LK 5/5/10, sweep 8/3/18, ...) | approximated: the source's animation scripts are not in the repo; the structure (hit-check windows) is the source's |
 | Damage of 166 | LP 7, HP 10, LK 8, HK 12, crouching punch 8, crouching kick 7, sweep 12, uppercut 22, roundhouse 18, jump punch 13, jump kick 15, throw 24 | throw verified; the others approximated |
 | Block | a dedicated button (Space), live at the hit, no startup, not in the air; standing stops everything but lows (sweep, crouching kick), crouching stops everything; throws unblockable | verified (`is_he_blocking`), the low flags approximated |
 | Chip | 12% of the hit, at least 1, never lethal | rule verified, percent approximated |
-| Block stun, push | 12 ticks (sweep 8), 38 px | verified |
-| Hit stun, push | punch 10-12 ticks, LK 11, HK 16 (120 px), crouching 10-11; tuned shorter than the attacker's recovery: no combos | approximated (no combo tables in the source) |
-| Knockdown | sweep (in place), uppercut (44 ticks, 130 px), roundhouse (31 ticks, 150 px), throw (80 px), any hit on a fighter in the air; 26 ticks on the floor, 12 getting up, the first 6 safe | structure verified, flights shortened (the source's 298 px uppercut flight is half a screen here) |
-| Hit in the air | thrown back 5.6 px/tick with a hop of 9.6 px/tick | verified |
-| Throw | LP, other on the ground, in reach (MK3 102 px, here 155 for Ryu's reach), not holding away, not in stun, 24, unblockable | verified |
+| Block stun, push | 12 ticks (sweep 8), 30 px | verified |
+| Hit stun, push | punch 10-12 ticks, LK 11, HK 16 (94 px), crouching 10-11; tuned shorter than the attacker's recovery: no combos | approximated (no combo tables in the source) |
+| Knockdown | sweep (in place), uppercut (44 ticks, 102 px), roundhouse (31 ticks, 117 px), throw (63 px), any hit on a fighter in the air; 26 ticks on the floor, 12 getting up, the first 6 safe | structure verified, flights shortened (the source's 298 px uppercut flight is half a screen here) |
+| Hit in the air | thrown back 4.4 px/tick with a hop of 7.5 px/tick | verified |
+| Throw | LP, other on the ground, in reach (MK3 64 arcade = 80 px, here 121 for Ryu's reach), not holding away, not in stun, 24, unblockable | verified |
 | Facing | grounded fighters face each other every tick; a jumper keeps his facing, so crossing flips it on landing | verified in structure; the source flips instantly at attacks/hits too |
-| Overlap | fighters on the ground keep 140 px apart (MK3 102; Ryu is wider), eased 6 px/tick; a jumper passes through | verified rule, wider value |
-| Walls | x 72 to 578; a blow into the corner pushes the attacker back instead | the corner rule verified, the walls ours (a fixed screen: MK3 scrolls) |
+| Overlap | fighters on the ground keep 109 px apart (MK3 80; Ryu is wider), eased 5 px/tick; a jumper passes through | verified rule, wider value |
+| Walls | x 72 to 580 (58 and 48 arcade px from the edges of a 512-arcade-px screen); a blow into the corner pushes the attacker back instead | the corner rule verified, the walls ours (a fixed screen: MK3 scrolls) |
 | Round | one round: KO, or at 0 on the 90 s clock the better health wins (a tie is XILINDRO's: the player) | XILINDRO's rules over MK3's health |
 | Close moves | elbow and knee (close HP, HK, LK) | not implemented |
 | Juggles, combos, run, specials | not implemented | gap (the owner's request: "if simple") |
@@ -379,7 +395,7 @@ Move to clip (Ryu GIF): stance, crouch (`crouch`), walk (`walkf`, `walkb`), jump
 the 39-tick flight), LP `wp`, HP `hp`, LK `wk`, HK `mk`, roundhouse `hk`, crouching `crouch-wp`, uppercut `crouch-hp`,
 `crouch-wk`, sweep `crouch-hk`, jumping `jump-lp/hp/lk/hk`, throw `throw-forward`, block `block-high` (standing) and
 `block-low` (crouching), hits `stand-hit` / `crouch-hit` (the first frames), fall and down `slam`, win `win1`.
-Clips are drawn at integer scale 2 (Ryu 222 px high) and the animations are fitted to the engine's ticks, not the other
+Clips are drawn at the engine's scale (`Character.scale_fp`, 1/256 px per source pixel, nearest-neighbour: the pack's `stand` is the stance's 104 source px, sized to MK3's 144 arcade px x `S` = 180 px, so about 1.73 px per source pixel; the first version drew a flat 2: 208 px) and the animations are fitted to the engine's ticks, not the other
 way round: an attack's frames before its active frames are spread over the move's startup ticks, the active ones over
 its active ticks, the rest over its recovery (`sim.attackFrame`); stuns and falls stretch their clip over their length.
 
@@ -398,7 +414,7 @@ mapped to the nearest of the game's 256 (the minigame's palette is fixed), so th
 ### 11.6 The CPU
 
 `cpu.zig` is MK3's drone at diff 0 (section 9): no specials, no running, no combos; it decides when it has finished an
-action, by the distance bands (110, 192, 384 px: very close: HP, LK, throw, HK; close: sweep, LK, walk in and HK, three
+action, by the distance bands (110, 192, 384 px at the first version's scale, x 0.78 now: very close: HP, LK, throw, HK; close: sweep, LK, walk in and HK, three
 LPs, walk in and HP; far: walk in, a jump kick from 290 px); it stands in its stance (20% of decisions); it never
 strikes a human in hit stun; it reacts to a new attack of the human's by blocking (crouching against lows) or, 10% of
 the time, a sweep counter. **Gentler or different from the source**: it reacts 30% (MK3: 15%) and counters a move that
@@ -429,12 +445,12 @@ the Corrigida's easy opponent; win% includes a clock win; the bots press nothing
 | old (easy) | novice | 67 | 0 | 96.8 | 32.5 | 21.8 | 23.2 / 16.6 |
 | old (easy) | decent | 100 | 3 | 96.7 | 80.1 | 17.2 | 24.8 / 3.2 |
 | MK3 | idle | 0 | 100 | 38.4 | 0.0 | 91.0 | 0.0 / 15.2 |
-| MK3 | masher | 100 | 100 | 20.3 | 59.5 | 0.0 | 9.4 / 6.2 |
-| MK3 | novice | 92 | 100 | 36.3 | 36.7 | 1.5 | 14.1 / 10.3 |
-| MK3 | decent | 100 | 100 | 32.9 | 47.2 | 0.0 | 14.2 / 8.3 |
+| MK3 | masher | 98 | 100 | 20.2 | 59.2 | 0.1 | 9.4 / 6.4 |
+| MK3 | novice | 92 | 100 | 36.6 | 36.5 | 1.0 | 14.2 / 10.2 |
+| MK3 | decent | 100 | 100 | 32.9 | 48.0 | 0.0 | 14.4 / 8.2 |
 
 A player who does nothing is knocked out in 38 s (the CPU does fight); a novice who walks in, pokes and sometimes blocks
-wins 92 rounds in 100, a masher (random blows, never blocks: it throws at close range, the LP) all of them, with 60 of 91
+wins 92 rounds in 100, a masher (random blows, never blocks: it throws at close range, the LP) 98 of them, with 59 of 91
 energy left. That is easier than the old fight's easy opponent (47% / 67%): the owner found that one too hard; the
 dials are in `cpu.zig` (`react_pct`, `anti_spam_pct`, `pause_*`, `max_hangouts`) and `tables.zig` (the damage). The
 synthetic-art test (`zig build test`) gives the same order (idle 0, masher about 95%, casual about 95% of 30).

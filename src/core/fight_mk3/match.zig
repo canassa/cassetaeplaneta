@@ -81,6 +81,7 @@ pub const Match = struct {
             .sim = undefined,
             .cpu = cpu_mod.Cpu.init(seed),
         };
+        m.char.setStandPx(t.stand_arcade * t.S);
         m.sim = Sim.init(&m.char, &m.char);
         return m;
     }

@@ -12,7 +12,9 @@ const expectEqual = std.testing.expectEqual;
 const fp = sim_mod.fp;
 
 fn load() !character.Character {
-    return character.Character.load(std.testing.allocator, try testing.pack(std.testing.allocator));
+    var c = try character.Character.load(std.testing.allocator, try testing.pack(std.testing.allocator));
+    c.setStandPx(t.stand_arcade * t.S);
+    return c;
 }
 
 fn px(v: i32) i32 {
@@ -34,7 +36,7 @@ test "the synthetic pack loads" {
     try expect(c.clip(.sweep).active != null);
 }
 
-test "a straight jump: MK3's arc (39 ticks, 152 px high), no air control" {
+test "a straight jump: MK3's arc (39 ticks, 95 arcade px high), no air control" {
     var c = try load();
     defer c.deinit();
     var s = Sim.init(&c, &c);
@@ -48,13 +50,16 @@ test "a straight jump: MK3's arc (39 ticks, 152 px high), no air control" {
         top = @max(top, s.f[0].y);
     }
     try expect(ticks >= 38 and ticks <= 42);
-    try expect(px(top) >= 145 and px(top) <= 160);
+    // 95 arcade px, in screen px; and the same share of a standing fighter's height as MK3's (95 / 144).
+    try expect(@abs(px(top) - @as(i32, @intFromFloat(@round(95 * t.S)))) <= 2);
+    const stand = px(-s.hurtBox(0).?.y0);
+    try expect(@abs(@divTrunc(stand * 1000, px(top)) - @as(i32, @intFromFloat(@round(144.0 / 95.0 * 1000)))) <= 30);
     // Holding left in the air does nothing: it lands where it left.
     try expectEqual(@as(i32, t.start_x[0]), px(s.f[0].x));
     try expect(s.f[0].grounded());
 }
 
-test "a forward jump travels 250 px and crosses over, then the fighters face each other again" {
+test "a forward jump crosses over, then the fighters face each other again" {
     var c = try load();
     defer c.deinit();
     var s = Sim.init(&c, &c);
@@ -78,7 +83,7 @@ test "a forward jump travels 250 px and crosses over, then the fighters face eac
     try expect(px(s.f[0].x) > 400);
 }
 
-test "a forward jump covers 250 px (MK3: 156 arcade px)" {
+test "a forward jump covers MK3's 156 arcade px" {
     var c = try load();
     defer c.deinit();
     var s = Sim.init(&c, &c);
@@ -89,7 +94,7 @@ test "a forward jump covers 250 px (MK3: 156 arcade px)" {
     press(&s, 0, .{});
     run(&s, 60);
     try expect(s.f[0].grounded());
-    try expect(px(s.f[0].x) >= 340 and px(s.f[0].x) <= 360);
+    try expect(@abs(px(s.f[0].x) - 100 - @as(i32, @intFromFloat(@round(156 * t.S)))) <= 6);
 }
 
 fn pair(s: *Sim, gap: i32) void {
@@ -103,7 +108,7 @@ test "a punch hits for 7 and the other reels; it lands once" {
     defer c.deinit();
     var s = Sim.init(&c, &c);
     // Close: LP is the throw, so stand a bit apart for the plain punch.
-    pair(&s, 170);
+    pair(&s, t.ref(170));
     s.latch[0].lp = true;
     run(&s, 30);
     try expectEqual(@as(i16, t.health_max - 7), s.f[1].health);
@@ -114,7 +119,7 @@ test "block: chip damage, no stun for the attacker, a standing block does not st
     var c = try load();
     defer c.deinit();
     var s = Sim.init(&c, &c);
-    pair(&s, 170);
+    pair(&s, t.ref(170));
     s.setHeld(1, .{ .block = true });
     s.latch[0].hp = true;
     run(&s, 30);
@@ -123,7 +128,7 @@ test "block: chip damage, no stun for the attacker, a standing block does not st
     try expect(s.f[1].state == .blockstun or s.f[1].state == .block);
 
     var s2 = Sim.init(&c, &c);
-    pair(&s2, 170);
+    pair(&s2, t.ref(170));
     s2.setHeld(1, .{ .block = true });
     s2.setHeld(0, .{ .down = true });
     s2.latch[0].hk = true;
@@ -134,7 +139,7 @@ test "block: chip damage, no stun for the attacker, a standing block does not st
 
     // A crouching block stops it.
     var s3 = Sim.init(&c, &c);
-    pair(&s3, 170);
+    pair(&s3, t.ref(170));
     s3.setHeld(1, .{ .block = true, .down = true });
     s3.setHeld(0, .{ .down = true });
     s3.latch[0].hk = true;
@@ -146,7 +151,7 @@ test "a high punch goes over a crouching fighter" {
     var c = try load();
     defer c.deinit();
     var s = Sim.init(&c, &c);
-    pair(&s, 170);
+    pair(&s, t.ref(170));
     s.setHeld(1, .{ .down = true });
     s.latch[0].hp = true;
     run(&s, 30);
@@ -157,7 +162,7 @@ test "a knockdown: down, getting up, then free again" {
     var c = try load();
     defer c.deinit();
     var s = Sim.init(&c, &c);
-    pair(&s, 170);
+    pair(&s, t.ref(170));
     s.setHeld(0, .{ .down = true });
     s.latch[0].hk = true;
     var saw_fall = false;
@@ -182,7 +187,7 @@ test "LP at close range is the throw: 24, unblockable" {
     var c = try load();
     defer c.deinit();
     var s = Sim.init(&c, &c);
-    pair(&s, 90);
+    pair(&s, t.ref(90));
     s.setHeld(1, .{ .block = true });
     s.latch[0].lp = true;
     run(&s, 20);
@@ -194,7 +199,7 @@ test "a KO ends the round and the winner is named" {
     var c = try load();
     defer c.deinit();
     var s = Sim.init(&c, &c);
-    pair(&s, 170);
+    pair(&s, t.ref(170));
     s.f[1].health = 5;
     s.latch[0].hp = true;
     run(&s, 30);
@@ -210,7 +215,7 @@ test "walls: nobody leaves the arena; a hit in the corner pushes the attacker" {
     defer c.deinit();
     var s = Sim.init(&c, &c);
     s.f[0].x = (t.arena_min + 4) * fp;
-    s.f[1].x = (t.arena_min + 150) * fp;
+    s.f[1].x = (t.arena_min + t.ref(150)) * fp;
     s.setHeld(0, .{ .left = true });
     run(&s, 60);
     try expectEqual(@as(i32, t.arena_min), px(s.f[0].x));

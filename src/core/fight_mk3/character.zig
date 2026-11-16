@@ -5,7 +5,9 @@
 //! each frame carries its picture (8-bit palette indices, facing right,
 //! trimmed), the offset of its top-left from the fighter's feet anchor and
 //! its hurt and hit boxes (anchor-relative, y up negative), all in source
-//! pixels; `scale` is the on-screen size of a source pixel.
+//! pixels; `scale_fp` is the on-screen size of a source pixel (1/256 px):
+//! the pack says how tall the fighter stands (`stand`, source px) and the
+//! engine sizes it to MK3's standing height (`setStandPx`).
 //!
 //! Pack file: `MK3P`, u32 JSON length, the JSON, the pixel blob.
 
@@ -75,7 +77,9 @@ pub const Clip = struct {
 
 const Json = struct {
     name: []const u8,
-    scale: u8 = 2,
+    scale: f64 = 2,
+    /// The stance's height, source px (0: the pack's `scale` stands).
+    stand: f64 = 0,
     palette: []const [3]u8,
     frames: []const Frame,
     clips: []const Clip,
@@ -87,6 +91,8 @@ pub const Character = struct {
     blob: []const u8,
     gpa: std.mem.Allocator,
     clips: [Anim.count]?*const Clip = @splat(null),
+    /// Screen px (1/256) per source pixel.
+    scale_fp: i32 = 512,
 
     pub const Error = error{ BadPack, MissingClip, OutOfMemory };
 
@@ -101,6 +107,7 @@ pub const Character = struct {
             else => return error.BadPack,
         };
         var c: Character = .{ .parsed = parsed, .data = bytes, .blob = bytes[8 + n ..], .gpa = gpa };
+        c.scale_fp = @intFromFloat(@round(parsed.value.scale * 256));
         errdefer c.parsed.deinit();
         inline for (@typeInfo(Anim).@"enum".field_names) |name| {
             const a: Anim = @field(Anim, name);
@@ -122,8 +129,11 @@ pub const Character = struct {
         c.* = undefined;
     }
 
-    pub fn scale(c: *const Character) i32 {
-        return c.parsed.value.scale;
+    /// Sizes the fighter to stand `px` screen pixels tall (a pack with no
+    /// `stand` keeps its own scale).
+    pub fn setStandPx(c: *Character, px: f64) void {
+        const st = c.parsed.value.stand;
+        if (st > 0) c.scale_fp = @intFromFloat(@round(px * 256 / st));
     }
 
     pub fn palette(c: *const Character) []const [3]u8 {

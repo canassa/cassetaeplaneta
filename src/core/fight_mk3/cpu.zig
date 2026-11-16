@@ -172,7 +172,7 @@ pub const Cpu = struct {
             },
             .think => c.decide(sim, who),
             .walk_in => {
-                if (dist(sim, who) <= 108 or c.left == 0) {
+                if (dist(sim, who) <= t.ref(108) or c.left == 0) {
                     c.next(sim, who);
                 } else {
                     c.left -= 1;
@@ -180,7 +180,7 @@ pub const Cpu = struct {
                 }
             },
             .walk_out => {
-                if (c.left == 0 or dist(sim, who) >= 200) {
+                if (c.left == 0 or dist(sim, who) >= t.ref(200)) {
                     c.plan = .pause;
                     c.left = 8 + @as(u16, @intCast(c.rng.below(16)));
                 } else {
@@ -215,7 +215,7 @@ pub const Cpu = struct {
         const d = dist(sim, who);
         if (repeats >= 3 or c.rng.pct(10)) {
             // A counter: the sweep, if it reaches.
-            if (d < 190) {
+            if (d < t.ref(190)) {
                 c.plan = .strike;
                 c.moves[0] = .sweep;
                 c.n = 1;
@@ -245,7 +245,7 @@ pub const Cpu = struct {
             c.left = 10;
             return;
         }
-        if (d < 110) {
+        if (d < t.ref(110)) {
             if (c.rng.pct(30)) {
                 c.plan = .walk_out;
                 c.left = 40;
@@ -257,7 +257,7 @@ pub const Cpu = struct {
                 2 => c.strikes(&.{.throw}, 0),
                 else => c.strikes(&.{.hk}, 0),
             }
-        } else if (d < 192) {
+        } else if (d < t.ref(192)) {
             switch (c.rng.below(6)) {
                 0 => c.strikes(&.{.sweep}, 0),
                 1 => c.strikes(&.{.lk}, 0),
@@ -266,11 +266,11 @@ pub const Cpu = struct {
                 4 => c.strikes(&.{.hp}, 48),
                 else => c.strikes(&.{.lk}, 0),
             }
-        } else if (d < 384) {
+        } else if (d < t.ref(384)) {
             if (c.rng.pct(30)) {
                 c.plan = .walk_out;
                 c.left = 30;
-            } else if (d >= 290 and c.rng.pct(40)) {
+            } else if (d >= t.ref(290) and c.rng.pct(40)) {
                 c.plan = .jump_in;
             } else {
                 c.plan = .walk_in;

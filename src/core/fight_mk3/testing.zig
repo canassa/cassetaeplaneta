@@ -14,7 +14,7 @@ pub fn pack(gpa: std.mem.Allocator) ![]u8 {
     var js: std.ArrayList(u8) = .empty;
     defer js.deinit(gpa);
     try js.appendSlice(gpa,
-        \\{"name":"test","scale":2,"palette":[[0,0,0],[255,255,255]],"frames":[
+        \\{"name":"test","scale":2,"stand":110,"palette":[[0,0,0],[255,255,255]],"frames":[
         \\{"w":1,"h":1,"ox":0,"oy":-1,"off":0,"hurt":[-26,-110,26,0],"hit":null},
         \\{"w":1,"h":1,"ox":0,"oy":-1,"off":1,"hurt":[-26,-110,26,0],"hit":[20,-100,90,-60]},
         \\{"w":1,"h":1,"ox":0,"oy":-1,"off":0,"hurt":[-26,-55,26,0],"hit":null},

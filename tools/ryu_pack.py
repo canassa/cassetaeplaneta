@@ -12,7 +12,8 @@ fight is unavailable when it is missing (docs/fights/MK3.md "Sprites").
 folder of the main checkout, `zig-out/sprite-search/hd/raw/sf3-ryu/col`).
 
 Pack layout (little endian): `MK3P`, u32 json length, the JSON, then the pixel
-blob. The JSON is the character: a palette (entry 0 = transparent), a frame
+blob. The JSON is the character: `stand` (the stance's height in source px, from
+which the engine sizes the fighter), a palette (entry 0 = transparent), a frame
 table (trimmed size, offset of the picture's top-left from the feet anchor,
 offset into the blob, hurt and hit box) and the clips (move name -> frames,
 ms per frame, loop, active frames). Frames are 8-bit palette indices, `w*h`
@@ -304,7 +305,12 @@ def main() -> None:
         clips[name] = {"name": name, "frames": ids, "ms": ms, "loop": loop, "active": active}
 
     pal = [[0, 0, 0]] + [list(c) for c, _ in sorted(palette.items(), key=lambda kv: kv[1])]
-    char = {"name": "ryu", "scale": 2, "palette": pal, "frames": frames, "clips": list(clips.values())}
+    # The stance's silhouette height: the engine sizes the fighter from it
+    # (MK3's standing height), so the pack stays in source pixels.
+    st0 = load(args.gifs / "ryu-stance.gif")[0][0]
+    bb0 = alpha_bbox(st0)
+    stand = bb0[3] - bb0[1]
+    char = {"name": "ryu", "scale": 2, "stand": stand, "palette": pal, "frames": frames, "clips": list(clips.values())}
     js = json.dumps(char, separators=(",", ":")).encode()
     args.out.mkdir(parents=True, exist_ok=True)
     with open(args.out / "pack.bin", "wb") as fh:

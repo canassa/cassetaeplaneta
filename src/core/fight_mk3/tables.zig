@@ -2,14 +2,37 @@
 //! (docs/fights/MK3.md says, for each, whether it is verified from the code
 //! or approximated, and where it comes from). One place to tune.
 //!
-//! Units: the source's arcade pixels (400 to a screen width) times 1.6 give
-//! our 640-px screen; a velocity in arcade px/tick is x 1.6 px/tick at the
-//! 55 ticks/s of `ONE_SECOND`. Fixed point is 1/256 px (`sim.fp`).
+//! Units: the source's arcade pixels (a 400 x 254 playfield) times `S` give
+//! screen pixels, uniformly in x and y; a velocity in arcade px/tick is
+//! x `S` px/tick at the 55 ticks/s of `ONE_SECOND`. Fixed point is 1/256 px
+//! (`sim.fp`). Sprites are scaled so a fighter's standing height is MK3's
+//! (`stand_arcade` x `S`): `character.Character.scaleFp`.
 
 const Anim = @import("character.zig").Anim;
 
 /// UMK3's `ONE_SECOND`.
 pub const tick_hz: u32 = 55;
+
+/// Screen pixels per arcade pixel (MK3.md section 1: 1.25 shows a 512-arcade-px
+/// slice of the 640-px screen, a jump's apex clears the HUD with room, and
+/// every per-tick number below is exact in 1/256 px).
+pub const S: comptime_float = 1.25;
+
+/// A fighter's standing height in arcade px (`ochar_ground_offsets`: Kano's
+/// SCY(0x90), the table's 0x88..0x9e centre; MK3.md section 1).
+pub const stand_arcade: comptime_float = 144;
+
+/// An arcade distance or speed as fixed point (1/256 px) screen units.
+pub fn fx(comptime arcade: comptime_float) i32 {
+    return @intFromFloat(@round(arcade * S * 256));
+}
+
+/// A pixel count tuned in the first version, at 1.6 px per arcade px
+/// (pushes, the CPU's distance bands, the sprite-width margins): the same
+/// proportion at `S`.
+pub fn ref(n: i32) i32 {
+    return @intFromFloat(@round(@as(f64, @floatFromInt(n)) * S / 1.6));
+}
 
 /// The health bar: 166 units, `MAX_HEALTH`-ish (MK3.md "Damage").
 pub const health_max: i16 = 166;
@@ -21,31 +44,33 @@ pub const ground_y: i32 = 424;
 pub const band_y: i32 = 0x8c;
 pub const band_h: i32 = 0x127;
 
-pub const start_x = [2]i32{ 215, 425 };
-/// The walls (the arena is one screen wide here; MK3 scrolls a 960-px one).
-pub const arena_min: i32 = 72;
-pub const arena_max: i32 = 578;
+pub const start_x = [2]i32{ 320 - ref(105), 320 + ref(105) };
+/// The walls: 58 arcade px from the left and 48 from the right of the
+/// 512-arcade-px screen (`LEFT_PADDING` / `RIGHT_PADDING`, MK3.md section 7;
+/// MK3 scrolls a wider world).
+pub const arena_min: i32 = @intFromFloat(@round(58 * S));
+pub const arena_max: i32 = @intFromFloat(@round(640 - 48 * S));
 /// Two fighters on the ground keep this far apart; the correction takes at
 /// most `separate_per_tick` px a tick.
-pub const separate_per_tick: i32 = 6;
+pub const separate_per_tick: i32 = ref(6);
 /// A fighter struck in the air: vx 3.5, vy -6 (up), 23 ticks in the air.
-pub const air_hit_vx: i32 = 1434; // 5.6 px/tick
-pub const air_hit_vy: i32 = 2458; // 9.6 px/tick
+pub const air_hit_vx: i32 = fx(3.5);
+pub const air_hit_vy: i32 = fx(6);
 pub const air_hit_ticks: u16 = 26;
 /// Two fighters on the ground keep this far apart (64 arcade px, wider for
 /// Ryu's sprite).
-pub const min_sep: i32 = 140;
+pub const min_sep: i32 = ref(140);
 
 // ---- movement (fixed point px per tick) -----------------------------------------
 
 /// Walk forward 3.25 arcade px/tick (most fighters), back 2.25 (MK3.md "Movement").
-pub const walk_fwd: i32 = 1331; // 5.2 px/tick = 286 px/s
-pub const walk_back: i32 = 922; // 3.6 px/tick = 198 px/s
+pub const walk_fwd: i32 = fx(3.25);
+pub const walk_back: i32 = fx(2.25);
 
 /// Jump: vy0 -10, gravity 0.5, vx +-4 arcade px/tick; no air control.
-pub const jump_vy: i32 = 4096; // 16 px/tick
-pub const gravity: i32 = 205; // 0.8 px/tick^2
-pub const jump_vx: i32 = 1638; // 6.4 px/tick
+pub const jump_vy: i32 = fx(10);
+pub const gravity: i32 = fx(0.5);
+pub const jump_vx: i32 = fx(4);
 
 /// Ticks of a jump (the sprite clip is stretched over it).
 pub fn airTicks() u16 {
@@ -125,11 +150,17 @@ pub const moves = blk: {
     m[@backingInt(Move.j_hk)] = .{ .anim = .j_hk, .damage = 15, .startup = 4, .active = 16, .recovery = 10, .hit_push = 40, .hitstun = 14 };
     // LP at close range: 24 damage, unblockable, the victim thrown 80 px.
     m[@backingInt(Move.throw)] = .{ .anim = .throw, .damage = 24, .startup = 8, .active = 1, .recovery = 38, .knockdown = true, .knock_push = 80, .fall_ticks = 36, .unblockable = true };
+    // The pushes were tuned at 1.6 px per arcade px.
+    for (&m) |*d| {
+        d.hit_push = @intCast(ref(d.hit_push));
+        d.block_push = @intCast(ref(d.block_push));
+        d.knock_push = @intCast(ref(d.knock_push));
+    }
     break :blk m;
 };
 
 /// A throw's reach (LP, centre to centre; MK3: 64 arcade px).
-pub const throw_range: i32 = 155;
+pub const throw_range: i32 = ref(155);
 
 /// A standing block stops everything but low attacks, a crouching one
 /// everything (MK3.md "Block": `MKBLK`-level rule, which attacks are low is

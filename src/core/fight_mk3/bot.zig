@@ -78,7 +78,7 @@ pub const Bot = struct {
             .decent => 80,
             else => 0,
         };
-        if (b.seen == react_after and act != .none and d < 230) {
+        if (b.seen == react_after and act != .none and d < t.ref(230)) {
             if (b.rng.pct(react_pct)) {
                 b.guard_left = 28;
                 b.guard_crouch = b.seen_low;
@@ -99,9 +99,9 @@ pub const Bot = struct {
             return inp;
         }
         const reach: i32 = switch (b.profile) {
-            .masher => 150,
-            .casual => 165,
-            .decent => 170,
+            .masher => t.ref(150),
+            .casual => t.ref(165),
+            .decent => t.ref(170),
             .idle => 0,
         };
         if (d > reach) {
@@ -109,7 +109,7 @@ pub const Bot = struct {
             return inp;
         }
         // In reach: back off a step when low (decent), else strike.
-        if (b.profile == .decent and me.health < t.health_max / 4 and d < 130 and b.rng.pct(30)) {
+        if (b.profile == .decent and me.health < t.health_max / 4 and d < t.ref(130) and b.rng.pct(30)) {
             walk(&inp, -fwd(sim));
             b.wait = 10;
             return inp;

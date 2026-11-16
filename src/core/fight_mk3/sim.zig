@@ -184,7 +184,7 @@ pub const Sim = struct {
 
     fn toWorld(s: *const Sim, who: u1, b: character.Box) Rect {
         const f = &s.f[who];
-        const sc: i32 = s.chars[who].scale() * fp;
+        const sc: i32 = s.chars[who].scale_fp;
         const bx0: i32 = b[0];
         const bx1: i32 = b[2];
         const by0: i32 = b[1];

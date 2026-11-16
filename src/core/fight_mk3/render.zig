@@ -74,26 +74,29 @@ pub fn buildLut(c: *const Character, pal: *const [256]platform.Rgb, swap: Swap, 
 /// Draws `f` with its anchor at screen (`x`, `y`) (y the ground), facing
 /// right or, with `flip`, left. Out-of-picture pixels are clipped.
 pub fn drawFrame(dst: []u8, c: *const Character, lut: *const Lut, f: *const character.Frame, x: i32, y: i32, flip: bool) void {
-    const s = c.scale();
+    // A source pixel covers the destination pixels from the floor of its
+    // edge to the floor of the next: no gaps at a fractional scale.
+    const s = c.scale_fp;
     const src = c.pixels(f);
     var sy: i32 = 0;
     while (sy < f.h) : (sy += 1) {
-        const py0 = y + (f.oy + sy) * s;
+        const ry = f.oy + sy;
+        const py0 = y + @divFloor(ry * s, 256);
+        const py1 = y + @divFloor((ry + 1) * s, 256);
         var sx: i32 = 0;
         while (sx < f.w) : (sx += 1) {
             const v = src[@as(usize, @intCast(sy)) * f.w + @as(usize, @intCast(sx))];
             if (v == 0) continue;
             const rx = f.ox + sx;
-            const px0 = if (flip) x - (rx + 1) * s else x + rx * s;
+            const a = @divFloor(rx * s, 256);
+            const b = @divFloor((rx + 1) * s, 256);
+            const px0 = if (flip) x - b else x + a;
+            const px1 = if (flip) x - a else x + b;
             const col = lut[v];
-            var dy: i32 = 0;
-            while (dy < s) : (dy += 1) {
-                const py = py0 + dy;
-                if (py < 0 or py >= h) continue;
-                var dx: i32 = 0;
-                while (dx < s) : (dx += 1) {
-                    const px = px0 + dx;
-                    if (px < 0 or px >= w) continue;
+            var py = @max(py0, 0);
+            while (py < @min(py1, h)) : (py += 1) {
+                var px = @max(px0, 0);
+                while (px < @min(px1, w)) : (px += 1) {
                     dst[@as(usize, @intCast(py)) * w + @as(usize, @intCast(px))] = col;
                 }
             }
