@@ -337,6 +337,18 @@ the virtual-base residue, the 14 NULL tests. SERIAL's own:
 | K5 timer id 10 shared, lane-2 branch dead | `serial_lane2_own_timer` | target | `serial_create_targets` arms target 13's lane-2 timer with id 9 (`g_timerIds[6]`, unused) instead of `g_timerIds[7]` = 10: the handler's test 5 (`timerId13`) then matches it, lane 2 also spawns on its own 5-s timer, and the gun keeps id 10 at 60 ms from the start | yes |
 | K6 a close with a life left is a survived game | `serial_close_forfeits` | gallery | the scene handler notes `WM_CLOSE` (port state `closing`); the `WM_DESTROY` that follows reports a lost game: wParam 0, `g_score` where a survived game has 500 | yes (owner's decision) |
 
+The Corrigida's additions are not bugs and have flags of their own, in `all`
+(docs/serial/GAME.md "The Corrigida"): `serial_intro_screen`,
+`serial_killer_warning`, `serial_shot_flash`, `serial_lives_display`,
+`serial_end_screen` (`src/serial/corrigida.zig`; hooks in `app.wndProc`, the
+walk tick, `gallery`, `target`) and, in NOITE, `serial_loss_message`
+(`src/note.zig`). `corrigida.view` is the program's `host.Program.view`: the
+presented picture, never the screen or the backdrop (but the lives' box, drawn
+as the score is). A script that plays SERIAL with `--fix all` and the planner's
+shots turns the intro and end screens off (`--fix
+all,-serial_intro_screen,-serial_end_screen`): they move the timers and the
+result.
+
 Each unit ports the buggy code and keeps the fixed path only under its
 flag (`g.fixes.serial_…`). K1 and K2 are independent (K2 alone: a win of
 +500; K1 alone: a loss packed as the original packs it). K4 matters only

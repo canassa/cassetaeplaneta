@@ -1156,6 +1156,33 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
   (the fists, as the original); a lost life empties the inventory as the original's respawn does. A weapon
   picked up while a shot flies is no longer lost (J3, whose fix it supersedes). The kill tables are the
   original's. Keys 1, 2, 3 and Q; the controls screen lists them.
+- SERIAL's screens and signs (`src/serial/corrigida.zig`, docs/serial/GAME.md "The Corrigida"); the aims, the bullet,
+  the figures, the scores and the two ends are the original's. The killers shoot at fixed times and the three aims
+  cover little of the screen, so most of them still cannot be stopped (docs/serial/GAME.md, "How beatable").
+  - `Fixes.serial_intro_screen`: a screen from WM_CREATE over the first frame until a key or a click: the
+    title, "Você é o serial killer. 5 vidas, 2 minutos.", a picture and the rule for the good figures (+100), the
+    others (-100) and the killers (they shoot, and +200 for hitting them first), the keys. The spawns and the
+    clock wait for it (`target.disarmTimers`/`armTimers`); SERIAL gets no input or timer meanwhile, the
+    0x40b/0x40c/0x40a handshake, WM_PAINT and WM_DESTROY go on. The key that took it down is ignored until
+    it is let go. The drawing is the fights' (`core/controls_screen.zig`).
+  - `Fixes.serial_killer_warning`: a killer (the babá 3sbabt, Papai Noel 3snoem; they look like their harmless
+    twins until the sprite's shooting frames) is announced for 3 walk steps (600 ms) before the step that fires:
+    `CARREGA.WAV` (the gun being cocked; on the disc, unused) plays and the figure blinks a red and yellow
+    frame with a "!" sign over it. A hit stops the figure, so the shot is cancelled; the sign is read off the
+    figure's frame (no state of its own), and drawn in the presented picture only.
+  - `Fixes.serial_shot_flash`: when a killer's shot lands the screen's edge flashes red, 18 px wide for 150 ms,
+    8 px until 400 ms (the presented picture).
+  - `Fixes.serial_lives_display`: "Vidas:" and the lives in a box at the bottom left (0, 400), the score's
+    art (200×36, copied from the background at 416, 400) and drawn as the score is into the backdrop and blitted
+    (`target.drawLives`; same font and colour). Updated on every shot that lands.
+  - `Fixes.serial_end_screen`: the lives running out or the clock ending put a screen up (title "Fim de jogo!" or
+    "Você sobreviveu!", the points and the lives left, "Aperte uma tecla") for 3 s or until a key or click; then
+    the original's WM_DESTROY runs and the result goes to NOITE. The game is frozen under it (no timer,
+    no input; a second killer's shot in the same tick takes no life). A window close skips it.
+  - `Fixes.serial_loss_message` (NOITE's `3farmcai`): a lost SERIAL game ("O serial killer foi pego!", "Você
+    perdeu uma vida.") is said in a framed panel over the prison for 4 s (`src/note.zig`, drawn in the
+    screen overlay: NOITE has no message of its own, and its MessageBox is only logged). Not shown on the
+    game-over path (`6fsaida`).
 
 ---
 
