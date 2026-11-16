@@ -25,7 +25,7 @@ const game_unit = @import("game.zig");
 const game_input = @import("game_input.zig");
 const backdrop = @import("backdrop.zig");
 const hud = @import("hud.zig");
-const fight_mk3 = @import("../core/fight_mk3/xilindro.zig");
+const fight_mk3 = @import("../core/fight_mk3/glue.zig");
 
 /// The current scene's backdrop (the original reads `g_game->scene->backdrop`
 /// unchecked; a null scene is treated as a null backdrop).
@@ -127,7 +127,7 @@ pub fn wndProc(g: *Game, m: Msg) i32 {
             g.started = 1;
             g.setSystemTimer(1, 50);
             // The MK3 prototype: the match, when its pack is there.
-            fight_mk3.start(g);
+            fight_mk3.start(g, @import("../core/fight_mk3/art_xilindro.zig").pair);
             // The Corrigida's controls screen: the round waits for a key.
             if (g.fixes.fight_controls_screen) hud.showControls(g);
         },

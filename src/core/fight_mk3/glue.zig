@@ -1,8 +1,10 @@
-//! XILINDRO's side of the MK3 fight (`fixes.fight_mk3`): building the
-//! characters from the game's strips, the key codes, the energies the old code reads (the clock's
-//! tie-break, the score NOITE gets), the sounds and the presented picture.
-//! Generic over XILINDRO's `Game` (`anytype`, as `fight_smooth.zig`); the
-//! handler's own part is `arena.zig`'s `mk3Update`.
+//! The games' side of the MK3 fight (`fixes.fight_mk3`), shared by XILINDRO
+//! and SALGIN: building the characters from the game's strips (each game's
+//! table, `art_xilindro.zig` / `art_salgin.zig`, is passed in), the energies
+//! the old code reads (the clock's tie-break, the score NOITE gets) and the
+//! presented picture. Generic over the game's `Game` (`anytype`, as
+//! `fight_smooth.zig`); each handler's own part is its `arena.zig`'s
+//! `mk3Update`.
 
 const std = @import("std");
 const platform = @import("../../platform/platform.zig");
@@ -37,19 +39,19 @@ fn artOf(obj: anytype) ?strips.Art {
     return art;
 }
 
-/// XILINDRO's own art: the fighter's and the inmate's strips
-/// the game has loaded, converted (`strips.zig`).
-fn loadOriginal(g: anytype, chars: *[2]Character) bool {
+/// The game's own art: the player's and the opponent's strips the game has
+/// loaded, converted (`strips.zig`) by the game's table `pair`.
+fn loadOriginal(g: anytype, pair: strips.Pair, chars: *[2]Character) bool {
     const f = g.fighter orelse return false;
     const o = g.opponent orelse return false;
     const fa = artOf(f) orelse return false;
     const oa = artOf(o) orelse return false;
-    chars[0] = strips.build(g.gpa, &fa, .fighter) catch |e| {
-        std.log.warn("fight_mk3: the fighter's strips are not usable ({t})", .{e});
+    chars[0] = strips.build(g.gpa, &fa, pair[0]) catch |e| {
+        std.log.warn("fight_mk3: {s}'s strips are not usable ({t})", .{ pair[0].name, e });
         return false;
     };
-    chars[1] = strips.build(g.gpa, &oa, .inmate) catch |e| {
-        std.log.warn("fight_mk3: the inmate's strips are not usable ({t})", .{e});
+    chars[1] = strips.build(g.gpa, &oa, pair[1]) catch |e| {
+        std.log.warn("fight_mk3: {s}'s strips are not usable ({t})", .{ pair[1].name, e });
         chars[0].deinit();
         return false;
     };
@@ -57,11 +59,11 @@ fn loadOriginal(g: anytype, chars: *[2]Character) bool {
 }
 
 /// WM_CREATE: the match, when the flag is on: the game's own strips,
-/// converted. The old fight plays when the art cannot be made.
-pub fn start(g: anytype) void {
+/// converted by `pair`. The old fight plays when the art cannot be made.
+pub fn start(g: anytype, pair: strips.Pair) void {
     if (!g.fixes.fight_mk3 or g.mk3 != null) return;
     var chars: [2]Character = undefined;
-    if (!loadOriginal(g, &chars)) {
+    if (!loadOriginal(g, pair, &chars)) {
         std.log.warn("fight_mk3: no usable art: the old fight plays", .{});
         return;
     }

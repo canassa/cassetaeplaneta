@@ -277,6 +277,28 @@ rolls on a personality table with the game's own `rand()`, and never reads a key
 - **Damage.** SALGIN's fighter has no recoil, so a player lands about 60 hits to XILINDRO's 23 and knocks any opponent out in a minute. The easy opponent therefore takes the fighter's blows at the Original's damage {1, 2, 1, 2} (the fair fight doubled them) and hits for 2.5 times the table's {1, 2, 1, 2} ({3, 5, 3, 5}, with rounding).
 - F9 (Debug builds) shows the phases `wait` and `guard` too; `tools/fight_bots.py` plays it with player bots.
 
+## MK3 fight (Corrigida)
+
+`fight_mk3`, in `--fix all` (so the web's Corrigida version too; `--fix all,-fight_mk3` and the web page's `?mk3=0` turn it off), replaces the fair and
+easy fight above (the opponent's AI, the blows, the beat) with Mortal Kombat 3's, as XILINDRO's: `docs/fights/MK3.md` has every mechanic, its value and
+its source; the engine is `src/core/fight_mk3/` (shared), the glue `core/fight_mk3/glue.zig`, this game's table `art_salgin.zig` and
+`arena.zig`'s `mk3Update`. The Original (no fixes) is the fight described above, untouched.
+
+- **Art.** The fighters keep SALGIN's own strips (the player's `vb*`, the opponent's `ma*`, the files listed above), converted at WM_CREATE at their
+  native size (the player 159 px tall, the bodybuilder 193; key colour 11 transparent, the shadow, colour 100, split off and drawn on the floor; the
+  opponent's, which faces left, mirrored): `soco` the punches, `sal` (salto) the kick, `voo` (voadora) the high kick and roundhouse, `ras` the sweep
+  and the crouch, `gan` the walk, `sat` the jump, `gin` the rest pose, `def` the block, `mup` the hit, `tomb` the fall, `win` (the victory strips) the win; the whole
+  table is `docs/fights/MK3.md` 11.5.1. The bodybuilder's reach is cut to 98 px of the art's 108.
+- **Controls** (the controls screen lists them; the old PgUp, Home, End and Insert do nothing): ← / → walk, ↑ jumps (with ← / →: back or forward), ↓ crouches,
+  A / S the low and high punch, D / F the low and high kick (↓ + S uppercut, ↓ + F or back + D the sweep, back + F the roundhouse, A close up a throw),
+  Space or Z blocks. SALGIN's strips play them: A and S the soco, D the salto's flat kick, F the voadora's flip, the sweep the rasteira.
+- **Kept from SALGIN:** the gym background, the clock (90 s: at zero the better energy wins, a tie is the player's), the energy bar (health 0-166 mapped to
+  91, the bar drained from the clock outward), the Original's sound pairs, the controls screen and PORRADA's 2 s, the music, and the result to NOITE
+  (`0x40a`: won, score energy x 100, or -1000).
+- **Damage.** The Corrigida's special damage table (`salgin_opponent_damage_table`, a choice flag, not in `all`) and the fair fight's doubled damage do not
+  apply: MK3's tables (`tables.zig`) give both sides' damage.
+- **Result of the bots** (60 seeds, `tools/fight_bots.py`): idle 0 %, masher 100 %, novice 87 %, decent 97 % wins (`docs/fights/MK3.md` 11.8).
+
 ## Smooth motion (Corrigida)
 
 With `fight_smooth_motion` (`--fix all`; `src/core/fight_smooth.zig`, TIRO's mechanism) the window

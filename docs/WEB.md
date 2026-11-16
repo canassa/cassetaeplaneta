@@ -40,11 +40,12 @@ SoundFont), against 547 MB for the whole disc.
 
 ### The MK3 fight
 
-The XILINDRO Corrigida fight (`fight_mk3`, in `--fix all`; `docs/fights/MK3.md`) draws XILINDRO's own strips (`sb*.bmp`, `sa*.bmp`: disc files the
-manifest already lists), so the web build needs nothing more. The page
-takes `?mk3=0` (the opt-out: `noite_start`'s `extra` bit 0 turns `fight_mk3` off, so XILINDRO's Corrigida plays the old fair fight; the pad follows), `?jogo=xilindro` (that
+The XILINDRO and SALGIN Corrigida fights (`fight_mk3`, in `--fix all`; `docs/fights/MK3.md`) draw each game's own strips (XILINDRO's `sb*.bmp`, `sa*.bmp`,
+SALGIN's `vb*.bmp`, `ma*.bmp`: disc files the manifest already lists), so the web build needs nothing more. Their touch pad is the MK3 one (`PAD_MK3`
+in `web/noite.js`: the arrows, Soco / Soco+ / Chute / Chute+ on A S D F, Def. on Space in the middle of the arrows), for both. The page
+takes `?mk3=0` (the opt-out: `noite_start`'s `extra` bit 0 turns `fight_mk3` off, so XILINDRO's and SALGIN's Corrigida play the old fair fight; the pad follows), `?jogo=xilindro` or `?jogo=salgin` (that
 minigame alone), `?versao=corrigida` and `?auto=1` (presses Jogar when the files are in), e.g.
-`index.html?jogo=xilindro&versao=corrigida&auto=1` (the MK3 fight, no other parameter).
+`index.html?jogo=xilindro&versao=corrigida&auto=1` (the MK3 fight, no other parameter; `jogo=salgin` for SALGIN's).
 
 ## Serving (nginx)
 

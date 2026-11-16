@@ -1076,13 +1076,13 @@ Changes the "Corrigida" version (`Fixes.all()`) turns on that are not bug fixes.
   jump back, XILINDRO's 100-px recoil) is shown over one beat at the display rate, steps linear and longer moves
   eased out, in the presented picture only (`core/fight_smooth.zig`, `host.Program.view`: the arena band rebuilt
   with the fighters at their shown x); positions, hits, energies, timers and results are the original's.
-- `Fixes.fight_mk3` (XILINDRO, in `--fix all`; `--fix all,-fight_mk3` and the web page's `?mk3=0` turn it off):
-  the street fight is Mortal Kombat 3's (`src/core/fight_mk3/`, docs/fights/MK3.md): a fixed-step simulation at
+- `Fixes.fight_mk3` (XILINDRO and SALGIN, in `--fix all`; `--fix all,-fight_mk3` and the web page's `?mk3=0` turn it off):
+  the fight is Mortal Kombat 3's (`src/core/fight_mk3/`, docs/fights/MK3.md): a fixed-step simulation at
   MK3's 55 ticks a second, its walk, jump and crouch, four punches and kicks (A S D F), a block button (Space),
   the uppercut, sweep, roundhouse and close throw, chip damage, hit and block stun, knockdowns, side switch, and
-  the drone CPU at its easiest rung; drawn every frame with XILINDRO's own strips (`sb*` the player, `sa*` the inmate, converted
-  at start-up, `core/fight_mk3/strips.zig`). The 90 s
-  clock, the energy bar's values, the sounds and the result to NOITE stay XILINDRO's.
+  the drone CPU at its easiest rung; drawn every frame with each game's own strips (XILINDRO's `sb*` the player and `sa*` the inmate, SALGIN's `vb*` and `ma*`, converted
+  at start-up, `core/fight_mk3/strips.zig` and a table per game). The 90 s
+  clock, the energy bar's values, the sounds and the result to NOITE stay the game's.
 - `Fixes.jardim_smooth_movement` (JARDIM): Wolfenstein 3D's movement (`src/jardim/wolf.zig`). A 14-ms motion
   timer polls the keys and moves the player in Wolf3D's 70-Hz tics counted against the clock: walk 5.6 cells a
   second, run 11.2, back 3.7, turn 122.5° a second (245 running), no acceleration (id's WL_PLAY.C

@@ -38,7 +38,7 @@ const fight_controls = @import("../core/fight_controls.zig");
 const fight_fair = @import("../core/fight_fair.zig");
 const fight_easy = @import("../core/fight_easy.zig");
 const fight_bot = @import("../core/fight_bot.zig");
-const fight_mk3 = @import("../core/fight_mk3/xilindro.zig");
+const fight_mk3 = @import("../core/fight_mk3/glue.zig");
 
 const VK_PGUP: u16 = 0x21;
 const VK_END: u16 = 0x23;

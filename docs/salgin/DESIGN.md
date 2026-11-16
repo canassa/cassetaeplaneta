@@ -16,6 +16,12 @@ and X1–X11.
 
 ## Decisions
 
+- **The MK3 fight** (`fight_mk3`, in `--fix all`): the Corrigida's fight is the shared engine
+  `src/core/fight_mk3/` on SALGIN's own strips; this program's part is `arena.zig` (`mk3Update`, the keys, the
+  end of the round), `app.zig` (the match at WM_CREATE), `root.zig` (the picture) and `core/game.zig` (`mk3`),
+  with the move table in `core/fight_mk3/art_salgin.zig` (`docs/fights/MK3.md` 11.5.1). Without the flag the
+  fair fight stays; the Original is untouched.
+
 - **The won flag at the clock** (the owner's decision; SERIAL's K1 rule,
   survive = win): both fights report won = the player's energy not below the
   opponent's. At the time-out the player with less energy loses on points

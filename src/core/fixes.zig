@@ -449,12 +449,12 @@ pub const Fixes = struct {
     /// (`core/fight_smooth.zig`, a presented picture, never the screen or
     /// the backdrop); positions, hits, timers and results are the game's.
     fight_smooth_motion: bool = false,
-    /// In `all` (`--fix all,-fight_mk3` plays the old fair fight), XILINDRO
-    /// only: the fight is Mortal Kombat 3's (`core/fight_mk3/`, docs/fights/MK3.md):
+    /// In `all` (`--fix all,-fight_mk3` plays the old fair fight), XILINDRO's
+    /// and SALGIN's: the fight is Mortal Kombat 3's (`core/fight_mk3/`, docs/fights/MK3.md):
     /// a fixed-step simulation at MK3's rate, walk, jump, crouch, four
     /// punches and kicks, a block button, chip damage, knockdowns and a
-    /// drone CPU at its easiest rung, drawn every frame with XILINDRO's own
-    /// strips (`fight_mk3/strips.zig`).
+    /// drone CPU at its easiest rung, drawn every frame with the game's own
+    /// strips (`fight_mk3/strips.zig`, a table per game).
     fight_mk3: bool = false,
     // ---- SAUNA.EXE (BUGS.md P1–P8). The src/sauna/ units port each bug as
     // it is and keep the fix only behind its flag. ----

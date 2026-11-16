@@ -257,7 +257,7 @@ pub const Game = struct {
     /// e.g. the strips `scene_object_dtor` leaves, is not a leak here).
     pub fn destroy(g: *Game) void {
         g.smooth.deinit(g.gpa);
-        @import("../../core/fight_mk3/xilindro.zig").stop(g);
+        @import("../../core/fight_mk3/glue.zig").stop(g);
         g.heap.deinit();
         g.gpa.destroy(g);
     }

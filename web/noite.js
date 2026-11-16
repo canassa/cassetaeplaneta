@@ -95,7 +95,9 @@
         69: ["Abrir", "Abrir porta"], 17: ["Tiro", "Atirar"], 81: ["Arma", "Trocar de arma"] },
     },
   };
-  // The MK3 fight's pad (the Corrigida's XILINDRO, unless ?mk3=0): the arrows, A S D F as the four blows and
+  // The programs whose Corrigida fight is the MK3 one (`fight_mk3`), unless ?mk3=0.
+  const MK3_PROGRAMS = ["xilindro", "salgin"];
+  // The MK3 fight's pad (the Corrigida's XILINDRO and Porrada, unless ?mk3=0): the arrows, A S D F as the four blows and
   // Space (the middle of the arrows) as the block. Down + a blow: the low
   // moves (crouching punch, uppercut, kick, sweep); Back + HK: the roundhouse.
   const PAD_MK3 = {
@@ -319,7 +321,7 @@
   }
 
   /** { version: "original" | "corrigida", skip: bool, oneButton: bool } */
-  let mk3 = true; // the MK3 fight (XILINDRO's Corrigida); ?mk3=0 turns it off
+  let mk3 = true; // the MK3 fight (the Corrigida's XILINDRO and SALGIN); ?mk3=0 turns it off
   let autoPlay = false; // ?auto=1
   function readPrefs() {
     const prefs = { version: "original", skip: true, oneButton: coarsePointer(), minigame: "" };
@@ -330,8 +332,8 @@
       if (typeof p.oneButton === "boolean") prefs.oneButton = p.oneButton;
       if (MINIGAMES.some((m) => m.ready && m.name === p.minigame)) prefs.minigame = p.minigame;
     } catch {}
-    // The MK3 fight (`fight_mk3`, docs/fights/MK3.md) is XILINDRO's Corrigida
-    // ?mk3=0 plays the old fair fight instead. ?jogo=NAME
+    // The MK3 fight (`fight_mk3`, docs/fights/MK3.md) is the Corrigida's XILINDRO and
+    // SALGIN; ?mk3=0 plays the old fair fight instead. ?jogo=NAME
     // picks the minigame alone, ?auto=1 presses Jogar when the files are in.
     const q = new URLSearchParams(location.search);
     if (q.get("mk3") === "0") mk3 = false;
@@ -729,7 +731,7 @@
   /** Shows the pad's buttons for `program` (PAD_KEYS; PAD_CORRIGIDA for the
    *  Corrigida's fights and JARDIM); a hidden held one is released. */
   function padFor(program) {
-    const alt = prefs.version === "corrigida" ? (mk3 && program === "xilindro" ? PAD_MK3 : PAD_CORRIGIDA[program]) : null;
+    const alt = prefs.version === "corrigida" ? (mk3 && MK3_PROGRAMS.includes(program) ? PAD_MK3 : PAD_CORRIGIDA[program]) : null;
     if (program === padProgram && !!alt === padLabels) return;
     padProgram = program;
     padLabels = !!alt;

@@ -797,8 +797,9 @@ def main():
             check(not terrors, "touch Porrada: no page errors")
             tctx.close()
 
-        def xilindro_corrigida_touch():
-            """Xilindro alone in the Corrigida on a phone: the controls screen
+        def fight_corrigida_touch(game, who, shot):
+            """`who` (Xilindro, Porrada) alone in the Corrigida on a phone (`game`,
+            the page's ?jogo name; the MK3 pad of both): the controls screen
             is up and the clock stands, the pad shows the arrows and the four
             moves with their names, a tap on one takes the screen down (the
             clock runs), and ▶ and Chute (S) tapped each move the fighter."""
@@ -808,21 +809,21 @@ def main():
             tpage.on("pageerror", lambda e: terrors.append(str(e)))
             tpage.goto(url)
             tpage.wait_for_function("window.noite.ready || window.noite.failure", timeout=600_000)
-            tpage.select_option("#jogo", "xilindro")
+            tpage.select_option("#jogo", game)
             tpage.check('input[name="versao"][value="corrigida"]')
             tpage.click("#play")
             tpage.wait_for_function("window.noite.started || window.noite.failure", timeout=60_000)
             time.sleep(1.5)
-            tpage.screenshot(path=str(out / "xilindro-controls.png"))
+            tpage.screenshot(path=str(out / f"{shot}-controls.png"))
             shown = tpage.evaluate("""() => Array.from(document.querySelectorAll('#dpad button'))
                 .filter((b) => !b.hidden).map((b) => [Number(b.dataset.key), b.textContent])""")
             check(sorted(k for k, _ in shown) == [32, 37, 38, 39, 40, 65, 68, 70, 83],
-                  f"Corrigida touch Xilindro: the pad shows the MK3 layout: the arrows, A S D F and the block ({shown})")
+                  f"Corrigida touch {who}: the pad shows the MK3 layout: the arrows, A S D F and the block ({shown})")
             check(dict(shown).get(68) == "Chute" and dict(shown).get(65) == "Soco" and dict(shown).get(32) == "Def.",
-                  f"Corrigida touch Xilindro: the moves have their names ({shown})")
+                  f"Corrigida touch {who}: the moves have their names ({shown})")
             clock = tpage.evaluate(clock_js)
             time.sleep(1.5)
-            check(tpage.evaluate(clock_js) == clock, "Corrigida touch Xilindro: the clock waits under the controls screen")
+            check(tpage.evaluate(clock_js) == clock, f"Corrigida touch {who}: the clock waits under the controls screen")
             # The Corrigida's opponent fights back, so whether a kick lands
             # in a given 15 s depends on its moves (the energy bar is no
             # check here). A tap on a pad button instead shows in the fighter
@@ -845,16 +846,22 @@ def main():
             kick.tap()
             # PORRADA's frozen 2 s, then the clock's first second.
             time.sleep(1.0)
-            check(tpage.evaluate(clock_js) == clock, "Corrigida touch Xilindro: the clock waits under PORRADA")
+            check(tpage.evaluate(clock_js) == clock, f"Corrigida touch {who}: the clock waits under PORRADA")
             time.sleep(2.7)
-            check(tpage.evaluate(clock_js) != clock, "Corrigida touch Xilindro: a pad button starts the round (the clock runs)")
-            check(moves_after_tap(right), "Corrigida touch Xilindro: ▶ walks the fighter")
+            check(tpage.evaluate(clock_js) != clock, f"Corrigida touch {who}: a pad button starts the round (the clock runs)")
+            check(moves_after_tap(right), f"Corrigida touch {who}: ▶ walks the fighter")
             time.sleep(1.0)
-            check(moves_after_tap(kick), "Corrigida touch Xilindro: Chute moves the fighter into the kick")
+            check(moves_after_tap(kick), f"Corrigida touch {who}: Chute moves the fighter into the kick")
             time.sleep(0.3)
-            tpage.screenshot(path=str(out / "xilindro-corrigida-touch.png"))
-            check(not terrors, "Corrigida touch Xilindro: no page errors")
+            tpage.screenshot(path=str(out / f"{shot}-corrigida-touch.png"))
+            check(not terrors, f"Corrigida touch {who}: no page errors")
             tctx.close()
+
+        def xilindro_corrigida_touch():
+            fight_corrigida_touch("xilindro", "Xilindro", "xilindro")
+
+        def salgin_corrigida_touch():
+            fight_corrigida_touch("salgin", "Porrada", "salgin")
 
         # INV's shot leaves the cannon (x 340, y 380) at x 367, y 350 and
         # climbs 20 px per 55 ms; the strip above the cannon, under the
@@ -1488,6 +1495,7 @@ def main():
         xilindro_alone()
         xilindro_touch()
         xilindro_corrigida_touch()
+        salgin_corrigida_touch()
         inferno_alone()
         inferno_touch()
         sauna_alone()

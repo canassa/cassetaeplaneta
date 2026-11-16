@@ -38,8 +38,9 @@ Reverse-engineering the 1995 ATR Multimedia point-and-click adventure
   INFERNO.EXE's (`docs/inferno/DESIGN.md`); `src/sauna/` — SAUNA.EXE's
   (`docs/sauna/DESIGN.md`); `src/jardim/` — JARDIM.EXE's (`docs/jardim/DESIGN.md`).
 - `src/core/fight_mk3.zig`, `src/core/fight_mk3/` — the Mortal Kombat 3 fight engine
-  (`fixes.fight_mk3`, XILINDRO's Corrigida fight; `docs/fights/MK3.md`): sprite-agnostic characters, built
-  from XILINDRO's own `sb*`/`sa*` strips (`strips.zig`).
+  (`fixes.fight_mk3`, the Corrigida fight of XILINDRO and SALGIN; `docs/fights/MK3.md`): sprite-agnostic
+  characters, built from each game's own strips (`strips.zig`, a table per game: `art_xilindro.zig`,
+  `art_salgin.zig`; `glue.zig` ties a match to a game).
 - `tools/cli/` — the `noite` port tracker (uv workspace member);
   `db/port.sqlite` — its database (local, not in git; `noite import` builds it).
 

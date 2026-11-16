@@ -305,8 +305,8 @@ rolls on a personality table with the game's own `rand()`, and never reads a key
 `fight_mk3`, in `--fix all` (so the web's Corrigida version too; `--fix all,-fight_mk3` and the web page's `?mk3=0`
 turn it off), replaces the fight (the opponent's AI, the
 blows, the beat) with Mortal Kombat 3's: `docs/fights/MK3.md` has every mechanic, its value and its source;
-the engine is `src/core/fight_mk3/` (shared, sprite-agnostic), its glue here `core/fight_mk3/xilindro.zig`
-and `arena.zig`'s `mk3Update`. The fighters keep XILINDRO's own art: `core/fight_mk3/strips.zig` converts the strips the game
+the engine is `src/core/fight_mk3/` (shared, sprite-agnostic), its glue `core/fight_mk3/glue.zig` (shared with SALGIN) and this game's table `art_xilindro.zig`,
+and `arena.zig`'s `mk3Update`. The fighters keep XILINDRO's own art: `core/fight_mk3/strips.zig` (the converter) converts the strips the game
 has loaded (the fighter's `sb*` for the player, the inmate's `sa*` for the opponent, the files listed above, at their native size, the
 key colour 11 transparent as the Original's blits, the shadow split off and drawn on the floor; the inmate's, which face left, are mirrored) at
 WM_CREATE into two MK3 characters, each with its own pictures: which strip plays which move is the table in `docs/fights/MK3.md` 11.5

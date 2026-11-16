@@ -63,11 +63,12 @@ a blow of its own, now and then starts a blow from too far or counters a blocked
 hits and eases off when it leads; the beginner's fight is won about three times in four.
 The fighters' steps, jumps back and recoils are shown moving over their beat at the display rate
 (`fight_smooth_motion`), the fight itself unchanged.
-XILINDRO's Corrigida fight (`--fix all`, which includes `fight_mk3`; `--fix all,-fight_mk3` or the web page's `?mk3=0` play the old fair fight) is Mortal Kombat 3's
+The Corrigida fights of XILINDRO and SALGIN (`--fix all`, which includes `fight_mk3`; `--fix all,-fight_mk3` or the web page's `?mk3=0` play the old fair fight) are Mortal Kombat 3's
 (`src/core/fight_mk3/`, `docs/fights/MK3.md`): ← / → walk, ↑ jumps (with ← / →: a jump back or forward), ↓
 crouches, A / S the low and high punch, D / F the low and high kick, Space blocks (↓ + Space: crouching block);
-↓ + S the uppercut, ↓ + F the sweep, back + F the roundhouse, A close up a throw. It draws XILINDRO's own art
-(the fighter's `sb*` and the inmate's `sa*` strips from the disc, converted at start-up).
+↓ + S the uppercut, ↓ + F the sweep, back + F the roundhouse, A close up a throw. Each draws its own art
+(XILINDRO's `sb*` and `sa*` strips, SALGIN's `vb*` and `ma*`, from the disc, converted at start-up); the controls screen lists these keys, and
+the web's Corrigida pad is the arrows, A S D F and a block button for both.
 JARDIM's Corrigida (`--fix all`) moves like Wolfenstein 3D: W / S or ↑ / ↓ walk, A / D strafe,
 ← / → turn, Shift runs, Ctrl or Space fire, E opens a door or takes an exit, Esc quits; the
 movement is continuous at Wolf3D's speeds (5.6 cells a second walking, 11.2 running, 122.5° a
@@ -270,10 +271,10 @@ Saves go to `save/` (`--save DIR`).
   D, F, ↑ and ↓ in the round.
   `tools/smoke.py --minigame xilindro [--fix all] [--monkey SEED]` presses and holds random fight
   keys for 110 s (with `--fix all`: Enter first, and A, S, D, F too).
-- **MK3 fight** (XILINDRO's Corrigida fight, `--fix all`, `docs/fights/MK3.md`; it draws XILINDRO's own strips); `--minigame xilindro --ms 14000 --fix all --dump DIR --dump-every 33 --input FILE` plays and dumps it
+- **MK3 fight** (the Corrigida fights of XILINDRO and SALGIN, `--fix all`, `docs/fights/MK3.md`; each draws its own strips); `--minigame xilindro|salgin --ms 14000 --fix all --dump DIR --dump-every 33 --input FILE` plays and dumps it
   (Enter takes the controls screen down; the round starts 2 s later; F9 draws the boxes); `--fight-bot masher|novice|decent|idle,SEED[,log]`
   lets the MK3 bot play (`log`: a line per presented frame, which `tools/fight_mk3_smooth.py TRACE` checks for jumps of the feet and
-  the frame rate); `tools/fight_bots.py --fixes mk3=all` gives the win rates. A web build:
+  the frame rate); `tools/fight_bots.py --fixes mk3=all [--game salgin]` gives the win rates. A web build:
   `NOITE_SKIP_EXPLORER=1 tools/web/build-site.sh OUT`, open `OUT/index.html?jogo=xilindro&versao=corrigida&auto=1`
   (`docs/WEB.md`).
 - **INFERNO**: `--minigame inferno --ms 180900 --input tools/play/inferno-alone-win.input` (32

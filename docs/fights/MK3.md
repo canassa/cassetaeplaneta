@@ -357,9 +357,9 @@ get-up duration, arena width, KO-to-next-round time, which strikes have `SF_DUCK
 
 ## 11. The engine built from it (`src/core/fight_mk3/`, `fixes.fight_mk3`)
 
-XILINDRO's Corrigida fight with these mechanics (in `--fix all`; `--fix all,-fight_mk3` and the web
-page's `?mk3=0` play the old fair fight), drawn with XILINDRO's own art: the fighter (the player) and the inmate (the opponent), each its
-own pictures (section 11.5). (The engine was prototyped with SF3 Ryu sprites on both sides; they are gone, the sections above that measured Ryu keep their numbers.) It is
+The Corrigida fight of XILINDRO and of SALGIN with these mechanics (in `--fix all`; `--fix all,-fight_mk3` and the web
+page's `?mk3=0` play the old fair fight of both; the Original, no fixes, is untouched), drawn with each game's own art: XILINDRO's fighter (the
+player) and inmate (the opponent), SALGIN's fighter and bodybuilder, each its own pictures (section 11.5). (The engine was prototyped with SF3 Ryu sprites on both sides; they are gone, the sections above that measured Ryu keep their numbers.) It is
 sprite-agnostic: a character is a table of frames and clips (`character.zig`), the moves are
 tables (`tables.zig`), the simulation (`sim.zig`) reads the hurt and hit boxes of the frame each fighter shows.
 
@@ -368,13 +368,14 @@ tables (`tables.zig`), the simulation (`sim.zig`) reads the hurt and hit boxes o
 | File | What |
 |---|---|
 | `character.zig` | a character: its frames, clips and boxes, from a pack's file or built in memory; `Anim` is the list of moves a character must have |
-| `strips.zig` | XILINDRO's own art as two characters: the strips' converter and the move-to-strip tables (11.5) |
+| `strips.zig` | the strips' converter, generic over the game: a `Spec` per character (shadow colour, facing, move-to-strip clips, reach cap, separation, throw range, the disc files for the tests) |
+| `art_xilindro.zig`, `art_salgin.zig` | each game's table: its two characters' `Spec`s and `pair` (the move-to-strip tables of 11.5) |
 | `tables.zig` | every number (below), one place to tune |
 | `sim.zig` | the fixed-step simulation: control, physics, hits, blocks, throws, knockdowns, facing, walls |
 | `cpu.zig` | the drone at diff 0; `bot.zig` the test players (`idle`, `masher`, `casual`, `decent`) |
 | `match.zig` | a round: the 55-Hz clock, the controllers, `view` (the picture between ticks) |
 | `render.zig` | 8-bit drawing (nearest game-palette colours, a palette swap, fractional nearest-neighbour scale, mirrored) |
-| `xilindro.zig` | XILINDRO's side: builds the characters from the game's loaded strips, energies, the picture; the handler's part is `arena.zig` `mk3Update` |
+| `glue.zig` | the games' side, generic over the `Game` (`anytype`): builds the characters from the game's loaded strips and its table, the energies, the picture; each handler's part is its `arena.zig` `mk3Update` |
 | `tests.zig`, `testing.zig` | the mechanics' tests, on a synthetic pack (no art) |
 
 ### 11.2 Time and pictures
@@ -426,13 +427,17 @@ portraits; the arena band is rebuilt each frame from the background.
 | Space (or Z) | block (↓ + Space: crouching block) |
 | F9 | the hurt (blue) and hit (red) boxes (Debug builds) |
 
-The old XILINDRO keys (PgUp, Home, End, Insert) do nothing in this fight; the controls screen lists the new ones.
-The web pad (the Corrigida's XILINDRO, unless `?mk3=0`) has the arrows, A S D F and a block button in the middle of the arrows; the low and back
+The old keys (XILINDRO's and SALGIN's PgUp, Home, End, Insert) do nothing in this fight; the controls screen lists the new ones (the same eight
+rows for both games, under SALGIN's title).
+The web pad (the Corrigida's XILINDRO and Porrada, unless `?mk3=0`) has the arrows, A S D F and a block button in the middle of the arrows; the low and back
 moves are a held arrow and a tap (multi-touch); a tap that is held still repeats like a keyboard.
 
 ### 11.5 Sprites
 
-**The default: XILINDRO's own art** (`strips.zig`; the fight uses the disc's `sb*.bmp` for the player and `sa*.bmp` for the inmate, no
+Each game's fight is drawn with its own strips, converted at start-up by the same code (`strips.zig`) from a table per game (`art_xilindro.zig`,
+`art_salgin.zig`); the rules of the converter and XILINDRO's art come first, SALGIN's art and its move table after them (11.5.1).
+
+**XILINDRO's own art** (`art_xilindro.zig`, `strips.zig`; the fight uses the disc's `sb*.bmp` for the player and `sa*.bmp` for the inmate, no
 palette swap, no pack, nothing to ship). The converter runs at WM_CREATE on the strips the game has already loaded
 (`fighter.frames[i].dib`, `fight_mk3/xilindro.zig`; the files are on the disc and in the web build's manifest), and makes
 two characters in memory (153 and 148 frames, about 0.5 and 0.7 MB). The strips: 11 stacked-frame 8-bit DIBs each, colour 11 transparent
@@ -444,7 +449,7 @@ strips are in the game's order `soco chme rast chal anda pula defa defe cai sego
 Original (strip 6: a wide squat), `defe` the block (strip 7: arms crossed or up), `rast` the sweep, `chal` the high kick (a flip with the body
 off the ground and its shadow below), `pula` the jump (a squat hop, the shadow far below).
 
-Which strip plays which move (`fighter_clips` and `inmate_clips` in `strips.zig`; frame numbers from 0; `reg` frames keep the art's own
+Which strip plays which move (`fighter_clips` and `inmate_clips` in `art_xilindro.zig`; frame numbers from 0; `reg` frames keep the art's own
 registration, `air` their own feet, `low` their own centre and feet, below):
 
 | MK3 move | Fighter (player) | Inmate (opponent) |
@@ -472,7 +477,7 @@ holds), and the engine stretches them over MK3's timings (`sim.attackFrame`: the
 active one over the active ticks, the rest over the recovery; stuns, jumps and falls stretch their clip over their length; no
 interpolation).
 
-**How the anchors, shadows and boxes come out of the pictures** (`strips.zig` header):
+**How the anchors, shadows and boxes come out of the pictures** (`strips.zig` header; the numbers are XILINDRO's, SALGIN's are in 11.5.1):
 - The 11 strips of a character share one registration (the art's: the same standing pose is frame 0 of several strips at the same pixels). The
   rest pose (`defa` 0) gives the anchor: x the centre of its legs (the lowest 30% of the figure), the floor line its bottom edge. A `reg` frame
   (everything on the ground: stance, walks, blows, blocks, hits, the win) is drawn with that anchor whatever its own shape, so the feet move
@@ -494,6 +499,50 @@ interpolation).
   reaches y 116, the inmate's y 41, just under the clock's bar.
 - Colours: the strips' palette is the game's, so the nearest-colour map is the identity (`render.buildLut`, swap `none` for both).
 
+#### 11.5.1 SALGIN's art
+
+The Corrigida's SALGIN fight (the player's Casseta kid in a cap against the opponent, a bodybuilder; the old fight's names in
+`docs/salgin/GAME.md`) is the same engine on SALGIN's strips (`art_salgin.zig`, converted by `glue.zig` from the strips the game has loaded;
+nothing new on the disc or in the web manifest). The strips are SALGIN's moves in the game's order, `S` in the table: `soco` (punch), `voo` (voadora),
+`ras` (rasteira), `sal` (salto), `gan` (ginga: walk), `sat` (the jump), `gin` (the guard: the rest pose), `def` (defesa), `tomb` (tombo: the fall),
+`mup` (the reel), `win` (the victory). The player's are 173 x 279 (3 frames each, 11 for the victory), the bodybuilder's 216 x 295 (3 each, 22 for
+the victory; `ma*.bmp` read 295 rows a frame); key colour 11, the floor shadow is colour 100 in both. The player faces right in the art, the bodybuilder
+left (mirrored while converting). A character is 178 and 198 frames, 0.56 and 1.4 MB in memory.
+
+| MK3 move | Fighter (player, `vb*`) | Bodybuilder (opponent, `ma*`) |
+|---|---|---|
+| stance | `gin` 0, 1, 2, 1 (loop; the pose with an arm out, `reg`) | the same (`gin` 0, 1, 2, 1) |
+| crouch (↓) | `ras` 1, the sweep's lowest pose (`low`; the hurt box cut at 0.6 of the stance) | the same |
+| walk forward / back | `gan` 0, 1, 2, 1 / reversed (loop) | the same |
+| jump up / forward / back | `sat` 0, 1, 2 over the flight (`low`) | the same strip (`gasa`) |
+| LP / HP, close LP (throw), crouching LP, uppercut, jumping LP / HP | `soco` 0, 1, 2: the blow is frame 1 | `soco` 0, 1, 2 |
+| LK, crouching LK | `sal` 0, 1, 0: the blow is the jump kick's flat kick, frame 1 (`air`: on its own feet, in the art's registration it floats above the opponent's head) | `voo` 0, 1, 0: the front kick, frame 1 |
+| HK, roundhouse | `voo` 0, 1, 2, 0: the flip into the flying kick, the blow is frame 2 (`reg`: the body in the air over its shadow) | `voo` 0, 1, 2, 0: the high kick, the blow is frame 2 |
+| sweep | `ras` 0, 1, 2: the blow is frame 1 | `ras` 0, 1, 1: the lunge (frame 2 turns its back) |
+| jumping LK | `sal` 0, 1, 0 (`air`) | `sal` 0, 1, 2: the blow is the flying kick, frame 2 (`air`) |
+| jumping HK | `voo` 0, 1, 2, 0 (`air`) | `sal` 0, 1, 2 (`air`) |
+| block, crouching block | `def` 1 (the arm up) | `def` 1 (fists up) |
+| hit (standing, crouching) | `mup` 0, 1, 2, weighted 60:140:60 over the stun | `mup` 0, 1, 2 |
+| fall / lying | `tomb` 1 / `tomb` 2 (`low`, no hurt box) | the same |
+| get up | `tomb` 2, 1, 0 | the same |
+| win | `win` 2 to 10 (loop; arms up, the stand and the lean left out) | `win` 2 to 21 (loop) |
+| taunt | none | none |
+
+SALGIN's art has no crouch, crouching punch, kick or uppercut, throw, get-up or turn: they reuse the nearest strip as XILINDRO's do (the table).
+Measured (native size, `scale` 1): the fighter stands 159 px (MK3's 180: -12%), the bodybuilder 193 (+7%); the stance's hurt box is 35 px
+either side of the anchor (`strips.trunk`). The fighter's blows reach 90 px (punch 76 at the arm, flying kick 90); the bodybuilder's art
+reaches 108, **cut to 98** (`bodybuilder_reach`): both fighters of the Original's fair fight strike from a gap of 100, and uncut a novice bot
+wins 77 rounds in 100 against 87 cut. Separation (88) and throw range (92) are the converter's defaults for both: a punch reaches a body
+at the closest they stand (the test checks it). The fight starts 400 px apart, 120 px from each edge, as XILINDRO's.
+
+What SALGIN keeps of its own: the gym background (`fundluta.bmp`, the arena band is restored from it), the clock, the energy bar (the bar
+under the clock is drained from the clock outward as health goes, the old tiles' energy numbers kept in step: 91 at full health, `energyOf`),
+its sounds (the Original's pairs: the player's blow `soco` / `chute3` plus `dor2`, the opponent's plus `dor4`, the sweep and the knockdown `soco2`,
+a block `soco`, the crowd's `vaias` for a win and `mane.WAV` for a loss), the controls screen (its title, the MK3 keys: the same eight rows as
+XILINDRO's), PORRADA's 2 s, the music, and the message to NOITE (`0x40a`: won, score 100 x the energy left, or -1000). The Corrigida's special
+damage table (`salgin_opponent_damage_table`, a choice flag outside `all`) does not apply here: the engine's tables (`tables.zig`, section 11.3)
+decide the damage of both sides.
+
 ### 11.6 The CPU
 
 `cpu.zig` is MK3's drone at diff 0 (section 9): no specials, no running, no combos; it decides when it has finished an
@@ -512,10 +561,10 @@ the simulation) are in `docs/fights/MK3.md` section 11.8.
 ### 11.7 Checks
 
 `zig build test` (the mechanics on the synthetic pack: the jump arc, the opening positions, the side switch, blocks, chip, throws, knockdowns, KO,
-walls, and that the CPU beats a bot that does nothing and loses to a casual one; `strips.zig`'s own tests convert the disc's strips: every move
+walls, and that the CPU beats a bot that does nothing and loses to a casual one; `art_xilindro.zig`'s and `art_salgin.zig`'s tests convert each game's disc strips (`strips.checkSpec`): every move
 present, hurt and hit boxes where the art has a body and a blow, the blows reach a body at the closest the fighters stand), `tools/fight_mk3_smooth.py` on a
-headless run's frame trace (`--fight-bot masher,5,log --dump-every 16`), `tools/play_all.py` (the flag is off by default:
-144 of 144), `tools/smoke.py --minigame xilindro [--fix all]`.
+headless run's frame trace (`--fight-bot masher,5,log --dump-every 16`), `tools/play_all.py` (the Original's runs, and the Corrigida's with the flag off, pass), `tools/smoke.py --minigame xilindro|salgin [--fix all]`. The play scripts of the two Corrigida fights written for the old fight (SALGIN's `salgin-alone-win`, `salgin-4fsalgin-win`,
+`salgin-fair-mash`, `salgin-easy-*`, XILINDRO's `xilindro-alone-win`, `xilindro-3fstreet-win`, `xilindro-fair-mash`, `xilindro-easy-*` and `xilindro-serial-hall`) are not valid with the flag on and fail until they are re-planned (they plan the old fight; `--fix all,-fight_mk3` plays it).
 
 ### 11.8 Results
 
@@ -552,6 +601,24 @@ With XILINDRO's art (the same script, `--fight-bot masher,5,log`, 27.8 s of figh
 (fall, 99th percentile 5 px), no frame where a fighter's feet jump. The art's registration is the artists' own (a `reg` frame anchors at the rest pose's
 feet, 11.5), so the feet move as drawn in a kick or a lunge and nowhere else.
 
+SALGIN's (`tools/fight_bots.py --seeds 60 --game salgin --fixes easy=all,-fight_mk3 mk3=all`, `reports/fight-mk3/win-rates-salgin.txt`; `easy` is its old
+fight with the Corrigida's easy opponent):
+
+| fight | bot | win % | KO % | round ends (s) | bot's energy left | CPU's energy left | hits landed / taken |
+|---|---|---|---|---|---|---|---|
+| old (easy) | idle | 0 | 15 | 96.0 | 9.3 | 91.0 | 0.0 / 20.4 |
+| old (easy) | masher | 22 | 0 | 96.8 | 37.5 | 52.4 | 26.1 / 13.4 |
+| old (easy) | novice | 78 | 82 | 86.5 | 20.7 | 4.5 | 57.9 / 17.6 |
+| old (easy) | decent | 97 | 33 | 95.2 | 33.5 | 5.5 | 57.1 / 14.7 |
+| MK3, SALGIN's art | idle | 0 | 100 | 40.7 | 0.0 | 91.0 | 0.0 / 15.0 |
+| MK3, SALGIN's art | masher | 100 | 100 | 21.7 | 51.7 | 0.0 | 8.8 / 8.1 |
+| MK3, SALGIN's art | novice | 87 | 100 | 43.4 | 30.1 | 2.4 | 12.7 / 11.6 |
+| MK3, SALGIN's art | decent | 97 | 100 | 40.8 | 45.9 | 0.6 | 12.3 / 8.2 |
+
+The same CPU and tables as XILINDRO's, no retune; the novice wins 87 rounds in 100 (XILINDRO's 95) as SALGIN's slimmer fighter reaches 90 px against the
+bodybuilder's 98, and the old fight's easy opponent gave 78. Two things the art set: the fighter's LK is the jump kick's mid-air frame, which in the
+art's own registration floats above the opponent's head and never hit (a novice won 82 rounds in 100, a masher 90), so it is drawn on its own feet; and the opponent's reach cut.
+
 ### 11.9 Gaps and choices for the owner
 
 - Close elbow and knee, run, juggles and combos are not implemented; there are no specials.
@@ -565,3 +632,5 @@ feet, 11.5), so the feet move as drawn in a kick or a lunge and nowhere else.
   is a constant in `cpu.zig`.
 - The PORRADA banner is not drawn in this fight; there is no round counter (one round, as XILINDRO).
 - The art is XILINDRO's own (the disc's, in git).
+- SALGIN: the same gaps with SALGIN's strips (11.5.1: no crouch or low blows, the jump kick as the LK, the flip as the HK and roundhouse, the victory strips
+  as the win, the bodybuilder's reach cut to 98 of 108); the special damage table of its old Corrigida fight is not used, the MK3 tables are.

@@ -143,7 +143,7 @@ pub fn bannerShown(g: *Game, scene: *Scene) bool {
 pub fn showControls(g: *Game) void {
     const bd = (g.scene orelse return).backdrop orelse return;
     fight_controls.open(&g.controls, g.plat.ticks());
-    fight_controls.draw(g.plat, bd.surface(), .salgin, g.fixes.fight_keys_asdf);
+    fight_controls.draw(g.plat, bd.surface(), if (g.mk3 != null) .salgin_mk3 else .salgin, g.fixes.fight_keys_asdf);
     const r = fight_controls.panel;
     g.plat.wingBitBlt(r.x, r.y, r.w, r.h, bd.surface(), r.x, r.y);
 }

@@ -71,7 +71,7 @@ fn nextDue(ctx: *anyopaque) ?u32 {
 /// The picture to present (`Fixes.fight_smooth_motion`), or null for the
 /// screen.
 fn view(ctx: *anyopaque, now: u32) ?*const platform.Screen {
-    if (of(ctx).mk3 != null) return @import("../core/fight_mk3/xilindro.zig").view(of(ctx), now);
+    if (of(ctx).mk3 != null) return @import("../core/fight_mk3/glue.zig").view(of(ctx), now);
     return fight_smooth.view(struct {
         pub const render = units.render;
         pub const dib = units.dib;
